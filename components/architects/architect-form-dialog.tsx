@@ -6,13 +6,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, X } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,12 @@ import type { Architect } from "@/lib/mock/architects";
 
 const phonePattern = /^(\+91[\s-]?)?[6-9]\d{9}$/;
 
+// Adult birth-year range for the Birthday selector (newest first).
+const currentYear = new Date().getFullYear();
+const birthYears = Array.from({ length: 70 }, (_, i) => String(currentYear - 18 - i));
+
 const architectSchema = z.object({
+  prefix: z.string(),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   partners: z.array(z.object({ value: z.string() })),
@@ -42,12 +47,14 @@ const architectSchema = z.object({
   }),
   birthdayMonth: z.string(),
   birthdayDay: z.string(),
+  birthdayYear: z.string(),
 });
 
 type ArchitectFormValues = z.infer<typeof architectSchema>;
 
 function emptyValues(): ArchitectFormValues {
   return {
+    prefix: "",
     firstName: "",
     lastName: "",
     partners: [],
@@ -61,11 +68,13 @@ function emptyValues(): ArchitectFormValues {
     postcode: "",
     birthdayMonth: "",
     birthdayDay: "",
+    birthdayYear: "",
   };
 }
 
 function prefillValues(architect: Architect): ArchitectFormValues {
   return {
+    prefix: architect.prefix,
     firstName: architect.firstName,
     lastName: architect.lastName,
     partners: architect.partners.map((value) => ({ value })),
@@ -79,6 +88,7 @@ function prefillValues(architect: Architect): ArchitectFormValues {
     postcode: architect.postcode,
     birthdayMonth: architect.birthdayMonth,
     birthdayDay: architect.birthdayDay,
+    birthdayYear: architect.birthdayYear,
   };
 }
 
@@ -131,17 +141,34 @@ export function ArchitectFormDialog({
   const createdBy = architect ? mockUsers.find((u) => u.id === architect.createdById)?.name : undefined;
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) reset(emptyValues()); onOpenChange(next); }}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Architect" : "Add Architect"}</DialogTitle>
-          <DialogDescription>
+    <Sheet open={open} onOpenChange={(next) => { if (!next) reset(emptyValues()); onOpenChange(next); }}>
+      <SheetContent
+        side="right"
+        className="flex flex-col gap-4 overflow-y-auto p-6 data-[side=right]:w-screen sm:data-[side=right]:w-full sm:data-[side=right]:max-w-[460px]"
+      >
+        <SheetHeader className="p-0">
+          <SheetTitle>{isEdit ? "Edit Architect" : "Add Architect"}</SheetTitle>
+          <SheetDescription>
             {isEdit ? "Update this architect's details." : "Add a new architect contact."}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
         <form onSubmit={handleSubmit(submit)} noValidate className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-[6rem_1fr_1fr] gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="a-prefix">Prefix</Label>
+              <select
+                id="a-prefix"
+                {...register("prefix")}
+                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
+              >
+                <option value="">None</option>
+                <option value="Mr">Mr</option>
+                <option value="Mrs">Mrs</option>
+                <option value="Ms">Ms</option>
+                <option value="Dr">Dr</option>
+              </select>
+            </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="a-first">First Name *</Label>
               <Input id="a-first" placeholder="e.g. Kavita" {...register("firstName")} />
@@ -237,26 +264,48 @@ export function ArchitectFormDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="a-bday-month">Birthday Month</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label>Birthday</Label>
+            <div className="grid grid-cols-3 gap-3">
+              <select
+                id="a-bday-day"
+                aria-label="Birthday day"
+                {...register("birthdayDay")}
+                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
+              >
+                <option value="">Day</option>
+                {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
               <select
                 id="a-bday-month"
+                aria-label="Birthday month"
                 {...register("birthdayMonth")}
-                defaultValue=""
-                className="w-full rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
               >
-                <option value="">Select month</option>
+                <option value="">Month</option>
                 {months.map((m) => (
                   <option key={m} value={m}>
                     {m}
                   </option>
                 ))}
               </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="a-bday-day">Birthday Day</Label>
-              <Input id="a-bday-day" type="number" min={1} max={31} {...register("birthdayDay")} />
+              <select
+                id="a-bday-year"
+                aria-label="Birthday year"
+                {...register("birthdayYear")}
+                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
+              >
+                <option value="">Year</option>
+                {birthYears.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -273,16 +322,16 @@ export function ArchitectFormDialog({
             </p>
           )}
 
-          <DialogFooter className="gap-2">
+          <SheetFooter className="gap-2 p-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting || !isValid}>
               {isEdit ? "Save Changes" : "Add"}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -111,6 +111,7 @@ export function LayoutTab({ disabled }: { disabled: boolean }) {
           <Input
             id="qt-freight"
             disabled={disabled}
+            key={String(layout.installationFreightText)}
             defaultValue={layout.installationFreightText}
             onBlur={(e) => {
               quoteTemplateStore.updateLayout({ installationFreightText: e.target.value });
@@ -123,6 +124,7 @@ export function LayoutTab({ disabled }: { disabled: boolean }) {
           <Input
             id="qt-validity"
             disabled={disabled}
+            key={String(layout.quoteValidityText)}
             defaultValue={layout.quoteValidityText}
             onBlur={(e) => {
               quoteTemplateStore.updateLayout({ quoteValidityText: e.target.value });
@@ -135,6 +137,7 @@ export function LayoutTab({ disabled }: { disabled: boolean }) {
           <Input
             id="qt-cheque"
             disabled={disabled}
+            key={String(layout.chequePayableTo)}
             defaultValue={layout.chequePayableTo}
             onBlur={(e) => {
               quoteTemplateStore.updateLayout({ chequePayableTo: e.target.value });

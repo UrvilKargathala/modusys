@@ -20,6 +20,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { FurnitureLineItemRow } from "@/components/templates/furniture-line-item-row";
 import { UnitTypeComponentsSection } from "@/components/templates/unit-type-components-section";
 import { UnitTypeHardwareRow } from "@/components/templates/unit-type-hardware-row";
+import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
+import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { unitTypeStore, type NewUnitTypeInput } from "@/lib/store/unit-type-store";
 import type { UnitType, FurnitureLineItem, UnitTypeHardware } from "@/lib/mock/unit-type";
 
@@ -28,6 +30,8 @@ function emptyValues(): NewUnitTypeInput {
     name: "",
     shortCode: "",
     active: true,
+    brandId: "",
+    description: "",
     cabinetTypeLinks: [],
     components: [],
     externalFinishes: [],
@@ -70,6 +74,7 @@ export function UnitTypeFormDialog({
   onSubmit: (values: NewUnitTypeInput) => void;
 }) {
   const isEdit = !!item;
+  const cabinetTypes = useCabinetTypes();
   const [tab, setTab] = useState("basic");
   const [values, setValues] = useState<NewUnitTypeInput>(emptyValues());
   const [shortCodeError, setShortCodeError] = useState<string | null>(null);
@@ -84,6 +89,8 @@ export function UnitTypeFormDialog({
             name: item.name,
             shortCode: item.shortCode,
             active: item.active,
+            brandId: item.brandId,
+            description: item.description,
             cabinetTypeLinks: item.cabinetTypeLinks,
             components: item.components,
             externalFinishes: item.externalFinishes,
@@ -163,8 +170,8 @@ export function UnitTypeFormDialog({
             <TabsTrigger value="basic">Basic Info</TabsTrigger>
             <TabsTrigger value="components">Components ({values.components.length})</TabsTrigger>
             <TabsTrigger value="external-finish">External Finish ({values.externalFinishes.length})</TabsTrigger>
-            <TabsTrigger value="hardware">Hardware ({values.hardware.length})</TabsTrigger>
             <TabsTrigger value="other-panel">Other Panel ({values.otherPanels.length})</TabsTrigger>
+            <TabsTrigger value="hardware">Hardware ({values.hardware.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic" className="flex flex-col gap-4 pt-4">
@@ -190,6 +197,35 @@ export function UnitTypeFormDialog({
                   }}
                 />
                 {shortCodeError && <span className="text-xs font-body text-error">{shortCodeError}</span>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label>Brand</Label>
+                <MaterialReferenceSelect
+                  category="brand"
+                  value={values.brandId}
+                  onChange={(id) => setValues((v) => ({ ...v, brandId: id }))}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="ut-description">Description</Label>
+                <select
+                  id="ut-description"
+                  value={values.description}
+                  onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))}
+                  className="w-full rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+                >
+                  <option value="">Select from a Cabinet Type…</option>
+                  {cabinetTypes
+                    .filter((c) => c.description.trim())
+                    .map((c) => (
+                      <option key={c.id} value={c.description}>
+                        {c.name} — {c.description}
+                      </option>
+                    ))}
+                </select>
               </div>
             </div>
 

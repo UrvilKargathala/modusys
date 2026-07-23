@@ -1,5 +1,6 @@
 export type Architect = {
   id: string;
+  prefix: string; // "", "Mr", "Mrs", "Ms", "Dr"
   firstName: string;
   lastName: string;
   partners: string[];
@@ -13,13 +14,14 @@ export type Architect = {
   postcode: string;
   birthdayMonth: string;
   birthdayDay: string;
+  birthdayYear: string;
   createdAt: string; // ISO date
   createdById: string;
   deleted?: boolean;
 };
 
-export function fullName(a: Pick<Architect, "firstName" | "lastName">) {
-  return `${a.firstName} ${a.lastName}`.trim();
+export function fullName(a: Pick<Architect, "firstName" | "lastName"> & { prefix?: string }) {
+  return `${a.prefix ? `${a.prefix} ` : ""}${a.firstName} ${a.lastName}`.trim();
 }
 
 // Seed data — intentionally includes a near-duplicate pair ("Ar Swapnil"
@@ -29,6 +31,7 @@ export function fullName(a: Pick<Architect, "firstName" | "lastName">) {
 export const mockArchitects: Architect[] = [
   {
     id: "arch-1",
+    prefix: "Mr",
     firstName: "Ar Swapnil",
     lastName: "Deshmukh",
     partners: [],
@@ -42,11 +45,13 @@ export const mockArchitects: Architect[] = [
     postcode: "400025",
     birthdayMonth: "March",
     birthdayDay: "14",
+    birthdayYear: "",
     createdAt: "2026-02-10T09:00:00Z",
     createdById: "u1",
   },
   {
     id: "arch-2",
+    prefix: "Mr",
     firstName: "Ar Swapnil",
     lastName: "Deshmukh",
     partners: ["Ar. Priya Kulkarni"],
@@ -60,11 +65,13 @@ export const mockArchitects: Architect[] = [
     postcode: "400050",
     birthdayMonth: "March",
     birthdayDay: "14",
+    birthdayYear: "",
     createdAt: "2026-03-02T09:00:00Z",
     createdById: "u1",
   },
   {
     id: "arch-3",
+    prefix: "Mrs",
     firstName: "Kavita",
     lastName: "Rao",
     partners: [],
@@ -78,11 +85,13 @@ export const mockArchitects: Architect[] = [
     postcode: "560038",
     birthdayMonth: "July",
     birthdayDay: "22",
+    birthdayYear: "",
     createdAt: "2026-01-20T09:00:00Z",
     createdById: "u5",
   },
   {
     id: "arch-4",
+    prefix: "Mr",
     firstName: "Suresh",
     lastName: "Iyer",
     partners: ["Ar. Meena Pillai", "Ar. Ravi Nair"],
@@ -96,11 +105,13 @@ export const mockArchitects: Architect[] = [
     postcode: "600040",
     birthdayMonth: "November",
     birthdayDay: "5",
+    birthdayYear: "",
     createdAt: "2025-12-15T09:00:00Z",
     createdById: "u1",
   },
   {
     id: "arch-5",
+    prefix: "Mrs",
     firstName: "Meenal",
     lastName: "Deshpande",
     partners: [],
@@ -114,6 +125,7 @@ export const mockArchitects: Architect[] = [
     postcode: "411001",
     birthdayMonth: "September",
     birthdayDay: "30",
+    birthdayYear: "",
     createdAt: "2026-04-01T09:00:00Z",
     createdById: "u6",
   },

@@ -25,6 +25,7 @@ export function BankingTab({ disabled }: { disabled: boolean }) {
           <Input
             id="qt-bank-name"
             disabled={disabled}
+            key={String(banking.bankName)}
             defaultValue={banking.bankName}
             onBlur={(e) => {
               quoteTemplateStore.updateBanking({ bankName: e.target.value });
@@ -36,6 +37,7 @@ export function BankingTab({ disabled }: { disabled: boolean }) {
           <Input
             id="qt-branch"
             disabled={disabled}
+            key={String(banking.branch)}
             defaultValue={banking.branch}
             onBlur={(e) => {
               quoteTemplateStore.updateBanking({ branch: e.target.value });
@@ -47,6 +49,7 @@ export function BankingTab({ disabled }: { disabled: boolean }) {
           <Input
             id="qt-account-name"
             disabled={disabled}
+            key={String(banking.accountName)}
             defaultValue={banking.accountName}
             onBlur={(e) => {
               quoteTemplateStore.updateBanking({ accountName: e.target.value });
@@ -63,6 +66,7 @@ export function BankingTab({ disabled }: { disabled: boolean }) {
               id="qt-account-number"
               disabled={disabled}
               type={revealAccount ? "text" : "password"}
+              key={String(banking.accountNumber)}
               defaultValue={banking.accountNumber}
               className="pr-8"
               onBlur={(e) => {
@@ -84,6 +88,7 @@ export function BankingTab({ disabled }: { disabled: boolean }) {
           <Input
             id="qt-ifsc"
             disabled={disabled}
+            key={String(banking.ifscCode)}
             defaultValue={banking.ifscCode}
             onBlur={(e) => {
               quoteTemplateStore.updateBanking({ ifscCode: e.target.value.toUpperCase() });

@@ -201,7 +201,10 @@ export function CustomersTable() {
         onOpenChange={setAddOpen}
         onSubmit={(values) =>
           customersStore.createCustomer({
-            name: values.name,
+            prefix: values.prefix,
+            firstName: values.firstName,
+            lastName: values.lastName,
+            customerCode: values.customerCode,
             mobile: values.mobile,
             email: values.email,
             gst: values.gst,
@@ -211,6 +214,7 @@ export function CustomersTable() {
             postcode: values.postcode,
             birthdayMonth: values.birthdayMonth,
             birthdayDay: values.birthdayDay,
+            birthdayYear: values.birthdayYear,
             createdById: CURRENT_USER_ID,
           })
         }
@@ -223,9 +227,20 @@ export function CustomersTable() {
           customer={editTarget}
           profile={editProfile}
           override={editOverride}
-          onSubmit={(values) =>
+          onSubmit={(values) => {
+            // Persist the identity fields (and recomposed name) to the DB…
+            customersStore.updateCustomer(editTarget.id, {
+              prefix: values.prefix,
+              firstName: values.firstName,
+              lastName: values.lastName,
+              customerCode: values.customerCode,
+              birthdayMonth: values.birthdayMonth,
+              birthdayDay: values.birthdayDay,
+              birthdayYear: values.birthdayYear,
+            });
+            // …and keep the local overlay in sync for the detail panel.
             profileOverridesStore.setFields(editTarget.id, {
-              name: values.name,
+              name: `${values.firstName} ${values.lastName}`.trim(),
               phone: values.mobile,
               email: values.email,
               gst: values.gst,
@@ -237,8 +252,8 @@ export function CustomersTable() {
               birthdayDay: values.birthdayDay,
               updatedAt: new Date().toISOString(),
               updatedById: CURRENT_USER_ID,
-            })
-          }
+            });
+          }}
         />
       )}
 

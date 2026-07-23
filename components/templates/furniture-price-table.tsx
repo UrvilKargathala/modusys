@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, PackageSearch } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, PackageSearch } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -129,6 +129,22 @@ export function FurniturePriceTable() {
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">{i.rate.toFixed(2)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
+                      {canEdit && (
+                        <Tooltip>
+                          <TooltipTrigger
+                            aria-label="Duplicate"
+                            onClick={() => {
+                              const { id: _id, createdAt: _c, deleted: _d, ...rest } = i;
+                              pricingListStore.createFurnitureItem(rest);
+                              toastStore.show("Price entry duplicated", "success");
+                            }}
+                            className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </TooltipTrigger>
+                          <TooltipContent>Duplicate</TooltipContent>
+                        </Tooltip>
+                      )}
                       {canEdit && (
                         <Tooltip>
                           <TooltipTrigger

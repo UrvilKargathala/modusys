@@ -2,20 +2,14 @@
 
 import { useSyncExternalStore } from "react";
 import { mockQuotes, type Quote } from "@/lib/mock/quote";
+import { fetchJson } from "@/lib/store/api-sync";
 
-const STORAGE_KEY = "modusys.quotes.v1";
-
+// Backed by the shared DB via /api/quotes — per-record (each quote is
+// independent), so saveQuote upserts a single quote rather than replacing a
+// collection.
 let quotes: Quote[] = mockQuotes;
 let hydrated = false;
 const listeners = new Set<() => void>();
-
-function persist() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(quotes));
-  } catch {
-    // ignore write failures
-  }
-}
 
 function emit() {
   for (const listener of listeners) listener();
@@ -24,12 +18,12 @@ function emit() {
 function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) quotes = JSON.parse(stored) as Quote[];
-  } catch {
-    // ignore parse failures, keep seed
-  }
+  void fetchJson<Quote[]>("/api/quotes").then((data) => {
+    if (data) {
+      quotes = data;
+      emit();
+    }
+  });
 }
 
 function pad(n: number, width: number) {
@@ -68,9 +62,16 @@ export const quotesStore = {
     ensureHydrated();
     const existingIndex = quotes.findIndex((q) => q.id === quote.id);
     const updated = { ...quote, updatedAt: new Date().toISOString() };
-    quotes = existingIndex >= 0 ? quotes.map((q, i) => (i === existingIndex ? updated : q)) : [...quotes, updated];
-    persist();
+    quotes = existingIndex >= 0 ? quotes.map((q, i) => (i === existingIndex ? updated : q)) : [updated, ...quotes];
     emit();
+    // Upsert this single quote in the shared DB.
+    fetch("/api/quotes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updated),
+    }).catch(() => {
+      // transient failure — the next save re-sends the full quote
+    });
     return updated;
   },
 };

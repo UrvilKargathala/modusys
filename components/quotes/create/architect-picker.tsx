@@ -85,8 +85,8 @@ export function ArchitectPicker({ value, onChange }: { value: string; onChange: 
       <ArchitectFormDialog
         open={addOpen}
         onOpenChange={setAddOpen}
-        onSubmit={(values) => {
-          const created = architectsStore.createArchitect({ ...values, createdById: getCurrentUser().id });
+        onSubmit={async (values) => {
+          const created = await architectsStore.createArchitect({ ...values, createdById: getCurrentUser().id });
           onChange(created.id);
         }}
       />

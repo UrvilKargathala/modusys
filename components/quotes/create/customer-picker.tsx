@@ -74,8 +74,8 @@ export function CustomerPicker({ value, onChange }: { value: string; onChange: (
       <CustomerFormDialog
         open={addOpen}
         onOpenChange={setAddOpen}
-        onSubmit={(values) => {
-          const created = customersStore.createCustomer({ ...values, createdById: getCurrentUser().id });
+        onSubmit={async (values) => {
+          const created = await customersStore.createCustomer({ ...values, createdById: getCurrentUser().id });
           onChange(created.id);
         }}
       />

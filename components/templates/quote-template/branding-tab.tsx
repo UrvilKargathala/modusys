@@ -76,6 +76,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
           <Input
             id="qt-company-name"
             disabled={disabled}
+            key={String(branding.companyName)}
             defaultValue={branding.companyName}
             onBlur={(e) => {
               quoteTemplateStore.updateBranding({ companyName: e.target.value });
@@ -88,6 +89,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
           <Input
             id="qt-tagline"
             disabled={disabled}
+            key={String(branding.tagline)}
             defaultValue={branding.tagline}
             onBlur={(e) => {
               quoteTemplateStore.updateBranding({ tagline: e.target.value });
@@ -100,6 +102,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
           <Input
             id="qt-address"
             disabled={disabled}
+            key={String(branding.address)}
             defaultValue={branding.address}
             onBlur={(e) => {
               quoteTemplateStore.updateBranding({ address: e.target.value });
@@ -113,6 +116,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
             id="qt-email"
             type="email"
             disabled={disabled}
+            key={String(branding.email)}
             defaultValue={branding.email}
             onBlur={(e) => {
               quoteTemplateStore.updateBranding({ email: e.target.value });
@@ -124,6 +128,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
           <Input
             id="qt-phone"
             disabled={disabled}
+            key={String(branding.phone)}
             defaultValue={branding.phone}
             onBlur={(e) => {
               quoteTemplateStore.updateBranding({ phone: e.target.value });
@@ -146,6 +151,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
             type="number"
             step="0.01"
             disabled={disabled}
+            key={String(branding.defaultMarkupMultiplier)}
             defaultValue={branding.defaultMarkupMultiplier}
             className="max-w-32"
             onBlur={(e) => {

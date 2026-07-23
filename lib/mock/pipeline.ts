@@ -3,6 +3,22 @@ import { pipelineStages, type PipelineStageKey } from "@/lib/constants/pipelineS
 export type Customer = {
   id: string;
   name: string;
+  prefix: string;
+  firstName: string;
+  lastName: string;
+  srNo: number;
+  customerCode: string;
+  birthdayYear: string;
+  // Profile fields — present on serialized DB records (merged Customer table),
+  // absent on the lightweight pipeline mock, hence optional.
+  mobile?: string;
+  email?: string;
+  gst?: string;
+  city?: string;
+  state?: string;
+  postcode?: string;
+  birthdayMonth?: string;
+  birthdayDay?: string;
   address: string;
   stage: PipelineStageKey;
   finalOfferLakh: number | null;
@@ -76,10 +92,19 @@ function generateCustomers(): Customer[] {
   for (const stage of pipelineStages) {
     const count = stageCounts[stage.key];
     for (let i = 0; i < count; i++) {
+      const seq = counter;
       const id = `cust-${counter++}`;
+      const cname = `${pick(surnames)} ${pick(clientSuffix)}`;
+      const [cfirst, ...crest] = cname.split(" ");
       customers.push({
         id,
-        name: `${pick(surnames)} ${pick(clientSuffix)}`,
+        name: cname,
+        prefix: "",
+        firstName: cfirst,
+        lastName: crest.join(" "),
+        srNo: seq,
+        customerCode: `${cfirst[0] ?? ""}${(crest[0] ?? "")[0] ?? ""}`.toUpperCase(),
+        birthdayYear: "",
         address: pick(cities),
         stage: stage.key,
         finalOfferLakh: stagesWithOffers.has(stage.key)

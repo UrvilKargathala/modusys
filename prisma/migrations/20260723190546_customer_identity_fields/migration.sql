@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "Customer" ADD COLUMN     "birthdayYear" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "customerCode" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "firstName" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "lastName" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "prefix" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "srNo" INTEGER NOT NULL DEFAULT 0;

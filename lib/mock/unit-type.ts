@@ -72,6 +72,8 @@ export type UnitType = {
   name: string;
   shortCode: string;
   active: boolean;
+  brandId: string; // Material Library → Brand
+  description: string; // pulled from an attached Cabinet Type
   // Ordered — first entry is the primary Cabinet Type. Each attached Cabinet
   // Type's Components are snapshot-copied into `components` at attach time
   // (tagged via sourceLinkId), not live-linked. The same Cabinet Type may
@@ -111,6 +113,8 @@ export const mockUnitTypes: UnitType[] = [
     name: "Base Unit With 3 Tandem Drawers",
     shortCode: "BU3TBL-CLPT",
     active: true,
+    brandId: findMaterialId("brand", "The Furn"),
+    description: "",
     cabinetTypeLinks: [{ id: "utl-1", cabinetTypeId: findCabinetTypeId("BC") }],
     components: [
       lineItem({

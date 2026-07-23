@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Info } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -21,9 +21,22 @@ import { mockUsers } from "@/lib/mock/users";
 import type { Customer } from "@/lib/mock/pipeline";
 import type { CustomerProfile } from "@/lib/mock/customer-detail";
 import type { ProfileOverride } from "@/lib/store/customer-profile-overrides-store";
+import { useCustomers } from "@/lib/store/customers-store";
+
+const currentYear = new Date().getFullYear();
+const birthYears = Array.from({ length: 70 }, (_, i) => String(currentYear - 18 - i));
+
+function pad4(n: number) {
+  return String(n).padStart(4, "0");
+}
+function deriveCode(firstName: string, lastName: string) {
+  return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
+}
 
 const customerSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  prefix: z.string(),
+  firstName: z.string().min(1, "Name is required"),
+  lastName: z.string(),
   mobile: z
     .string()
     .refine((v) => v === "" || /^(\+91[\s-]?)?[6-9]\d{9}$/.test(v.replace(/\s/g, "")), {
@@ -41,13 +54,18 @@ const customerSchema = z.object({
   }),
   birthdayMonth: z.string(),
   birthdayDay: z.string(),
+  birthdayYear: z.string(),
 });
 
 type CustomerFormValues = z.infer<typeof customerSchema>;
 
+export type CustomerFormOutput = CustomerFormValues & { customerCode: string };
+
 function emptyValues(): CustomerFormValues {
   return {
-    name: "",
+    prefix: "",
+    firstName: "",
+    lastName: "",
     mobile: "",
     email: "",
     gst: "",
@@ -57,13 +75,16 @@ function emptyValues(): CustomerFormValues {
     postcode: "",
     birthdayMonth: "",
     birthdayDay: "",
+    birthdayYear: "",
   };
 }
 
 function prefillValues(customer: Customer, profile: CustomerProfile, override: ProfileOverride): CustomerFormValues {
   const merged = { ...profile, ...override };
   return {
-    name: override.name ?? customer.name,
+    prefix: customer.prefix ?? "",
+    firstName: customer.firstName || customer.name,
+    lastName: customer.lastName ?? "",
     mobile: merged.phone,
     email: merged.email,
     gst: merged.gst,
@@ -73,6 +94,7 @@ function prefillValues(customer: Customer, profile: CustomerProfile, override: P
     postcode: merged.postcode,
     birthdayMonth: merged.birthdayMonth,
     birthdayDay: merged.birthdayDay,
+    birthdayYear: customer.birthdayYear ?? "",
   };
 }
 
@@ -90,13 +112,15 @@ export function CustomerFormDialog({
   customer?: Customer;
   profile?: CustomerProfile;
   override?: ProfileOverride;
-  onSubmit: (values: CustomerFormValues) => void;
+  onSubmit: (values: CustomerFormOutput) => void;
 }) {
   const isEdit = !!customer;
+  const customers = useCustomers();
   const {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting, isValid },
   } = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
@@ -109,28 +133,77 @@ export function CustomerFormDialog({
     reset(customer && profile ? prefillValues(customer, profile, override ?? {}) : emptyValues());
   }, [open, customer, profile, override, reset]);
 
+  // SR No: the existing one in Edit mode, else a preview of the next serial
+  // (the server assigns the authoritative value on save).
+  const srNo = useMemo(() => {
+    if (isEdit && customer) return customer.srNo || 0;
+    return customers.reduce((max, c) => Math.max(max, c.srNo ?? 0), 0) + 1;
+  }, [isEdit, customer, customers]);
+
+  const liveCode = deriveCode(watch("firstName") ?? "", watch("lastName") ?? "");
+
   const submit = (values: CustomerFormValues) => {
-    onSubmit(values);
+    onSubmit({ ...values, customerCode: deriveCode(values.firstName, values.lastName) });
     onOpenChange(false);
   };
 
   const updatedBy = override?.updatedById ? mockUsers.find((u) => u.id === override.updatedById)?.name : undefined;
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) reset(emptyValues()); onOpenChange(next); }}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Customer" : "Add Customer"}</DialogTitle>
-          <DialogDescription>
+    <Sheet open={open} onOpenChange={(next) => { if (!next) reset(emptyValues()); onOpenChange(next); }}>
+      <SheetContent
+        side="right"
+        className="flex flex-col gap-4 overflow-y-auto p-6 data-[side=right]:w-screen sm:data-[side=right]:w-full sm:data-[side=right]:max-w-[460px]"
+      >
+        <SheetHeader className="p-0">
+          <SheetTitle>{isEdit ? "Edit Customer" : "Add Customer"}</SheetTitle>
+          <SheetDescription>
             {isEdit ? "Update this customer's details." : "Add a new customer to the pipeline."}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
         <form onSubmit={handleSubmit(submit)} noValidate className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="c-name">Name *</Label>
-            <Input id="c-name" placeholder="e.g. Desai Apartment" {...register("name")} />
-            {errors.name && <span className="text-xs font-body text-error">{errors.name.message}</span>}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-[3.5rem_1fr] gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="c-srno">SR No</Label>
+                  <div className="flex h-9 items-center justify-center rounded-lg border border-grey-100 bg-light-600 px-1 text-sm font-body font-medium text-grey-700">
+                    {pad4(srNo)}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="c-prefix">Prefix</Label>
+                  <select
+                    id="c-prefix"
+                    {...register("prefix")}
+                    className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
+                  >
+                    <option value="">—</option>
+                    <option value="Mr">Mr</option>
+                    <option value="Mrs">Mrs</option>
+                    <option value="Ms">Ms</option>
+                    <option value="Dr">Dr</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="c-code">Customer Code</Label>
+                <div className="flex h-9 items-center justify-center rounded-lg border border-grey-100 bg-light-600 px-1 text-sm font-body font-medium text-grey-700">
+                  {liveCode || "—"}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="c-first">Name *</Label>
+                <Input id="c-first" placeholder="Rahul" {...register("firstName")} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="c-last">Surname</Label>
+                <Input id="c-last" placeholder="Verma" {...register("lastName")} />
+              </div>
+            </div>
+            {errors.firstName && <span className="text-xs font-body text-error">{errors.firstName.message}</span>}
+            <span className="text-xs font-body text-grey-400">Customer Code is auto-generated from the initials of Name and Surname.</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -174,26 +247,48 @@ export function CustomerFormDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="c-bday-month">Birthday Month</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label>Birthday</Label>
+            <div className="grid grid-cols-3 gap-3">
+              <select
+                id="c-bday-day"
+                aria-label="Birthday day"
+                {...register("birthdayDay")}
+                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
+              >
+                <option value="">Day</option>
+                {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
               <select
                 id="c-bday-month"
+                aria-label="Birthday month"
                 {...register("birthdayMonth")}
-                defaultValue=""
-                className="w-full rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
               >
-                <option value="">Select month</option>
+                <option value="">Month</option>
                 {months.map((m) => (
                   <option key={m} value={m}>
                     {m}
                   </option>
                 ))}
               </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="c-bday-day">Birthday Day</Label>
-              <Input id="c-bday-day" type="number" min={1} max={31} {...register("birthdayDay")} />
+              <select
+                id="c-bday-year"
+                aria-label="Birthday year"
+                {...register("birthdayYear")}
+                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
+              >
+                <option value="">Year</option>
+                {birthYears.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -216,16 +311,16 @@ export function CustomerFormDialog({
             </div>
           )}
 
-          <DialogFooter className="gap-2">
+          <SheetFooter className="gap-2 p-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting || !isValid}>
               {isEdit ? "Save Changes" : "Add"}
             </Button>
-          </DialogFooter>
+          </SheetFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

@@ -2,29 +2,18 @@
 
 import { useSyncExternalStore } from "react";
 import { mockQuoteTemplateSettings, type QuoteTemplateSettings } from "@/lib/mock/quote-template";
+import { fetchJson, makeDebouncedPut } from "@/lib/store/api-sync";
 
-const STORAGE_KEY = "modusys.quoteTemplate";
-
-function loadInitial(): QuoteTemplateSettings {
-  if (typeof window === "undefined") return mockQuoteTemplateSettings;
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    return stored ? (JSON.parse(stored) as QuoteTemplateSettings) : mockQuoteTemplateSettings;
-  } catch {
-    return mockQuoteTemplateSettings;
-  }
-}
-
+// Singleton config row backed by the shared DB via /api/quote-template.
+// Every mutation funnels through persist(), a debounced PUT of the whole
+// settings object.
 let settings: QuoteTemplateSettings = mockQuoteTemplateSettings;
 let hydrated = false;
 const listeners = new Set<() => void>();
 
+const putSettings = makeDebouncedPut("/api/quote-template");
 function persist() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // ignore write failures
-  }
+  putSettings(settings);
 }
 
 function emit() {
@@ -33,8 +22,13 @@ function emit() {
 
 function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
-  settings = loadInitial();
   hydrated = true;
+  void fetchJson<QuoteTemplateSettings>("/api/quote-template").then((data) => {
+    if (data) {
+      settings = data;
+      emit();
+    }
+  });
 }
 
 function moveItem<T>(list: T[], index: number, direction: -1 | 1): T[] {

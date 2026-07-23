@@ -38,6 +38,7 @@ function newComponent(): CabinetComponent {
     internalColourId: "",
     externalColourId: "",
     qty: 1,
+    remarks: "",
   };
 }
 

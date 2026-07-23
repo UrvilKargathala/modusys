@@ -12,10 +12,10 @@ import { ListView } from "@/components/crm/pipeline/list-view";
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { formatPercent } from "@/lib/format";
 import { getCrmKpis } from "@/lib/mock/crm";
-import { updateCustomerStage, type Customer } from "@/lib/mock/pipeline";
+import { type Customer } from "@/lib/mock/pipeline";
 import { pipelineStages, type PipelineStageKey } from "@/lib/constants/pipelineStages";
 import { customerMessagesStore } from "@/lib/store/customer-messages-store";
-import { useCustomers } from "@/lib/store/customers-store";
+import { useCustomers, customersStore } from "@/lib/store/customers-store";
 
 const CLOSED_STAGES = new Set<PipelineStageKey>(["site-completed", "cancel-order"]);
 const ZERO_COUNT_DEFAULT_COLLAPSED = new Set<PipelineStageKey>(["ready-to-dispatch", "services"]);
@@ -94,11 +94,11 @@ export function PipelineTab() {
     );
 
     try {
-      await updateCustomerStage(customerId, nextStage);
+      await customersStore.updateStage(customerId, nextStage);
       const stageLabel = pipelineStages.find((s) => s.key === nextStage)?.label ?? nextStage;
       customerMessagesStore.addSystemEvent(customerId, `Stage changed to ${stageLabel}`);
     } catch (err) {
-      setCustomers(previous); // rollback on simulated API failure
+      setCustomers(previous); // rollback on API failure
       throw err;
     }
   };

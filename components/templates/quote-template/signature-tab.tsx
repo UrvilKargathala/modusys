@@ -18,6 +18,7 @@ export function SignatureTab({ disabled }: { disabled: boolean }) {
           <Input
             id="qt-sig-company"
             disabled={disabled}
+            key={String(signature.companyName)}
             defaultValue={signature.companyName}
             onBlur={(e) => {
               quoteTemplateStore.updateSignature({ companyName: e.target.value });
@@ -30,6 +31,7 @@ export function SignatureTab({ disabled }: { disabled: boolean }) {
           <Input
             id="qt-sig-title"
             disabled={disabled}
+            key={String(signature.signatureTitle)}
             defaultValue={signature.signatureTitle}
             onBlur={(e) => {
               quoteTemplateStore.updateSignature({ signatureTitle: e.target.value });
@@ -43,6 +45,7 @@ export function SignatureTab({ disabled }: { disabled: boolean }) {
         <textarea
           id="qt-sig-footer"
           disabled={disabled}
+          key={String(signature.additionalFooterText)}
           defaultValue={signature.additionalFooterText}
           rows={2}
           className="w-full rounded-lg border border-grey-100 bg-transparent px-2.5 py-1.5 text-sm font-body text-grey-700 outline-none focus:border-primary disabled:opacity-50 lg:max-w-2xl"

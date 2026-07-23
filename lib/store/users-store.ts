@@ -4,38 +4,34 @@ import { useSyncExternalStore } from "react";
 import { mockUsers, type OrgUser } from "@/lib/mock/users";
 import type { RoleKey } from "@/lib/constants/roles";
 
-const STORAGE_KEY = "modusys.users";
-
-function loadInitial(): OrgUser[] {
-  if (typeof window === "undefined") return mockUsers;
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    return stored ? (JSON.parse(stored) as OrgUser[]) : mockUsers;
-  } catch {
-    return mockUsers;
-  }
-}
+// Backed by the shared PostgreSQL database via /api/users. Mutations are
+// optimistic (update in-memory + emit immediately so the UI stays snappy),
+// then persisted in the background; a failed write refetches to reconcile.
+// The exported interface is unchanged, so components need no edits.
 
 let users: OrgUser[] = mockUsers;
 let hydrated = false;
 const listeners = new Set<() => void>();
 
-function persist() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-  } catch {
-    // ignore write failures
-  }
-}
-
 function emit() {
   for (const listener of listeners) listener();
 }
 
+async function refetch() {
+  try {
+    const res = await fetch("/api/users", { cache: "no-store" });
+    if (!res.ok) return;
+    users = (await res.json()) as OrgUser[];
+    emit();
+  } catch {
+    // offline / transient — keep whatever's in memory
+  }
+}
+
 function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
-  users = loadInitial();
   hydrated = true;
+  void refetch();
 }
 
 export const usersStore = {
@@ -50,51 +46,68 @@ export const usersStore = {
   getServerSnapshot() {
     return mockUsers;
   },
-  // TODO: replace with a real POST /users/invite call (Phase B3).
   inviteUser(input: { name: string; email: string; role: RoleKey }) {
     ensureHydrated();
-    users = [
-      ...users,
-      { id: `user-${Date.now()}`, name: input.name, email: input.email, status: "invited", role: input.role, lastActive: new Date().toISOString() },
-    ];
-    persist();
+    const optimistic: OrgUser = {
+      id: `temp-${Date.now()}`,
+      name: input.name,
+      email: input.email,
+      status: "invited",
+      role: input.role,
+      lastActive: new Date().toISOString(),
+    };
+    users = [...users, optimistic];
     emit();
+    fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: input.name, email: input.email, role: input.role, status: "invited" }),
+    }).then(refetch, refetch);
   },
-  // TODO: replace with a real PATCH /users/:id/role call (Phase B3).
   assignRole(userId: string, role: RoleKey) {
     ensureHydrated();
     users = users.map((u) => (u.id === userId ? { ...u, role } : u));
-    persist();
     emit();
+    fetch(`/api/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    }).catch(refetch);
   },
-  // TODO: real PATCH /users/:id/password call, distinct from the general
-  // user-update route so it can carry stricter rate-limiting/role checks
-  // (Phase B3). The password value itself is never stored here — this mock
-  // only records that a change happened and whether it forces a re-set.
   setPassword(userId: string, mustChangePassword: boolean) {
     ensureHydrated();
-    users = users.map((u) =>
-      u.id === userId ? { ...u, mustChangePassword, passwordUpdatedAt: new Date().toISOString() } : u
-    );
-    persist();
+    const now = new Date().toISOString();
+    users = users.map((u) => (u.id === userId ? { ...u, mustChangePassword, passwordUpdatedAt: now } : u));
     emit();
+    fetch(`/api/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mustChangePassword, passwordUpdatedAt: now }),
+    }).catch(refetch);
   },
   clearMustChangePassword(userId: string) {
     ensureHydrated();
     users = users.map((u) => (u.id === userId ? { ...u, mustChangePassword: false } : u));
-    persist();
     emit();
+    fetch(`/api/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mustChangePassword: false }),
+    }).catch(refetch);
   },
   isEmailTaken(email: string, excludeUserId?: string) {
     ensureHydrated();
     return users.some((u) => u.id !== excludeUserId && u.email.toLowerCase() === email.trim().toLowerCase());
   },
-  // TODO: replace with a real PATCH /users/:id call (Phase B3).
   updateUser(userId: string, fields: { name: string; email: string }) {
     ensureHydrated();
     users = users.map((u) => (u.id === userId ? { ...u, name: fields.name, email: fields.email } : u));
-    persist();
     emit();
+    fetch(`/api/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    }).catch(refetch);
   },
 };
 

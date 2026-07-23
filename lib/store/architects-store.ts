@@ -3,18 +3,13 @@
 import { useSyncExternalStore } from "react";
 import { mockArchitects, type Architect } from "@/lib/mock/architects";
 
-const STORAGE_KEY = "modusys.architects.v1";
+// Backed by the shared PostgreSQL database via /api/architects. Reads hydrate
+// from the API; writes are optimistic then persisted, with a reconciling
+// refetch. createArchitect is async so callers get the real DB id (the quote
+// architect-picker selects the created record by id).
 
-// Unlike Customers (which layers new fields over a pre-existing pipeline
-// Customer type via a separate overrides store), Architect is a brand-new
-// entity with no prior shape to preserve — so one plain array holding
-// full records (seed + created + edited, soft-deleted via a flag) is enough.
 let architects: Architect[] = mockArchitects;
-// Cached, referentially-stable "visible" (non-deleted) list — recomputed
-// only on mutation. useSyncExternalStore requires getSnapshot to return the
-// *same* reference when nothing changed; filtering inline in the hook on
-// every call breaks that contract and causes an infinite re-render loop.
-let visible: Architect[] = mockArchitects;
+let visible: Architect[] = mockArchitects.filter((a) => !a.deleted);
 let hydrated = false;
 const listeners = new Set<() => void>();
 
@@ -22,28 +17,26 @@ function recompute() {
   visible = architects.filter((a) => !a.deleted);
 }
 
-function persist() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(architects));
-  } catch {
-    // ignore write failures
-  }
-}
-
 function emit() {
   for (const listener of listeners) listener();
+}
+
+async function refetch() {
+  try {
+    const res = await fetch("/api/architects", { cache: "no-store" });
+    if (!res.ok) return;
+    architects = (await res.json()) as Architect[];
+    recompute();
+    emit();
+  } catch {
+    // keep in-memory on transient failure
+  }
 }
 
 function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) architects = JSON.parse(stored) as Architect[];
-  } catch {
-    // ignore parse failures, keep seed
-  }
-  recompute();
+  void refetch();
 }
 
 export type NewArchitectInput = Omit<Architect, "id" | "createdAt">;
@@ -60,37 +53,48 @@ export const architectsStore = {
   getServerSnapshot() {
     return mockArchitects;
   },
-  createArchitect(input: NewArchitectInput) {
+  async createArchitect(input: NewArchitectInput): Promise<Architect> {
     ensureHydrated();
-    const architect: Architect = { ...input, id: `arch-new-${Date.now()}`, createdAt: new Date().toISOString() };
-    architects = [...architects, architect];
+    const res = await fetch("/api/architects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    const created = (await res.json()) as Architect;
+    architects = [created, ...architects];
     recompute();
-    persist();
     emit();
-    return architect;
+    return created;
   },
   updateArchitect(id: string, fields: Partial<Architect>) {
     ensureHydrated();
     architects = architects.map((a) => (a.id === id ? { ...a, ...fields } : a));
     recompute();
-    persist();
     emit();
+    fetch(`/api/architects/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    }).catch(refetch);
   },
-  // Soft delete via a flag on the record itself (no separate base/created
-  // split to protect here) — restorable within the Undo toast window.
   deleteArchitect(id: string) {
     ensureHydrated();
     architects = architects.map((a) => (a.id === id ? { ...a, deleted: true } : a));
     recompute();
-    persist();
     emit();
+    fetch(`/api/architects/${id}`, { method: "DELETE" }).catch(refetch);
   },
   restoreArchitect(id: string) {
     ensureHydrated();
     architects = architects.map((a) => (a.id === id ? { ...a, deleted: false } : a));
     recompute();
-    persist();
     emit();
+    // Re-create isn't exposed yet; refetch reconciles if the server disagrees.
+    fetch(`/api/architects/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deletedAt: null }),
+    }).catch(refetch);
   },
 };
 

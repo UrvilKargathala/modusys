@@ -7,25 +7,21 @@ import {
   type FurniturePriceItem,
   type HardwarePriceItem,
 } from "@/lib/mock/pricing-list";
+import { fetchJson, makeDebouncedPut } from "@/lib/store/api-sync";
 
-const FURNITURE_KEY = "modusys.furniturePriceList.v1";
-const HARDWARE_KEY = "modusys.hardwarePriceList.v1";
-
-// Same pattern as material-spec-store — one flat array, soft delete via a
-// `deleted` flag, no active/inactive status (dropped per business call on
-// Material Spec, applied consistently here too).
+// Two flat arrays backed by the shared DB via /api/pricing/furniture and
+// /api/pricing/hardware (bulk-PUT persistence). Every mutation still funnels
+// through persist(), which now debounce-PUTs both collections.
 let furnitureItems: FurniturePriceItem[] = mockFurniturePriceItems;
 let hardwareItems: HardwarePriceItem[] = mockHardwarePriceItems;
 let hydrated = false;
 const listeners = new Set<() => void>();
 
+const putFurniture = makeDebouncedPut("/api/pricing/furniture");
+const putHardware = makeDebouncedPut("/api/pricing/hardware");
 function persist() {
-  try {
-    window.localStorage.setItem(FURNITURE_KEY, JSON.stringify(furnitureItems));
-    window.localStorage.setItem(HARDWARE_KEY, JSON.stringify(hardwareItems));
-  } catch {
-    // ignore write failures
-  }
+  putFurniture(furnitureItems);
+  putHardware(hardwareItems);
 }
 
 function emit() {
@@ -35,14 +31,18 @@ function emit() {
 function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
-  try {
-    const f = window.localStorage.getItem(FURNITURE_KEY);
-    if (f) furnitureItems = JSON.parse(f) as FurniturePriceItem[];
-    const h = window.localStorage.getItem(HARDWARE_KEY);
-    if (h) hardwareItems = JSON.parse(h) as HardwarePriceItem[];
-  } catch {
-    // ignore parse failures, keep seed
-  }
+  void fetchJson<FurniturePriceItem[]>("/api/pricing/furniture").then((data) => {
+    if (data) {
+      furnitureItems = data;
+      emit();
+    }
+  });
+  void fetchJson<HardwarePriceItem[]>("/api/pricing/hardware").then((data) => {
+    if (data) {
+      hardwareItems = data;
+      emit();
+    }
+  });
 }
 
 export type NewFurniturePriceInput = Omit<FurniturePriceItem, "id" | "createdAt">;

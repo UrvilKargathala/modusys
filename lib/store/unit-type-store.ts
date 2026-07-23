@@ -2,19 +2,16 @@
 
 import { useSyncExternalStore } from "react";
 import { mockUnitTypes, type UnitType } from "@/lib/mock/unit-type";
+import { fetchJson, makeDebouncedPut } from "@/lib/store/api-sync";
 
-const STORAGE_KEY = "modusys.unitTypes.v1";
-
+// Backed by the shared DB via /api/unit-types (bulk-PUT persistence).
 let items: UnitType[] = mockUnitTypes;
 let hydrated = false;
 const listeners = new Set<() => void>();
 
+const putAll = makeDebouncedPut("/api/unit-types");
 function persist() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  } catch {
-    // ignore write failures
-  }
+  putAll(items);
 }
 
 function emit() {
@@ -24,12 +21,12 @@ function emit() {
 function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) items = JSON.parse(stored) as UnitType[];
-  } catch {
-    // ignore parse failures, keep seed
-  }
+  void fetchJson<UnitType[]>("/api/unit-types").then((data) => {
+    if (data) {
+      items = data;
+      emit();
+    }
+  });
 }
 
 export type NewUnitTypeInput = Omit<UnitType, "id" | "createdAt">;

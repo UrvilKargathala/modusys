@@ -152,6 +152,16 @@ export function CabinetTypeComponentRow({
             </div>
           )}
         </div>
+
+        <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-3">
+          <Label htmlFor={`remarks-${value.id}`}>Remarks</Label>
+          <Input
+            id={`remarks-${value.id}`}
+            placeholder="Optional note for this component"
+            value={value.remarks ?? ""}
+            onChange={(e) => onChange({ remarks: e.target.value })}
+          />
+        </div>
       </div>
 
       {combinationComplete && !match && (

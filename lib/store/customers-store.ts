@@ -4,57 +4,43 @@ import { useSyncExternalStore } from "react";
 import { mockCustomers, type Customer } from "@/lib/mock/pipeline";
 import { profileOverridesStore } from "@/lib/store/customer-profile-overrides-store";
 
-const STORAGE_KEY = "modusys.customers.v1";
+// Backed by the shared PostgreSQL database via /api/customers. The merged
+// Customer table holds both the pipeline fields and the profile fields
+// (email/phone/gst/city…). The customer *detail panel* still reads those
+// extra fields through the local profileOverridesStore overlay, so createCustomer
+// keeps a dual-write to it — migrating that overlay (and customer messages/
+// media) to the DB is a flagged follow-up.
 
-type StoredState = { created: Customer[]; deletedIds: string[] };
-
-function loadInitial(): StoredState {
-  if (typeof window === "undefined") return { created: [], deletedIds: [] };
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    return stored ? (JSON.parse(stored) as StoredState) : { created: [], deletedIds: [] };
-  } catch {
-    return { created: [], deletedIds: [] };
-  }
-}
-
-// Additive layer over the seeded mockCustomers array — new customers created
-// via the Add Customer modal, and soft-deletes (an id list, not row removal),
-// so nothing here ever mutates the deterministic mock data itself.
-let created: Customer[] = [];
-let deletedIds: string[] = [];
 let all: Customer[] = mockCustomers;
 let hydrated = false;
 const listeners = new Set<() => void>();
-
-function recompute() {
-  const deleted = new Set(deletedIds);
-  all = [...mockCustomers, ...created].filter((c) => !deleted.has(c.id));
-}
-
-function persist() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ created, deletedIds }));
-  } catch {
-    // ignore write failures
-  }
-}
 
 function emit() {
   for (const listener of listeners) listener();
 }
 
+async function refetch() {
+  try {
+    const res = await fetch("/api/customers", { cache: "no-store" });
+    if (!res.ok) return;
+    all = (await res.json()) as Customer[];
+    emit();
+  } catch {
+    // keep in-memory on transient failure
+  }
+}
+
 function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
-  const state = loadInitial();
-  created = state.created;
-  deletedIds = state.deletedIds;
-  recompute();
+  void refetch();
 }
 
 export type NewCustomerInput = {
-  name: string;
+  prefix: string;
+  firstName: string;
+  lastName: string;
+  customerCode: string;
   mobile: string;
   email: string;
   gst: string;
@@ -64,6 +50,7 @@ export type NewCustomerInput = {
   postcode: string;
   birthdayMonth: string;
   birthdayDay: string;
+  birthdayYear: string;
   createdById: string;
 };
 
@@ -79,25 +66,19 @@ export const customersStore = {
   getServerSnapshot() {
     return mockCustomers;
   },
-  createCustomer(input: NewCustomerInput) {
+  async createCustomer(input: NewCustomerInput): Promise<Customer> {
     ensureHydrated();
-    const id = `cust-new-${Date.now()}`;
-    const fullAddress = [input.address, input.city].filter(Boolean).join(", ");
-    const customer: Customer = {
-      id,
-      name: input.name,
-      address: fullAddress,
-      stage: "upcoming-inquiry",
-      finalOfferLakh: null,
-      assignee: input.createdById,
-      lastActivity: new Date().toISOString(),
-      daysInStage: 0,
-    };
-    created = [...created, customer];
-    recompute();
-    persist();
+    const res = await fetch("/api/customers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    const created = (await res.json()) as Customer;
+    all = [created, ...all];
     emit();
-    profileOverridesStore.setFields(id, {
+    // Dual-write to the local profile overlay so the detail panel shows the
+    // entered profile fields for this customer (overlay migration pending).
+    profileOverridesStore.setFields(created.id, {
       email: input.email,
       phone: input.mobile,
       gst: input.gst,
@@ -107,28 +88,48 @@ export const customersStore = {
       postcode: input.postcode,
       birthdayMonth: input.birthdayMonth,
       birthdayDay: input.birthdayDay,
-      updatedAt: customer.lastActivity,
+      updatedAt: new Date().toISOString(),
       updatedById: input.createdById,
     });
-    return customer;
+    return created;
   },
-  // Soft delete: row disappears immediately, but stays restorable until the
-  // Undo toast window (10s) elapses — nothing is actually purged here since
-  // the business wants cascaded records (quotes/media/chat) preserved, not
-  // deleted, so there's no cascade to perform on top of this id hide.
+  updateStage(id: string, stage: string) {
+    ensureHydrated();
+    all = all.map((c) => (c.id === id ? { ...c, stage: stage as Customer["stage"] } : c));
+    emit();
+    return fetch(`/api/customers/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stage }),
+    }).then((r) => {
+      if (!r.ok) throw new Error("stage update failed");
+    });
+  },
+  // Persist identity/profile edits to the shared DB (name is recomposed
+  // server-side from first/last). Optimistic + reconciling refetch.
+  updateCustomer(id: string, fields: Partial<Customer>) {
+    ensureHydrated();
+    all = all.map((c) => (c.id === id ? { ...c, ...fields } : c));
+    emit();
+    fetch(`/api/customers/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    }).catch(refetch);
+  },
   deleteCustomer(id: string) {
     ensureHydrated();
-    deletedIds = [...deletedIds, id];
-    recompute();
-    persist();
+    all = all.filter((c) => c.id !== id);
     emit();
+    fetch(`/api/customers/${id}`, { method: "DELETE" }).catch(refetch);
   },
   restoreCustomer(id: string) {
     ensureHydrated();
-    deletedIds = deletedIds.filter((d) => d !== id);
-    recompute();
-    persist();
-    emit();
+    fetch(`/api/customers/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deletedAt: null }),
+    }).then(refetch, refetch);
   },
 };
 

@@ -1,0 +1,210 @@
+// Prisma schema — PostgreSQL (Neon). Connection string read from env only.
+// Batch 1: Customer, Architect (+partners), User. Further entities (Quotes,
+// Templates, Tasks, etc.) land in later migrations.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Merged from the client-side pipeline Customer + the separate profile
+// overrides overlay (that split was a client artifact, not a real data model).
+// `stage`/`assignee` stay String to match the exact keys/names the UI already
+// uses — no enum translation layer in every route. Soft-delete via deletedAt.
+model Customer {
+  id             String    @id @default(cuid())
+  name           String
+  prefix         String    @default("")
+  firstName      String    @default("")
+  lastName       String    @default("")
+  srNo           Int       @default(0)
+  customerCode   String    @default("")
+  mobile         String    @default("")
+  email          String    @default("")
+  gst            String    @default("")
+  address        String    @default("")
+  city           String    @default("")
+  state          String    @default("")
+  postcode       String    @default("")
+  birthdayMonth  String    @default("")
+  birthdayDay    String    @default("")
+  birthdayYear   String    @default("")
+  stage          String    @default("upcoming-inquiry")
+  finalOfferLakh Float?
+  assignee       String    @default("")
+  daysInStage    Int       @default(0)
+  lastActivity   DateTime  @default(now())
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  @@index([stage])
+  @@index([deletedAt])
+}
+
+model Architect {
+  id            String             @id @default(cuid())
+  prefix        String             @default("")
+  firstName     String
+  lastName      String
+  mobile        String             @default("")
+  office        String             @default("")
+  company       String             @default("")
+  instagram     String             @default("")
+  address       String             @default("")
+  city          String             @default("")
+  state         String             @default("")
+  postcode      String             @default("")
+  birthdayMonth String             @default("")
+  birthdayDay   String             @default("")
+  birthdayYear  String             @default("")
+  createdById   String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  deletedAt     DateTime?
+  partners      ArchitectPartner[]
+
+  @@index([deletedAt])
+}
+
+model ArchitectPartner {
+  id          String    @id @default(cuid())
+  name        String
+  architectId String
+  architect   Architect @relation(fields: [architectId], references: [id], onDelete: Cascade)
+
+  @@index([architectId])
+}
+
+// role stored as String matching the app's exact keys
+// ("super-admin" | "admin" | "staff" | "no-role") so route code compares
+// against them directly with no enum mapping. passwordHash is nullable —
+// real auth is a later phase; the app doesn't set passwords yet.
+model User {
+  id                 String    @id @default(cuid())
+  name               String
+  email              String    @unique
+  passwordHash       String?
+  role               String    @default("no-role")
+  status             String    @default("active")
+  mustChangePassword Boolean   @default(false)
+  passwordUpdatedAt  DateTime?
+  lastActive         DateTime  @default(now())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Batch 2: Templates + Quotes.
+// Nested trees the app treats as whole blobs (unit-type components/hardware,
+// cabinet-type components, quote units, template notes/terms) are stored as
+// Json columns rather than fully normalized child tables — the app never
+// queries inside them (pricing is computed client-side), so this is far less
+// code with the same behavior. Tradeoff: not queryable in SQL, and the
+// catalog stores persist via id-preserving bulk-upsert (last-write-wins at
+// the collection level, fine for admin-edited catalog data).
+// `deleted` mirrors the stores' own boolean soft-delete flag exactly.
+
+model MaterialItem {
+  id          String   @id
+  category    String
+  name        String
+  description String   @default("")
+  deleted     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+}
+
+model FurniturePriceItem {
+  id                String   @id
+  thicknessId       String
+  rawMaterialTypeId String
+  internalColourId  String
+  externalColourId  String
+  rate              Float
+  deleted           Boolean  @default(false)
+  createdAt         DateTime @default(now())
+}
+
+model HardwarePriceItem {
+  id          String   @id
+  articleNo   String
+  categoryId  String
+  brandId     String
+  unitId      String
+  description String   @default("")
+  mrp         Float
+  discountPct Float    @default(0)
+  deleted     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model CabinetType {
+  id          String   @id
+  name        String
+  shortCode   String
+  active      Boolean  @default(true)
+  brandId     String   @default("")
+  description String   @default("")
+  components  Json     @default("[]")
+  deleted     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model UnitType {
+  id               String   @id
+  name             String
+  shortCode        String
+  active           Boolean  @default(true)
+  brandId          String   @default("")
+  description      String   @default("")
+  cabinetTypeLinks Json     @default("[]")
+  components       Json     @default("[]")
+  externalFinishes Json     @default("[]")
+  otherPanels      Json     @default("[]")
+  hardware         Json     @default("[]")
+  deleted          Boolean  @default(false)
+  createdAt        DateTime @default(now())
+}
+
+// Singleton config row (id "singleton").
+model QuoteTemplateSettings {
+  id           String   @id @default("singleton")
+  layout       Json
+  branding     Json
+  banking      Json
+  signature    Json
+  notes        Json     @default("[]")
+  terms        Json     @default("[]")
+  paymentTerms Json     @default("[]")
+  updatedAt    DateTime @updatedAt
+}
+
+model Quote {
+  id                          String   @id
+  quoteNumber                 String
+  date                        String   @default("")
+  customerId                  String?
+  architectId                 String?
+  revision                    Int      @default(0)
+  productTypeId               String   @default("")
+  status                      String   @default("draft")
+  markupMultiplier            Float    @default(1)
+  materialDescriptionId       String   @default("")
+  shutterFinishId             String   @default("")
+  handleTypeId                String   @default("")
+  hingesTypeId                String   @default("")
+  clientResponsibilityId      String   @default("")
+  units                       Json     @default("[]")
+  specialDiscountPct          Float    @default(0)
+  installationFreightIncluded Boolean  @default(true)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  @@index([status])
+}

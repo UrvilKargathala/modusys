@@ -21,6 +21,7 @@ export type CabinetComponent = {
   internalColourId: string;
   externalColourId: string;
   qty: number;
+  remarks?: string;
 };
 
 export type CabinetType = {

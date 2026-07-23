@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, PackageSearch } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, PackageSearch } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -202,6 +202,7 @@ export function HardwarePriceTable() {
             <thead className="bg-light-600">
               <tr>
                 {canEdit && <th className="w-8 px-4 py-2.5" />}
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">SR No</th>
                 {["Article No.", "Category", "Brand", "Description", "Unit", "MRP", "Discount %", "Rate After Discount"].map((h) => (
                   <th key={h} className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
                     {h}
@@ -211,7 +212,7 @@ export function HardwarePriceTable() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((i) => (
+              {filtered.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
                   {canEdit && (
                     <td className="px-4 py-3">
@@ -223,6 +224,7 @@ export function HardwarePriceTable() {
                       />
                     </td>
                   )}
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-medium text-grey-900">{i.articleNo}</td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <span className="whitespace-nowrap rounded-full bg-grey-transparent px-2 py-0.5 text-xs font-body text-grey-600">
@@ -239,6 +241,22 @@ export function HardwarePriceTable() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
+                      {canEdit && (
+                        <Tooltip>
+                          <TooltipTrigger
+                            aria-label="Duplicate"
+                            onClick={() => {
+                              const { id: _id, createdAt: _c, deleted: _d, ...rest } = i;
+                              pricingListStore.createHardwareItem({ ...rest, articleNo: `${i.articleNo}-COPY` });
+                              toastStore.show(`"${i.articleNo}" duplicated`, "success");
+                            }}
+                            className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </TooltipTrigger>
+                          <TooltipContent>Duplicate</TooltipContent>
+                        </Tooltip>
+                      )}
                       {canEdit && (
                         <Tooltip>
                           <TooltipTrigger

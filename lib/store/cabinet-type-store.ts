@@ -2,19 +2,16 @@
 
 import { useSyncExternalStore } from "react";
 import { mockCabinetTypes, type CabinetType } from "@/lib/mock/cabinet-type";
+import { fetchJson, makeDebouncedPut } from "@/lib/store/api-sync";
 
-const STORAGE_KEY = "modusys.cabinetTypes.v1";
-
+// Backed by the shared DB via /api/cabinet-types (bulk-PUT persistence).
 let items: CabinetType[] = mockCabinetTypes;
 let hydrated = false;
 const listeners = new Set<() => void>();
 
+const putAll = makeDebouncedPut("/api/cabinet-types");
 function persist() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  } catch {
-    // ignore write failures
-  }
+  putAll(items);
 }
 
 function emit() {
@@ -24,12 +21,12 @@ function emit() {
 function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) items = JSON.parse(stored) as CabinetType[];
-  } catch {
-    // ignore parse failures, keep seed
-  }
+  void fetchJson<CabinetType[]>("/api/cabinet-types").then((data) => {
+    if (data) {
+      items = data;
+      emit();
+    }
+  });
 }
 
 export type NewCabinetTypeInput = Omit<CabinetType, "id" | "createdAt">;

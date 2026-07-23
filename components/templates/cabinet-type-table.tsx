@@ -67,6 +67,7 @@ export function CabinetTypeTable() {
           <table className="w-full text-left">
             <thead className="bg-light-600">
               <tr>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">SR No</th>
                 {["Name", "Short Code", "Brand", "Components", "Status"].map((h) => (
                   <th key={h} className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
                     {h}
@@ -76,8 +77,9 @@ export function CabinetTypeTable() {
               </tr>
             </thead>
             <tbody>
-              {items.map((i) => (
+              {items.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-medium text-grey-900">{i.name}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{i.shortCode}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{brandName(i.brandId)}</td>

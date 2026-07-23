@@ -117,9 +117,18 @@ export function CustomerPanel() {
           customer={customer}
           profile={profile}
           override={override}
-          onSubmit={(values) =>
+          onSubmit={(values) => {
+            customersStore.updateCustomer(customer.id, {
+              prefix: values.prefix,
+              firstName: values.firstName,
+              lastName: values.lastName,
+              customerCode: values.customerCode,
+              birthdayMonth: values.birthdayMonth,
+              birthdayDay: values.birthdayDay,
+              birthdayYear: values.birthdayYear,
+            });
             profileOverridesStore.setFields(customer.id, {
-              name: values.name,
+              name: `${values.firstName} ${values.lastName}`.trim(),
               phone: values.mobile,
               email: values.email,
               gst: values.gst,
@@ -131,8 +140,8 @@ export function CustomerPanel() {
               birthdayDay: values.birthdayDay,
               updatedAt: new Date().toISOString(),
               updatedById: CURRENT_USER_ID,
-            })
-          }
+            });
+          }}
         />
       )}
 
