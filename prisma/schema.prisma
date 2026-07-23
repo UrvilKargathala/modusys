@@ -62,6 +62,7 @@ model Architect {
   birthdayMonth String             @default("")
   birthdayDay   String             @default("")
   birthdayYear  String             @default("")
+  siteEngineers Json               @default("[]")
   createdById   String?
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt

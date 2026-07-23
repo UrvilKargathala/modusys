@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { AlertCircle } from "lucide-react";
 import { KanbanColumn } from "@/components/crm/pipeline/kanban-column";
-import { KanbanGroup } from "@/components/crm/pipeline/kanban-group";
 import { CustomerCard } from "@/components/crm/pipeline/customer-card";
 import {
   AlertDialog,
@@ -19,7 +18,6 @@ import {
 import { columnGroups } from "@/lib/constants/pipelineGroups";
 import { pipelineStages, type PipelineStageKey } from "@/lib/constants/pipelineStages";
 import type { Customer } from "@/lib/mock/pipeline";
-import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 
 const CLOSED_STAGES = new Set<PipelineStageKey>(["site-completed", "cancel-order"]);
 
@@ -34,10 +32,6 @@ export function KanbanBoard({
 }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const [showClosed, setShowClosed] = useState(false);
-  const [expandedGroups, setExpandedGroups] = useLocalStorage<string[]>(
-    "modusys.pipeline.expandedGroups",
-    []
-  );
   const [error, setError] = useState<string | null>(null);
   const [pendingMove, setPendingMove] = useState<{
     customerId: string;
@@ -66,12 +60,6 @@ export function KanbanBoard({
         if (showClosed) return true;
         return !group.stages.every((s) => CLOSED_STAGES.has(s.key));
       });
-
-  const toggleGroup = (key: string) => {
-    setExpandedGroups((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-    );
-  };
 
   const handleDragStart = (event: DragStartEvent) => {
     const customer = customers.find((c) => c.id === String(event.active.id));
@@ -139,32 +127,16 @@ export function KanbanBoard({
               muted={filteredStage.key === "cancel-order"}
             />
           )}
-          {visibleGroups.map((group) => {
-            const isSingleClosed =
-              group.stages.length === 1 && CLOSED_STAGES.has(group.stages[0].key);
-
-            if (!group.isCluster) {
-              const stage = group.stages[0];
-              return (
-                <KanbanColumn
-                  key={group.key}
-                  stage={stage}
-                  customers={customersByStage[stage.key] ?? []}
-                  muted={isSingleClosed && stage.key === "cancel-order"}
-                />
-              );
-            }
-
-            return (
-              <KanbanGroup
-                key={group.key}
-                group={group}
-                customersByStage={customersByStage}
-                expanded={expandedGroups.includes(group.key)}
-                onToggle={() => toggleGroup(group.key)}
+          {visibleGroups.flatMap((group) =>
+            group.stages.map((stage) => (
+              <KanbanColumn
+                key={stage.key}
+                stage={stage}
+                customers={customersByStage[stage.key] ?? []}
+                muted={stage.key === "cancel-order"}
               />
-            );
-          })}
+            ))
+          )}
         </div>
 
         <DragOverlay>

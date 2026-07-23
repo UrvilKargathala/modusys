@@ -4,6 +4,7 @@ export type Architect = {
   firstName: string;
   lastName: string;
   partners: string[];
+  siteEngineers: string[];
   mobile: string;
   office: string;
   company: string;
@@ -35,6 +36,7 @@ export const mockArchitects: Architect[] = [
     firstName: "Ar Swapnil",
     lastName: "Deshmukh",
     partners: [],
+    siteEngineers: [],
     mobile: "+91 9820011223",
     office: "+91 2226501122",
     company: "Deshmukh Design Studio",
@@ -55,6 +57,7 @@ export const mockArchitects: Architect[] = [
     firstName: "Ar Swapnil",
     lastName: "Deshmukh",
     partners: ["Ar. Priya Kulkarni"],
+    siteEngineers: [],
     mobile: "+91 9820011224",
     office: "",
     company: "SD Architects",
@@ -75,6 +78,7 @@ export const mockArchitects: Architect[] = [
     firstName: "Kavita",
     lastName: "Rao",
     partners: [],
+    siteEngineers: [],
     mobile: "+91 9845012233",
     office: "+91 8041123344",
     company: "Rao & Associates",
@@ -95,6 +99,7 @@ export const mockArchitects: Architect[] = [
     firstName: "Suresh",
     lastName: "Iyer",
     partners: ["Ar. Meena Pillai", "Ar. Ravi Nair"],
+    siteEngineers: [],
     mobile: "+91 9884455667",
     office: "",
     company: "Iyer Design Co.",
@@ -115,6 +120,7 @@ export const mockArchitects: Architect[] = [
     firstName: "Meenal",
     lastName: "Deshpande",
     partners: [],
+    siteEngineers: [],
     mobile: "+91 9765432109",
     office: "+91 2025223344",
     company: "Deshpande Interiors",

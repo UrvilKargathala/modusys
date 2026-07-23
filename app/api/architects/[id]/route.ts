@@ -22,6 +22,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (b[k] !== undefined) data[k] = b[k];
   }
   if (b.deletedAt !== undefined) data.deletedAt = b.deletedAt === null ? null : new Date(b.deletedAt);
+  if (Array.isArray(b.siteEngineers)) data.siteEngineers = b.siteEngineers;
   // Partners are replace-all when provided (matches the form's edit semantics).
   if (Array.isArray(b.partners)) {
     await prisma.architectPartner.deleteMany({ where: { architectId: id } });

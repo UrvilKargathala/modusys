@@ -31,6 +31,7 @@ const architectSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   partners: z.array(z.object({ value: z.string() })),
+  siteEngineers: z.array(z.object({ value: z.string() })),
   mobile: z.string().refine((v) => v === "" || phonePattern.test(v.replace(/\s/g, "")), {
     message: "Enter a valid 10-digit Indian mobile number",
   }),
@@ -58,6 +59,7 @@ function emptyValues(): ArchitectFormValues {
     firstName: "",
     lastName: "",
     partners: [],
+    siteEngineers: [],
     mobile: "",
     office: "",
     company: "",
@@ -78,6 +80,7 @@ function prefillValues(architect: Architect): ArchitectFormValues {
     firstName: architect.firstName,
     lastName: architect.lastName,
     partners: architect.partners.map((value) => ({ value })),
+    siteEngineers: architect.siteEngineers.map((value) => ({ value })),
     mobile: architect.mobile,
     office: architect.office,
     company: architect.company,
@@ -92,8 +95,9 @@ function prefillValues(architect: Architect): ArchitectFormValues {
   };
 }
 
-export type ArchitectFormOutput = Omit<ArchitectFormValues, "partners" | "instagram"> & {
+export type ArchitectFormOutput = Omit<ArchitectFormValues, "partners" | "siteEngineers" | "instagram"> & {
   partners: string[];
+  siteEngineers: string[];
   instagram: string;
 };
 
@@ -123,6 +127,7 @@ export function ArchitectFormDialog({
     defaultValues: emptyValues(),
   });
   const { fields, append, remove } = useFieldArray({ control, name: "partners" });
+  const engineers = useFieldArray({ control, name: "siteEngineers" });
 
   useEffect(() => {
     if (!open) return;
@@ -133,6 +138,7 @@ export function ArchitectFormDialog({
     onSubmit({
       ...values,
       partners: values.partners.map((p) => p.value).filter(Boolean),
+      siteEngineers: values.siteEngineers.map((s) => s.value).filter(Boolean),
       instagram: values.instagram && !values.instagram.startsWith("@") ? `@${values.instagram}` : values.instagram,
     });
     onOpenChange(false);
@@ -201,6 +207,36 @@ export function ArchitectFormDialog({
                       type="button"
                       onClick={() => remove(index)}
                       aria-label={`Remove partner ${index + 1}`}
+                      className="shrink-0 rounded-md p-1.5 text-grey-400 hover:bg-light-600 hover:text-error"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <Label>Site Engineer Name</Label>
+              <Button type="button" variant="outline" size="sm" onClick={() => engineers.append({ value: "" })}>
+                <Plus className="h-3.5 w-3.5" />
+                Add Site Engineer
+              </Button>
+            </div>
+            {engineers.fields.length > 0 && (
+              <div className="flex max-h-40 flex-col gap-2 overflow-y-auto">
+                {engineers.fields.map((field, index) => (
+                  <div key={field.id} className="flex items-center gap-2">
+                    <Input
+                      placeholder={`Site Engineer ${index + 1}`}
+                      {...register(`siteEngineers.${index}.value` as const)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => engineers.remove(index)}
+                      aria-label={`Remove site engineer ${index + 1}`}
                       className="shrink-0 rounded-md p-1.5 text-grey-400 hover:bg-light-600 hover:text-error"
                     >
                       <X className="h-4 w-4" />
@@ -322,7 +358,7 @@ export function ArchitectFormDialog({
             </p>
           )}
 
-          <SheetFooter className="gap-2 p-0">
+          <SheetFooter className="sticky bottom-0 -mx-6 -mb-6 mt-2 flex-row justify-end gap-2 border-t border-grey-100 bg-popover px-6 py-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>

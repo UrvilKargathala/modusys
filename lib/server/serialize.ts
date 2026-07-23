@@ -25,6 +25,7 @@ export function serializeArchitect(a: Architect & { partners: ArchitectPartner[]
     firstName: a.firstName,
     lastName: a.lastName,
     partners: a.partners.map((p) => p.name),
+    siteEngineers: (a.siteEngineers as string[] | null) ?? [],
     mobile: a.mobile,
     office: a.office,
     company: a.company,

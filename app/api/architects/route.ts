@@ -32,6 +32,7 @@ export async function POST(req: Request) {
       birthdayMonth: b.birthdayMonth ?? "",
       birthdayDay: b.birthdayDay ?? "",
       birthdayYear: b.birthdayYear ?? "",
+      siteEngineers: b.siteEngineers ?? [],
       createdById: b.createdById ?? null,
       partners: { create: (b.partners ?? []).map((name: string) => ({ name })) },
     },
