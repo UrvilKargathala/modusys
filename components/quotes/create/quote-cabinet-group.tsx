@@ -293,12 +293,12 @@ export function QuoteCabinetGroup({
       />
       <HardwareGroup items={cabinet.hardware} unit={unit} onChange={(hardware) => onChange({ hardware })} />
       <FurnitureGroup
-        title="Panels"
-        label="Panel"
+        title="Other Panel"
+        label="Other Panel"
         showComponentName={false}
         items={cabinet.panels}
         unit={unit}
-        addLabel="Panel"
+        addLabel="Other Panel"
         onChange={(panels) => onChange({ panels })}
       />
 

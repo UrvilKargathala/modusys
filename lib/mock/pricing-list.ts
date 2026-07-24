@@ -50,6 +50,7 @@ export type HardwarePriceItem = {
   categoryId: string;
   brandId: string;
   unitId: string;
+  levelTypeId?: string; // Material Library → Level Type (optional)
   description: string;
   mrp: number;
   discountPct: number;

@@ -20,6 +20,7 @@ type FormValues = {
   articleNo: string;
   categoryId: string;
   brandId: string;
+  levelTypeId: string;
   unitId: string;
   description: string;
   mrp: number;
@@ -27,7 +28,7 @@ type FormValues = {
 };
 
 function emptyValues(): FormValues {
-  return { articleNo: "", categoryId: "", brandId: "", unitId: "", description: "", mrp: 0, discountPct: 0 };
+  return { articleNo: "", categoryId: "", brandId: "", levelTypeId: "", unitId: "", description: "", mrp: 0, discountPct: 0 };
 }
 
 export function HardwarePriceFormDialog({
@@ -54,6 +55,7 @@ export function HardwarePriceFormDialog({
             articleNo: item.articleNo,
             categoryId: item.categoryId ?? "",
             brandId: item.brandId ?? "",
+            levelTypeId: item.levelTypeId ?? "",
             unitId: item.unitId ?? "",
             description: item.description,
             mrp: item.mrp,
@@ -121,6 +123,15 @@ export function HardwarePriceFormDialog({
                 onChange={(id) => setValues((v) => ({ ...v, brandId: id }))}
               />
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label>Level Type</Label>
+            <MaterialReferenceSelect
+              category="level-type"
+              value={values.levelTypeId}
+              onChange={(id) => setValues((v) => ({ ...v, levelTypeId: id }))}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">

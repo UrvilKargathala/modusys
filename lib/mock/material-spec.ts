@@ -15,7 +15,8 @@ export type MaterialCategoryKey =
   | "thickness"
   | "category"
   | "brand"
-  | "unit";
+  | "unit"
+  | "level-type";
 
 export type MaterialCategory = {
   key: MaterialCategoryKey;
@@ -46,6 +47,7 @@ export const materialCategories: MaterialCategory[] = [
   { key: "category", group: "library", label: "Category", noDescription: true },
   { key: "brand", group: "library", label: "Brand", noDescription: true },
   { key: "unit", group: "library", label: "Unit", noDescription: true },
+  { key: "level-type", group: "library", label: "Level Type", noDescription: true },
 ];
 
 export function getMaterialCategory(key: MaterialCategoryKey) {
@@ -156,4 +158,8 @@ export const mockMaterialItems: MaterialItem[] = [
   item("unit", "R.ft"),
   item("unit", "Sq.ft"),
   item("unit", "MM"),
+
+  // Level Type
+  item("level-type", "Primary"),
+  item("level-type", "Secondary"),
 ];

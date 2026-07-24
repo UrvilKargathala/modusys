@@ -163,17 +163,7 @@ export function ArchitectFormDialog({
           <div className="grid grid-cols-[6rem_1fr_1fr] gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="a-prefix">Prefix</Label>
-              <select
-                id="a-prefix"
-                {...register("prefix")}
-                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
-              >
-                <option value="">None</option>
-                <option value="Mr">Mr</option>
-                <option value="Mrs">Mrs</option>
-                <option value="Ms">Ms</option>
-                <option value="Dr">Dr</option>
-              </select>
+              <Input id="a-prefix" placeholder="e.g. Mr" {...register("prefix")} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="a-first">First Name *</Label>

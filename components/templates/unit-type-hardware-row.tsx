@@ -31,8 +31,10 @@ export function UnitTypeHardwareRow({
   const hardwareItems = useHardwarePriceItems();
   const brands = useMaterialItems("brand");
   const units = useMaterialItems("unit");
+  const levelTypes = useMaterialItems("level-type");
   const brandName = (id?: string) => brands.find((b) => b.id === id)?.name ?? "—";
   const unitName = (id?: string) => units.find((u) => u.id === id)?.name ?? "—";
+  const levelTypeName = (id?: string) => levelTypes.find((l) => l.id === id)?.name ?? "—";
 
   const optionsForCategory = hardwareItems.filter((h) => h.categoryId === value.categoryId);
   const matched = hardwareItems.find((h) => h.id === value.hardwareItemId);
@@ -104,6 +106,13 @@ export function UnitTypeHardwareRow({
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label>Level Type</Label>
+          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body text-grey-700">
+            {matched ? levelTypeName(matched.levelTypeId) : "—"}
+          </div>
         </div>
 
         <div className="flex flex-col gap-1.5">

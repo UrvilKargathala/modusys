@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronDown, ChevronRight, Plus, Sparkles, Trash2 } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Check, ChevronDown, ChevronRight, GripVertical, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -123,6 +125,7 @@ export function QuoteUnitCard({
   const hardwareItems = useHardwarePriceItems();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingUnitTypeId, setPendingUnitTypeId] = useState<string | null>(null);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: unit.id });
 
   const cabinetTypeName = (id: string) => cabinetTypes.find((c) => c.id === id)?.name ?? "Cabinet";
   const selectedUnitType = unitTypes.find((u) => u.id === unit.unitTypeId);
@@ -184,8 +187,22 @@ export function QuoteUnitCard({
   const total = unitTotal(unit, furnitureItems, hardwareItems);
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-grey-100 bg-light-600 p-4">
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn("flex flex-col gap-4 rounded-xl border border-grey-100 bg-light-600 p-4", isDragging && "opacity-50")}
+    >
       <div className="flex flex-wrap items-end gap-3">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label="Drag to reorder unit"
+          className="flex h-9 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-grey-300 hover:text-grey-500 active:cursor-grabbing"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+
         <button
           type="button"
           aria-label={unit.collapsed ? "Expand unit" : "Collapse unit"}

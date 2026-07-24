@@ -26,9 +26,11 @@ export function HardwarePriceTable() {
   const categories = useMaterialItems("category");
   const brands = useMaterialItems("brand");
   const units = useMaterialItems("unit");
+  const levelTypes = useMaterialItems("level-type");
   const categoryName = (id: string) => categories.find((c) => c.id === id)?.name ?? "—";
   const brandName = (id: string) => brands.find((b) => b.id === id)?.name ?? "—";
   const unitName = (id: string) => units.find((u) => u.id === id)?.name ?? "—";
+  const levelTypeName = (id?: string) => levelTypes.find((l) => l.id === id)?.name ?? "—";
 
   const [categoryFilter, setCategoryFilter] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
@@ -203,7 +205,7 @@ export function HardwarePriceTable() {
               <tr>
                 {canEdit && <th className="w-8 px-4 py-2.5" />}
                 <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">SR No</th>
-                {["Article No.", "Category", "Brand", "Description", "Unit", "MRP", "Discount %", "Rate After Discount"].map((h) => (
+                {["Article No.", "Category", "Brand", "Description", "Level Type", "Unit", "MRP", "Discount %", "Rate After Discount"].map((h) => (
                   <th key={h} className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
                     {h}
                   </th>
@@ -233,6 +235,7 @@ export function HardwarePriceTable() {
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{brandName(i.brandId)}</td>
                   <td className="max-w-xs px-4 py-3 text-sm font-body text-grey-500">{i.description || "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{levelTypeName(i.levelTypeId)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{unitName(i.unitId)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">₹{i.mrp}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{i.discountPct}%</td>

@@ -138,6 +138,7 @@ model HardwarePriceItem {
   categoryId  String
   brandId     String
   unitId      String
+  levelTypeId String   @default("")
   description String   @default("")
   mrp         Float
   discountPct Float    @default(0)

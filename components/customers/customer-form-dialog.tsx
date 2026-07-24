@@ -166,6 +166,10 @@ export function CustomerFormDialog({
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-3 gap-3">
               <div className="flex flex-col gap-1.5">
+                <Label htmlFor="c-prefix">Prefix</Label>
+                <Input id="c-prefix" placeholder="e.g. Mr" {...register("prefix")} />
+              </div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="c-srno">SR No</Label>
                 <div className="flex h-9 items-center justify-center rounded-lg border border-grey-100 bg-light-600 px-1 text-sm font-body font-medium text-grey-700">
                   {pad4(srNo)}
@@ -176,20 +180,6 @@ export function CustomerFormDialog({
                 <div className="flex h-9 items-center justify-center rounded-lg border border-grey-100 bg-light-600 px-1 text-sm font-body font-medium text-grey-700">
                   {liveCode || "—"}
                 </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="c-prefix">Prefix</Label>
-                <select
-                  id="c-prefix"
-                  {...register("prefix")}
-                  className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
-                >
-                  <option value="">—</option>
-                  <option value="Mr">Mr</option>
-                  <option value="Mrs">Mrs</option>
-                  <option value="Ms">Ms</option>
-                  <option value="Dr">Dr</option>
-                </select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
