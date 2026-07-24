@@ -270,7 +270,7 @@ export function UnitTypeFormDialog({
                         key={c.id}
                         value={c}
                         label="External Finish"
-                        showComponentName={false}
+                        showComponentName
                         onChange={(patch) => externalFinishes.update(c.id, patch)}
                         onRemove={() => externalFinishes.remove(c.id)}
                       />
@@ -299,7 +299,8 @@ export function UnitTypeFormDialog({
                         key={c.id}
                         value={c}
                         label="Other Panel"
-                        showComponentName={false}
+                        showComponentName
+                        showLevelType
                         onChange={(patch) => otherPanels.update(c.id, patch)}
                         onRemove={() => otherPanels.remove(c.id)}
                       />

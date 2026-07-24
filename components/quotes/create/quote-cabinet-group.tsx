@@ -39,6 +39,7 @@ export function FurnitureGroup({
   title,
   label,
   showComponentName,
+  showLevelType,
   items,
   unit,
   onChange,
@@ -47,6 +48,7 @@ export function FurnitureGroup({
   title: string;
   label: string;
   showComponentName: boolean;
+  showLevelType?: boolean;
   items: FurnitureLineItem[];
   unit: { width: number; depth: number; height: number; qty: number };
   onChange: (items: FurnitureLineItem[]) => void;
@@ -97,6 +99,7 @@ export function FurnitureGroup({
                     value={item}
                     label={label}
                     showComponentName={showComponentName}
+                    showLevelType={showLevelType}
                     totalSqFt={totalSqFt}
                     onChange={(patch) => onChange(items.map((i) => (i.id === item.id ? { ...i, ...patch } : i)))}
                     onRemove={() => onChange(items.filter((i) => i.id !== item.id))}
@@ -296,6 +299,7 @@ export function QuoteCabinetGroup({
         title="Other Panel"
         label="Other Panel"
         showComponentName={false}
+        showLevelType
         items={cabinet.panels}
         unit={unit}
         addLabel="Other Panel"

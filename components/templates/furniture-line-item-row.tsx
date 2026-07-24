@@ -24,6 +24,7 @@ export function FurnitureLineItemRow({
   onRemove,
   label,
   showComponentName,
+  showLevelType,
   totalSqFt,
 }: {
   value: FurnitureLineItem;
@@ -31,6 +32,9 @@ export function FurnitureLineItemRow({
   onRemove: () => void;
   label: string;
   showComponentName: boolean;
+  // Opt-in Level Type picker (Material Library) — only shown where wanted
+  // (e.g. Other Panel), not on every furniture line.
+  showLevelType?: boolean;
   // Quotes-only — a concrete Unit's W/D/H is needed to evaluate the width/
   // height formulas into a real area, which Templates (Unit Type/Cabinet
   // Type builders) never have, so this stays optional and Templates simply
@@ -166,6 +170,17 @@ export function FurnitureLineItemRow({
             onChange={(id) => handleFieldChange({ externalColourId: id })}
           />
         </div>
+        {showLevelType && (
+          <div className="flex flex-col gap-1.5">
+            <Label>Level Type</Label>
+            <MaterialReferenceSelect
+              category="level-type"
+              value={value.levelTypeId ?? ""}
+              onChange={(id) => handleFieldChange({ levelTypeId: id })}
+            />
+          </div>
+        )}
+
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`qty-${value.id}`}>Quantity (Qty)</Label>
           <Input

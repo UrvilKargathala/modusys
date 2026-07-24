@@ -44,6 +44,7 @@ export type FurnitureLineItem = {
   rawMaterialTypeId: string;
   internalColourId: string;
   externalColourId: string;
+  levelTypeId?: string; // Material Library → Level Type (optional)
   qty: number;
 };
 
