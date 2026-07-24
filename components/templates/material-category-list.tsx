@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Plus, Pencil, Trash2, ListTree, ArrowUpAZ, ArrowDownAZ } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, ListTree, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -20,11 +20,24 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
 
   const items = useMaterialItems(category.key);
   const [search, setSearch] = useState("");
-  const [sortAsc, setSortAsc] = useState(true);
+  const [sort, setSort] = useState<{ key: "name" | "description"; asc: boolean }>({ key: "name", asc: true });
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<MaterialItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MaterialItem | null>(null);
   const deleteDependencies = useMaterialDependencies(category.key, deleteTarget?.id ?? "");
+
+  // Clicking a column header sorts by it; clicking the active column flips
+  // direction.
+  const toggleSort = (key: "name" | "description") =>
+    setSort((s) => (s.key === key ? { key, asc: !s.asc } : { key, asc: true }));
+  const sortIcon = (key: "name" | "description") =>
+    sort.key !== key ? (
+      <ArrowUpDown className="h-3.5 w-3.5 text-grey-300" />
+    ) : sort.asc ? (
+      <ArrowUp className="h-3.5 w-3.5 text-primary" />
+    ) : (
+      <ArrowDown className="h-3.5 w-3.5 text-primary" />
+    );
 
   const filtered = useMemo(() => {
     const list = items.filter(
@@ -32,10 +45,10 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
         i.name.toLowerCase().includes(search.toLowerCase()) ||
         i.description.toLowerCase().includes(search.toLowerCase())
     );
-    list.sort((a, b) => a.name.localeCompare(b.name));
-    if (!sortAsc) list.reverse();
+    list.sort((a, b) => a[sort.key].localeCompare(b[sort.key]));
+    if (!sort.asc) list.reverse();
     return list;
-  }, [items, search, sortAsc]);
+  }, [items, search, sort]);
 
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -65,15 +78,6 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
               className="w-full rounded-lg border border-grey-100 bg-card py-1.5 pl-8 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
             />
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setSortAsc((a) => !a)}
-            aria-label={sortAsc ? "Sort descending" : "Sort ascending"}
-          >
-            {sortAsc ? <ArrowUpAZ className="h-4 w-4" /> : <ArrowDownAZ className="h-4 w-4" />}
-            {sortAsc ? "A–Z" : "Z–A"}
-          </Button>
           <Button size="sm" onClick={() => setAddOpen(true)}>
             <Plus className="h-4 w-4" />
             Add {category.label}
@@ -93,11 +97,27 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
             <thead className="bg-light-600">
               <tr>
                 <th className="px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
-                  {category.longDescription ? "Value" : "Name"}
+                  <button
+                    type="button"
+                    onClick={() => toggleSort("name")}
+                    className="flex items-center gap-1 uppercase tracking-wide hover:text-grey-700"
+                    aria-label="Sort by name"
+                  >
+                    {category.longDescription ? "Value" : "Name"}
+                    {sortIcon("name")}
+                  </button>
                 </th>
                 {!category.longDescription && !category.noDescription && (
                   <th className="px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
-                    Description
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("description")}
+                      className="flex items-center gap-1 uppercase tracking-wide hover:text-grey-700"
+                      aria-label="Sort by description"
+                    >
+                      Description
+                      {sortIcon("description")}
+                    </button>
                   </th>
                 )}
                 <th className="px-4 py-2.5 text-right text-xs font-body font-medium uppercase tracking-wide text-grey-500">
