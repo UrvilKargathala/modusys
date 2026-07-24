@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Breadcrumb,
@@ -17,9 +17,9 @@ import { ClientDetailsSection } from "@/components/quotes/create/client-details-
 import { MaterialSpecificationSection } from "@/components/quotes/create/material-specification-section";
 import { UnitsSection } from "@/components/quotes/create/units-section";
 import { PricingSummary } from "@/components/quotes/create/pricing-summary";
-import { blankQuote } from "@/lib/mock/quote";
+import { blankQuote, type Quote } from "@/lib/mock/quote";
 import { applyShutterFinishToUnits } from "@/lib/quote-pricing";
-import { quotesStore } from "@/lib/store/quotes-store";
+import { quotesStore, useQuotes } from "@/lib/store/quotes-store";
 import { quoteTemplateStore } from "@/lib/store/quote-template-store";
 import { toastStore } from "@/lib/store/toast-store";
 
@@ -28,13 +28,31 @@ function initialQuote() {
   return blankQuote(quotesStore.nextQuoteNumber(), defaultMarkup);
 }
 
-export default function CreateQuotePage() {
+function CreateQuotePage() {
   const router = useRouter();
-  const [quote, setQuote] = useState(initialQuote);
-  const [clearOpen, setClearOpen] = useState(false);
+  const params = useSearchParams();
+  const editId = params.get("id");
+  const readonly = params.get("mode") === "view";
 
-  const patchQuote = (patch: Partial<typeof quote>) =>
+  const quotes = useQuotes();
+  // Create mode seeds a blank quote immediately; edit/view mode waits for the
+  // requested quote to hydrate from the store.
+  const [quote, setQuote] = useState<Quote | null>(() => (editId ? null : initialQuote()));
+  const [clearOpen, setClearOpen] = useState(false);
+  const loaded = useRef(false);
+
+  useEffect(() => {
+    if (!editId || loaded.current) return;
+    const found = quotes.find((q) => q.id === editId);
+    if (found) {
+      setQuote({ ...found });
+      loaded.current = true;
+    }
+  }, [editId, quotes]);
+
+  const patchQuote = (patch: Partial<Quote>) =>
     setQuote((q) => {
+      if (!q) return q;
       const next = { ...q, ...patch };
       if (patch.shutterFinishId !== undefined && patch.shutterFinishId !== q.shutterFinishId) {
         next.units = applyShutterFinishToUnits(next.units, patch.shutterFinishId);
@@ -43,10 +61,17 @@ export default function CreateQuotePage() {
     });
 
   const handleSave = () => {
+    if (!quote) return;
     quotesStore.saveQuote(quote);
     toastStore.show(`${quote.quoteNumber} saved`);
     router.push("/quotes");
   };
+
+  const title = readonly ? "View Quote" : editId ? "Edit Quote" : "Create New Quote";
+
+  if (!quote) {
+    return <p className="p-6 text-sm font-body text-grey-400">Loading quote…</p>;
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -62,28 +87,41 @@ export default function CreateQuotePage() {
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>Create</BreadcrumbPage>
+              <BreadcrumbPage>{readonly ? "View" : editId ? "Edit" : "Create"}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
 
         <div className="flex items-center justify-between gap-4">
-          <h1 className="font-heading text-2xl font-semibold text-grey-900">Create New Quote</h1>
+          <h1 className="font-heading text-2xl font-semibold text-grey-900">{title}</h1>
           <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" onClick={() => setClearOpen(true)}>
-              Clear Draft
-            </Button>
-            <Button type="button" onClick={handleSave}>
-              Save Quote
-            </Button>
+            {readonly ? (
+              <Button type="button" variant="outline" onClick={() => router.push(`/quotes/new?id=${quote.id}`)}>
+                Edit
+              </Button>
+            ) : (
+              <>
+                {!editId && (
+                  <Button type="button" variant="outline" onClick={() => setClearOpen(true)}>
+                    Clear Draft
+                  </Button>
+                )}
+                <Button type="button" onClick={handleSave}>
+                  {editId ? "Save Changes" : "Save Quote"}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      <ClientDetailsSection quote={quote} onChange={patchQuote} />
-      <MaterialSpecificationSection quote={quote} onChange={patchQuote} />
-      <UnitsSection units={quote.units} shutterFinishId={quote.shutterFinishId} onChange={(units) => patchQuote({ units })} />
-      <PricingSummary quote={quote} onChange={patchQuote} />
+      {/* View mode: block interaction with native + pointer-events, page scroll unaffected. */}
+      <fieldset disabled={readonly} className={readonly ? "flex flex-col gap-6 pointer-events-none border-0 p-0" : "flex flex-col gap-6 border-0 p-0"}>
+        <ClientDetailsSection quote={quote} onChange={patchQuote} />
+        <MaterialSpecificationSection quote={quote} onChange={patchQuote} />
+        <UnitsSection units={quote.units} shutterFinishId={quote.shutterFinishId} onChange={(units) => patchQuote({ units })} />
+        <PricingSummary quote={quote} onChange={patchQuote} />
+      </fieldset>
 
       <ConfirmDialog
         open={clearOpen}
@@ -94,5 +132,13 @@ export default function CreateQuotePage() {
         onConfirm={() => setQuote(initialQuote())}
       />
     </div>
+  );
+}
+
+export default function CreateQuotePageWrapper() {
+  return (
+    <Suspense fallback={<p className="p-6 text-sm font-body text-grey-400">Loading…</p>}>
+      <CreateQuotePage />
+    </Suspense>
   );
 }

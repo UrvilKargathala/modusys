@@ -1,13 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Plus, FileStack, Search } from "lucide-react";
+import { Plus, FileStack, Search, Eye, Pencil, Copy, FileSpreadsheet, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useQuotes } from "@/lib/store/quotes-store";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { useQuotes, quotesStore } from "@/lib/store/quotes-store";
 import { useCustomers } from "@/lib/store/customers-store";
+import { useMaterialItems } from "@/lib/store/material-spec-store";
+import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
+import { quoteRawTotal, quoteWaterfall } from "@/lib/quote-pricing";
+import { formatInr } from "@/lib/format";
+import { toastStore } from "@/lib/store/toast-store";
 import { statusConfig, type StatusKey } from "@/lib/status";
+import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
 
 function formatDate(d: string) {
@@ -16,12 +24,74 @@ function formatDate(d: string) {
   return Number.isNaN(parsed.getTime()) ? d : parsed.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+function downloadCsv(filename: string, rows: (string | number)[][]) {
+  const csv = rows
+    .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function QuotesPage() {
+  const router = useRouter();
   const quotes = useQuotes();
   const customers = useCustomers();
+  const productTypes = useMaterialItems("product-type");
+  const furnitureItems = useFurniturePriceItems();
+  const hardwareItems = useHardwarePriceItems();
   const [search, setSearch] = useState("");
 
   const customerName = (id: string | null) => (id ? customers.find((c) => c.id === id)?.name ?? "—" : "—");
+  const productTypeName = (id: string) => productTypes.find((p) => p.id === id)?.name ?? "—";
+  const finalAmount = (q: Quote) =>
+    quoteWaterfall(
+      quoteRawTotal(q.units, furnitureItems, hardwareItems),
+      q.markupMultiplier,
+      q.specialDiscountPct,
+      q.installationFreightIncluded
+    ).finalOffer;
+
+  const duplicateQuote = (q: Quote) => {
+    const now = new Date().toISOString();
+    const copy: Quote = {
+      ...q,
+      id: `q-${Date.now()}`,
+      quoteNumber: quotesStore.nextQuoteNumber(),
+      status: "draft",
+      revision: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    quotesStore.saveQuote(copy);
+    toastStore.show(`Duplicated as ${copy.quoteNumber}`, "success");
+  };
+
+  const exportExcel = (q: Quote) => {
+    downloadCsv(`${q.quoteNumber}.csv`, [
+      ["Quote No.", "Customer", "Date", "Product Type", "Final Amount", "Status", "Revision"],
+      [
+        q.quoteNumber,
+        customerName(q.customerId),
+        formatDate(q.date),
+        productTypeName(q.productTypeId),
+        finalAmount(q),
+        statusConfig[q.status as StatusKey]?.label ?? q.status,
+        q.revision,
+      ],
+    ]);
+  };
+
+  const deleteQuote = (q: Quote) => {
+    quotesStore.deleteQuote(q.id);
+    toastStore.show(`${q.quoteNumber} deleted`, "success", {
+      durationMs: 10000,
+      action: { label: "Undo", onClick: () => quotesStore.saveQuote(q) },
+    });
+  };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -69,14 +139,17 @@ export default function QuotesPage() {
                   <th className="whitespace-nowrap px-4 py-2.5">Quote No.</th>
                   <th className="whitespace-nowrap px-4 py-2.5">Customer</th>
                   <th className="whitespace-nowrap px-4 py-2.5">Date</th>
-                  <th className="whitespace-nowrap px-4 py-2.5">Rev.</th>
+                  <th className="whitespace-nowrap px-4 py-2.5">Product Type</th>
+                  <th className="whitespace-nowrap px-4 py-2.5">Final Amount</th>
                   <th className="whitespace-nowrap px-4 py-2.5">Status</th>
+                  <th className="whitespace-nowrap px-4 py-2.5">Revision</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-grey-400">
+                    <td colSpan={8} className="px-4 py-8 text-center text-grey-400">
                       No quotes match your search.
                     </td>
                   </tr>
@@ -89,11 +162,67 @@ export default function QuotesPage() {
                         <td className="whitespace-nowrap px-4 py-3 font-medium text-grey-800">{quote.quoteNumber}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-grey-700">{customerName(quote.customerId)}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-grey-500">{formatDate(quote.date)}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-grey-500">{quote.revision}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-grey-700">{productTypeName(quote.productTypeId)}</td>
+                        <td className="whitespace-nowrap px-4 py-3 font-medium text-grey-800">{formatInr(finalAmount(quote))}</td>
                         <td className="whitespace-nowrap px-4 py-3">
                           <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium", cfg.bg, cfg.color)}>
                             {cfg.label}
                           </span>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-grey-500">{quote.revision}</td>
+                        <td className="whitespace-nowrap px-4 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            <Tooltip>
+                              <TooltipTrigger
+                                aria-label="View"
+                                onClick={() => router.push(`/quotes/new?id=${quote.id}&mode=view`)}
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent>View</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger
+                                aria-label="Edit"
+                                onClick={() => router.push(`/quotes/new?id=${quote.id}`)}
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent>Edit</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger
+                                aria-label="Duplicate"
+                                onClick={() => duplicateQuote(quote)}
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent>Duplicate</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger
+                                aria-label="Export Excel"
+                                onClick={() => exportExcel(quote)}
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                              >
+                                <FileSpreadsheet className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent>Export Excel (CSV)</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger
+                                aria-label="Delete"
+                                onClick={() => deleteQuote(quote)}
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent>Delete</TooltipContent>
+                            </Tooltip>
+                          </div>
                         </td>
                       </tr>
                     );

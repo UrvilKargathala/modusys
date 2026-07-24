@@ -111,6 +111,7 @@ export function FurniturePriceTable() {
           <table className="w-full text-left">
             <thead className="bg-light-600">
               <tr>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">SR No</th>
                 {["Thickness", "Raw Material Type", "Internal Colours and Description", "External Colours and Description", "Rate/sq.ft"].map((h) => (
                   <th key={h} className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
                     {h}
@@ -120,8 +121,9 @@ export function FurniturePriceTable() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((i) => (
+              {filtered.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-medium text-grey-900">{materialName(i.thicknessId)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-900">{materialName(i.rawMaterialTypeId)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{materialName(i.internalColourId)}</td>

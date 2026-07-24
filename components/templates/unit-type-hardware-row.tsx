@@ -66,12 +66,26 @@ export function UnitTypeHardwareRow({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>div]:min-w-0">
         <div className="flex flex-col gap-1.5">
+          <Label>Article No.</Label>
+          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body text-grey-700">
+            {matched?.articleNo ?? "—"}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
           <Label>Category</Label>
           <MaterialReferenceSelect
             category="category"
             value={value.categoryId}
             onChange={(id) => onChange({ categoryId: id, hardwareItemId: "" })}
           />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label>Brand</Label>
+          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body text-grey-700">
+            {matched ? brandName(matched.brandId) : "—"}
+          </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -90,13 +104,6 @@ export function UnitTypeHardwareRow({
               </option>
             ))}
           </select>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label>Brand</Label>
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body text-grey-700">
-            {matched ? brandName(matched.brandId) : "—"}
-          </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -121,13 +128,6 @@ export function UnitTypeHardwareRow({
           <Label>Rate</Label>
           <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-700">
             {matched ? `₹${rateAfterDiscount(matched).toFixed(2)}` : "—"}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label>Article No.</Label>
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body text-grey-700">
-            {matched?.articleNo ?? "—"}
           </div>
         </div>
       </div>

@@ -30,17 +30,27 @@ export function ArchitectPicker({ value, onChange }: { value: string; onChange: 
           )}
           <div className="flex shrink-0 items-center gap-1">
             {selected && (
-              <button
-                type="button"
+              // role=button span (not a real <button>) because this sits inside
+              // the PopoverTrigger button — nested <button> is invalid HTML.
+              <span
+                role="button"
+                tabIndex={0}
                 aria-label="Clear architect"
                 onClick={(e) => {
                   e.stopPropagation();
                   onChange("");
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onChange("");
+                  }
+                }}
                 className="rounded p-0.5 text-grey-400 hover:text-error"
               >
                 <X className="h-3.5 w-3.5" />
-              </button>
+              </span>
             )}
             <ChevronDown className="h-3.5 w-3.5 text-grey-400" />
           </div>

@@ -74,6 +74,14 @@ export const quotesStore = {
     });
     return updated;
   },
+  deleteQuote(id: string) {
+    ensureHydrated();
+    quotes = quotes.filter((q) => q.id !== id);
+    emit();
+    fetch(`/api/quotes/${id}`, { method: "DELETE" }).catch(() => {
+      // transient failure — a later refetch will reconcile
+    });
+  },
 };
 
 export function useQuotes() {
