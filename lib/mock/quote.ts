@@ -46,8 +46,17 @@ export type Quote = {
   units: QuoteUnit[];
   specialDiscountPct: number;
   installationFreightIncluded: boolean;
+  finishOptions: FinishOption[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type FinishOption = {
+  id: string;
+  option: string;              // "A" | "B" | "C"
+  externalColourId: string;    // Material Library → external-colour
+  tandemDrawerTypeId: string;  // Material Specification → tandem-drawer-type
+  price: number;
 };
 
 export function blankQuoteUnit(): QuoteUnit {
@@ -84,6 +93,7 @@ export function blankQuote(quoteNumber: string, defaultMarkup: number): Quote {
     units: [],
     specialDiscountPct: 0,
     installationFreightIncluded: true,
+    finishOptions: [],
     createdAt: now,
     updatedAt: now,
   };

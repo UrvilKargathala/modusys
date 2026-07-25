@@ -7,6 +7,7 @@ export type MaterialCategoryKey =
   | "hinges-type"
   | "client-responsibility"
   | "product-type"
+  | "tandem-drawer-type"
   // Material Library
   | "furniture-component"
   | "raw-material-type"
@@ -39,6 +40,7 @@ export const materialCategories: MaterialCategory[] = [
   { key: "handle-type", group: "specification", label: "Handle Type" },
   { key: "hinges-type", group: "specification", label: "Hinges Type" },
   { key: "client-responsibility", group: "specification", label: "Client Responsibility" },
+  { key: "tandem-drawer-type", group: "specification", label: "Tandem Drawer Type", noDescription: true },
   { key: "furniture-component", group: "library", label: "Furniture Component" },
   { key: "raw-material-type", group: "library", label: "Raw Material Type" },
   { key: "internal-colour", group: "library", label: "Internal Colours and Description" },
@@ -96,6 +98,13 @@ export const mockMaterialItems: MaterialItem[] = [
   item("client-responsibility", "Electrical wiring for under-cabinet lighting"),
   item("client-responsibility", "Plumbing connections for sink unit"),
   item("client-responsibility", "Civil work / wall preparation"),
+
+  // Tandem Drawer Type
+  item("tandem-drawer-type", "Blum Antaro"),
+  item("tandem-drawer-type", "Blum Legrabox"),
+  item("tandem-drawer-type", "Ebco Slim"),
+  item("tandem-drawer-type", "Grass Nova Pro"),
+  item("tandem-drawer-type", "Grass Scala"),
 
   // Furniture Component
   item("furniture-component", "Shutter"),

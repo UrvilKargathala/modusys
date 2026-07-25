@@ -25,6 +25,7 @@ export async function POST(req: Request) {
     clientResponsibilityId: b.clientResponsibilityId ?? "", units: b.units ?? [],
     specialDiscountPct: b.specialDiscountPct ?? 0,
     installationFreightIncluded: b.installationFreightIncluded ?? true,
+    finishOptions: b.finishOptions ?? [],
   };
   const quote = await prisma.quote.upsert({
     where: { id: b.id }, create: { id: b.id, ...data }, update: data,

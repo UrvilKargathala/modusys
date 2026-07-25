@@ -9,7 +9,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { Search, Eye, Pencil, Trash2, Plus, Building2, AlertTriangle } from "lucide-react";
+import { Search, Eye, Pencil, Trash2, Plus, Building2, AlertTriangle, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -74,6 +74,7 @@ export function ArchitectsTable() {
     () => [
       {
         id: "name",
+        accessorFn: (a) => fullName(a),
         header: "Name",
         cell: ({ row }) => (
           <NameCell architect={row.original} isDuplicate={duplicateNames.has(fullName(row.original).toLowerCase())} />
@@ -82,6 +83,7 @@ export function ArchitectsTable() {
       { accessorKey: "company", header: "Company" },
       {
         id: "mobile",
+        accessorFn: (a) => a.mobile,
         header: "Mobile",
         cell: ({ row }) => row.original.mobile || "—",
       },
@@ -182,14 +184,36 @@ export function ArchitectsTable() {
             <thead className="bg-light-600">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500"
-                    >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
+                  {headerGroup.headers.map((header) => {
+                    const canSort = header.column.getCanSort();
+                    const sorted = header.column.getIsSorted();
+                    const rendered = flexRender(header.column.columnDef.header, header.getContext());
+                    return (
+                      <th
+                        key={header.id}
+                        className="px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500"
+                      >
+                        {canSort ? (
+                          <button
+                            type="button"
+                            onClick={header.column.getToggleSortingHandler()}
+                            className="flex items-center gap-1 uppercase tracking-wide hover:text-grey-700"
+                          >
+                            {rendered}
+                            {sorted === "asc" ? (
+                              <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                            ) : sorted === "desc" ? (
+                              <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                            ) : (
+                              <ArrowUpDown className="h-3.5 w-3.5 text-grey-300" />
+                            )}
+                          </button>
+                        ) : (
+                          rendered
+                        )}
+                      </th>
+                    );
+                  })}
                 </tr>
               ))}
             </thead>

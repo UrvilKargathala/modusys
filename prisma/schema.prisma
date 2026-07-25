@@ -203,6 +203,7 @@ model Quote {
   hingesTypeId                String   @default("")
   clientResponsibilityId      String   @default("")
   units                       Json     @default("[]")
+  finishOptions               Json     @default("[]")
   specialDiscountPct          Float    @default(0)
   installationFreightIncluded Boolean  @default(true)
   createdAt                   DateTime @default(now())
