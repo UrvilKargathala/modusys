@@ -115,13 +115,20 @@ function CreateQuotePage() {
         </div>
       </div>
 
-      {/* View mode: block interaction with native + pointer-events, page scroll unaffected. */}
-      <fieldset disabled={readonly} className={readonly ? "flex flex-col gap-6 pointer-events-none border-0 p-0" : "flex flex-col gap-6 border-0 p-0"}>
+      {/* View mode: block editing but keep collapse/expand toggles clickable
+          so users can still explore units, cabinets, and group sections. */}
+      <div
+        className={
+          readonly
+            ? "flex flex-col gap-6 pointer-events-none [&_button[aria-label^='Collapse'],&_button[aria-label^='Expand']]:pointer-events-auto"
+            : "flex flex-col gap-6"
+        }
+      >
         <ClientDetailsSection quote={quote} onChange={patchQuote} />
         <MaterialSpecificationSection quote={quote} onChange={patchQuote} />
         <UnitsSection units={quote.units} shutterFinishId={quote.shutterFinishId} onChange={(units) => patchQuote({ units })} />
         <PricingSummary quote={quote} onChange={patchQuote} />
-      </fieldset>
+      </div>
 
       <ConfirmDialog
         open={clearOpen}

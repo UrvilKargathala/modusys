@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
-import { Check, ChevronDown, Copy, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,8 @@ export function FurnitureGroup({
   const furnitureItems = useFurniturePriceItems();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const subtotal = groupTotal(items, unit, furnitureItems);
+  const isViewMode = useSearchParams().get("mode") === "view";
+  const [collapsed, setCollapsed] = useState(isViewMode);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -70,7 +73,17 @@ export function FurnitureGroup({
   return (
     <div className="flex flex-col gap-2 rounded-lg bg-light-600 p-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-500">{title}</h4>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
+            onClick={() => setCollapsed((c) => !c)}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-grey-400 hover:bg-card hover:text-grey-700"
+          >
+            {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+          <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-500">{title}</h4>
+        </div>
         <div className="flex items-center gap-3">
           <span className="text-sm font-body font-semibold text-grey-700">₹{subtotal.toFixed(2)}</span>
           <Button
@@ -85,7 +98,7 @@ export function FurnitureGroup({
         </div>
       </div>
 
-      {items.length > 0 && (
+      {!collapsed && items.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
             <div className="flex flex-col gap-2">
@@ -126,6 +139,8 @@ function HardwareGroup({
   const hardwareItems = useHardwarePriceItems();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const total = items.reduce((sum, h) => sum + hardwareLineTotal(h, unit, hardwareItems), 0);
+  const isViewMode = useSearchParams().get("mode") === "view";
+  const [collapsed, setCollapsed] = useState(isViewMode);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -139,7 +154,17 @@ function HardwareGroup({
   return (
     <div className="flex flex-col gap-2 rounded-lg bg-light-600 p-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-500">Hardware</h4>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label={collapsed ? "Expand Hardware" : "Collapse Hardware"}
+            onClick={() => setCollapsed((c) => !c)}
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-grey-400 hover:bg-card hover:text-grey-700"
+          >
+            {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+          <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-500">Hardware</h4>
+        </div>
         <div className="flex items-center gap-3">
           <span className="text-sm font-body font-semibold text-grey-700">₹{total.toFixed(2)}</span>
           <Button type="button" size="sm" variant="outline" onClick={() => onChange([...items, blankHardware()])}>
@@ -149,7 +174,7 @@ function HardwareGroup({
         </div>
       </div>
 
-      {items.length > 0 && (
+      {!collapsed && items.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
             <div className="flex flex-col gap-2">
@@ -228,6 +253,8 @@ export function QuoteCabinetGroup({
   onDuplicate: () => void;
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const isViewMode = useSearchParams().get("mode") === "view";
+  const [collapsed, setCollapsed] = useState(isViewMode);
   const cabinetTypes = useCabinetTypes();
   const selectedCabinetType = cabinetTypes.find((c) => c.id === cabinet.cabinetTypeId);
 
@@ -243,6 +270,14 @@ export function QuoteCabinetGroup({
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-grey-100 bg-card p-3">
       <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          aria-label={collapsed ? "Expand cabinet" : "Collapse cabinet"}
+          onClick={() => setCollapsed((c) => !c)}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-grey-100 bg-light-600 text-grey-500 hover:text-grey-800"
+        >
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
         <span className="shrink-0 text-xs font-body font-medium text-grey-400">
           {index}. Type:
         </span>
@@ -276,35 +311,39 @@ export function QuoteCabinetGroup({
         </div>
       </div>
 
-      <FurnitureGroup
-        title="Carcass"
-        label="Component"
-        showComponentName
-        items={cabinet.components}
-        unit={unit}
-        addLabel="Add Component"
-        onChange={(components) => onChange({ components })}
-      />
-      <FurnitureGroup
-        title="Shutter"
-        label="External Finish"
-        showComponentName={false}
-        items={cabinet.externalFinishes}
-        unit={unit}
-        addLabel="Add Shutter"
-        onChange={(externalFinishes) => onChange({ externalFinishes })}
-      />
-      <HardwareGroup items={cabinet.hardware} unit={unit} onChange={(hardware) => onChange({ hardware })} />
-      <FurnitureGroup
-        title="Other Panel"
-        label="Other Panel"
-        showComponentName={false}
-        showLevelType
-        items={cabinet.panels}
-        unit={unit}
-        addLabel="Other Panel"
-        onChange={(panels) => onChange({ panels })}
-      />
+      {!collapsed && (
+        <>
+          <FurnitureGroup
+            title="Carcass"
+            label="Component"
+            showComponentName
+            items={cabinet.components}
+            unit={unit}
+            addLabel="Add Component"
+            onChange={(components) => onChange({ components })}
+          />
+          <FurnitureGroup
+            title="Shutter"
+            label="External Finish"
+            showComponentName={false}
+            items={cabinet.externalFinishes}
+            unit={unit}
+            addLabel="Add Shutter"
+            onChange={(externalFinishes) => onChange({ externalFinishes })}
+          />
+          <FurnitureGroup
+            title="Other Panel"
+            label="Other Panel"
+            showComponentName={false}
+            showLevelType
+            items={cabinet.panels}
+            unit={unit}
+            addLabel="Other Panel"
+            onChange={(panels) => onChange({ panels })}
+          />
+          <HardwareGroup items={cabinet.hardware} unit={unit} onChange={(hardware) => onChange({ hardware })} />
+        </>
+      )}
 
       <ConfirmDialog
         open={deleteOpen}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Copy, PackageSearch } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, PackageSearch, Search } from "lucide-react";
+import { useTableSort } from "@/components/templates/table-sort";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -31,6 +32,7 @@ export function FurniturePriceTable() {
     [...thicknesses, ...rawMaterialTypes, ...internalColours, ...externalColours].find((m) => m.id === id)?.name ?? "—";
   const [filterDimension, setFilterDimension] = useState<(typeof dimensionKeys)[number] | "all">("all");
   const [filterValue, setFilterValue] = useState("");
+  const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<FurniturePriceItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FurniturePriceItem | null>(null);
@@ -42,9 +44,24 @@ export function FurniturePriceTable() {
   }, [items, filterDimension]);
 
   const filtered = useMemo(() => {
-    if (filterDimension === "all" || !filterValue) return items;
-    return items.filter((i) => i[filterDimension] === filterValue);
-  }, [items, filterDimension, filterValue]);
+    const q = search.trim().toLowerCase();
+    return items.filter((i) => {
+      if (filterDimension !== "all" && filterValue && i[filterDimension] !== filterValue) return false;
+      if (!q) return true;
+      return [i.thicknessId, i.rawMaterialTypeId, i.internalColourId, i.externalColourId]
+        .some((id) => materialName(id).toLowerCase().includes(q));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, filterDimension, filterValue, search]);
+
+  const { header, sortRows } = useTableSort<"thickness" | "rawMaterial" | "internal" | "external" | "rate">("thickness");
+  const sorted = sortRows(filtered, (i, key) =>
+    key === "thickness" ? materialName(i.thicknessId)
+    : key === "rawMaterial" ? materialName(i.rawMaterialTypeId)
+    : key === "internal" ? materialName(i.internalColourId)
+    : key === "external" ? materialName(i.externalColourId)
+    : i.rate
+  );
 
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -65,6 +82,15 @@ export function FurniturePriceTable() {
           <p className="text-xs font-body text-grey-400">{items.length} combinations priced</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-44">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search"
+              className="w-full rounded-lg border border-grey-100 bg-card py-1.5 pl-8 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
+            />
+          </div>
           <select
             value={filterDimension}
             onChange={(e) => {
@@ -112,16 +138,16 @@ export function FurniturePriceTable() {
             <thead className="bg-light-600">
               <tr>
                 <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">SR No</th>
-                {["Thickness", "Raw Material Type", "Internal Colours and Description", "External Colours and Description", "Rate/sq.ft"].map((h) => (
-                  <th key={h} className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
-                    {h}
-                  </th>
-                ))}
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("thickness", "Thickness")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("rawMaterial", "Raw Material Type")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("internal", "Internal Colours and Description")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("external", "External Colours and Description")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("rate", "Rate/sq.ft")}</th>
                 <th className="px-4 py-2.5 text-right text-xs font-body font-medium uppercase tracking-wide text-grey-500">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((i, idx) => (
+              {sorted.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-medium text-grey-900">{materialName(i.thicknessId)}</td>

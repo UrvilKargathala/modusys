@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Copy, PackageSearch } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, PackageSearch, Search } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { HardwarePriceFormDialog } from "@/components/templates/hardware-price-form-dialog";
+import { useTableSort } from "@/components/templates/table-sort";
 import { DeletePriceItemDialog } from "@/components/templates/delete-price-item-dialog";
 import { BulkActionConfirmDialog } from "@/components/templates/bulk-action-confirm-dialog";
 import { useHardwarePriceItems, pricingListStore } from "@/lib/store/pricing-list-store";
@@ -34,18 +35,42 @@ export function HardwarePriceTable() {
 
   const [categoryFilter, setCategoryFilter] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
+  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<HardwarePriceItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<HardwarePriceItem | null>(null);
   const [pendingAction, setPendingAction] = useState<{ description: string; apply: () => void } | null>(null);
 
-  const filtered = useMemo(
-    () =>
-      items.filter(
-        (i) => (!categoryFilter || i.categoryId === categoryFilter) && (!brandFilter || i.brandId === brandFilter)
-      ),
-    [items, categoryFilter, brandFilter]
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return items.filter((i) => {
+      if (categoryFilter && i.categoryId !== categoryFilter) return false;
+      if (brandFilter && i.brandId !== brandFilter) return false;
+      if (!q) return true;
+      return (
+        i.articleNo.toLowerCase().includes(q) ||
+        i.description.toLowerCase().includes(q) ||
+        categoryName(i.categoryId).toLowerCase().includes(q) ||
+        brandName(i.brandId).toLowerCase().includes(q)
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, categoryFilter, brandFilter, search]);
+
+  const { header, sortRows } = useTableSort<
+    "articleNo" | "category" | "brand" | "description" | "levelType" | "unit" | "mrp" | "discount" | "rate"
+  >("articleNo");
+  const sorted = sortRows(filtered, (i, key) =>
+    key === "articleNo" ? i.articleNo
+    : key === "category" ? categoryName(i.categoryId)
+    : key === "brand" ? brandName(i.brandId)
+    : key === "description" ? i.description
+    : key === "levelType" ? levelTypeName(i.levelTypeId)
+    : key === "unit" ? unitName(i.unitId)
+    : key === "mrp" ? i.mrp
+    : key === "discount" ? i.discountPct
+    : rateAfterDiscount(i)
   );
 
   const toggleSelect = (id: string) => {
@@ -78,6 +103,15 @@ export function HardwarePriceTable() {
           <p className="text-xs font-body text-grey-400">{items.length} SKUs</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-44">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search"
+              className="w-full rounded-lg border border-grey-100 bg-card py-1.5 pl-8 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
+            />
+          </div>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
@@ -205,16 +239,20 @@ export function HardwarePriceTable() {
               <tr>
                 {canEdit && <th className="w-8 px-4 py-2.5" />}
                 <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">SR No</th>
-                {["Article No.", "Category", "Brand", "Description", "Level Type", "Unit", "MRP", "Discount %", "Rate After Discount"].map((h) => (
-                  <th key={h} className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
-                    {h}
-                  </th>
-                ))}
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("articleNo", "Article No.")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("category", "Category")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("brand", "Brand")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("description", "Description")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("levelType", "Level Type")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("unit", "Unit")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("mrp", "MRP")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("discount", "Discount %")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("rate", "Rate After Discount")}</th>
                 <th className="px-4 py-2.5 text-right text-xs font-body font-medium uppercase tracking-wide text-grey-500">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((i, idx) => (
+              {sorted.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
                   {canEdit && (
                     <td className="px-4 py-3">

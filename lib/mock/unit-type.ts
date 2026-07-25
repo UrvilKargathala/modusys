@@ -64,8 +64,15 @@ export type UnitTypeCabinetTypeLink = {
 export type UnitTypeHardware = {
   id: string;
   categoryId: string; // Material Library → Category
-  hardwareItemId: string; // Hardware Price List item id
+  hardwareItemId: string; // Hardware Price List item id (used to derive Unit/Rate)
   qtyFormula: string; // number or formula, e.g. "2" or "H/450"
+  // User-editable overrides (Phase B4): Article No. is free-typed, Brand and
+  // Description are picked directly from Hardware Price List (no Category
+  // gate), Level Type comes from Material Library.
+  articleNo?: string;
+  brandId?: string;
+  description?: string;
+  levelTypeId?: string;
 };
 
 export type UnitType = {

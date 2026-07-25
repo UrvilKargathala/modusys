@@ -1,8 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, X, AlertTriangle } from "lucide-react";
+import { GripVertical, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
@@ -12,11 +13,11 @@ import { rateAfterDiscount } from "@/lib/mock/pricing-list";
 import { cn } from "@/lib/utils";
 import type { UnitTypeHardware } from "@/lib/mock/unit-type";
 
-// Category → Description → (Brand/Unit/Rate/Article No. read off the
-// matched Hardware Price List item, never stored redundantly here). If the
-// referenced item was deleted/deactivated since being picked, `matched` is
-// undefined and the row falls back to the same "no match found" warning
-// used by Components/External Finish.
+// Article No. is a free text field. Brand and Description each pick from
+// Hardware Price List distinct values (unfiltered by Category so the user
+// isn't gated by a category choice). Level Type is picked from Material
+// Library. Unit and Rate are still derived when a specific HPL item is
+// pointed at via hardwareItemId; otherwise they show "—".
 export function UnitTypeHardwareRow({
   value,
   onChange,
@@ -31,12 +32,22 @@ export function UnitTypeHardwareRow({
   const hardwareItems = useHardwarePriceItems();
   const brands = useMaterialItems("brand");
   const units = useMaterialItems("unit");
-  const levelTypes = useMaterialItems("level-type");
-  const brandName = (id?: string) => brands.find((b) => b.id === id)?.name ?? "—";
   const unitName = (id?: string) => units.find((u) => u.id === id)?.name ?? "—";
-  const levelTypeName = (id?: string) => levelTypes.find((l) => l.id === id)?.name ?? "—";
 
-  const optionsForCategory = hardwareItems.filter((h) => h.categoryId === value.categoryId);
+  // Distinct brand ids that show up in Hardware Price List (fetched from
+  // there, per spec). Fall back to full brand library if HPL is empty.
+  const brandOptions = useMemo(() => {
+    const ids = new Set(hardwareItems.map((h) => h.brandId).filter(Boolean));
+    const list = brands.filter((b) => ids.has(b.id));
+    return list.length > 0 ? list : brands;
+  }, [hardwareItems, brands]);
+
+  // Distinct product descriptions from Hardware Price List (deduped).
+  const descriptionOptions = useMemo(
+    () => Array.from(new Set(hardwareItems.map((h) => h.description).filter(Boolean))).sort(),
+    [hardwareItems]
+  );
+
   const matched = hardwareItems.find((h) => h.id === value.hardwareItemId);
 
   return (
@@ -68,10 +79,13 @@ export function UnitTypeHardwareRow({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>div]:min-w-0">
         <div className="flex flex-col gap-1.5">
-          <Label>Article No.</Label>
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body text-grey-700">
-            {matched?.articleNo ?? "—"}
-          </div>
+          <Label htmlFor={`hw-art-${value.id}`}>Article No.</Label>
+          <Input
+            id={`hw-art-${value.id}`}
+            placeholder="e.g. BLM-CLIP-110"
+            value={value.articleNo ?? ""}
+            onChange={(e) => onChange({ articleNo: e.target.value })}
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -79,30 +93,39 @@ export function UnitTypeHardwareRow({
           <MaterialReferenceSelect
             category="category"
             value={value.categoryId}
-            onChange={(id) => onChange({ categoryId: id, hardwareItemId: "" })}
+            onChange={(id) => onChange({ categoryId: id })}
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label>Brand</Label>
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body text-grey-700">
-            {matched ? brandName(matched.brandId) : "—"}
-          </div>
+          <Label htmlFor={`hw-brand-${value.id}`}>Brand</Label>
+          <select
+            id={`hw-brand-${value.id}`}
+            value={value.brandId ?? ""}
+            onChange={(e) => onChange({ brandId: e.target.value })}
+            className="w-full rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+          >
+            <option value="">Select brand</option>
+            {brandOptions.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`hw-desc-${value.id}`}>Description</Label>
           <select
             id={`hw-desc-${value.id}`}
-            disabled={!value.categoryId}
-            value={value.hardwareItemId}
-            onChange={(e) => onChange({ hardwareItemId: e.target.value })}
-            className="w-full rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary disabled:bg-light-600 disabled:text-grey-400"
+            value={value.description ?? ""}
+            onChange={(e) => onChange({ description: e.target.value })}
+            className="w-full rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
           >
-            <option value="">{value.categoryId ? "Select item" : "Select a category first"}</option>
-            {optionsForCategory.map((h) => (
-              <option key={h.id} value={h.id}>
-                {h.articleNo} — {h.description || "—"}
+            <option value="">Select description</option>
+            {descriptionOptions.map((d) => (
+              <option key={d} value={d}>
+                {d}
               </option>
             ))}
           </select>
@@ -110,9 +133,11 @@ export function UnitTypeHardwareRow({
 
         <div className="flex flex-col gap-1.5">
           <Label>Level Type</Label>
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body text-grey-700">
-            {matched ? levelTypeName(matched.levelTypeId) : "—"}
-          </div>
+          <MaterialReferenceSelect
+            category="level-type"
+            value={value.levelTypeId ?? ""}
+            onChange={(id) => onChange({ levelTypeId: id })}
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -141,12 +166,6 @@ export function UnitTypeHardwareRow({
         </div>
       </div>
 
-      {value.hardwareItemId && !matched && (
-        <div className="mt-3 flex items-center gap-2 rounded-lg bg-warning-transparent px-3 py-2 text-sm font-body text-warning">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
-          No match found — this item may have been removed or deactivated in Hardware Price List.
-        </div>
-      )}
     </div>
   );
 }

@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Copy, Trash2, PackageSearch } from "lucide-react";
+import { Plus, Pencil, Copy, Trash2, PackageSearch, Search } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UnitTypeFormDialog } from "@/components/templates/unit-type-form-dialog";
+import { useTableSort } from "@/components/templates/table-sort";
 import { DeleteCabinetTypeDialog } from "@/components/templates/delete-cabinet-type-dialog";
 import { useUnitTypes, unitTypeStore } from "@/lib/store/unit-type-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
@@ -26,6 +27,31 @@ export function UnitTypeTable() {
     const primary = cabinetTypes.find((c) => c.id === links[0].cabinetTypeId)?.name ?? "—";
     return links.length > 1 ? `${primary} +${links.length - 1}` : primary;
   };
+
+  const [search, setSearch] = useState("");
+  const searched = items.filter((i) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      i.name.toLowerCase().includes(q) ||
+      i.shortCode.toLowerCase().includes(q) ||
+      cabinetTypeLabel(i.cabinetTypeLinks).toLowerCase().includes(q)
+    );
+  });
+
+  const { header, sortRows } = useTableSort<
+    "name" | "shortCode" | "cabinet" | "components" | "externalFinish" | "hardware" | "otherPanel" | "status"
+  >("name");
+  const sorted = sortRows(searched, (i, key) =>
+    key === "name" ? i.name
+    : key === "shortCode" ? i.shortCode
+    : key === "cabinet" ? cabinetTypeLabel(i.cabinetTypeLinks)
+    : key === "components" ? i.components.length
+    : key === "externalFinish" ? i.externalFinishes.length
+    : key === "hardware" ? i.hardware.length
+    : key === "otherPanel" ? i.otherPanels.length
+    : i.active ? "Active" : "Inactive"
+  );
 
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<UnitType | null>(null);
@@ -54,10 +80,21 @@ export function UnitTypeTable() {
           <h3 className="font-heading text-base font-semibold text-grey-900">Unit Type</h3>
           <p className="text-xs font-body text-grey-400">{items.length} unit types</p>
         </div>
-        <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Add Unit Type
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-44">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search"
+              className="w-full rounded-lg border border-grey-100 bg-card py-1.5 pl-8 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
+            />
+          </div>
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Add Unit Type
+          </Button>
+        </div>
       </div>
 
       {items.length === 0 ? (
@@ -72,16 +109,19 @@ export function UnitTypeTable() {
             <thead className="bg-light-600">
               <tr>
                 <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">SR No</th>
-                {["Name", "Short Code", "Cabinet Type", "Components", "External Finish", "Hardware", "Other Panel", "Status"].map((h) => (
-                  <th key={h} className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
-                    {h}
-                  </th>
-                ))}
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("name", "Name")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("shortCode", "Short Code")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("cabinet", "Cabinet Type")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("components", "Components")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("externalFinish", "External Finish")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("hardware", "Hardware")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("otherPanel", "Other Panel")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("status", "Status")}</th>
                 <th className="px-4 py-2.5 text-right text-xs font-body font-medium uppercase tracking-wide text-grey-500">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((i, idx) => (
+              {sorted.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-medium text-grey-900">{i.name}</td>

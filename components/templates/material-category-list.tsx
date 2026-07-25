@@ -96,6 +96,9 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
           <table className="w-full text-left">
             <thead className="bg-light-600">
               <tr>
+                {category.group === "library" && (
+                  <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">SR No</th>
+                )}
                 <th className="px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
                   <button
                     type="button"
@@ -126,8 +129,11 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
               </tr>
             </thead>
             <tbody>
-              {filtered.map((i) => (
+              {filtered.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
+                  {category.group === "library" && (
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                  )}
                   <td className="px-4 py-3 text-sm font-body text-grey-900">
                     {i.name}
                     {category.longDescription && i.description && (
