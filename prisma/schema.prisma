@@ -202,6 +202,7 @@ model Quote {
   handleTypeId                String   @default("")
   hingesTypeId                String   @default("")
   clientResponsibilityId      String   @default("")
+  tandemDrawerTypeId          String   @default("")
   units                       Json     @default("[]")
   finishOptions               Json     @default("[]")
   specialDiscountPct          Float    @default(0)

@@ -43,6 +43,7 @@ export type Quote = {
   handleTypeId: string;
   hingesTypeId: string;
   clientResponsibilityId: string;
+  tandemDrawerTypeId: string;
   units: QuoteUnit[];
   specialDiscountPct: number;
   installationFreightIncluded: boolean;
@@ -90,6 +91,7 @@ export function blankQuote(quoteNumber: string, defaultMarkup: number): Quote {
     handleTypeId: "",
     hingesTypeId: "",
     clientResponsibilityId: "",
+    tandemDrawerTypeId: "",
     units: [],
     specialDiscountPct: 0,
     installationFreightIncluded: true,

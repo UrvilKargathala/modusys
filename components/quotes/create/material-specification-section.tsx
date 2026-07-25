@@ -54,6 +54,15 @@ export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote
             onChange={(id) => onChange({ clientResponsibilityId: id })}
           />
         </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label>Tandem Drawer Type</Label>
+          <MaterialReferenceSelect
+            category="tandem-drawer-type"
+            value={quote.tandemDrawerTypeId}
+            onChange={(id) => onChange({ tandemDrawerTypeId: id })}
+          />
+        </div>
       </div>
     </section>
   );
