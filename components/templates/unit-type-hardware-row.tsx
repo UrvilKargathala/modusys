@@ -34,18 +34,26 @@ export function UnitTypeHardwareRow({
   const units = useMaterialItems("unit");
   const unitName = (id?: string) => units.find((u) => u.id === id)?.name ?? "—";
 
-  // Distinct brand ids that show up in Hardware Price List (fetched from
-  // there, per spec). Fall back to full brand library if HPL is empty.
-  const brandOptions = useMemo(() => {
-    const ids = new Set(hardwareItems.map((h) => h.brandId).filter(Boolean));
-    const list = brands.filter((b) => ids.has(b.id));
-    return list.length > 0 ? list : brands;
-  }, [hardwareItems, brands]);
+  // Filter hardware items by the row's selected category, so Brand and
+  // Description narrow to just that category's SKUs. If no category picked,
+  // show the whole list.
+  const itemsForCategory = useMemo(
+    () => (value.categoryId ? hardwareItems.filter((h) => h.categoryId === value.categoryId) : hardwareItems),
+    [hardwareItems, value.categoryId]
+  );
 
-  // Distinct product descriptions from Hardware Price List (deduped).
+  // Distinct brand ids that show up in the (category-filtered) Hardware
+  // Price List.
+  const brandOptions = useMemo(() => {
+    const ids = new Set(itemsForCategory.map((h) => h.brandId).filter(Boolean));
+    return brands.filter((b) => ids.has(b.id));
+  }, [itemsForCategory, brands]);
+
+  // Distinct product descriptions from the (category-filtered) Hardware
+  // Price List.
   const descriptionOptions = useMemo(
-    () => Array.from(new Set(hardwareItems.map((h) => h.description).filter(Boolean))).sort(),
-    [hardwareItems]
+    () => Array.from(new Set(itemsForCategory.map((h) => h.description).filter(Boolean))).sort(),
+    [itemsForCategory]
   );
 
   const matched = hardwareItems.find((h) => h.id === value.hardwareItemId);
