@@ -325,7 +325,7 @@ export function QuoteCabinetGroup({
           <FurnitureGroup
             title="Shutter"
             label="External Finish"
-            showComponentName={false}
+            showComponentName
             items={cabinet.externalFinishes}
             unit={unit}
             addLabel="Add Shutter"
@@ -334,7 +334,7 @@ export function QuoteCabinetGroup({
           <FurnitureGroup
             title="Other Panel"
             label="Other Panel"
-            showComponentName={false}
+            showComponentName
             showLevelType
             items={cabinet.panels}
             unit={unit}

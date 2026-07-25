@@ -47,11 +47,12 @@ function buildCabinetsFromUnitType(
     label: cabinetTypeName(link.cabinetTypeId),
     components: unitType.components.filter((c) => c.sourceLinkId === link.id).map(resolve),
     // Unit Type only groups Components per Cabinet Type link — External
-    // Finish and Hardware are unit-wide in the source data, so they attach
-    // to the first cabinet slot only, not duplicated across every cabinet.
+    // Finish, Other Panel, and Hardware are unit-wide in the source data,
+    // so they attach to the first cabinet slot only, not duplicated across
+    // every cabinet.
     externalFinishes: index === 0 ? unitType.externalFinishes.map(resolve) : [],
     hardware: index === 0 ? unitType.hardware.map(resolveHw) : [],
-    panels: [],
+    panels: index === 0 ? unitType.otherPanels.map(resolve) : [],
   }));
 }
 
