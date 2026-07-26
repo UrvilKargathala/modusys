@@ -25,22 +25,36 @@ import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/prici
 import { cabinetTotal, unitTotal, resolveLineItemDimensions, resolveHardwareForUnit } from "@/lib/quote-pricing";
 import type { QuoteUnit, QuoteCabinet } from "@/lib/mock/quote";
 import type { UnitType, FurnitureLineItem, UnitTypeHardware } from "@/lib/mock/unit-type";
+import type { HardwarePriceItem } from "@/lib/mock/pricing-list";
 import { cn } from "@/lib/utils";
 
 function cloneLineItem(item: FurnitureLineItem): FurnitureLineItem {
   return { ...item, id: `qli-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
 }
-function cloneHardware(item: UnitTypeHardware): UnitTypeHardware {
-  return { ...item, id: `qhw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
+// Older Unit Type templates only stored hardwareItemId (no independent
+// articleNo/brandId/description/levelTypeId — those fields were added
+// later). Backfill them from the matched Hardware Price List item so
+// Auto Populate doesn't leave those columns blank for legacy templates.
+function cloneHardware(item: UnitTypeHardware, hardwareItems: HardwarePriceItem[]): UnitTypeHardware {
+  const clone = { ...item, id: `qhw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
+  const matched = hardwareItems.find((h) => h.id === item.hardwareItemId);
+  if (matched) {
+    if (!clone.articleNo) clone.articleNo = matched.articleNo;
+    if (!clone.brandId) clone.brandId = matched.brandId;
+    if (!clone.description) clone.description = matched.description;
+    if (!clone.levelTypeId) clone.levelTypeId = matched.levelTypeId;
+  }
+  return clone;
 }
 
 function buildCabinetsFromUnitType(
   unitType: UnitType,
   cabinetTypeName: (id: string) => string,
-  unitDims: { width: number; depth: number; height: number; qty: number }
+  unitDims: { width: number; depth: number; height: number; qty: number },
+  hardwareItems: HardwarePriceItem[]
 ): QuoteCabinet[] {
   const resolve = (item: FurnitureLineItem) => resolveLineItemDimensions(cloneLineItem(item), unitDims);
-  const resolveHw = (item: UnitTypeHardware) => resolveHardwareForUnit(cloneHardware(item), unitDims);
+  const resolveHw = (item: UnitTypeHardware) => resolveHardwareForUnit(cloneHardware(item, hardwareItems), unitDims);
   return unitType.cabinetTypeLinks.map((link, index) => ({
     id: `qc-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
     cabinetTypeId: link.cabinetTypeId,
@@ -140,7 +154,7 @@ export function QuoteUnitCard({
       id: `qc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       components: source.components.map(cloneLineItem),
       externalFinishes: source.externalFinishes.map(cloneLineItem),
-      hardware: source.hardware.map(cloneHardware),
+      hardware: source.hardware.map((h) => cloneHardware(h, [])),
       panels: source.panels.map(cloneLineItem),
     };
     const cabinets = [...unit.cabinets];
@@ -162,7 +176,7 @@ export function QuoteUnitCard({
   };
 
   const runAutoPopulate = (unitType: UnitType) => {
-    const cabinets = buildCabinetsFromUnitType(unitType, cabinetTypeName, unit);
+    const cabinets = buildCabinetsFromUnitType(unitType, cabinetTypeName, unit, hardwareItems);
     onChange({
       unitTypeId: unitType.id,
       // New Shutter rows start on the Material Specification's Shutter

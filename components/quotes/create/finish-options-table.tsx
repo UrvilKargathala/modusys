@@ -4,7 +4,7 @@ import { Plus, Copy, Trash2 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useMaterialItems } from "@/lib/store/material-spec-store";
+import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import type { FinishOption } from "@/lib/mock/quote";
 
 // Option letter derives from row position: 0→A, 1→B, ..., 25→Z. Simple mod
@@ -28,9 +28,6 @@ export function FinishOptionsTable({
   options: FinishOption[];
   onChange: (next: FinishOption[]) => void;
 }) {
-  const externalColours = useMaterialItems("external-colour");
-  const tandemDrawers = useMaterialItems("tandem-drawer-type");
-
   const update = (id: string, patch: Partial<FinishOption>) =>
     onChange(options.map((o) => (o.id === id ? { ...o, ...patch } : o)));
 
@@ -87,31 +84,21 @@ export function FinishOptionsTable({
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <select
-                        value={row.externalColourId}
-                        onChange={(e) => update(row.id, { externalColourId: e.target.value })}
-                        className="h-9 min-w-40 rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
-                      >
-                        <option value="">Select external finish</option>
-                        {externalColours.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="min-w-40 flex-1">
+                        <MaterialReferenceSelect
+                          category="external-colour"
+                          value={row.externalColourId}
+                          onChange={(id) => update(row.id, { externalColourId: id })}
+                        />
+                      </div>
                       <span className="text-sm font-body text-grey-400">+</span>
-                      <select
-                        value={row.tandemDrawerTypeId}
-                        onChange={(e) => update(row.id, { tandemDrawerTypeId: e.target.value })}
-                        className="h-9 min-w-40 rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
-                      >
-                        <option value="">Select tandem drawer</option>
-                        {tandemDrawers.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.name}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="min-w-40 flex-1">
+                        <MaterialReferenceSelect
+                          category="tandem-drawer-type"
+                          value={row.tandemDrawerTypeId}
+                          onChange={(id) => update(row.id, { tandemDrawerTypeId: id })}
+                        />
+                      </div>
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
