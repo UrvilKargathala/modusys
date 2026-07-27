@@ -19,7 +19,17 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
     <section className="flex flex-col gap-6 rounded-xl border border-grey-100 bg-card p-6">
       <h2 className="font-heading text-lg font-semibold text-grey-900">Client Details</h2>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="flex flex-col gap-1.5">
+          <Label>Customer Name</Label>
+          <CustomerPicker value={quote.customerId ?? ""} onChange={(id) => onChange({ customerId: id || null })} />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label>Architect Name</Label>
+          <ArchitectPicker value={quote.architectId ?? ""} onChange={(id) => onChange({ architectId: id || null })} />
+        </div>
+
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="q-number">Quote Number</Label>
           <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-medium text-grey-700">
@@ -46,22 +56,6 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
           <span className="text-xs font-body text-grey-400">Increments on duplicate/revise</span>
         </div>
 
-        <div className="flex flex-col gap-1.5 lg:col-span-3">
-          <Label>Customer Name</Label>
-          <CustomerPicker value={quote.customerId ?? ""} onChange={(id) => onChange({ customerId: id || null })} />
-        </div>
-
-        {quote.customerId && (
-          <div className="lg:col-span-3">
-            <CustomerReadOnlyDetails customerId={quote.customerId} />
-          </div>
-        )}
-
-        <div className="flex flex-col gap-1.5 lg:col-span-2">
-          <Label>Architect Name</Label>
-          <ArchitectPicker value={quote.architectId ?? ""} onChange={(id) => onChange({ architectId: id || null })} />
-        </div>
-
         <div className="flex flex-col gap-1.5">
           <Label>Status</Label>
           <select
@@ -80,12 +74,6 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
             ))}
           </select>
         </div>
-
-        {quote.architectId && (
-          <div className="lg:col-span-3">
-            <ArchitectReadOnlyDetails architectId={quote.architectId} />
-          </div>
-        )}
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="q-markup">Markup Multiplier</Label>
@@ -109,6 +97,18 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
             </button>
           )}
         </div>
+
+        {quote.customerId && (
+          <div className="sm:col-span-2 lg:col-span-3">
+            <CustomerReadOnlyDetails customerId={quote.customerId} />
+          </div>
+        )}
+
+        {quote.architectId && (
+          <div className="sm:col-span-2 lg:col-span-3">
+            <ArchitectReadOnlyDetails architectId={quote.architectId} />
+          </div>
+        )}
       </div>
     </section>
   );
