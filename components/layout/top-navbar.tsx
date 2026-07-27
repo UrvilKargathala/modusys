@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Bell, ChevronDown, LogOut, UserPlus, Clock3, CheckCircle2, AtSign } from "lucide-react";
+import { Search, Bell, ChevronDown, LogOut, UserPlus, Clock3, CheckCircle2, AtSign, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { navigationItems, administrationItems } from "@/lib/nav";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -199,6 +199,13 @@ export function TopNavbar() {
                 {currentUser.name || "Not signed in"}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem
+                render={<Link href="/account/change-password" />}
+                className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+              >
+                <KeyRound className="h-4 w-4 shrink-0 text-grey-400" />
+                Change Password
+              </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"
                 onClick={handleSignOut}

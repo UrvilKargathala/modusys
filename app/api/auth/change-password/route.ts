@@ -9,11 +9,9 @@ import { logSecurityAudit } from "@/lib/server/audit-log";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Self-service password change for the signed-in user. Passes
-// allowMustChangePassword so this is reachable even while a forced change is
-// pending (every other route blocks on that flag via requireUser()).
+// Self-service password change for the signed-in user.
 export async function POST(req: Request) {
-  const auth = await requireUser({ allowMustChangePassword: true });
+  const auth = await requireUser();
   if (auth.response) return auth.response;
 
   const body = await req.json().catch(() => null);

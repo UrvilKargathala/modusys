@@ -59,7 +59,7 @@ export default function ChangePasswordPage() {
       <div className="flex flex-col gap-1">
         <h1 className="font-heading text-xl font-semibold text-grey-900">Change Password</h1>
         <p className="text-sm font-body text-grey-400">
-          You must set a new password before continuing.
+          Update your account password.
         </p>
       </div>
 

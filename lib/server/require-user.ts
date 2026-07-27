@@ -37,26 +37,12 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
 // Call at the top of every API route handler that requires a signed-in user.
 // Usage: const auth = await requireUser(); if (auth.response) return auth.response;
-//
-// Blocks with 403 when the user still has a forced password change pending —
-// a single choke point so every existing route is covered without editing
-// each one. The change-password route itself (and nothing else) passes
-// allowMustChangePassword so the user can actually clear the flag.
-export async function requireUser(opts?: { allowMustChangePassword?: boolean }): Promise<
+export async function requireUser(): Promise<
   { user: SessionUser; response: null } | { user: null; response: NextResponse }
 > {
   const user = await getSessionUser();
   if (!user) {
     return { user: null, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-  }
-  if (user.mustChangePassword && !opts?.allowMustChangePassword) {
-    return {
-      user: null,
-      response: NextResponse.json(
-        { error: "Password change required", code: "PASSWORD_CHANGE_REQUIRED" },
-        { status: 403 }
-      ),
-    };
   }
   return { user, response: null };
 }

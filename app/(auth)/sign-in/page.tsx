@@ -43,7 +43,7 @@ export default function SignInPage() {
     }
     const { user } = await res.json();
     setSessionUser(user);
-    router.push(user.mustChangePassword ? "/account/change-password" : "/dashboard");
+    router.push("/dashboard");
   };
 
   return (
