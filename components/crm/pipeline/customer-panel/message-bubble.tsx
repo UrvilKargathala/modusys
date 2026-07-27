@@ -25,7 +25,7 @@ function VoiceBubble({ message }: { message: CustomerMessage }) {
           if (playing) audioRef.current?.pause();
           else audioRef.current?.play();
         }}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal text-grey-900"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal text-white"
       >
         {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 fill-white" />}
       </button>
@@ -73,7 +73,7 @@ export function MessageBubble({ message }: { message: CustomerMessage }) {
         <div
           className={cn(
             "rounded-2xl px-3 py-2 text-sm font-body",
-            isSelf ? "bg-teal text-grey-900" : "bg-light-600 text-grey-800",
+            isSelf ? "bg-teal text-white" : "bg-light-600 text-grey-800",
             message.status === "error" && "border border-error"
           )}
         >

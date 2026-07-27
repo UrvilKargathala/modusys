@@ -28,7 +28,7 @@ export function OrgTypeCard({ icon: Icon, label, description, selected, onSelect
       <div
         className={cn(
           "flex h-9 w-9 items-center justify-center rounded-lg",
-          selected ? "bg-teal text-grey-900" : "bg-light-600 text-grey-400"
+          selected ? "bg-teal text-white" : "bg-light-600 text-grey-400"
         )}
       >
         <Icon className="h-4.5 w-4.5" />

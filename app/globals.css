@@ -50,7 +50,7 @@
   --color-warning: #e2b93b;
   --color-indigo: #3538c0;
   --color-cyan: #06aed4;
-  --color-teal: #99ffff;
+  --color-teal: #bb3e03;
 
   /* Transparent variants */
   --color-grey-transparent: #f4f4f4;
@@ -65,7 +65,7 @@
   --color-orange-transparent: #fdf8f3;
   --color-indigo-transparent: #ededf8;
   --color-cyan-transparent: #e9f8fb;
-  --color-teal-transparent: #e6ffff;
+  --color-teal-transparent: #fbebe0;
   --color-light-transparent: #fdfdfe;
 
   /* Primary shades — tonal scale of #A05E5E toward white */
