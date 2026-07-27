@@ -87,7 +87,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <WelcomeBanner
-        name="Urvil"
+        name={currentUser.name.split(" ")[0] || currentUser.name}
         stats={[
           { label: "Tasks Due", value: String(pendingTasks.length) },
           { label: "Active Quotes", value: kpis ? String(kpis.activeQuotes) : "—" },
