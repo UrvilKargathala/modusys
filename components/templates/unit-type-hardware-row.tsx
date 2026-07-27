@@ -181,7 +181,7 @@ export function UnitTypeHardwareRow({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 [&>div]:min-w-0">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 [&>div]:min-w-0">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`hw-art-${value.id}`}>Article No.</Label>
           <Input
@@ -218,7 +218,7 @@ export function UnitTypeHardwareRow({
           </select>
         </div>
 
-        <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-2">
+        <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-1">
           <Label htmlFor={`hw-desc-${value.id}`}>Description</Label>
           <select
             id={`hw-desc-${value.id}`}
