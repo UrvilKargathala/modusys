@@ -90,7 +90,7 @@ export function UnitTypeHardwareRow({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>div]:min-w-0">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 [&>div]:min-w-0">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`hw-art-${value.id}`}>Article No.</Label>
           <Input
@@ -127,7 +127,7 @@ export function UnitTypeHardwareRow({
           </select>
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-2">
           <Label htmlFor={`hw-desc-${value.id}`}>Description</Label>
           <select
             id={`hw-desc-${value.id}`}
@@ -145,23 +145,22 @@ export function UnitTypeHardwareRow({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label>Level Type</Label>
-          <MaterialReferenceSelect
-            category="level-type"
-            value={value.levelTypeId ?? ""}
-            onChange={(id) => onChange({ levelTypeId: id })}
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`hw-qty-${value.id}`}>Quantity (Qty)</Label>
+          <Label htmlFor={`hw-qty-${value.id}`}>Qty</Label>
           <Input
             id={`hw-qty-${value.id}`}
             placeholder="e.g. 2 or H/450"
             value={value.qtyFormula}
             onChange={(e) => onChange({ qtyFormula: e.target.value })}
           />
-          <span className="text-xs font-body text-grey-400">Enter a number or a formula using W, D, H (e.g. H/450).</span>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label>Level Type</Label>
+          <MaterialReferenceSelect
+            category="level-type"
+            value={value.levelTypeId ?? ""}
+            onChange={(id) => onChange({ levelTypeId: id })}
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">

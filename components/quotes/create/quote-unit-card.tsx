@@ -285,7 +285,7 @@ export function QuoteUnitCard({
       </div>
 
       {!unit.collapsed && (
-        <div className="flex flex-col gap-3 pl-12">
+        <div className="flex flex-col gap-3 sm:pl-12">
           {unit.cabinets.map((cabinet, cabinetIndex) => (
             <QuoteCabinetGroup
               key={cabinet.id}

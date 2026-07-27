@@ -108,9 +108,9 @@ export function FurnitureLineItemRow({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 [&>div]:min-w-0">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 [&>div]:min-w-0">
         {showComponentName && (
-          <div className="flex flex-col gap-1.5">
+          <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-2">
             <Label>Component Name</Label>
             <MaterialReferenceSelect
               category="furniture-component"
@@ -120,7 +120,7 @@ export function FurnitureLineItemRow({
           </div>
         )}
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`w-${value.id}`}>Width (W)</Label>
+          <Label htmlFor={`w-${value.id}`}>Width</Label>
           <Input
             id={`w-${value.id}`}
             placeholder="e.g. (W-95)/2"
@@ -129,7 +129,7 @@ export function FurnitureLineItemRow({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`h-${value.id}`}>Height (H)</Label>
+          <Label htmlFor={`h-${value.id}`}>Height</Label>
           <Input
             id={`h-${value.id}`}
             placeholder="e.g. H-20"
@@ -137,6 +137,24 @@ export function FurnitureLineItemRow({
             onChange={(e) => handleFieldChange({ heightFormula: e.target.value })}
           />
         </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`qty-${value.id}`}>Qty</Label>
+          <Input
+            id={`qty-${value.id}`}
+            type="number"
+            min={1}
+            value={value.qty || ""}
+            onChange={(e) => handleFieldChange({ qty: Number(e.target.value) })}
+          />
+        </div>
+        {totalSqFt !== undefined && (
+          <div className="flex flex-col gap-1.5">
+            <Label>Amount</Label>
+            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-900">
+              ₹{(match ? match.rate * totalSqFt : 0).toFixed(2)}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col gap-1.5">
           <Label>Thickness</Label>
@@ -147,7 +165,7 @@ export function FurnitureLineItemRow({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label>Raw Material Type</Label>
+          <Label>Raw Material</Label>
           <MaterialReferenceSelect
             category="raw-material-type"
             value={value.rawMaterialTypeId}
@@ -180,18 +198,6 @@ export function FurnitureLineItemRow({
             />
           </div>
         )}
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`qty-${value.id}`}>Quantity (Qty)</Label>
-          <Input
-            id={`qty-${value.id}`}
-            type="number"
-            min={1}
-            value={value.qty || ""}
-            onChange={(e) => handleFieldChange({ qty: Number(e.target.value) })}
-          />
-        </div>
-
         <div className="flex flex-col gap-1.5">
           <Label>Rate</Label>
           {match ? (
@@ -204,21 +210,11 @@ export function FurnitureLineItemRow({
             </div>
           )}
         </div>
-
         {totalSqFt !== undefined && (
           <div className="flex flex-col gap-1.5">
-            <Label>Total (sq.ft)</Label>
+            <Label>Total sq.ft</Label>
             <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-700">
               {totalSqFt.toFixed(2)}
-            </div>
-          </div>
-        )}
-
-        {totalSqFt !== undefined && (
-          <div className="flex flex-col gap-1.5">
-            <Label>Amount</Label>
-            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-900">
-              ₹{(match ? match.rate * totalSqFt : 0).toFixed(2)}
             </div>
           </div>
         )}
