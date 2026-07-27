@@ -15,13 +15,6 @@ export type StatusDistributionDatum = { status: StatusKey; count: number };
 
 export type TrendDatum = { label: string; quotes: number; revenue: number };
 
-export type Birthday = {
-  id: string;
-  name: string;
-  role: string;
-  date: string;
-};
-
 const MOCK_QUOTES_BY_STATUS: Record<StatusKey, number> = {
   draft: 14,
   approved: 18,
@@ -127,9 +120,3 @@ export function getQuoteTrends(range: DateRange, granularity: TrendGranularity):
   return points.length ? points : [{ label: "—", quotes: 0, revenue: 0 }];
 }
 
-export function getUpcomingBirthdays(): Birthday[] {
-  return [
-    { id: "b1", name: "Ananya Iyer", role: "Sales Executive", date: "19/07" },
-    { id: "b2", name: "Vikram Singh", role: "Architect Partner", date: "23/07" },
-  ];
-}

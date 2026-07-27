@@ -25,7 +25,6 @@ import {
   getDashboardKpis,
   getQuoteTrends,
   getStatusDistribution,
-  getUpcomingBirthdays,
   type DateRange,
   type TrendGranularity,
 } from "@/lib/mock/dashboard";
@@ -69,11 +68,6 @@ export default function DashboardPage() {
     queryKey: ["dashboard-trends", range, granularity],
     queryFn: () => getQuoteTrends(range, granularity),
   });
-  const { data: birthdays } = useQuery({
-    queryKey: ["dashboard-birthdays"],
-    queryFn: () => getUpcomingBirthdays(),
-  });
-
   const donutData =
     distribution?.map((d) => ({
       name: statusConfig[d.status].label,
@@ -143,7 +137,7 @@ export default function DashboardPage() {
           title={canSeeAll ? `${pendingTasks.length} tasks due this week across the team` : "Upcoming Tasks"}
         />
         <NotificationsPanel />
-        <UpcomingBirthdaysPanel birthdays={birthdays ?? []} />
+        <UpcomingBirthdaysPanel />
       </div>
       </ListPageShell>
 
