@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { replaceCollection, toDate } from "@/lib/server/bulk";
+import { requireUser, requireRole } from "@/lib/server/require-user";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
   const items = await prisma.cabinetType.findMany({ orderBy: { createdAt: "asc" } });
   return NextResponse.json(items.map((c) => ({
     id: c.id, name: c.name, shortCode: c.shortCode, active: c.active,
@@ -15,6 +18,8 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
+  const auth = await requireRole(["super-admin", "admin"]);
+  if (auth.response) return auth.response;
   const rows = (await req.json()) as Array<Record<string, unknown>>;
   await replaceCollection(prisma.cabinetType, rows.map((r) => ({
     id: String(r.id), name: String(r.name), shortCode: String(r.shortCode),

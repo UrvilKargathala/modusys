@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { serializeArchitect } from "@/lib/server/serialize";
+import { requireUser, requireRole } from "@/lib/server/require-user";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,6 +9,8 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Ctx) {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
   const { id } = await params;
   const a = await prisma.architect.findUnique({ where: { id }, include: { partners: true } });
   if (!a) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -15,6 +18,8 @@ export async function GET(_req: Request, { params }: Ctx) {
 }
 
 export async function PATCH(req: Request, { params }: Ctx) {
+  const auth = await requireRole(["super-admin", "admin"]);
+  if (auth.response) return auth.response;
   const { id } = await params;
   const b = await req.json();
   const data: Record<string, unknown> = {};
@@ -34,6 +39,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
 // Soft delete — matches the app's established soft-delete + Undo pattern.
 export async function DELETE(_req: Request, { params }: Ctx) {
+  const auth = await requireRole(["super-admin"]);
+  if (auth.response) return auth.response;
   const { id } = await params;
   await prisma.architect.update({ where: { id }, data: { deletedAt: new Date() } });
   return NextResponse.json({ ok: true });

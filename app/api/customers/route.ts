@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { serializeCustomer } from "@/lib/server/serialize";
+import { requireUser } from "@/lib/server/require-user";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // Optional ?stage= and ?q= filters mirror what the CRM/Customers list expose.
 export async function GET(req: Request) {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
   const { searchParams } = new URL(req.url);
   const stage = searchParams.get("stage");
   const q = searchParams.get("q");
@@ -22,6 +25,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
   const b = await req.json();
   const firstName = (b.firstName ?? "").trim();
   const lastName = (b.lastName ?? "").trim();

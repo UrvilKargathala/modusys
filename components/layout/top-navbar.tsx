@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Search, Bell, ChevronDown, LogOut, UserPlus, Clock3, CheckCircle2, AtSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { navigationItems, administrationItems } from "@/lib/nav";
@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useNotifications, notificationsStore, type NotificationType } from "@/lib/store/notifications-store";
 import { taskPanelStore } from "@/lib/store/task-panel-store";
-import { getCurrentUser } from "@/lib/session";
+import { useCurrentUser, signOut } from "@/lib/session";
+import { getRole } from "@/lib/constants/roles";
 
 const notificationIcon: Record<NotificationType, typeof UserPlus> = {
   assigned: UserPlus,
@@ -38,7 +39,14 @@ function timeAgo(iso: string) {
 
 export function TopNavbar() {
   const pathname = usePathname();
-  const currentUser = getCurrentUser();
+  const router = useRouter();
+  const currentUser = useCurrentUser();
+  const roleLabel = currentUser.role === "no-role" ? "" : getRole(currentUser.role)?.label ?? currentUser.role;
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/sign-in");
+  };
   const allNotifications = useNotifications();
   const myNotifications = allNotifications
     .filter((n) => n.userId === currentUser.id)
@@ -174,25 +182,26 @@ export function TopNavbar() {
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-light-600">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="bg-primary-transparent text-xs text-primary">
-                U
+                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "?"}
               </AvatarFallback>
             </Avatar>
             <span className="hidden flex-col items-start leading-tight sm:flex">
               <span className="text-sm font-body font-medium text-grey-800">
-                Urvil Kargathala
+                {currentUser.name || "Not signed in"}
               </span>
-              <span className="text-xs font-body text-grey-400">Admin</span>
+              <span className="text-xs font-body text-grey-400">{roleLabel}</span>
             </span>
             <ChevronDown className="hidden h-3.5 w-3.5 text-grey-400 sm:block" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-52">
             <DropdownMenuGroup>
               <DropdownMenuLabel className="px-2.5 py-2 text-sm font-medium text-grey-700">
-                Urvil Kargathala
+                {currentUser.name || "Not signed in"}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"
+                onClick={handleSignOut}
                 className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
               >
                 <LogOut className="h-4 w-4 shrink-0" />

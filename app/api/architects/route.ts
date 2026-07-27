@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { serializeArchitect } from "@/lib/server/serialize";
+import { requireUser } from "@/lib/server/require-user";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
   const architects = await prisma.architect.findMany({
     where: { deletedAt: null },
     include: { partners: true },
@@ -15,6 +18,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
   const b = await req.json();
   const architect = await prisma.architect.create({
     data: {

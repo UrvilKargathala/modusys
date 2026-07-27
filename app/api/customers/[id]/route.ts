@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { serializeCustomer } from "@/lib/server/serialize";
+import { requireUser, requireRole } from "@/lib/server/require-user";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,13 +9,20 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Ctx) {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
   const { id } = await params;
   const c = await prisma.customer.findUnique({ where: { id } });
   if (!c) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(serializeCustomer(c));
 }
 
+// requireUser (not requireRole) — this also handles Kanban stage drag/drop,
+// which any signed-in user can do, not just admins (matches the Pipeline
+// board having no role gate on moving a card).
 export async function PATCH(req: Request, { params }: Ctx) {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
   const { id } = await params;
   const b = await req.json();
   const data: Record<string, unknown> = {};
@@ -36,6 +44,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
 // Soft delete — matches the app's customer soft-delete + Undo pattern.
 export async function DELETE(_req: Request, { params }: Ctx) {
+  const auth = await requireRole(["super-admin"]);
+  if (auth.response) return auth.response;
   const { id } = await params;
   await prisma.customer.update({ where: { id }, data: { deletedAt: new Date() } });
   return NextResponse.json({ ok: true });

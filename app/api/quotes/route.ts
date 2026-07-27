@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
+import { requireUser } from "@/lib/server/require-user";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,12 +10,16 @@ function serialize(q: Record<string, unknown> & { createdAt: Date; updatedAt: Da
 }
 
 export async function GET() {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
   const quotes = await prisma.quote.findMany({ orderBy: { createdAt: "desc" } });
   return NextResponse.json(quotes.map(serialize));
 }
 
 // Upsert a single quote (the store's saveQuote handles both create and update).
 export async function POST(req: Request) {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
   const b = await req.json();
   const data = {
     quoteNumber: b.quoteNumber, date: b.date ?? "", customerId: b.customerId ?? null,

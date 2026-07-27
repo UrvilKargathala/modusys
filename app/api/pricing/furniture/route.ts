@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { replaceCollection, toDate } from "@/lib/server/bulk";
+import { requireUser } from "@/lib/server/require-user";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
   const items = await prisma.furniturePriceItem.findMany({ orderBy: { createdAt: "asc" } });
   return NextResponse.json(items.map((i) => ({
     id: i.id, thicknessId: i.thicknessId, rawMaterialTypeId: i.rawMaterialTypeId,
@@ -14,7 +17,12 @@ export async function GET() {
   })));
 }
 
+// requireUser (not requireRole) — reachable from the quote builder's inline
+// "Add this combination to Furniture Price List" escape hatch for any
+// signed-in user, same reasoning as material-items.
 export async function PUT(req: Request) {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
   const rows = (await req.json()) as Array<Record<string, unknown>>;
   await replaceCollection(prisma.furniturePriceItem, rows.map((r) => ({
     id: String(r.id), thicknessId: String(r.thicknessId), rawMaterialTypeId: String(r.rawMaterialTypeId),

@@ -9,8 +9,7 @@ import { Mail, Lock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IconInput } from "@/components/auth/icon-input";
 import { ForgotPasswordDialog } from "@/components/auth/forgot-password-dialog";
-import { mockSignIn } from "@/lib/auth/mock";
-import { usersStore } from "@/lib/store/users-store";
+import { setSessionUser } from "@/lib/session";
 
 const signInSchema = z.object({
   email: z.string().min(1, "Email is required").email("Enter a valid email address"),
@@ -33,18 +32,18 @@ export default function SignInPage() {
   });
 
   const onSubmit = async (values: SignInValues) => {
-    const success = await mockSignIn(values.email, values.password);
-    if (!success) {
+    const res = await fetch("/api/auth/sign-in", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    });
+    if (!res.ok) {
       setError("password", { message: "Incorrect email or password" });
       return;
     }
-    // No real per-user auth exists yet — the dev account is a single shared
-    // login, so "which org user is this" is simulated by matching the typed
-    // email against the roster, purely to demo the forced-change redirect.
-    const matchedUser = usersStore
-      .getSnapshot()
-      .find((u) => u.email.toLowerCase() === values.email.toLowerCase());
-    router.push(matchedUser?.mustChangePassword ? "/change-password" : "/dashboard");
+    const { user } = await res.json();
+    setSessionUser(user);
+    router.push(user.mustChangePassword ? "/change-password" : "/dashboard");
   };
 
   return (
