@@ -110,7 +110,7 @@ export function FurnitureLineItemRow({
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-12 [&>div]:min-w-0">
         {showComponentName && (
-          <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1 lg:col-span-4">
+          <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1 lg:col-span-3">
             <Label>Component Name</Label>
             <MaterialReferenceSelect
               category="furniture-component"
@@ -147,6 +147,14 @@ export function FurnitureLineItemRow({
             onChange={(e) => handleFieldChange({ qty: Number(e.target.value) })}
           />
         </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Thickness</Label>
+          <MaterialReferenceSelect
+            category="thickness"
+            value={value.thicknessId}
+            onChange={(id) => handleFieldChange({ thicknessId: id })}
+          />
+        </div>
         {totalSqFt !== undefined && (
           <div className="flex flex-col gap-1.5 lg:col-span-2">
             <Label>Amount</Label>
@@ -155,50 +163,7 @@ export function FurnitureLineItemRow({
             </div>
           </div>
         )}
-
-        <div className="flex flex-col gap-1.5 lg:col-start-1">
-          <Label>Thickness</Label>
-          <MaterialReferenceSelect
-            category="thickness"
-            value={value.thicknessId}
-            onChange={(id) => handleFieldChange({ thicknessId: id })}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5 lg:col-span-3">
-          <Label>Raw Material</Label>
-          <MaterialReferenceSelect
-            category="raw-material-type"
-            value={value.rawMaterialTypeId}
-            onChange={(id) => handleFieldChange({ rawMaterialTypeId: id })}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5 lg:col-span-3">
-          <Label>Internal Colour</Label>
-          <MaterialReferenceSelect
-            category="internal-colour"
-            value={value.internalColourId}
-            onChange={(id) => handleFieldChange({ internalColourId: id })}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5 lg:col-span-3">
-          <Label>External Colour</Label>
-          <MaterialReferenceSelect
-            category="external-colour"
-            value={value.externalColourId}
-            onChange={(id) => handleFieldChange({ externalColourId: id })}
-          />
-        </div>
-        {showLevelType && (
-          <div className="flex flex-col gap-1.5">
-            <Label>Level Type</Label>
-            <MaterialReferenceSelect
-              category="level-type"
-              value={value.levelTypeId ?? ""}
-              onChange={(id) => handleFieldChange({ levelTypeId: id })}
-            />
-          </div>
-        )}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 lg:col-span-2">
           <Label>Rate</Label>
           {match ? (
             <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-700">
@@ -216,6 +181,41 @@ export function FurnitureLineItemRow({
             <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-700">
               {totalSqFt.toFixed(2)}
             </div>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-1.5 lg:col-span-4 lg:col-start-1">
+          <Label>Raw Material</Label>
+          <MaterialReferenceSelect
+            category="raw-material-type"
+            value={value.rawMaterialTypeId}
+            onChange={(id) => handleFieldChange({ rawMaterialTypeId: id })}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5 lg:col-span-4">
+          <Label>Internal Colour</Label>
+          <MaterialReferenceSelect
+            category="internal-colour"
+            value={value.internalColourId}
+            onChange={(id) => handleFieldChange({ internalColourId: id })}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5 lg:col-span-4">
+          <Label>External Colour</Label>
+          <MaterialReferenceSelect
+            category="external-colour"
+            value={value.externalColourId}
+            onChange={(id) => handleFieldChange({ externalColourId: id })}
+          />
+        </div>
+        {showLevelType && (
+          <div className="flex flex-col gap-1.5 lg:col-span-4">
+            <Label>Level Type</Label>
+            <MaterialReferenceSelect
+              category="level-type"
+              value={value.levelTypeId ?? ""}
+              onChange={(id) => handleFieldChange({ levelTypeId: id })}
+            />
           </div>
         )}
       </div>
