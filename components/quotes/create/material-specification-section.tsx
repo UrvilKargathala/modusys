@@ -1,15 +1,28 @@
 "use client";
 
+import { useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import type { Quote } from "@/lib/mock/quote";
+import { cn } from "@/lib/utils";
 
 export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote; onChange: (patch: Partial<Quote>) => void }) {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
     <section className="flex flex-col gap-6 rounded-xl border border-grey-100 bg-card p-6">
-      <h2 className="font-heading text-lg font-semibold text-grey-900">Material Specification</h2>
+      <button
+        type="button"
+        onClick={() => setCollapsed((c) => !c)}
+        className="flex items-center gap-2 text-left"
+        aria-label={collapsed ? "Expand Material Specification" : "Collapse Material Specification"}
+      >
+        {collapsed ? <ChevronRight className="h-4 w-4 text-grey-400" /> : <ChevronDown className="h-4 w-4 text-grey-400" />}
+        <h2 className="font-heading text-lg font-semibold text-grey-900">Material Specification</h2>
+      </button>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3", collapsed && "hidden")}>
         <div className="flex flex-col gap-1.5">
           <Label>Product Type</Label>
           <MaterialReferenceSelect

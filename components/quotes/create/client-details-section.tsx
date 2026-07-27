@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { CustomerPicker, CustomerReadOnlyDetails } from "@/components/quotes/create/customer-picker";
@@ -14,12 +16,21 @@ const statusOptions: StatusKey[] = ["draft", "approved", "in-production", "compl
 export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChange: (patch: Partial<Quote>) => void }) {
   const defaultMarkup = quoteTemplateStore.getSnapshot().branding.defaultMarkupMultiplier;
   const markupOverridden = quote.markupMultiplier !== defaultMarkup;
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <section className="flex flex-col gap-6 rounded-xl border border-grey-100 bg-card p-6">
-      <h2 className="font-heading text-lg font-semibold text-grey-900">Client Details</h2>
+      <button
+        type="button"
+        onClick={() => setCollapsed((c) => !c)}
+        className="flex items-center gap-2 text-left"
+        aria-label={collapsed ? "Expand Client Details" : "Collapse Client Details"}
+      >
+        {collapsed ? <ChevronRight className="h-4 w-4 text-grey-400" /> : <ChevronDown className="h-4 w-4 text-grey-400" />}
+        <h2 className="font-heading text-lg font-semibold text-grey-900">Client Details</h2>
+      </button>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3", collapsed && "hidden")}>
         <div className="flex flex-col gap-1.5">
           <Label>Customer Name</Label>
           <CustomerPicker value={quote.customerId ?? ""} onChange={(id) => onChange({ customerId: id || null })} />

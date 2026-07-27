@@ -36,6 +36,15 @@ function blankHardware(): UnitTypeHardware {
   return { id: `qhw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, categoryId: "", hardwareItemId: "", qtyFormula: "1" };
 }
 
+// One accent per group so a scanning eye can immediately tell Carcass from
+// Shutter from Other Panel without reading the header.
+const groupAccent = {
+  primary: { border: "border-l-primary", header: "bg-primary-transparent" },
+  teal: { border: "border-l-teal", header: "bg-teal-transparent" },
+  warning: { border: "border-l-warning", header: "bg-warning-transparent" },
+  info: { border: "border-l-info", header: "bg-info-transparent" },
+} as const;
+
 export function FurnitureGroup({
   title,
   label,
@@ -45,6 +54,7 @@ export function FurnitureGroup({
   unit,
   onChange,
   addLabel,
+  accent = "primary",
 }: {
   title: string;
   label: string;
@@ -54,6 +64,7 @@ export function FurnitureGroup({
   unit: { width: number; depth: number; height: number; qty: number };
   onChange: (items: FurnitureLineItem[]) => void;
   addLabel: string;
+  accent?: keyof typeof groupAccent;
 }) {
   const furnitureItems = useFurniturePriceItems();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -70,9 +81,10 @@ export function FurnitureGroup({
     onChange(arrayMove(items, oldIndex, newIndex));
   };
 
+  const a = groupAccent[accent];
   return (
-    <div className="flex flex-col gap-2 rounded-lg bg-light-600 p-3">
-      <div className="flex items-center justify-between">
+    <div className={cn("flex flex-col gap-2 rounded-lg border-l-4 bg-light-600 p-3", a.border)}>
+      <div className={cn("-mx-3 -mt-3 flex items-center justify-between rounded-t-md px-3 py-2", a.header)}>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -82,7 +94,7 @@ export function FurnitureGroup({
           >
             {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
-          <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-500">{title}</h4>
+          <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-700">{title}</h4>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm font-body font-semibold text-grey-700">₹{subtotal.toFixed(2)}</span>
@@ -151,9 +163,10 @@ function HardwareGroup({
     onChange(arrayMove(items, oldIndex, newIndex));
   };
 
+  const a = groupAccent.info;
   return (
-    <div className="flex flex-col gap-2 rounded-lg bg-light-600 p-3">
-      <div className="flex items-center justify-between">
+    <div className={cn("flex flex-col gap-2 rounded-lg border-l-4 bg-light-600 p-3", a.border)}>
+      <div className={cn("-mx-3 -mt-3 flex items-center justify-between rounded-t-md px-3 py-2", a.header)}>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -163,7 +176,7 @@ function HardwareGroup({
           >
             {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
-          <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-500">Hardware</h4>
+          <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-700">Hardware</h4>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm font-body font-semibold text-grey-700">₹{total.toFixed(2)}</span>
@@ -317,6 +330,7 @@ export function QuoteCabinetGroup({
             title="Carcass"
             label="Component"
             showComponentName
+            accent="primary"
             items={cabinet.components}
             unit={unit}
             addLabel="Add Component"
@@ -326,6 +340,7 @@ export function QuoteCabinetGroup({
             title="Shutter"
             label="External Finish"
             showComponentName
+            accent="teal"
             items={cabinet.externalFinishes}
             unit={unit}
             addLabel="Add Shutter"
@@ -336,6 +351,7 @@ export function QuoteCabinetGroup({
             label="Other Panel"
             showComponentName
             showLevelType
+            accent="warning"
             items={cabinet.panels}
             unit={unit}
             addLabel="Other Panel"
