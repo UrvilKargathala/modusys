@@ -42,6 +42,13 @@ export function UnitTypeHardwareRow({
     [hardwareItems, value.categoryId]
   );
 
+  // Description is further narrowed by the picked brand — matches the
+  // Hardware Price List's real category → brand → description hierarchy.
+  const itemsForCategoryAndBrand = useMemo(
+    () => (value.brandId ? itemsForCategory.filter((h) => h.brandId === value.brandId) : itemsForCategory),
+    [itemsForCategory, value.brandId]
+  );
+
   // Distinct brand ids that show up in the (category-filtered) Hardware
   // Price List.
   const brandOptions = useMemo(() => {
@@ -49,14 +56,98 @@ export function UnitTypeHardwareRow({
     return brands.filter((b) => ids.has(b.id));
   }, [itemsForCategory, brands]);
 
-  // Distinct product descriptions from the (category-filtered) Hardware
-  // Price List.
+  // Distinct product descriptions from the (category+brand-filtered) HPL.
   const descriptionOptions = useMemo(
-    () => Array.from(new Set(itemsForCategory.map((h) => h.description).filter(Boolean))).sort(),
-    [itemsForCategory]
+    () => Array.from(new Set(itemsForCategoryAndBrand.map((h) => h.description).filter(Boolean))).sort(),
+    [itemsForCategoryAndBrand]
   );
 
   const matched = hardwareItems.find((h) => h.id === value.hardwareItemId);
+
+  // Whenever category/brand/description narrows to a single HPL SKU, pin it
+  // as hardwareItemId so Unit/Rate/Amount resolve. Also back-fill any of
+  // Category/Brand/Article No./Level Type/description the user hasn't set
+  // yet, so picking one end of the chain fills the rest.
+  const resolveFromCombo = (
+    patch: Partial<UnitTypeHardware>,
+    current: UnitTypeHardware
+  ): Partial<UnitTypeHardware> => {
+    const next = { ...current, ...patch };
+    const candidates = hardwareItems.filter(
+      (h) =>
+        (!next.categoryId || h.categoryId === next.categoryId) &&
+        (!next.brandId || h.brandId === next.brandId) &&
+        (!next.description || h.description === next.description)
+    );
+    if (candidates.length === 1) {
+      const item = candidates[0];
+      return {
+        ...patch,
+        hardwareItemId: item.id,
+        articleNo: item.articleNo,
+        categoryId: item.categoryId,
+        brandId: item.brandId,
+        description: item.description,
+        levelTypeId: current.levelTypeId || item.levelTypeId || current.levelTypeId,
+      };
+    }
+    // Not unique — clear any stale pin so Unit/Rate go back to "—" until
+    // the user narrows further.
+    return { ...patch, hardwareItemId: "" };
+  };
+
+  const handleCategoryChange = (categoryId: string) => {
+    const patch: Partial<UnitTypeHardware> = { categoryId };
+    // Drop brand/description if they no longer belong to this category.
+    if (value.brandId && !hardwareItems.some((h) => h.categoryId === categoryId && h.brandId === value.brandId)) {
+      patch.brandId = "";
+    }
+    if (
+      value.description &&
+      !hardwareItems.some((h) => h.categoryId === categoryId && h.description === value.description)
+    ) {
+      patch.description = "";
+    }
+    onChange(resolveFromCombo(patch, value));
+  };
+
+  const handleBrandChange = (brandId: string) => {
+    const patch: Partial<UnitTypeHardware> = { brandId };
+    if (
+      value.description &&
+      !hardwareItems.some(
+        (h) =>
+          h.brandId === brandId &&
+          (!value.categoryId || h.categoryId === value.categoryId) &&
+          h.description === value.description
+      )
+    ) {
+      patch.description = "";
+    }
+    onChange(resolveFromCombo(patch, value));
+  };
+
+  const handleDescriptionChange = (description: string) => {
+    onChange(resolveFromCombo({ description }, value));
+  };
+
+  const handleArticleNoChange = (articleNo: string) => {
+    const patch: Partial<UnitTypeHardware> = { articleNo };
+    if (articleNo) {
+      const match = hardwareItems.find((h) => h.articleNo === articleNo);
+      if (match) {
+        patch.hardwareItemId = match.id;
+        patch.categoryId = match.categoryId;
+        patch.brandId = match.brandId;
+        patch.description = match.description;
+        if (!value.levelTypeId && match.levelTypeId) patch.levelTypeId = match.levelTypeId;
+      } else {
+        // Typed a free-form article no. that doesn't match any HPL SKU.
+        patch.hardwareItemId = "";
+      }
+    }
+    onChange(patch);
+  };
   // qtyFormula is a raw formula ("H/450") in the Unit Type builder but a
   // resolved plain number once Auto Populate runs it against a real unit —
   // only compute Amount once it's a concrete number.
@@ -97,7 +188,7 @@ export function UnitTypeHardwareRow({
             id={`hw-art-${value.id}`}
             placeholder="e.g. BLM-CLIP-110"
             value={value.articleNo ?? ""}
-            onChange={(e) => onChange({ articleNo: e.target.value })}
+            onChange={(e) => handleArticleNoChange(e.target.value)}
           />
         </div>
 
@@ -106,7 +197,7 @@ export function UnitTypeHardwareRow({
           <MaterialReferenceSelect
             category="category"
             value={value.categoryId}
-            onChange={(id) => onChange({ categoryId: id })}
+            onChange={handleCategoryChange}
           />
         </div>
 
@@ -115,7 +206,7 @@ export function UnitTypeHardwareRow({
           <select
             id={`hw-brand-${value.id}`}
             value={value.brandId ?? ""}
-            onChange={(e) => onChange({ brandId: e.target.value })}
+            onChange={(e) => handleBrandChange(e.target.value)}
             className="w-full rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
           >
             <option value="">Select brand</option>
@@ -132,7 +223,7 @@ export function UnitTypeHardwareRow({
           <select
             id={`hw-desc-${value.id}`}
             value={value.description ?? ""}
-            onChange={(e) => onChange({ description: e.target.value })}
+            onChange={(e) => handleDescriptionChange(e.target.value)}
             className="w-full rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
           >
             <option value="">Select description</option>
