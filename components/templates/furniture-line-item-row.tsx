@@ -108,9 +108,9 @@ export function FurnitureLineItemRow({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 [&>div]:min-w-0">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-12 [&>div]:min-w-0">
         {showComponentName && (
-          <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1 lg:col-span-2">
+          <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1 lg:col-span-4">
             <Label>Component Name</Label>
             <MaterialReferenceSelect
               category="furniture-component"
@@ -148,7 +148,7 @@ export function FurnitureLineItemRow({
           />
         </div>
         {totalSqFt !== undefined && (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 lg:col-span-2">
             <Label>Amount</Label>
             <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-900">
               ₹{(match ? match.rate * totalSqFt : 0).toFixed(2)}
@@ -156,7 +156,7 @@ export function FurnitureLineItemRow({
           </div>
         )}
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 lg:col-start-1">
           <Label>Thickness</Label>
           <MaterialReferenceSelect
             category="thickness"
@@ -164,7 +164,7 @@ export function FurnitureLineItemRow({
             onChange={(id) => handleFieldChange({ thicknessId: id })}
           />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 lg:col-span-3">
           <Label>Raw Material</Label>
           <MaterialReferenceSelect
             category="raw-material-type"
@@ -172,7 +172,7 @@ export function FurnitureLineItemRow({
             onChange={(id) => handleFieldChange({ rawMaterialTypeId: id })}
           />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 lg:col-span-3">
           <Label>Internal Colour</Label>
           <MaterialReferenceSelect
             category="internal-colour"
@@ -180,7 +180,7 @@ export function FurnitureLineItemRow({
             onChange={(id) => handleFieldChange({ internalColourId: id })}
           />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 lg:col-span-3">
           <Label>External Colour</Label>
           <MaterialReferenceSelect
             category="external-colour"
