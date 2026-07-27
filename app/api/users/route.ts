@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { serializeUser } from "@/lib/server/serialize";
 import { requireUser, requireRole } from "@/lib/server/require-user";
+import { logSecurityAudit } from "@/lib/server/audit-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,5 +28,14 @@ export async function POST(req: Request) {
       status: body.status ?? "invited",
     },
   });
+
+  await logSecurityAudit({
+    actorUserId: auth.user.id,
+    actorName: auth.user.name,
+    action: "USER_INVITED",
+    targetUserId: user.id,
+    targetName: user.name,
+  });
+
   return NextResponse.json(serializeUser(user), { status: 201 });
 }

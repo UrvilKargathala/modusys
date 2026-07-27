@@ -78,12 +78,12 @@ export const usersStore = {
   // password server-side (unlike the rest of this store's optimistic
   // patches, this one awaits the real result before updating local state,
   // since a failure here must surface to the caller, not be swallowed).
-  async setPassword(userId: string, password: string, requireChange: boolean) {
+  async setPassword(userId: string, newPassword: string, requirePasswordChange: boolean) {
     ensureHydrated();
     const res = await fetch(`/api/users/${userId}/password`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password, requireChange }),
+      body: JSON.stringify({ newPassword, requirePasswordChange }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => null);

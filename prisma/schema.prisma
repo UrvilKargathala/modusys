@@ -216,3 +216,19 @@ model Quote {
 
   @@index([status])
 }
+
+// Lightweight trail for account-takeover-capable actions (password changes,
+// invites, role changes). Actor/target names are denormalized at write time
+// rather than joined live, so the log still reads correctly after a user is
+// renamed or deleted.
+model SecurityAuditLog {
+  id           String   @id @default(cuid())
+  actorUserId  String
+  actorName    String
+  targetUserId String?
+  targetName   String?
+  action       String // PASSWORD_CHANGED_SELF | PASSWORD_SET_BY_ADMIN | USER_INVITED | ROLE_CHANGED
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}

@@ -16,9 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { usersStore } from "@/lib/store/users-store";
-import { securityAuditStore } from "@/lib/store/security-audit-store";
 import { toastStore } from "@/lib/store/toast-store";
-import { getCurrentUser } from "@/lib/session";
 import type { OrgUser } from "@/lib/mock/users";
 
 const editUserSchema = z.object({
@@ -64,7 +62,6 @@ export function EditUserDialog({
       return;
     }
     usersStore.updateUser(user.id, values);
-    securityAuditStore.logEvent(`${getCurrentUser().name} updated ${user.name}'s profile details`);
     toastStore.show(`"${values.name}" updated`);
     onOpenChange(false);
   };

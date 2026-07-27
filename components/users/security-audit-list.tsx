@@ -4,6 +4,7 @@ import { ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useSecurityAuditLog } from "@/lib/store/security-audit-store";
+import { useCurrentUser } from "@/lib/session";
 
 function timeAgo(iso: string) {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -18,6 +19,9 @@ function timeAgo(iso: string) {
 // happen silently — a lightweight last-20 feed, not a full audit-log page.
 export function SecurityAuditList() {
   const events = useSecurityAuditLog();
+  const currentUser = useCurrentUser();
+
+  if (currentUser.role !== "super-admin") return null;
 
   return (
     <Card className="border-grey-100">

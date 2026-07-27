@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { serializeUser } from "@/lib/server/serialize";
 import { requireUser } from "@/lib/server/require-user";
+import { logSecurityAudit } from "@/lib/server/audit-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,12 +34,25 @@ export async function PATCH(req: Request, { params }: Ctx) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const before = changingRole ? await prisma.user.findUnique({ where: { id } }) : null;
+
   const data: Record<string, unknown> = {};
   for (const k of ["name", "email", "role", "status", "mustChangePassword"] as const) {
     if (body[k] !== undefined) data[k] = body[k];
   }
   if (body.passwordUpdatedAt !== undefined) data.passwordUpdatedAt = new Date();
   const user = await prisma.user.update({ where: { id }, data });
+
+  if (changingRole && before && before.role !== user.role) {
+    await logSecurityAudit({
+      actorUserId: auth.user.id,
+      actorName: auth.user.name,
+      action: "ROLE_CHANGED",
+      targetUserId: user.id,
+      targetName: user.name,
+    });
+  }
+
   return NextResponse.json(serializeUser(user));
 }
 

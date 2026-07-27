@@ -12,9 +12,7 @@ import { RoleSelectField } from "@/components/users/role-select-field";
 import { PasswordFields } from "@/components/users/password-fields";
 import { withPasswordFields } from "@/lib/password-schema";
 import { usersStore } from "@/lib/store/users-store";
-import { securityAuditStore } from "@/lib/store/security-audit-store";
-import { getCurrentUser } from "@/lib/session";
-import { roleKeys, getRole } from "@/lib/constants/roles";
+import { getRole, roleKeys } from "@/lib/constants/roles";
 
 const inviteSchema = withPasswordFields({
   name: z.string().min(1, "Name is required"),
@@ -42,9 +40,6 @@ export function InviteForm({ onDone }: { onDone: () => void }) {
 
   const onSubmit = (values: InviteValues) => {
     usersStore.inviteUser({ name: values.name, email: values.email, role: values.role });
-    securityAuditStore.logEvent(
-      `${getCurrentUser().name} invited ${values.name} as ${getRole(values.role)?.label ?? values.role}`
-    );
     setInvited(values);
   };
 

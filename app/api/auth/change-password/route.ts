@@ -4,6 +4,7 @@ import { hashPassword, verifyPassword } from "@/lib/server/password";
 import { requireUser } from "@/lib/server/require-user";
 import { createSessionToken, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from "@/lib/server/session-token";
 import { passwordMeetsAllRequirements } from "@/components/auth/password-requirements";
+import { logSecurityAudit } from "@/lib/server/audit-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,6 +45,12 @@ export async function POST(req: Request) {
       passwordUpdatedAt: new Date(),
       sessionVersion: { increment: 1 },
     },
+  });
+
+  await logSecurityAudit({
+    actorUserId: updated.id,
+    actorName: updated.name,
+    action: "PASSWORD_CHANGED_SELF",
   });
 
   const res = NextResponse.json({
