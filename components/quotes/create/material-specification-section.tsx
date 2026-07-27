@@ -9,8 +9,8 @@ export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote
     <section className="flex flex-col gap-6 rounded-xl border border-grey-100 bg-card p-6">
       <h2 className="font-heading text-lg font-semibold text-grey-900">Material Specification</h2>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="flex flex-col gap-1.5 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="flex flex-col gap-1.5">
           <Label>Product Type</Label>
           <MaterialReferenceSelect
             category="product-type"
@@ -19,7 +19,7 @@ export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote
           />
         </div>
 
-        <div className="flex flex-col gap-1.5 lg:col-span-2">
+        <div className="flex flex-col gap-1.5">
           <Label>Material Description</Label>
           <MaterialReferenceSelect
             category="raw-material-description"
