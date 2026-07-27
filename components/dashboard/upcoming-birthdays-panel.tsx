@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useArchitects } from "@/lib/store/architects-store";
+import { fullName } from "@/lib/mock/architects";
 
 // Customer/Architect store birthdayMonth as a full month name string
 // ("March", "July"). Map back to a 0-11 index for date math.
@@ -41,8 +42,9 @@ export function UpcomingBirthdaysPanel() {
     for (const a of architects) {
       const m = MONTHS.indexOf(a.birthdayMonth ?? "");
       const d = Number(a.birthdayDay ?? "");
-      if (m < 0 || !d || !a.name) continue;
-      merged.push({ id: `a-${a.id}`, name: a.name, role: "Architect", monthIdx: m, day: d, nextDate: nextBirthday(m, d, today) });
+      const name = fullName(a);
+      if (m < 0 || !d || !name) continue;
+      merged.push({ id: `a-${a.id}`, name, role: "Architect", monthIdx: m, day: d, nextDate: nextBirthday(m, d, today) });
     }
     return merged.sort((x, y) => x.nextDate.getTime() - y.nextDate.getTime());
   }, [customers, architects]);
