@@ -116,6 +116,8 @@ export default function DashboardPage() {
       }
     >
       <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-2">
+        <PipelineFunnelPanel />
+
         <Card className="border-grey-100">
           <CardHeader>
             <CardTitle className="font-heading text-base text-grey-900">Quote Status Distribution</CardTitle>
@@ -134,8 +136,6 @@ export default function DashboardPage() {
             <DualAxisTrendChart data={trendData} />
           </CardContent>
         </Card>
-
-        <PipelineFunnelPanel />
 
         <UpcomingTasksPanel
           tasks={pendingTasks}
