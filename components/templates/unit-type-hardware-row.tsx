@@ -57,6 +57,11 @@ export function UnitTypeHardwareRow({
   );
 
   const matched = hardwareItems.find((h) => h.id === value.hardwareItemId);
+  // qtyFormula is a raw formula ("H/450") in the Unit Type builder but a
+  // resolved plain number once Auto Populate runs it against a real unit —
+  // only compute Amount once it's a concrete number.
+  const resolvedQty = Number(value.qtyFormula);
+  const amount = matched && Number.isFinite(resolvedQty) ? rateAfterDiscount(matched) * resolvedQty : undefined;
 
   return (
     <div
@@ -172,8 +177,14 @@ export function UnitTypeHardwareRow({
             {matched ? `₹${rateAfterDiscount(matched).toFixed(2)}` : "—"}
           </div>
         </div>
-      </div>
 
+        <div className="flex flex-col gap-1.5">
+          <Label>Amount</Label>
+          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-900">
+            {amount !== undefined ? `₹${amount.toFixed(2)}` : "—"}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

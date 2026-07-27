@@ -213,6 +213,15 @@ export function FurnitureLineItemRow({
             </div>
           </div>
         )}
+
+        {totalSqFt !== undefined && (
+          <div className="flex flex-col gap-1.5">
+            <Label>Amount</Label>
+            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-900">
+              ₹{(match ? match.rate * totalSqFt : 0).toFixed(2)}
+            </div>
+          </div>
+        )}
       </div>
 
       {combinationComplete && !match && (
