@@ -108,9 +108,9 @@ export function FurnitureLineItemRow({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 [&>div]:min-w-0">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 [&>div]:min-w-0">
         {showComponentName && (
-          <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1">
+          <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1 lg:col-span-2">
             <Label>Component Name</Label>
             <MaterialReferenceSelect
               category="furniture-component"
