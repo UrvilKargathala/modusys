@@ -58,6 +58,10 @@ export function FurnitureLineItemRow({
     }
   };
 
+  // Row 2 fits either 3 dropdowns (Carcass/Shutter) or 4 (Other Panel with Level Type)
+  // — shrink to lg:col-span-3 in the 4-field case so all four fit on one row.
+  const materialColSpan = showLevelType ? "lg:col-span-3" : "lg:col-span-4";
+
   const match = useMemo(() => {
     if (!combinationComplete) return null;
     return (
@@ -184,7 +188,7 @@ export function FurnitureLineItemRow({
           </div>
         )}
 
-        <div className="flex flex-col gap-1.5 lg:col-span-4 lg:col-start-1">
+        <div className={`flex flex-col gap-1.5 ${materialColSpan} lg:col-start-1`}>
           <Label>Raw Material</Label>
           <MaterialReferenceSelect
             category="raw-material-type"
@@ -192,7 +196,7 @@ export function FurnitureLineItemRow({
             onChange={(id) => handleFieldChange({ rawMaterialTypeId: id })}
           />
         </div>
-        <div className="flex flex-col gap-1.5 lg:col-span-4">
+        <div className={`flex flex-col gap-1.5 ${materialColSpan}`}>
           <Label>Internal Colour</Label>
           <MaterialReferenceSelect
             category="internal-colour"
@@ -200,7 +204,7 @@ export function FurnitureLineItemRow({
             onChange={(id) => handleFieldChange({ internalColourId: id })}
           />
         </div>
-        <div className="flex flex-col gap-1.5 lg:col-span-4">
+        <div className={`flex flex-col gap-1.5 ${materialColSpan}`}>
           <Label>External Colour</Label>
           <MaterialReferenceSelect
             category="external-colour"
@@ -209,7 +213,7 @@ export function FurnitureLineItemRow({
           />
         </div>
         {showLevelType && (
-          <div className="flex flex-col gap-1.5 lg:col-span-4">
+          <div className={`flex flex-col gap-1.5 ${materialColSpan}`}>
             <Label>Level Type</Label>
             <MaterialReferenceSelect
               category="level-type"
