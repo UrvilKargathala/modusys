@@ -54,17 +54,17 @@ export function TopNavbar() {
   const unreadCount = myNotifications.filter((n) => !n.read).length;
 
   return (
-    <header className="flex h-16 items-center justify-between gap-4 border-b border-teal bg-teal px-4 md:px-6">
+    <header className="flex h-16 items-center justify-between gap-4 border-b border-grey-100 bg-card px-4 md:px-6">
       <Link href="/dashboard" className="flex shrink-0 items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 font-heading text-sm font-bold text-white">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary font-heading text-sm font-bold text-white">
           M
         </div>
-        <span className="hidden font-heading text-lg font-semibold text-white sm:inline">
+        <span className="hidden font-heading text-lg font-semibold text-grey-900 sm:inline">
           Modusys
         </span>
       </Link>
 
-      <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 overflow-x-auto rounded-full bg-white/10 p-1 lg:flex">
+      <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 overflow-x-auto rounded-full bg-teal-transparent p-1 lg:flex">
         {navigationItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
@@ -73,7 +73,7 @@ export function TopNavbar() {
               href={item.href}
               className={cn(
                 "whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-body font-medium transition-colors",
-                active ? "bg-white text-teal shadow-sm" : "text-white/80 hover:text-white"
+                active ? "bg-teal text-white shadow-sm" : "text-grey-700 hover:text-grey-900"
               )}
             >
               {item.label}
@@ -88,8 +88,8 @@ export function TopNavbar() {
               administrationItems.some(
                 (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
               )
-                ? "bg-white text-teal shadow-sm"
-                : "text-white/80 hover:text-white"
+                ? "bg-teal text-white shadow-sm"
+                : "text-grey-700 hover:text-grey-900"
             )}
           >
             Admin
@@ -114,7 +114,7 @@ export function TopNavbar() {
         <button
           type="button"
           aria-label="Search"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 hover:text-white"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary-100"
         >
           <Search className="h-4 w-4" />
         </button>
@@ -122,7 +122,7 @@ export function TopNavbar() {
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Notifications"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 hover:text-white"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary-100"
           >
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
@@ -179,19 +179,19 @@ export function TopNavbar() {
         </DropdownMenu>
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-white/15">
+          <DropdownMenuTrigger className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-light-600">
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-white/15 text-xs text-white">
+              <AvatarFallback className="bg-primary-transparent text-xs text-primary">
                 {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "?"}
               </AvatarFallback>
             </Avatar>
             <span className="hidden flex-col items-start leading-tight sm:flex">
-              <span className="text-sm font-body font-medium text-white">
+              <span className="text-sm font-body font-medium text-grey-800">
                 {currentUser.name || "Not signed in"}
               </span>
-              <span className="text-xs font-body text-white/70">{roleLabel}</span>
+              <span className="text-xs font-body text-grey-400">{roleLabel}</span>
             </span>
-            <ChevronDown className="hidden h-3.5 w-3.5 text-white/70 sm:block" />
+            <ChevronDown className="hidden h-3.5 w-3.5 text-grey-400 sm:block" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-52">
             <DropdownMenuGroup>
