@@ -114,7 +114,7 @@ export function TopNavbar() {
         <button
           type="button"
           aria-label="Search"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-grey-500 transition-colors hover:bg-light-600 hover:text-grey-900"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-teal transition-colors hover:bg-primary-100"
         >
           <Search className="h-4 w-4" />
         </button>
@@ -122,7 +122,7 @@ export function TopNavbar() {
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Notifications"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full text-grey-500 transition-colors hover:bg-light-600 hover:text-grey-900"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full text-teal transition-colors hover:bg-primary-100"
           >
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
