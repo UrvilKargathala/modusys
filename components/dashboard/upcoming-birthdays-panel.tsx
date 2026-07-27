@@ -33,14 +33,14 @@ export function UpcomingBirthdaysPanel() {
     const today = new Date();
     const merged: Row[] = [];
     for (const c of customers) {
-      const m = MONTHS.indexOf(c.birthdayMonth);
-      const d = Number(c.birthdayDay);
+      const m = MONTHS.indexOf(c.birthdayMonth ?? "");
+      const d = Number(c.birthdayDay ?? "");
       if (m < 0 || !d || !c.name) continue;
       merged.push({ id: `c-${c.id}`, name: c.name, role: "Customer", monthIdx: m, day: d, nextDate: nextBirthday(m, d, today) });
     }
     for (const a of architects) {
-      const m = MONTHS.indexOf(a.birthdayMonth);
-      const d = Number(a.birthdayDay);
+      const m = MONTHS.indexOf(a.birthdayMonth ?? "");
+      const d = Number(a.birthdayDay ?? "");
       if (m < 0 || !d || !a.name) continue;
       merged.push({ id: `a-${a.id}`, name: a.name, role: "Architect", monthIdx: m, day: d, nextDate: nextBirthday(m, d, today) });
     }
