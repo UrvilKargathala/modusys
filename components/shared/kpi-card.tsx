@@ -36,7 +36,7 @@ export function KpiCard({ label, value, icon: Icon, trend, className, notTracked
           )}
         </div>
         {Icon && (
-          <div className="rounded-lg bg-primary-transparent p-2 text-primary">
+          <div className="rounded-lg bg-teal-transparent p-2 text-grey-800">
             <Icon className="h-5 w-5" />
           </div>
         )}

@@ -174,7 +174,7 @@ export function MessageInput({ customerId }: { customerId: string }) {
             aria-label="Send message"
             className={cn(
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors",
-              text.trim() ? "bg-teal text-white hover:bg-teal/80" : "bg-grey-100 text-grey-300"
+              text.trim() ? "bg-teal text-grey-900 hover:bg-teal/70" : "bg-grey-100 text-grey-300"
             )}
           >
             <Send className="h-4 w-4" />

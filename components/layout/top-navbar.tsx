@@ -73,7 +73,7 @@ export function TopNavbar() {
               href={item.href}
               className={cn(
                 "whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-body font-medium transition-colors",
-                active ? "bg-teal text-white shadow-sm" : "text-grey-500 hover:text-grey-900"
+                active ? "bg-teal text-grey-900 shadow-sm" : "text-grey-500 hover:text-grey-900"
               )}
             >
               {item.label}
@@ -88,7 +88,7 @@ export function TopNavbar() {
               administrationItems.some(
                 (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
               )
-                ? "bg-teal text-white shadow-sm"
+                ? "bg-teal text-grey-900 shadow-sm"
                 : "text-grey-500 hover:text-grey-900"
             )}
           >
@@ -114,7 +114,7 @@ export function TopNavbar() {
         <button
           type="button"
           aria-label="Search"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-teal transition-colors hover:bg-primary-100"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary-100"
         >
           <Search className="h-4 w-4" />
         </button>
@@ -122,7 +122,7 @@ export function TopNavbar() {
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label="Notifications"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full text-teal transition-colors hover:bg-primary-100"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary-100"
           >
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
