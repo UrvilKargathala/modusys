@@ -11,6 +11,15 @@ export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-1.5 lg:col-span-2">
+          <Label>Product Type</Label>
+          <MaterialReferenceSelect
+            category="product-type"
+            value={quote.productTypeId}
+            onChange={(id) => onChange({ productTypeId: id })}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5 lg:col-span-2">
           <Label>Material Description</Label>
           <MaterialReferenceSelect
             category="raw-material-description"

@@ -2,7 +2,6 @@
 
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { CustomerPicker, CustomerReadOnlyDetails } from "@/components/quotes/create/customer-picker";
 import { ArchitectPicker, ArchitectReadOnlyDetails } from "@/components/quotes/create/architect-picker";
 import { statusConfig, type StatusKey } from "@/lib/status";
@@ -47,18 +46,9 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
           <span className="text-xs font-body text-grey-400">Increments on duplicate/revise</span>
         </div>
 
-        <div className="flex flex-col gap-1.5 lg:col-span-2">
+        <div className="flex flex-col gap-1.5 lg:col-span-3">
           <Label>Customer Name</Label>
           <CustomerPicker value={quote.customerId ?? ""} onChange={(id) => onChange({ customerId: id || null })} />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label>Product Type</Label>
-          <MaterialReferenceSelect
-            category="product-type"
-            value={quote.productTypeId}
-            onChange={(id) => onChange({ productTypeId: id })}
-          />
         </div>
 
         {quote.customerId && (
