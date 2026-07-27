@@ -207,64 +207,77 @@ export function QuoteUnitCard({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn("flex flex-col gap-4 rounded-xl border border-grey-100 bg-light-600 p-4", isDragging && "opacity-50")}
     >
-      <div className="flex flex-wrap items-end gap-3">
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          aria-label="Drag to reorder unit"
-          className="flex h-9 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-grey-300 hover:text-grey-500 active:cursor-grabbing"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="flex items-center gap-2 sm:contents">
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            aria-label="Drag to reorder unit"
+            className="flex h-9 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-grey-300 hover:text-grey-500 active:cursor-grabbing"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
 
-        <button
-          type="button"
-          aria-label={unit.collapsed ? "Expand unit" : "Collapse unit"}
-          onClick={() => onChange({ collapsed: !unit.collapsed })}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-grey-100 bg-card text-grey-500 hover:text-grey-800"
-        >
-          {unit.collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </button>
+          <button
+            type="button"
+            aria-label={unit.collapsed ? "Expand unit" : "Collapse unit"}
+            onClick={() => onChange({ collapsed: !unit.collapsed })}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-grey-100 bg-card text-grey-500 hover:text-grey-800"
+          >
+            {unit.collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
 
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-transparent text-sm font-body font-semibold text-primary">
-          {index + 1}
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-transparent text-sm font-body font-semibold text-primary">
+            {index + 1}
+          </div>
+
+          <button
+            type="button"
+            aria-label="Remove unit"
+            onClick={() => setDeleteOpen(true)}
+            className="ml-auto rounded-md p-1.5 text-grey-400 hover:bg-error-transparent hover:text-error sm:hidden"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
 
-        <div className="flex min-w-56 flex-col gap-1.5">
+        <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-56 sm:flex-1">
           <Label>Unit Type</Label>
           <UnitTypeSelect value={unit.unitTypeId} onChange={handleUnitTypeChange} />
         </div>
 
-        <div className="flex w-24 flex-col gap-1.5">
-          <Label htmlFor={`w-${unit.id}`}>W</Label>
-          <Input id={`w-${unit.id}`} type="number" value={unit.width || ""} onChange={(e) => onChange({ width: Number(e.target.value) })} />
-        </div>
-        <div className="flex w-24 flex-col gap-1.5">
-          <Label htmlFor={`d-${unit.id}`}>D</Label>
-          <Input id={`d-${unit.id}`} type="number" value={unit.depth || ""} onChange={(e) => onChange({ depth: Number(e.target.value) })} />
-        </div>
-        <div className="flex w-24 flex-col gap-1.5">
-          <Label htmlFor={`h-${unit.id}`}>H</Label>
-          <Input id={`h-${unit.id}`} type="number" value={unit.height || ""} onChange={(e) => onChange({ height: Number(e.target.value) })} />
-        </div>
-        <div className="flex w-20 flex-col gap-1.5">
-          <Label htmlFor={`qty-${unit.id}`}>Qty</Label>
-          <Input id={`qty-${unit.id}`} type="number" min={1} value={unit.qty || ""} onChange={(e) => onChange({ qty: Number(e.target.value) })} />
+        <div className="grid grid-cols-4 gap-2 sm:contents">
+          <div className="flex flex-col gap-1.5 sm:w-24">
+            <Label htmlFor={`w-${unit.id}`}>W</Label>
+            <Input id={`w-${unit.id}`} type="number" value={unit.width || ""} onChange={(e) => onChange({ width: Number(e.target.value) })} />
+          </div>
+          <div className="flex flex-col gap-1.5 sm:w-24">
+            <Label htmlFor={`d-${unit.id}`}>D</Label>
+            <Input id={`d-${unit.id}`} type="number" value={unit.depth || ""} onChange={(e) => onChange({ depth: Number(e.target.value) })} />
+          </div>
+          <div className="flex flex-col gap-1.5 sm:w-24">
+            <Label htmlFor={`h-${unit.id}`}>H</Label>
+            <Input id={`h-${unit.id}`} type="number" value={unit.height || ""} onChange={(e) => onChange({ height: Number(e.target.value) })} />
+          </div>
+          <div className="flex flex-col gap-1.5 sm:w-20">
+            <Label htmlFor={`qty-${unit.id}`}>Qty</Label>
+            <Input id={`qty-${unit.id}`} type="number" min={1} value={unit.qty || ""} onChange={(e) => onChange({ qty: Number(e.target.value) })} />
+          </div>
         </div>
 
-        <Button type="button" disabled={!selectedUnitType} onClick={() => selectedUnitType && runAutoPopulate(selectedUnitType)}>
+        <Button type="button" disabled={!selectedUnitType} onClick={() => selectedUnitType && runAutoPopulate(selectedUnitType)} className="w-full sm:w-auto">
           <Sparkles className="h-4 w-4" />
           Auto Populate
         </Button>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="flex items-center justify-end gap-3 sm:ml-auto">
           <span className="text-sm font-body font-semibold text-grey-900">Unit Total: ₹{total.toFixed(2)}</span>
           <button
             type="button"
             aria-label="Remove unit"
             onClick={() => setDeleteOpen(true)}
-            className="rounded-md p-1.5 text-grey-400 hover:bg-error-transparent hover:text-error"
+            className="hidden rounded-md p-1.5 text-grey-400 hover:bg-error-transparent hover:text-error sm:inline-flex"
           >
             <Trash2 className="h-4 w-4" />
           </button>

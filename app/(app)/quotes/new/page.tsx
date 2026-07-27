@@ -94,9 +94,9 @@ function CreateQuotePage() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <h1 className="font-heading text-2xl font-semibold text-grey-900">{title}</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             {readonly ? (
               <Button type="button" variant="outline" onClick={() => router.push(`/quotes/new?id=${quote.id}`)}>
                 Edit
