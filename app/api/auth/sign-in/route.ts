@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       mustChangePassword: user.mustChangePassword,
     },
   });
-  res.cookies.set(SESSION_COOKIE_NAME, createSessionToken(user.id), {
+  res.cookies.set(SESSION_COOKIE_NAME, createSessionToken(user.id, user.sessionVersion), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

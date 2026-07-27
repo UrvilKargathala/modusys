@@ -74,26 +74,24 @@ export const usersStore = {
       body: JSON.stringify({ role }),
     }).catch(refetch);
   },
-  setPassword(userId: string, mustChangePassword: boolean) {
+  // Super-admin "Set Password" action — actually hashes and writes the new
+  // password server-side (unlike the rest of this store's optimistic
+  // patches, this one awaits the real result before updating local state,
+  // since a failure here must surface to the caller, not be swallowed).
+  async setPassword(userId: string, password: string, requireChange: boolean) {
     ensureHydrated();
-    const now = new Date().toISOString();
-    users = users.map((u) => (u.id === userId ? { ...u, mustChangePassword, passwordUpdatedAt: now } : u));
-    emit();
-    fetch(`/api/users/${userId}`, {
+    const res = await fetch(`/api/users/${userId}/password`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mustChangePassword, passwordUpdatedAt: now }),
-    }).catch(refetch);
-  },
-  clearMustChangePassword(userId: string) {
-    ensureHydrated();
-    users = users.map((u) => (u.id === userId ? { ...u, mustChangePassword: false } : u));
+      body: JSON.stringify({ password, requireChange }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(body?.error ?? "Failed to set password");
+    }
+    const updated = (await res.json()) as OrgUser;
+    users = users.map((u) => (u.id === userId ? updated : u));
     emit();
-    fetch(`/api/users/${userId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mustChangePassword: false }),
-    }).catch(refetch);
   },
   isEmailTaken(email: string, excludeUserId?: string) {
     ensureHydrated();

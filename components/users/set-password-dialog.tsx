@@ -47,12 +47,16 @@ export function SetPasswordDialog({
 
   if (!user) return null;
 
-  const onSubmit = (values: SetPasswordValues) => {
-    usersStore.setPassword(user.id, values.requireChange);
-    securityAuditStore.logEvent(`${getCurrentUser().name} set a new password for ${user.name}`);
-    toastStore.show(`Password updated for ${user.name}`);
-    reset();
-    onOpenChange(false);
+  const onSubmit = async (values: SetPasswordValues) => {
+    try {
+      await usersStore.setPassword(user.id, values.password, values.requireChange);
+      securityAuditStore.logEvent(`${getCurrentUser().name} set a new password for ${user.name}`);
+      toastStore.show(`Password updated for ${user.name}`);
+      reset();
+      onOpenChange(false);
+    } catch (err) {
+      toastStore.show(err instanceof Error ? err.message : "Failed to set password", "error");
+    }
   };
 
   return (

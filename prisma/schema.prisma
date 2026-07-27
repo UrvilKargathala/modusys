@@ -94,6 +94,10 @@ model User {
   status             String    @default("active")
   mustChangePassword Boolean   @default(false)
   passwordUpdatedAt  DateTime?
+  // Bumped whenever a password changes; embedded in the signed session token
+  // and checked against this column on every request, so rotating it
+  // invalidates every other cookie already issued for this user.
+  sessionVersion     Int       @default(0)
   lastActive         DateTime  @default(now())
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt

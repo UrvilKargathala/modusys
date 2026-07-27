@@ -18,13 +18,15 @@ function sign(encodedPayload: string): string {
   return createHmac("sha256", getSecret()).update(encodedPayload).digest("base64url");
 }
 
-export function createSessionToken(userId: string): string {
-  const payload = JSON.stringify({ userId, exp: Date.now() + SESSION_MAX_AGE_SECONDS * 1000 });
+export function createSessionToken(userId: string, sessionVersion: number): string {
+  const payload = JSON.stringify({ userId, sessionVersion, exp: Date.now() + SESSION_MAX_AGE_SECONDS * 1000 });
   const encoded = Buffer.from(payload, "utf8").toString("base64url");
   return `${encoded}.${sign(encoded)}`;
 }
 
-export function verifySessionToken(token: string | undefined | null): { userId: string } | null {
+export function verifySessionToken(
+  token: string | undefined | null
+): { userId: string; sessionVersion: number } | null {
   if (!token) return null;
   const [encoded, sig] = token.split(".");
   if (!encoded || !sig) return null;
@@ -38,7 +40,8 @@ export function verifySessionToken(token: string | undefined | null): { userId: 
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
     if (typeof payload.userId !== "string" || typeof payload.exp !== "number") return null;
     if (Date.now() > payload.exp) return null;
-    return { userId: payload.userId };
+    const sessionVersion = typeof payload.sessionVersion === "number" ? payload.sessionVersion : 0;
+    return { userId: payload.userId, sessionVersion };
   } catch {
     return null;
   }
