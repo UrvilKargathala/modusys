@@ -54,7 +54,7 @@ export function TopNavbar() {
   const unreadCount = myNotifications.filter((n) => !n.read).length;
 
   return (
-    <header className="flex h-16 items-center justify-between gap-4 border-b border-grey-100 bg-card px-4 md:px-6">
+    <header className="flex h-16 items-center justify-between gap-4 border-b border-primary-200 bg-primary-transparent px-4 md:px-6">
       <Link href="/dashboard" className="flex shrink-0 items-center gap-2">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary font-heading text-sm font-bold text-white">
           M
