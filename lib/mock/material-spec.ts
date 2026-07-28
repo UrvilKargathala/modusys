@@ -7,6 +7,10 @@ export type MaterialCategoryKey =
   | "hinges-type"
   | "client-responsibility"
   | "product-type"
+  | "property-type"
+  | "sales-executive"
+  | "designer"
+  | "site-engineer"
   | "tandem-drawer-type"
   // Material Library
   | "furniture-component"
@@ -36,11 +40,15 @@ export const materialCategories: MaterialCategory[] = [
   // other areas can start pointing at, populated later once its real values
   // are known.
   { key: "product-type", group: "specification", label: "Product Type", noDescription: true },
+  { key: "property-type", group: "specification", label: "Property Type", noDescription: true },
   { key: "raw-material-description", group: "specification", label: "Raw Material Description", longDescription: true },
   { key: "handle-type", group: "specification", label: "Handle Type" },
   { key: "hinges-type", group: "specification", label: "Hinges Type" },
   { key: "client-responsibility", group: "specification", label: "Client Responsibility" },
   { key: "tandem-drawer-type", group: "specification", label: "Tandem Drawer Type", noDescription: true },
+  { key: "sales-executive", group: "specification", label: "Sales Executive", noDescription: true },
+  { key: "designer", group: "specification", label: "Designer", noDescription: true },
+  { key: "site-engineer", group: "specification", label: "Site Engineer", noDescription: true },
   { key: "furniture-component", group: "library", label: "Furniture Component" },
   { key: "raw-material-type", group: "library", label: "Raw Material Type" },
   { key: "internal-colour", group: "library", label: "Internal Colours and Description" },
@@ -98,6 +106,32 @@ export const mockMaterialItems: MaterialItem[] = [
   item("client-responsibility", "Electrical wiring for under-cabinet lighting"),
   item("client-responsibility", "Plumbing connections for sink unit"),
   item("client-responsibility", "Civil work / wall preparation"),
+
+  // Property Type
+  item("property-type", "Apartment"),
+  item("property-type", "Villa"),
+  item("property-type", "Bungalow"),
+  item("property-type", "Row House"),
+  item("property-type", "Penthouse"),
+  item("property-type", "Duplex"),
+  item("property-type", "Commercial Office"),
+
+  // Sales Executive
+  item("sales-executive", "Chirag Patel"),
+  item("sales-executive", "Soham Patel"),
+  item("sales-executive", "Vipul Dodiya"),
+  item("sales-executive", "Devangee Sailor"),
+
+  // Designer
+  item("designer", "Priti Thakur"),
+  item("designer", "Henil Patel"),
+  item("designer", "Meenal Deshpande"),
+  item("designer", "Kavita Rao"),
+
+  // Site Engineer
+  item("site-engineer", "Brijesh Mendapara"),
+  item("site-engineer", "Vijay Bhaskar"),
+  item("site-engineer", "Mihir Patel"),
 
   // Tandem Drawer Type
   item("tandem-drawer-type", "Blum Antaro"),
