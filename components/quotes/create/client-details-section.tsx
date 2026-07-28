@@ -64,7 +64,7 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
           </Field>
         </div>
 
-        <div className="flex flex-col gap-4 lg:max-w-[50%] lg:pr-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 lg:gap-3">
           <Field label="Quote Number" htmlFor="q-number" helper="Auto-generated">
             <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-medium text-grey-700">
               {quote.quoteNumber}
