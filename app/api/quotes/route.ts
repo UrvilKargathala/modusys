@@ -32,6 +32,7 @@ export async function POST(req: Request) {
     units: b.units ?? [],
     specialDiscountPct: b.specialDiscountPct ?? 0,
     installationFreightIncluded: b.installationFreightIncluded ?? true,
+    installationFreightCost: b.installationFreightCost ?? 0,
     finishOptions: b.finishOptions ?? [],
   };
   const quote = await prisma.quote.upsert({

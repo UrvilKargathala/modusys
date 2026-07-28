@@ -211,6 +211,7 @@ model Quote {
   finishOptions               Json     @default("[]")
   specialDiscountPct          Float    @default(0)
   installationFreightIncluded Boolean  @default(true)
+  installationFreightCost     Float    @default(0)
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt
 

@@ -47,6 +47,7 @@ export type Quote = {
   units: QuoteUnit[];
   specialDiscountPct: number;
   installationFreightIncluded: boolean;
+  installationFreightCost: number;
   finishOptions: FinishOption[];
   createdAt: string;
   updatedAt: string;
@@ -95,6 +96,7 @@ export function blankQuote(quoteNumber: string, defaultMarkup: number): Quote {
     units: [],
     specialDiscountPct: 0,
     installationFreightIncluded: true,
+    installationFreightCost: 0,
     finishOptions: [],
     createdAt: now,
     updatedAt: now,

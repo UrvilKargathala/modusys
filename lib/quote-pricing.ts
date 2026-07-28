@@ -149,18 +149,24 @@ export function quoteWaterfall(
   rawTotal: number,
   markupMultiplier: number,
   specialDiscountPct: number,
-  installationFreightIncluded: boolean
+  installationFreightIncluded: boolean,
+  installationFreightCost: number = 0
 ) {
   const markedUp = rawTotal * markupMultiplier;
   const discount = markedUp * (specialDiscountPct / 100);
   const afterDiscount = markedUp - discount;
-  const roundOff = Math.round(afterDiscount) - afterDiscount;
-  const finalOffer = Math.round(afterDiscount);
+  // When "Included", cost is baked into the marked-up figure so nothing is
+  // added on top. When unchecked, whatever the user entered here is added
+  // as a separate line before rounding.
+  const installationFreight = installationFreightIncluded ? 0 : Math.max(0, installationFreightCost);
+  const preRound = afterDiscount + installationFreight;
+  const finalOffer = Math.round(preRound);
+  const roundOff = finalOffer - preRound;
   return {
     total: markedUp,
     discount,
     afterDiscount,
-    installationFreight: installationFreightIncluded ? 0 : 0,
+    installationFreight,
     roundOff,
     finalOffer,
   };
