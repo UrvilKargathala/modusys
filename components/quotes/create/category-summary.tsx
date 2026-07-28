@@ -19,21 +19,23 @@ function computeTotals(
   furnitureItems: ReturnType<typeof useFurniturePriceItems>,
   hardwareItems: ReturnType<typeof useHardwarePriceItems>
 ) {
-  const acc = { carcassSqft: 0, carcassAmt: 0, shutterSqft: 0, shutterAmt: 0, hardwareAmt: 0 };
+  const acc = { carcassSqft: 0, carcassAmt: 0, shutterSqft: 0, shutterAmt: 0, panelSqft: 0, panelAmt: 0, hardwareAmt: 0 };
 
-  const addFurniture = (item: FurnitureLineItem, unit: Quote["units"][number], target: "carcass" | "shutter") => {
+  const addFurniture = (item: FurnitureLineItem, unit: Quote["units"][number], target: "carcass" | "shutter" | "panel") => {
     const w = evaluateFormula(item.widthFormula, { W: unit.width, D: unit.depth, H: unit.height });
     const h = evaluateFormula(item.heightFormula, { W: unit.width, D: unit.depth, H: unit.height });
     const sqft = ((w * h) / SQMM_PER_SQFT) * item.qty * unit.qty;
     const amt = furnitureLineTotal(item, unit, furnitureItems) * unit.qty;
     if (target === "carcass") { acc.carcassSqft += sqft; acc.carcassAmt += amt; }
-    else { acc.shutterSqft += sqft; acc.shutterAmt += amt; }
+    else if (target === "shutter") { acc.shutterSqft += sqft; acc.shutterAmt += amt; }
+    else { acc.panelSqft += sqft; acc.panelAmt += amt; }
   };
 
   for (const unit of quote.units) {
     for (const cabinet of unit.cabinets) {
       cabinet.components.forEach((c) => addFurniture(c, unit, "carcass"));
       cabinet.externalFinishes.forEach((c) => addFurniture(c, unit, "shutter"));
+      cabinet.panels.forEach((c) => addFurniture(c, unit, "panel"));
       for (const hw of cabinet.hardware) {
         acc.hardwareAmt += hardwareLineTotal(hw, unit, hardwareItems) * unit.qty;
       }
@@ -50,7 +52,7 @@ export function CategorySummary({ quote }: { quote: Quote }) {
     [quote, furnitureItems, hardwareItems]
   );
 
-  const combined = totals.carcassAmt + totals.shutterAmt + totals.hardwareAmt;
+  const combined = totals.carcassAmt + totals.shutterAmt + totals.panelAmt + totals.hardwareAmt;
   const fmtSqft = (n: number) => (n ? n.toFixed(3) : "—");
 
   return (
@@ -84,6 +86,13 @@ export function CategorySummary({ quote }: { quote: Quote }) {
               <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-body text-grey-500">{fmtSqft(totals.shutterSqft)}</td>
               <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-body font-semibold text-grey-800">
                 {formatInr(totals.shutterAmt)}
+              </td>
+            </tr>
+            <tr className="border-t border-grey-100">
+              <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">Other Panel Total</td>
+              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-body text-grey-500">{fmtSqft(totals.panelSqft)}</td>
+              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-body font-semibold text-grey-800">
+                {formatInr(totals.panelAmt)}
               </td>
             </tr>
             <tr className="border-t border-grey-100">

@@ -131,7 +131,10 @@ export function unitTotal(
   furnitureItems: FurniturePriceItem[],
   hardwareItems: HardwarePriceItem[]
 ): number {
-  return unit.cabinets.reduce((sum, c) => sum + cabinetTotal(c, unit, furnitureItems, hardwareItems), 0);
+  const perUnit = unit.cabinets.reduce((sum, c) => sum + cabinetTotal(c, unit, furnitureItems, hardwareItems), 0);
+  // A unit's Qty means "this many identical units in the quote", so its
+  // cost has to scale by qty for the raw total to match Combined Total.
+  return perUnit * Math.max(1, unit.qty || 1);
 }
 
 export function quoteRawTotal(
