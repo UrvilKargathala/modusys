@@ -205,7 +205,7 @@ export function QuoteUnitCard({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("flex flex-col gap-4 rounded-xl border border-grey-100 bg-light-600 p-4", isDragging && "opacity-50")}
+      className={cn("flex flex-col gap-4 rounded-xl border border-teal-transparent bg-teal-transparent p-4", isDragging && "opacity-50")}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="flex items-center gap-2 sm:contents">
