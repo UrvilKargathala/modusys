@@ -26,8 +26,8 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[110px_1fr] sm:gap-3">
-      <Label htmlFor={htmlFor} className="sm:pt-2 sm:leading-tight">{label}</Label>
+    <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[140px_1fr] sm:gap-3">
+      <Label htmlFor={htmlFor} className="whitespace-nowrap sm:pt-2 sm:leading-tight">{label}</Label>
       <div className="flex flex-col gap-1">
         {children}
         {helper && <span className="text-xs font-body text-grey-400">{helper}</span>}

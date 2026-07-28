@@ -9,8 +9,8 @@ import { cn } from "@/lib/utils";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[130px_1fr] sm:gap-3">
-      <Label className="sm:pt-2 sm:leading-tight">{label}</Label>
+    <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[170px_1fr] sm:gap-3">
+      <Label className="whitespace-nowrap sm:pt-2 sm:leading-tight">{label}</Label>
       <div className="min-w-0">{children}</div>
     </div>
   );
