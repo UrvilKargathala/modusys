@@ -51,55 +51,59 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
         <h2 className="font-heading text-lg font-semibold text-grey-900">Client Details</h2>
       </button>
 
-      <div className={cn("grid grid-cols-1 gap-4 lg:grid-cols-2", collapsed && "hidden")}>
-        <Field label="Customer Name">
-          <CustomerPicker value={quote.customerId ?? ""} onChange={(id) => onChange({ customerId: id || null })} />
-          {quote.customerId && <CustomerReadOnlyDetails customerId={quote.customerId} />}
-        </Field>
+      <div className={cn("flex flex-col gap-4", collapsed && "hidden")}>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Field label="Customer Name">
+            <CustomerPicker value={quote.customerId ?? ""} onChange={(id) => onChange({ customerId: id || null })} />
+            {quote.customerId && <CustomerReadOnlyDetails customerId={quote.customerId} />}
+          </Field>
 
-        <Field label="Architect Name">
-          <ArchitectPicker value={quote.architectId ?? ""} onChange={(id) => onChange({ architectId: id || null })} />
-          {quote.architectId && <ArchitectReadOnlyDetails architectId={quote.architectId} />}
-        </Field>
+          <Field label="Architect Name">
+            <ArchitectPicker value={quote.architectId ?? ""} onChange={(id) => onChange({ architectId: id || null })} />
+            {quote.architectId && <ArchitectReadOnlyDetails architectId={quote.architectId} />}
+          </Field>
+        </div>
 
-        <Field label="Quote Number" htmlFor="q-number" helper="Auto-generated">
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-medium text-grey-700">
-            {quote.quoteNumber}
-          </div>
-        </Field>
+        <div className="flex flex-col gap-4 lg:max-w-[50%] lg:pr-2">
+          <Field label="Quote Number" htmlFor="q-number" helper="Auto-generated">
+            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-medium text-grey-700">
+              {quote.quoteNumber}
+            </div>
+          </Field>
 
-        <Field label="Date" htmlFor="q-date">
-          <Input
-            id="q-date"
-            type="date"
-            value={quote.date}
-            onChange={(e) => onChange({ date: e.target.value })}
-          />
-        </Field>
+          <Field label="Date" htmlFor="q-date">
+            <Input
+              id="q-date"
+              type="date"
+              value={quote.date}
+              onChange={(e) => onChange({ date: e.target.value })}
+            />
+          </Field>
 
-        <Field label="Revision" htmlFor="q-revision" helper="Increments on duplicate/revise">
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-medium text-grey-700">
-            {quote.revision}
-          </div>
-        </Field>
+          <Field label="Revision" htmlFor="q-revision" helper="Increments on duplicate/revise">
+            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-medium text-grey-700">
+              {quote.revision}
+            </div>
+          </Field>
 
-        <Field label="Status">
-          <select
-            value={quote.status}
-            onChange={(e) => onChange({ status: e.target.value as StatusKey })}
-            className={cn(
-              "h-9 w-full rounded-lg border border-grey-100 px-3 text-sm font-body font-medium outline-none focus:border-primary",
-              statusConfig[quote.status].bg,
-              statusConfig[quote.status].color
-            )}
-          >
-            {statusOptions.map((s) => (
-              <option key={s} value={s}>
-                {statusConfig[s].label}
-              </option>
-            ))}
-          </select>
-        </Field>
+          <Field label="Status">
+            <select
+              value={quote.status}
+              onChange={(e) => onChange({ status: e.target.value as StatusKey })}
+              className={cn(
+                "h-9 w-full rounded-lg border border-grey-100 px-3 text-sm font-body font-medium outline-none focus:border-primary",
+                statusConfig[quote.status].bg,
+                statusConfig[quote.status].color
+              )}
+            >
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>
+                  {statusConfig[s].label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
       </div>
     </section>
   );
