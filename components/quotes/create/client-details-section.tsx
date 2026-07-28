@@ -31,11 +31,13 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
         <div className="flex flex-col gap-1.5">
           <Label>Customer Name</Label>
           <CustomerPicker value={quote.customerId ?? ""} onChange={(id) => onChange({ customerId: id || null })} />
+          {quote.customerId && <CustomerReadOnlyDetails customerId={quote.customerId} />}
         </div>
 
         <div className="flex flex-col gap-1.5">
           <Label>Architect Name</Label>
           <ArchitectPicker value={quote.architectId ?? ""} onChange={(id) => onChange({ architectId: id || null })} />
+          {quote.architectId && <ArchitectReadOnlyDetails architectId={quote.architectId} />}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -83,17 +85,6 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
           </select>
         </div>
 
-        {quote.customerId && (
-          <div className="sm:col-span-2 lg:col-span-3">
-            <CustomerReadOnlyDetails customerId={quote.customerId} />
-          </div>
-        )}
-
-        {quote.architectId && (
-          <div className="sm:col-span-2 lg:col-span-3">
-            <ArchitectReadOnlyDetails architectId={quote.architectId} />
-          </div>
-        )}
       </div>
     </section>
   );
