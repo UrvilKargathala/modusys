@@ -1,11 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[130px_1fr] sm:gap-3">
+      <Label className="sm:pt-2 sm:leading-tight">{label}</Label>
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
 
 export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote; onChange: (patch: Partial<Quote>) => void }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -22,69 +31,62 @@ export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote
         <h2 className="font-heading text-lg font-semibold text-grey-900">Material Specification</h2>
       </button>
 
-      <div className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3", collapsed && "hidden")}>
-        <div className="flex flex-col gap-1.5">
-          <Label>Product Type</Label>
+      <div className={cn("grid grid-cols-1 gap-4 lg:grid-cols-2", collapsed && "hidden")}>
+        <Field label="Product Type">
           <MaterialReferenceSelect
             category="product-type"
             value={quote.productTypeId}
             onChange={(id) => onChange({ productTypeId: id })}
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Material Description</Label>
+        <Field label="Material Description">
           <MaterialReferenceSelect
             category="raw-material-description"
             value={quote.materialDescriptionId}
             onChange={(id) => onChange({ materialDescriptionId: id })}
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Shutter Finish</Label>
+        <Field label="Shutter Finish">
           <MaterialReferenceSelect
             category="external-colour"
             value={quote.shutterFinishId}
             onChange={(id) => onChange({ shutterFinishId: id })}
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Handle</Label>
+        <Field label="Handle">
           <MaterialReferenceSelect
             category="handle-type"
             value={quote.handleTypeId}
             onChange={(id) => onChange({ handleTypeId: id })}
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Hinges</Label>
+        <Field label="Hinges">
           <MaterialReferenceSelect
             category="hinges-type"
             value={quote.hingesTypeId}
             onChange={(id) => onChange({ hingesTypeId: id })}
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Client Responsibility</Label>
+        <Field label="Client Responsibility">
           <MaterialReferenceSelect
             category="client-responsibility"
             value={quote.clientResponsibilityId}
             onChange={(id) => onChange({ clientResponsibilityId: id })}
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Tandem Drawer Type</Label>
+        <Field label="Tandem Drawer Type">
           <MaterialReferenceSelect
             category="tandem-drawer-type"
             value={quote.tandemDrawerTypeId}
             onChange={(id) => onChange({ tandemDrawerTypeId: id })}
           />
-        </div>
+        </Field>
       </div>
     </section>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,30 @@ import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
 
 const statusOptions: StatusKey[] = ["draft", "approved", "in-production", "completed", "cancelled"];
+
+// Stack label + input on mobile, put the label on the left on sm+ so the
+// row is horizontal and reads narrower.
+function Field({
+  label,
+  htmlFor,
+  helper,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  helper?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[110px_1fr] sm:gap-3">
+      <Label htmlFor={htmlFor} className="sm:pt-2 sm:leading-tight">{label}</Label>
+      <div className="flex flex-col gap-1">
+        {children}
+        {helper && <span className="text-xs font-body text-grey-400">{helper}</span>}
+      </div>
+    </div>
+  );
+}
 
 export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChange: (patch: Partial<Quote>) => void }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -27,47 +51,39 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
         <h2 className="font-heading text-lg font-semibold text-grey-900">Client Details</h2>
       </button>
 
-      <div className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3", collapsed && "hidden")}>
-        <div className="flex flex-col gap-1.5">
-          <Label>Customer Name</Label>
+      <div className={cn("grid grid-cols-1 gap-4 lg:grid-cols-2", collapsed && "hidden")}>
+        <Field label="Customer Name">
           <CustomerPicker value={quote.customerId ?? ""} onChange={(id) => onChange({ customerId: id || null })} />
           {quote.customerId && <CustomerReadOnlyDetails customerId={quote.customerId} />}
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Architect Name</Label>
+        <Field label="Architect Name">
           <ArchitectPicker value={quote.architectId ?? ""} onChange={(id) => onChange({ architectId: id || null })} />
           {quote.architectId && <ArchitectReadOnlyDetails architectId={quote.architectId} />}
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="q-number">Quote Number</Label>
+        <Field label="Quote Number" htmlFor="q-number" helper="Auto-generated">
           <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-medium text-grey-700">
             {quote.quoteNumber}
           </div>
-          <span className="text-xs font-body text-grey-400">Auto-generated</span>
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="q-date">Date</Label>
+        <Field label="Date" htmlFor="q-date">
           <Input
             id="q-date"
             type="date"
             value={quote.date}
             onChange={(e) => onChange({ date: e.target.value })}
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="q-revision">Revision</Label>
+        <Field label="Revision" htmlFor="q-revision" helper="Increments on duplicate/revise">
           <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-medium text-grey-700">
             {quote.revision}
           </div>
-          <span className="text-xs font-body text-grey-400">Increments on duplicate/revise</span>
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Status</Label>
+        <Field label="Status">
           <select
             value={quote.status}
             onChange={(e) => onChange({ status: e.target.value as StatusKey })}
@@ -83,8 +99,7 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
               </option>
             ))}
           </select>
-        </div>
-
+        </Field>
       </div>
     </section>
   );
