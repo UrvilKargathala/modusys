@@ -7,15 +7,12 @@ import { Input } from "@/components/ui/input";
 import { CustomerPicker, CustomerReadOnlyDetails } from "@/components/quotes/create/customer-picker";
 import { ArchitectPicker, ArchitectReadOnlyDetails } from "@/components/quotes/create/architect-picker";
 import { statusConfig, type StatusKey } from "@/lib/status";
-import { quoteTemplateStore } from "@/lib/store/quote-template-store";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
 
 const statusOptions: StatusKey[] = ["draft", "approved", "in-production", "completed", "cancelled"];
 
 export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChange: (patch: Partial<Quote>) => void }) {
-  const defaultMarkup = quoteTemplateStore.getSnapshot().branding.defaultMarkupMultiplier;
-  const markupOverridden = quote.markupMultiplier !== defaultMarkup;
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -84,29 +81,6 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
               </option>
             ))}
           </select>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="q-markup">Markup Multiplier</Label>
-          <Input
-            id="q-markup"
-            type="number"
-            step="0.01"
-            value={quote.markupMultiplier}
-            onChange={(e) => {
-              const value = Number(e.target.value);
-              if (!Number.isNaN(value) && value > 0) onChange({ markupMultiplier: value });
-            }}
-          />
-          {markupOverridden && (
-            <button
-              type="button"
-              onClick={() => onChange({ markupMultiplier: defaultMarkup })}
-              className="w-fit text-xs font-body text-primary hover:underline"
-            >
-              Reset to default ({defaultMarkup})
-            </button>
-          )}
         </div>
 
         {quote.customerId && (

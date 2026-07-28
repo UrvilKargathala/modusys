@@ -89,22 +89,20 @@ export function CustomerReadOnlyDetails({ customerId }: { customerId: string }) 
   const customer = customers.find((c) => c.id === customerId);
   if (!customer) return null;
 
-  const fields = [
-    { label: "Address", value: override.area ?? customer.address },
-    { label: "City", value: override.city ?? "—" },
-    { label: "State", value: override.state ?? "—" },
-    { label: "Postcode", value: override.postcode ?? "—" },
-    { label: "Email", value: override.email ?? "—" },
-    { label: "GST No.", value: override.gst ?? "—" },
-  ];
+  // Compact one-line summary — skip empty fields, join what's populated with
+  // dot separators so the block collapses to whatever detail actually exists.
+  const address = override.area ?? customer.address;
+  const cityLine = [override.city, override.state, override.postcode].filter(Boolean).join(", ");
+  const bits = [address, cityLine, override.email, override.gst && `GST ${override.gst}`].filter(Boolean);
+  if (bits.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 gap-3 rounded-lg border border-grey-100 bg-light-600 p-3 sm:grid-cols-3">
-      {fields.map((f) => (
-        <div key={f.label} className="flex flex-col gap-0.5">
-          <span className="text-xs font-body text-grey-400">{f.label}</span>
-          <span className="truncate text-sm font-body text-grey-700">{f.value || "—"}</span>
-        </div>
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-grey-100 bg-light-600 px-3 py-1.5 text-xs font-body text-grey-600">
+      {bits.map((b, i) => (
+        <span key={i} className="flex items-center gap-2">
+          {i > 0 && <span className="text-grey-300">·</span>}
+          <span className="truncate">{b}</span>
+        </span>
       ))}
     </div>
   );
