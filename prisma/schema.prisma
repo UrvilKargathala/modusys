@@ -212,6 +212,7 @@ model Quote {
   specialDiscountPct          Float    @default(0)
   installationFreightIncluded Boolean  @default(true)
   installationFreightCost     Float    @default(0)
+  remark                      String   @default("")
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt
 

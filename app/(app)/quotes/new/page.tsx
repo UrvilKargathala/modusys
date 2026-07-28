@@ -131,6 +131,21 @@ function CreateQuotePage() {
         <UnitsSection units={quote.units} shutterFinishId={quote.shutterFinishId} onChange={(units) => patchQuote({ units })} />
         <CategorySummary quote={quote} />
         <PricingSummary quote={quote} onChange={patchQuote} />
+
+        <section className="flex flex-col gap-3 rounded-xl border border-grey-100 bg-card p-6">
+          <label htmlFor="q-remark" className="font-heading text-lg font-semibold text-grey-900">
+            Remark
+          </label>
+          <textarea
+            id="q-remark"
+            value={quote.remark ?? ""}
+            onChange={(e) => patchQuote({ remark: e.target.value })}
+            placeholder="Notes, follow-up items, internal comments…"
+            rows={4}
+            className="w-full resize-y rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none placeholder:text-grey-300 focus:border-primary"
+          />
+        </section>
+
         <FinishOptionsTable
           options={quote.finishOptions ?? []}
           onChange={(finishOptions) => patchQuote({ finishOptions })}

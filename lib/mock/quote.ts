@@ -49,6 +49,7 @@ export type Quote = {
   specialDiscountPct: number;
   installationFreightIncluded: boolean;
   installationFreightCost: number;
+  remark: string;
   finishOptions: FinishOption[];
   createdAt: string;
   updatedAt: string;
@@ -99,6 +100,7 @@ export function blankQuote(quoteNumber: string, defaultMarkup: number): Quote {
     specialDiscountPct: 0,
     installationFreightIncluded: true,
     installationFreightCost: 0,
+    remark: "",
     finishOptions: [],
     createdAt: now,
     updatedAt: now,
