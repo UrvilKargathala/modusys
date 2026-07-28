@@ -23,7 +23,7 @@ export function AuthToggle() {
             className={cn(
               "relative z-10 flex-1 rounded-full px-4 py-2 text-center text-sm font-body font-semibold transition-colors",
               active
-                ? "bg-teal text-white shadow-sm"
+                ? "bg-teal text-grey-900 shadow-sm"
                 : "text-grey-500 hover:text-grey-800"
             )}
           >
