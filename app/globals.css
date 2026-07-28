@@ -15,7 +15,7 @@
   --color-white: #ffffff;
   --color-dark: #262626;
   --color-secondary: #3f88fe;
-  --color-primary: #023e8a;
+  --color-primary: #47a6f5;
   --color-light: #f7f8f9;
 
   /* Grey scale */
@@ -50,11 +50,11 @@
   --color-warning: #e2b93b;
   --color-indigo: #3538c0;
   --color-cyan: #06aed4;
-  --color-teal: #48cae4;
+  --color-teal: #a3d6fa;
 
   /* Transparent variants */
   --color-grey-transparent: #f4f4f4;
-  --color-primary-transparent: #e5edf7;
+  --color-primary-transparent: #eaf4fe;
   --color-secondary-transparent: #eef4ff;
   --color-success-transparent: #f4f8f7;
   --color-warning-transparent: #fef3f5;
@@ -65,19 +65,19 @@
   --color-orange-transparent: #fdf8f3;
   --color-indigo-transparent: #ededf8;
   --color-cyan-transparent: #e9f8fb;
-  --color-teal-transparent: #caf0f8;
+  --color-teal-transparent: #eaf4fe;
   --color-light-transparent: #fdfdfe;
 
-  /* Primary shades — tonal scale of #023E8A (french_blue) toward white */
-  --color-primary-900: #023e8a;
-  --color-primary-800: #2557a0;
-  --color-primary-700: #4870b6;
-  --color-primary-600: #6c89cc;
-  --color-primary-500: #8fa2e2;
-  --color-primary-400: #b2bcf0;
-  --color-primary-300: #ccd4f4;
-  --color-primary-200: #e0e5f8;
-  --color-primary-100: #f2f4fc;
+  /* Primary shades — tonal scale of #47A6F5 (sky blue) toward white */
+  --color-primary-900: #47a6f5;
+  --color-primary-800: #5eb2f6;
+  --color-primary-700: #75bef7;
+  --color-primary-600: #8ccaf9;
+  --color-primary-500: #a3d6fa;
+  --color-primary-400: #bae2fb;
+  --color-primary-300: #d1eefc;
+  --color-primary-200: #def4fd;
+  --color-primary-100: #eef9fe;
 
   /* Secondary shades */
   --color-secondary-900: #5297fe;
@@ -249,7 +249,7 @@
   --card-foreground: #262626;
   --popover: #ffffff;
   --popover-foreground: #262626;
-  --primary: #023e8a;
+  --primary: #47a6f5;
   --primary-foreground: #ffffff;
   --shadcn-muted-btn: #e2e4e8;
   --shadcn-muted-btn-foreground: #262626;
