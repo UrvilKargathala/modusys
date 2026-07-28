@@ -89,6 +89,7 @@ export function FinishOptionsTable({
                           category="external-colour"
                           value={row.externalColourId}
                           onChange={(id) => update(row.id, { externalColourId: id })}
+                          nameOnly
                         />
                       </div>
                       <span className="text-sm font-body text-grey-400">+</span>

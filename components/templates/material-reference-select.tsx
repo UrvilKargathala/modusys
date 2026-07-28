@@ -17,10 +17,14 @@ export function MaterialReferenceSelect({
   category,
   value,
   onChange,
+  nameOnly = false,
 }: {
   category: MaterialCategoryKey;
   value: string;
   onChange: (id: string) => void;
+  // When true, hide the "— description" suffix in both trigger and option
+  // list — for places where the description doesn't help the picker.
+  nameOnly?: boolean;
 }) {
   const meta = getMaterialCategory(category);
   const items = useMaterialItems(category);
@@ -40,7 +44,7 @@ export function MaterialReferenceSelect({
           {selected ? (
             <span className="min-w-0 truncate">
               {selected.name}
-              {selected.description && <span className="text-grey-400"> — {selected.description}</span>}
+              {!nameOnly && selected.description && <span className="text-grey-400"> — {selected.description}</span>}
             </span>
           ) : (
             <span className="min-w-0 truncate text-grey-400">Select {meta.label.toLowerCase()}</span>
@@ -72,7 +76,7 @@ export function MaterialReferenceSelect({
               >
                 <span className="min-w-0 truncate">
                   {i.name}
-                  {i.description && <span className="text-grey-400"> — {i.description}</span>}
+                  {!nameOnly && i.description && <span className="text-grey-400"> — {i.description}</span>}
                 </span>
                 {i.id === value && <Check className="h-3.5 w-3.5 shrink-0" />}
               </button>
