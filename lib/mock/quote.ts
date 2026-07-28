@@ -18,6 +18,7 @@ export type QuoteCabinet = {
 
 export type QuoteUnit = {
   id: string;
+  spaceId: string;
   unitTypeId: string | null;
   width: number;
   depth: number;
@@ -64,6 +65,7 @@ export type FinishOption = {
 export function blankQuoteUnit(): QuoteUnit {
   return {
     id: `qu-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    spaceId: "",
     unitTypeId: null,
     width: 0,
     depth: 0,

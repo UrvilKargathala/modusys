@@ -8,6 +8,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import {
   AlertDialog,
@@ -240,6 +241,15 @@ export function QuoteUnitCard({
           >
             <Trash2 className="h-4 w-4" />
           </button>
+        </div>
+
+        <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-40">
+          <Label>Space</Label>
+          <MaterialReferenceSelect
+            category="space"
+            value={unit.spaceId ?? ""}
+            onChange={(id) => onChange({ spaceId: id })}
+          />
         </div>
 
         <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-56 sm:flex-1">
