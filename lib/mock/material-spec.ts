@@ -8,6 +8,7 @@ export type MaterialCategoryKey =
   | "client-responsibility"
   | "product-type"
   | "property-type"
+  | "space"
   | "sales-executive"
   | "designer"
   | "site-engineer"
@@ -41,6 +42,7 @@ export const materialCategories: MaterialCategory[] = [
   // are known.
   { key: "product-type", group: "specification", label: "Product Type", noDescription: true },
   { key: "property-type", group: "specification", label: "Property Type", noDescription: true },
+  { key: "space", group: "specification", label: "Space", noDescription: true },
   { key: "raw-material-description", group: "specification", label: "Raw Material Description", longDescription: true },
   { key: "handle-type", group: "specification", label: "Handle Type" },
   { key: "hinges-type", group: "specification", label: "Hinges Type" },
@@ -115,6 +117,13 @@ export const mockMaterialItems: MaterialItem[] = [
   item("property-type", "Penthouse"),
   item("property-type", "Duplex"),
   item("property-type", "Commercial Office"),
+
+  // Space
+  item("space", "Kitchen"),
+  item("space", "Master Room"),
+  item("space", "Son Room"),
+  item("space", "Daughter Room"),
+  item("space", "Kids Room"),
 
   // Sales Executive
   item("sales-executive", "Chirag Patel"),
