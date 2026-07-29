@@ -79,6 +79,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const row = await prisma.task.update({ where: { id }, data });
+
+  // Notify the creator when the assignee (someone else) marks it complete —
+  // skip when they're the same person or the status didn't change.
+  if (nextStatus === "completed" && existing.createdById !== existing.assigneeId) {
+    await prisma.notification.create({
+      data: {
+        userId: existing.createdById,
+        type: "completed",
+        relatedTaskId: row.id,
+        message: `${auth.user.name} completed "${row.title}"`,
+      },
+    });
+  }
+
   return NextResponse.json(serialize(row));
 }
 

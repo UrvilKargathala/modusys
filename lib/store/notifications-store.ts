@@ -2,7 +2,6 @@
 
 import { useSyncExternalStore } from "react";
 import { toastStore } from "@/lib/store/toast-store";
-import { CURRENT_USER_ID } from "@/lib/session";
 
 export type NotificationType = "assigned" | "due-soon" | "completed" | "mentioned";
 
@@ -16,33 +15,54 @@ export type AppNotification = {
   createdAt: string;
 };
 
-const STORAGE_KEY = "modusys.notifications";
 const EMPTY: AppNotification[] = [];
 
 let notifications: AppNotification[] = EMPTY;
 let hydrated = false;
-const listeners = new Set<() => void>();
+let seenIds = new Set<string>(); // for toast-once-per-notification
 
-function persist() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
-  } catch {
-    // ignore write failures
-  }
-}
+const listeners = new Set<() => void>();
 
 function emit() {
   for (const listener of listeners) listener();
 }
 
+async function refetch() {
+  try {
+    const res = await fetch("/api/notifications", { cache: "no-store" });
+    if (!res.ok) return;
+    const next = (await res.json()) as AppNotification[];
+
+    // Toast any brand-new "assigned"/"completed" notification that arrived
+    // since the last poll — but only if the user has been on the page long
+    // enough for seenIds to have been primed (skip toasts on first hydration
+    // to avoid spamming the entire backlog on every page load).
+    if (seenIds.size > 0) {
+      for (const n of next) {
+        if (n.read || seenIds.has(n.id)) continue;
+        if (n.type === "assigned" || n.type === "completed") {
+          toastStore.show(n.message);
+        }
+      }
+    }
+    seenIds = new Set(next.map((n) => n.id));
+    notifications = next;
+    emit();
+  } catch {
+    // network transient — keep whatever's in memory
+  }
+}
+
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+
 function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) notifications = JSON.parse(stored) as AppNotification[];
-  } catch {
-    // ignore parse failures, keep EMPTY
+  void refetch();
+  // Poll for new notifications — this is the "no real-time push" MVP; a
+  // websocket or SSE lands later.
+  if (!pollTimer) {
+    pollTimer = setInterval(refetch, 30_000);
   }
 }
 
@@ -58,40 +78,26 @@ export const notificationsStore = {
   getServerSnapshot() {
     return EMPTY;
   },
-  // Server-side in a real backend this would run on the relevant domain event
-  // (task assigned / completed / due-soon cron / mention detected) — here
-  // it's called directly from the store method that causes the event.
-  notify(input: { userId: string; type: NotificationType; relatedTaskId: string; message: string }) {
-    ensureHydrated();
-    const notification: AppNotification = {
-      id: `notif-${Date.now()}-${Math.random()}`,
-      read: false,
-      createdAt: new Date().toISOString(),
-      ...input,
-    };
-    notifications = [notification, ...notifications];
-    persist();
+  refetch,
+  async markRead(id: string) {
+    notifications = notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
     emit();
-    // Soft toast only for the highest-priority event, and only when it's for
-    // the user currently viewing the app (there's no push channel to anyone
-    // else in this mock setup).
-    if (input.type === "assigned" && input.userId === CURRENT_USER_ID) {
-      toastStore.show(input.message);
+    try {
+      await fetch(`/api/notifications/${id}`, { method: "PATCH" });
+    } catch {
+      // best-effort — the next refetch will reconcile
     }
   },
-  markRead(id: string) {
-    notifications = notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
-    persist();
+  // userId arg is ignored — API scopes to the caller's own notifications
+  // anyway. Kept in the signature so existing consumers don't need to change.
+  async markAllRead(_userId: string) {
+    notifications = notifications.map((n) => ({ ...n, read: true }));
     emit();
-  },
-  markAllRead(userId: string) {
-    notifications = notifications.map((n) => (n.userId === userId ? { ...n, read: true } : n));
-    persist();
-    emit();
-  },
-  hasNotified(userId: string, type: NotificationType, relatedTaskId: string) {
-    ensureHydrated();
-    return notifications.some((n) => n.userId === userId && n.type === type && n.relatedTaskId === relatedTaskId);
+    try {
+      await fetch(`/api/notifications/mark-all-read`, { method: "POST" });
+    } catch {
+      // best-effort
+    }
   },
 };
 

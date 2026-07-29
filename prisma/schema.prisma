@@ -244,6 +244,22 @@ model Task {
   @@index([status])
 }
 
+// Real-DB notification feed backing the bell dropdown + dashboard panel.
+// One row per recipient — a task assigned by super-admin to a staff user
+// writes one row, addressed to that staff user's id. The API scopes reads
+// to the auth cookie so nobody sees anyone else's notifications.
+model Notification {
+  id            String   @id @default(cuid())
+  userId        String
+  type          String // "assigned" | "completed" (future: "due-soon" | "mentioned")
+  relatedTaskId String?
+  message       String
+  read          Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([userId, read, createdAt])
+}
+
 // Lightweight trail for account-takeover-capable actions (password changes,
 // invites, role changes). Actor/target names are denormalized at write time
 // rather than joined live, so the log still reads correctly after a user is

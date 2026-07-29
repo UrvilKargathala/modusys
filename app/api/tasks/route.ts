@@ -107,5 +107,19 @@ export async function POST(req: Request) {
       linkedCustomerId: typeof b.linkedCustomerId === "string" && b.linkedCustomerId ? b.linkedCustomerId : null,
     },
   });
+
+  // Notify the assignee — but only when it's actually a delegation (someone
+  // self-assigning shouldn't ping themselves).
+  if (assigneeId !== auth.user.id) {
+    await prisma.notification.create({
+      data: {
+        userId: assigneeId,
+        type: "assigned",
+        relatedTaskId: row.id,
+        message: `${auth.user.name} assigned you a task: "${row.title}"`,
+      },
+    });
+  }
+
   return NextResponse.json(serialize(row), { status: 201 });
 }
