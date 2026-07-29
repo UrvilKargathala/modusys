@@ -28,7 +28,10 @@ const statusOptions: { label: string; value: StatusFilter }[] = [
 
 export function TasksTab() {
   const currentUser = useCurrentUser();
-  const canSeeAll = currentUser.role === "super-admin" || currentUser.role === "admin";
+  // Only super-admin gets the org-wide task view; admin and staff both
+  // only see their own tasks. The API enforces this too — this flag is
+  // just the UI mirror.
+  const canSeeAll = currentUser.role === "super-admin";
   const scopeOptions: { label: string; value: TaskScope }[] = [
     ...(canSeeAll ? [{ label: "All Tasks", value: "all" as TaskScope }] : []),
     { label: "My Tasks", value: "mine" as TaskScope },

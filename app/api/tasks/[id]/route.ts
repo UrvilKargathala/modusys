@@ -34,7 +34,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const auth = await requireUser();
   if (auth.response) return auth.response;
   const role = effectiveRole(auth.user.role);
-  const canEditAny = role === "super-admin" || role === "admin";
+  // Only super-admin can edit anyone's tasks. Admin and staff can only
+  // toggle the status of tasks assigned to them.
+  const canEditAny = role === "super-admin";
 
   const { id } = await params;
   const existing = await prisma.task.findUnique({ where: { id } });
@@ -52,7 +54,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const allowedKeys = ["status", "completed"];
     const extraKeys = Object.keys(b).filter((k) => !allowedKeys.includes(k));
     if (extraKeys.length > 0) {
-      return NextResponse.json({ error: "Staff can only change task status" }, { status: 403 });
+      return NextResponse.json({ error: "You can only change task status" }, { status: 403 });
     }
   }
 
@@ -89,14 +91,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const existing = await prisma.task.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Task not found" }, { status: 404 });
 
-  if (role === "super-admin") {
-    // full permission
-  } else if (role === "admin") {
-    if (existing.createdById !== auth.user.id) {
-      return NextResponse.json({ error: "Admins can only delete tasks they created" }, { status: 403 });
-    }
-  } else {
-    return NextResponse.json({ error: "Staff cannot delete tasks" }, { status: 403 });
+  if (role !== "super-admin") {
+    return NextResponse.json({ error: "Only super-admin can delete tasks" }, { status: 403 });
   }
 
   await prisma.task.delete({ where: { id } });

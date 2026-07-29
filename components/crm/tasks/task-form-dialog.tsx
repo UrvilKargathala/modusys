@@ -42,7 +42,9 @@ export function TaskFormDialog({
 }) {
   const customers = useCustomers();
   const currentUser = useCurrentUser();
-  const canAssignOthers = currentUser.role === "super-admin" || currentUser.role === "admin";
+  // Only super-admin can delegate. Everyone else's Assignee field is
+  // locked to their own account (API enforces the same rule).
+  const canAssignOthers = currentUser.role === "super-admin";
   const {
     register,
     control,

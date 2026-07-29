@@ -39,7 +39,10 @@ export async function GET(req: Request) {
   const auth = await requireUser();
   if (auth.response) return auth.response;
   const role = effectiveRole(auth.user.role);
-  const canSeeAll = role === "super-admin" || role === "admin";
+  // Only super-admin gets the org-wide view. Admin and staff both see just
+  // their own tasks (assigned to them or created by them, later filtered on
+  // the client via visibleTasks).
+  const canSeeAll = role === "super-admin";
 
   const url = new URL(req.url);
   const statusParam = url.searchParams.get("status") ?? "all"; // pending | completed | all
@@ -77,7 +80,10 @@ export async function POST(req: Request) {
   const auth = await requireUser();
   if (auth.response) return auth.response;
   const role = effectiveRole(auth.user.role);
-  const canAssignOthers = role === "super-admin" || role === "admin";
+  // Only super-admin can delegate. Admin and staff can only create tasks
+  // assigned to themselves — matches the "admin sees only their own tasks"
+  // policy (delegating to someone whose tasks you can't see is nonsensical).
+  const canAssignOthers = role === "super-admin";
 
   const b = await req.json().catch(() => null);
   if (!b || typeof b.title !== "string" || !b.title.trim()) {
@@ -86,7 +92,7 @@ export async function POST(req: Request) {
   const assigneeId = typeof b.assigneeId === "string" && b.assigneeId ? b.assigneeId : auth.user.id;
 
   if (!canAssignOthers && assigneeId !== auth.user.id) {
-    return NextResponse.json({ error: "Staff can only assign tasks to themselves" }, { status: 403 });
+    return NextResponse.json({ error: "You can only assign tasks to yourself" }, { status: 403 });
   }
 
   const row = await prisma.task.create({
