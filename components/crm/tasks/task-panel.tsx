@@ -6,16 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Users, Calendar, Check } from "lucide-react";
 import { useOpenTaskId, taskPanelStore } from "@/lib/store/task-panel-store";
 import { useTasks, tasksStore } from "@/lib/store/tasks-store";
-import { mockUsers } from "@/lib/mock/users";
+import { useOrgUsers } from "@/lib/store/users-store";
+import { useCustomers } from "@/lib/store/customers-store";
 import { getPriority } from "@/lib/constants/priority";
-import { getPipelineCustomers } from "@/lib/mock/pipeline";
 import { cn } from "@/lib/utils";
 
-function userName(id: string) {
-  return mockUsers.find((u) => u.id === id)?.name ?? "Unknown";
-}
-
 function formatDueDate(iso: string) {
+  if (!iso) return "not set";
   return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
@@ -24,6 +21,9 @@ function formatDueDate(iso: string) {
 export function TaskPanel() {
   const taskId = useOpenTaskId();
   const tasks = useTasks();
+  const users = useOrgUsers();
+  const customers = useCustomers();
+  const userName = (id: string) => users.find((u) => u.id === id)?.name ?? "Unknown";
   const task = taskId ? tasks.find((t) => t.id === taskId) : undefined;
 
   return (
@@ -69,7 +69,7 @@ export function TaskPanel() {
               {task.customerId && (
                 <div className="flex items-center gap-2 text-grey-600">
                   <Users className="h-4 w-4 text-grey-400" />
-                  {getPipelineCustomers().find((c) => c.id === task.customerId)?.name}
+                  {customers.find((c) => c.id === task.customerId)?.name ?? "Unknown customer"}
                 </div>
               )}
             </div>

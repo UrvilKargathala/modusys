@@ -219,6 +219,31 @@ model Quote {
   @@index([status])
 }
 
+// Assigned work items — CRM Tasks tab + Dashboard Upcoming Tasks panel both
+// read from this. priority and status stay String per app convention (no
+// Prisma enums); values are "low"|"normal"|"high"|"urgent" and
+// "pending"|"completed". createdById/assigneeId are plain String (not FK
+// relations) so a deleted user doesn't cascade-nuke tasks; the app resolves
+// the User row live and falls back to "Unknown" when missing.
+model Task {
+  id               String    @id @default(cuid())
+  title            String
+  description      String    @default("")
+  dueDate          String    @default("") // ISO yyyy-mm-dd string, "" when unset
+  priority         String    @default("normal")
+  status           String    @default("pending")
+  assigneeId       String
+  createdById      String
+  linkedCustomerId String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  completedAt      DateTime?
+
+  @@index([assigneeId])
+  @@index([createdById])
+  @@index([status])
+}
+
 // Lightweight trail for account-takeover-capable actions (password changes,
 // invites, role changes). Actor/target names are denormalized at write time
 // rather than joined live, so the log still reads correctly after a user is

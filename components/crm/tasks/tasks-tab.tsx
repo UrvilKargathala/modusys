@@ -14,8 +14,8 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { useTasks, visibleTasks, type TaskScope } from "@/lib/store/tasks-store";
-import { getCurrentUser } from "@/lib/session";
-import { mockUsers } from "@/lib/mock/users";
+import { useCurrentUser } from "@/lib/session";
+import { useOrgUsers } from "@/lib/store/users-store";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "pending" | "completed" | "all";
@@ -27,7 +27,7 @@ const statusOptions: { label: string; value: StatusFilter }[] = [
 ];
 
 export function TasksTab() {
-  const currentUser = getCurrentUser();
+  const currentUser = useCurrentUser();
   const canSeeAll = currentUser.role === "super-admin" || currentUser.role === "admin";
   const scopeOptions: { label: string; value: TaskScope }[] = [
     ...(canSeeAll ? [{ label: "All Tasks", value: "all" as TaskScope }] : []),
@@ -36,8 +36,10 @@ export function TasksTab() {
   ];
 
   const allTasks = useTasks();
+  const users = useOrgUsers();
   const [scope, setScope] = useState<TaskScope>(canSeeAll ? "all" : "mine");
   const [status, setStatus] = useState<StatusFilter>("pending");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all"); // "all" | userId — admin-only
   const [groupByAssignee, setGroupByAssignee] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
 
@@ -47,13 +49,19 @@ export function TasksTab() {
   );
 
   const filteredTasks = useMemo(() => {
-    const sorted = [...scoped].sort(
-      (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-    );
-    if (status === "pending") return sorted.filter((t) => !t.completed);
-    if (status === "completed") return sorted.filter((t) => t.completed);
-    return sorted;
-  }, [scoped, status]);
+    const sorted = [...scoped].sort((a, b) => {
+      const aDue = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+      const bDue = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+      return aDue - bDue;
+    });
+    let out = sorted;
+    if (status === "pending") out = out.filter((t) => !t.completed);
+    else if (status === "completed") out = out.filter((t) => t.completed);
+    if (canSeeAll && scope === "all" && assigneeFilter !== "all") {
+      out = out.filter((t) => t.assigneeId === assigneeFilter);
+    }
+    return out;
+  }, [scoped, status, canSeeAll, scope, assigneeFilter]);
 
   const grouped = useMemo(() => {
     if (!groupByAssignee) return null;
@@ -109,16 +117,35 @@ export function TasksTab() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {scope === "all" && (
-            <label className="flex items-center gap-2 text-sm font-body text-grey-500">
-              <input
-                type="checkbox"
-                checked={groupByAssignee}
-                onChange={(e) => setGroupByAssignee(e.target.checked)}
-                className="h-3.5 w-3.5 accent-primary"
-              />
-              Group by assignee
-            </label>
+          {canSeeAll && scope === "all" && (
+            <>
+              <select
+                value={assigneeFilter}
+                onChange={(e) => setAssigneeFilter(e.target.value)}
+                aria-label="Show tasks for"
+                className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body font-medium text-grey-700 outline-none focus:border-primary"
+              >
+                <option value="all">Show tasks for: Everyone</option>
+                <option value={currentUser.id}>Me ({currentUser.name})</option>
+                {users
+                  .filter((u) => u.id !== currentUser.id)
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+              </select>
+
+              <label className="flex items-center gap-2 text-sm font-body text-grey-500">
+                <input
+                  type="checkbox"
+                  checked={groupByAssignee}
+                  onChange={(e) => setGroupByAssignee(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-primary"
+                />
+                Group by assignee
+              </label>
+            </>
           )}
         </div>
 
@@ -143,7 +170,7 @@ export function TasksTab() {
           {[...grouped.entries()].map(([assigneeId, tasks]) => (
             <div key={assigneeId} className="flex flex-col gap-2">
               <span className="text-xs font-body font-medium uppercase tracking-wide text-grey-400">
-                {mockUsers.find((u) => u.id === assigneeId)?.name ?? "Unknown"} · {tasks.length}
+                {users.find((u) => u.id === assigneeId)?.name ?? "Unknown"} · {tasks.length}
               </span>
               {tasks.map((task) => (
                 <TaskRow key={task.id} task={task} />

@@ -1,16 +1,15 @@
+"use client";
+
 import { CalendarClock, ListTodo } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { tasksStore, type Task } from "@/lib/store/tasks-store";
-import { mockUsers } from "@/lib/mock/users";
+import { useOrgUsers } from "@/lib/store/users-store";
 import { cn } from "@/lib/utils";
 
 function formatDueDate(iso: string) {
+  if (!iso) return "no date";
   return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
-}
-
-function userName(id: string) {
-  return mockUsers.find((u) => u.id === id)?.name ?? "Unknown";
 }
 
 export function UpcomingTasksPanel({
@@ -22,6 +21,8 @@ export function UpcomingTasksPanel({
   onAddTask: () => void;
   title?: string;
 }) {
+  const users = useOrgUsers();
+  const userName = (id: string) => users.find((u) => u.id === id)?.name ?? "Unknown";
   return (
     <Card className="border-grey-100">
       <CardHeader>
@@ -61,7 +62,7 @@ export function UpcomingTasksPanel({
                     {task.title}
                   </span>
                   <span className="text-xs font-body text-grey-400">
-                    Due {formatDueDate(task.dueDate)} · {userName(task.assigneeId)}
+                    {task.dueDate ? `Due ${formatDueDate(task.dueDate)}` : "No due date"} · {userName(task.assigneeId)}
                   </span>
                 </div>
               </li>

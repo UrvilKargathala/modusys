@@ -3,23 +3,21 @@
 import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { tasksStore, type Task } from "@/lib/store/tasks-store";
-import { getPipelineCustomers } from "@/lib/mock/pipeline";
-import { mockUsers } from "@/lib/mock/users";
+import { useCustomers } from "@/lib/store/customers-store";
+import { useOrgUsers } from "@/lib/store/users-store";
 import { getPriority } from "@/lib/constants/priority";
 import { taskPanelStore } from "@/lib/store/task-panel-store";
 
 function formatDueDate(iso: string) {
+  if (!iso) return "no date";
   return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-function userName(id: string) {
-  return mockUsers.find((u) => u.id === id)?.name ?? "Unknown";
-}
-
 export function TaskRow({ task }: { task: Task }) {
-  const customer = task.customerId
-    ? getPipelineCustomers().find((c) => c.id === task.customerId)
-    : null;
+  const users = useOrgUsers();
+  const customers = useCustomers();
+  const userName = (id: string) => users.find((u) => u.id === id)?.name ?? "Unknown";
+  const customer = task.customerId ? customers.find((c) => c.id === task.customerId) : null;
   const priority = getPriority(task.priority);
   const differentPeople = task.createdById !== task.assigneeId;
 
@@ -55,7 +53,7 @@ export function TaskRow({ task }: { task: Task }) {
           </span>
         </div>
         <span className="text-xs font-body text-grey-400">
-          Due {formatDueDate(task.dueDate)} ·{" "}
+          {task.dueDate ? `Due ${formatDueDate(task.dueDate)}` : "No due date"} ·{" "}
           {differentPeople ? `${userName(task.createdById)} → ${userName(task.assigneeId)}` : userName(task.assigneeId)}
           {customer && (
             <>

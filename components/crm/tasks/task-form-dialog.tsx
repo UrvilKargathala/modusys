@@ -17,14 +17,15 @@ import { Input } from "@/components/ui/input";
 import { UserPicker } from "@/components/crm/tasks/user-picker";
 import { tasksStore } from "@/lib/store/tasks-store";
 import { priorities } from "@/lib/constants/priority";
-import { getPipelineCustomers } from "@/lib/mock/pipeline";
-import { CURRENT_USER_ID } from "@/lib/session";
+import { useCustomers } from "@/lib/store/customers-store";
+import { useCurrentUser } from "@/lib/session";
+import { toastStore } from "@/lib/store/toast-store";
 import { cn } from "@/lib/utils";
 
 const taskSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string(),
-  dueDate: z.string().min(1, "Due date is required"),
+  dueDate: z.string(),
   assigneeId: z.string().min(1, "Assignee is required"),
   priority: z.enum(["low", "normal", "high", "urgent"]),
   customerId: z.string(),
@@ -39,7 +40,9 @@ export function TaskFormDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const customers = getPipelineCustomers();
+  const customers = useCustomers();
+  const currentUser = useCurrentUser();
+  const canAssignOthers = currentUser.role === "super-admin" || currentUser.role === "admin";
   const {
     register,
     control,
@@ -52,24 +55,29 @@ export function TaskFormDialog({
       title: "",
       description: "",
       dueDate: "",
-      assigneeId: CURRENT_USER_ID,
+      assigneeId: currentUser.id,
       priority: "normal",
       customerId: "",
     },
   });
 
   const onSubmit = async (values: TaskFormValues) => {
-    tasksStore.createTask({
-      title: values.title,
-      description: values.description,
-      dueDate: values.dueDate,
-      assigneeId: values.assigneeId,
-      priority: values.priority,
-      customerId: values.customerId || null,
-      createdById: CURRENT_USER_ID,
-    });
-    reset();
-    onOpenChange(false);
+    try {
+      await tasksStore.createTask({
+        title: values.title,
+        description: values.description,
+        dueDate: values.dueDate,
+        // Staff can only self-assign — the API will reject anything else, but
+        // block it in the UI too so the error path never fires.
+        assigneeId: canAssignOthers ? values.assigneeId : currentUser.id,
+        priority: values.priority,
+        customerId: values.customerId || null,
+      });
+      reset();
+      onOpenChange(false);
+    } catch (err) {
+      toastStore.show(err instanceof Error ? err.message : "Failed to create task", "error");
+    }
   };
 
   return (
@@ -106,9 +114,8 @@ export function TaskFormDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="task-due-date">Due Date</Label>
+              <Label htmlFor="task-due-date">Due Date (optional)</Label>
               <Input id="task-due-date" type="date" {...register("dueDate")} />
-              {errors.dueDate && <span className="text-xs font-body text-error">{errors.dueDate.message}</span>}
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -128,12 +135,18 @@ export function TaskFormDialog({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label>Assignee</Label>
-            <Controller
-              control={control}
-              name="assigneeId"
-              render={({ field }) => <UserPicker value={field.value} onChange={field.onChange} />}
-            />
+            <Label>Assignee {!canAssignOthers && <span className="text-xs text-grey-400">(you)</span>}</Label>
+            {canAssignOthers ? (
+              <Controller
+                control={control}
+                name="assigneeId"
+                render={({ field }) => <UserPicker value={field.value} onChange={field.onChange} />}
+              />
+            ) : (
+              <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body text-grey-700">
+                {currentUser.name}
+              </div>
+            )}
             {errors.assigneeId && (
               <span className="text-xs font-body text-error">{errors.assigneeId.message}</span>
             )}

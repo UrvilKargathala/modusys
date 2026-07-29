@@ -5,17 +5,20 @@ import { Check, ChevronDown } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { mockUsers } from "@/lib/mock/users";
+import { useOrgUsers } from "@/lib/store/users-store";
 import { cn } from "@/lib/utils";
 
 // A minimal searchable picker (Popover + filtered list) — no combobox
 // component exists in this project yet, and this is a small enough need
-// that pulling one in isn't worth it.
+// that pulling one in isn't worth it. Sources users live from users-store
+// (backed by /api/users) so a freshly invited/created user is pickable
+// without a hard refresh.
 export function UserPicker({ value, onChange }: { value: string; onChange: (userId: string) => void }) {
+  const users = useOrgUsers();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const selected = mockUsers.find((u) => u.id === value);
-  const results = mockUsers.filter((u) => u.name.toLowerCase().includes(query.toLowerCase()));
+  const selected = users.find((u) => u.id === value);
+  const results = users.filter((u) => u.name.toLowerCase().includes(query.toLowerCase()));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
