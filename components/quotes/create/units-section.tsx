@@ -10,6 +10,27 @@ import { QuoteUnitCard } from "@/components/quotes/create/quote-unit-card";
 import { blankQuoteUnit, type QuoteUnit } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
 
+function newId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// Deep clone a unit and regenerate every id in the tree so React and dnd-kit
+// treat the duplicate as its own row.
+function cloneUnit(u: QuoteUnit): QuoteUnit {
+  return {
+    ...u,
+    id: newId("qu"),
+    cabinets: u.cabinets.map((c) => ({
+      ...c,
+      id: newId("qc"),
+      components: c.components.map((li) => ({ ...li, id: newId("qli") })),
+      externalFinishes: c.externalFinishes.map((li) => ({ ...li, id: newId("qli") })),
+      panels: c.panels.map((li) => ({ ...li, id: newId("qli") })),
+      hardware: c.hardware.map((h) => ({ ...h, id: newId("qhw") })),
+    })),
+  };
+}
+
 export function UnitsSection({
   units,
   shutterFinishId,
@@ -73,6 +94,11 @@ export function UnitsSection({
                     shutterFinishId={shutterFinishId}
                     onChange={(patch) => onChange(units.map((u) => (u.id === unit.id ? { ...u, ...patch } : u)))}
                     onRemove={() => onChange(units.filter((u) => u.id !== unit.id))}
+                    onDuplicate={() => {
+                      const next = [...units];
+                      next.splice(index + 1, 0, cloneUnit(unit));
+                      onChange(next);
+                    }}
                   />
                 ))}
               </div>

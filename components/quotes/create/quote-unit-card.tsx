@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, ChevronDown, ChevronRight, GripVertical, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, GripVertical, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -128,12 +128,14 @@ export function QuoteUnitCard({
   shutterFinishId,
   onChange,
   onRemove,
+  onDuplicate,
 }: {
   unit: QuoteUnit;
   index: number;
   shutterFinishId: string;
   onChange: (patch: Partial<QuoteUnit>) => void;
   onRemove: () => void;
+  onDuplicate: () => void;
 }) {
   const unitTypes = useUnitTypes();
   const cabinetTypes = useCabinetTypes();
@@ -233,14 +235,25 @@ export function QuoteUnitCard({
             {index + 1}
           </div>
 
-          <button
-            type="button"
-            aria-label="Remove unit"
-            onClick={() => setDeleteOpen(true)}
-            className="ml-auto rounded-md p-1.5 text-grey-400 hover:bg-error-transparent hover:text-error sm:hidden"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          <div className="ml-auto flex items-center gap-1 sm:hidden">
+            <button
+              type="button"
+              aria-label="Duplicate unit"
+              title="Duplicate this unit"
+              onClick={onDuplicate}
+              className="rounded-md p-1.5 text-grey-400 hover:bg-primary-transparent hover:text-primary"
+            >
+              <Copy className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Remove unit"
+              onClick={() => setDeleteOpen(true)}
+              className="rounded-md p-1.5 text-grey-400 hover:bg-error-transparent hover:text-error"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-40">
@@ -283,6 +296,15 @@ export function QuoteUnitCard({
 
         <div className="flex items-center justify-end gap-3 sm:ml-auto">
           <span className="text-sm font-body font-semibold text-grey-900">Unit Total: ₹{total.toFixed(2)}</span>
+          <button
+            type="button"
+            aria-label="Duplicate unit"
+            title="Duplicate this unit"
+            onClick={onDuplicate}
+            className="hidden rounded-md p-1.5 text-grey-400 hover:bg-primary-transparent hover:text-primary sm:inline-flex"
+          >
+            <Copy className="h-4 w-4" />
+          </button>
           <button
             type="button"
             aria-label="Remove unit"
