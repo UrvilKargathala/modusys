@@ -8,11 +8,11 @@ export function AuthShowcasePanel() {
           M
         </div>
         <h2 className="font-heading text-2xl font-semibold text-white">
-          Your Command Center for Quotes &amp; Customers
+          One Platform for Quotes, Customers &amp; Production
         </h2>
         <p className="text-sm font-body text-white/70">
-          Manage leads, build quotes, and track your production pipeline — all
-          from one modular business platform.
+          Track leads, price quotes, and manage your production pipeline —
+          all from a single modular business platform.
         </p>
       </div>
 
@@ -20,7 +20,7 @@ export function AuthShowcasePanel() {
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <span className="font-heading text-sm font-semibold text-grey-900">
-            Welcome back, Urvil 👋
+            Welcome back 👋
           </span>
           <div className="h-7 w-7 rounded-full bg-primary-transparent" />
         </div>
