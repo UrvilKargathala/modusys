@@ -104,7 +104,7 @@ export function UnitTypeTable() {
           cta={{ label: "Add Unit Type", onClick: () => setAddOpen(true) }}
         />
       ) : (
-        <div className="rounded-lg border border-grey-100">
+        <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full text-left">
             <thead className="bg-light-600">
               <tr>
@@ -124,9 +124,9 @@ export function UnitTypeTable() {
               {sorted.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
                   <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
-                  <td className="px-3 py-3 text-sm font-body font-medium text-grey-900">{i.name}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-sm font-body font-medium text-grey-900">{i.name}</td>
                   <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-700">{i.shortCode}</td>
-                  <td className="px-3 py-3 text-sm font-body text-grey-700">{cabinetTypeLabel(i.cabinetTypeLinks)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-700">{cabinetTypeLabel(i.cabinetTypeLinks)}</td>
                   <td className="whitespace-nowrap px-2 py-3 text-sm font-body text-grey-700">{i.components.length}</td>
                   <td className="whitespace-nowrap px-2 py-3 text-sm font-body text-grey-700">{i.externalFinishes.length}</td>
                   <td className="whitespace-nowrap px-2 py-3 text-sm font-body text-grey-700">{i.hardware.length}</td>
