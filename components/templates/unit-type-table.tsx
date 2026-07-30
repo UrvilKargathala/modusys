@@ -104,34 +104,34 @@ export function UnitTypeTable() {
           cta={{ label: "Add Unit Type", onClick: () => setAddOpen(true) }}
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-grey-100">
+        <div className="rounded-lg border border-grey-100">
           <table className="w-full text-left">
             <thead className="bg-light-600">
               <tr>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">SR No</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("name", "Name")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("shortCode", "Short Code")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("cabinet", "Cabinet Type")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("components", "Components")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("externalFinish", "External Finish")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("hardware", "Hardware")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("otherPanel", "Other Panel")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("status", "Status")}</th>
-                <th className="px-4 py-2.5 text-right text-xs font-body font-medium uppercase tracking-wide text-grey-500">Actions</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">SR No</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("name", "Name")}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("shortCode", "Short Code")}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("cabinet", "Cabinet Type")}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("components", "Components")}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("externalFinish", "External Finish")}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("hardware", "Hardware")}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("otherPanel", "Other Panel")}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("status", "Status")}</th>
+                <th className="px-3 py-2.5 text-right text-xs font-body font-medium uppercase tracking-wide text-grey-500">Actions</th>
               </tr>
             </thead>
             <tbody>
               {sorted.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-medium text-grey-900">{i.name}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{i.shortCode}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{cabinetTypeLabel(i.cabinetTypeLinks)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{i.components.length}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{i.externalFinishes.length}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{i.hardware.length}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{i.otherPanels.length}</td>
-                  <td className="whitespace-nowrap px-4 py-3">
+                  <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                  <td className="px-3 py-3 text-sm font-body font-medium text-grey-900">{i.name}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-700">{i.shortCode}</td>
+                  <td className="px-3 py-3 text-sm font-body text-grey-700">{cabinetTypeLabel(i.cabinetTypeLinks)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-700">{i.components.length}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-700">{i.externalFinishes.length}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-700">{i.hardware.length}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-700">{i.otherPanels.length}</td>
+                  <td className="whitespace-nowrap px-3 py-3">
                     <span
                       className={cn(
                         "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-body font-medium",
@@ -141,7 +141,7 @@ export function UnitTypeTable() {
                       {i.active ? "Active" : "Inactive"}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3">
                     <div className="flex items-center justify-end gap-1">
                       {canEdit && (
                         <Tooltip>
