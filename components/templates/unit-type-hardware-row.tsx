@@ -218,7 +218,7 @@ export function UnitTypeHardwareRow({
           </select>
         </div>
 
-        <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-2">
+        <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-3">
           <Label htmlFor={`hw-desc-${value.id}`}>Description</Label>
           <select
             id={`hw-desc-${value.id}`}
@@ -235,6 +235,15 @@ export function UnitTypeHardwareRow({
           </select>
         </div>
 
+        <div className="flex flex-col gap-1.5 lg:col-start-1">
+          <Label>Level Type</Label>
+          <MaterialReferenceSelect
+            category="level-type"
+            value={value.levelTypeId ?? ""}
+            onChange={(id) => onChange({ levelTypeId: id })}
+          />
+        </div>
+
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`hw-qty-${value.id}`}>Qty</Label>
           <Input
@@ -242,15 +251,6 @@ export function UnitTypeHardwareRow({
             placeholder="e.g. 2 or H/450"
             value={value.qtyFormula}
             onChange={(e) => onChange({ qtyFormula: e.target.value })}
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5 lg:col-span-2">
-          <Label>Level Type</Label>
-          <MaterialReferenceSelect
-            category="level-type"
-            value={value.levelTypeId ?? ""}
-            onChange={(id) => onChange({ levelTypeId: id })}
           />
         </div>
 
