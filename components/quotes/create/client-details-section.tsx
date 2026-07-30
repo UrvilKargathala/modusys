@@ -7,11 +7,10 @@ import { Input } from "@/components/ui/input";
 import { CustomerPicker, CustomerReadOnlyDetails } from "@/components/quotes/create/customer-picker";
 import { ArchitectPicker, ArchitectReadOnlyDetails } from "@/components/quotes/create/architect-picker";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
-import { statusConfig, type StatusKey } from "@/lib/status";
+import { StatusPicker } from "@/components/quotes/create/status-picker";
+import type { StatusKey } from "@/lib/status";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
-
-const statusOptions: StatusKey[] = ["draft", "approved", "in-production", "completed", "cancelled"];
 
 // Stack label + input on mobile, put the label on the left on sm+ so the
 // row is horizontal and reads narrower.
@@ -122,21 +121,7 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
           </Field>
 
           <Field label="Status">
-            <select
-              value={quote.status}
-              onChange={(e) => onChange({ status: e.target.value as StatusKey })}
-              className={cn(
-                "h-9 w-full rounded-lg border border-grey-100 px-3 text-sm font-body font-medium outline-none focus:border-primary",
-                statusConfig[quote.status].bg,
-                statusConfig[quote.status].color
-              )}
-            >
-              {statusOptions.map((s) => (
-                <option key={s} value={s}>
-                  {statusConfig[s].label}
-                </option>
-              ))}
-            </select>
+            <StatusPicker value={quote.status as StatusKey} onChange={(status) => onChange({ status })} />
           </Field>
         </div>
       </div>

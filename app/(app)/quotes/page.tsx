@@ -141,8 +141,8 @@ export default function QuotesPage() {
                   <th className="whitespace-nowrap px-4 py-2.5">Date</th>
                   <th className="whitespace-nowrap px-4 py-2.5">Product Type</th>
                   <th className="whitespace-nowrap px-4 py-2.5">Final Amount</th>
-                  <th className="whitespace-nowrap px-4 py-2.5">Status</th>
                   <th className="whitespace-nowrap px-4 py-2.5">Revision</th>
+                  <th className="whitespace-nowrap px-4 py-2.5">Status</th>
                   <th className="whitespace-nowrap px-4 py-2.5 text-right">Actions</th>
                 </tr>
               </thead>
@@ -164,12 +164,12 @@ export default function QuotesPage() {
                         <td className="whitespace-nowrap px-4 py-3 text-grey-500">{formatDate(quote.date)}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-grey-700">{productTypeName(quote.productTypeId)}</td>
                         <td className="whitespace-nowrap px-4 py-3 font-medium text-grey-800">{formatInr(finalAmount(quote))}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-grey-500">{quote.revision}</td>
                         <td className="whitespace-nowrap px-4 py-3">
                           <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium", cfg.bg, cfg.color)}>
                             {cfg.label}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-grey-500">{quote.revision}</td>
                         <td className="whitespace-nowrap px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
                             <Tooltip>
