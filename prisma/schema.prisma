@@ -198,6 +198,10 @@ model Quote {
   customerId                  String?
   architectId                 String?
   revision                    Int      @default(0)
+  propertyTypeId              String   @default("")
+  salesExecutiveId            String   @default("")
+  designerId                  String   @default("")
+  siteEngineerId              String   @default("")
   productTypeId               String   @default("")
   status                      String   @default("draft")
   markupMultiplier            Float    @default(1)

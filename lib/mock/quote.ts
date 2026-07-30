@@ -36,6 +36,10 @@ export type Quote = {
   customerId: string | null;
   architectId: string | null;
   revision: number;
+  propertyTypeId: string;
+  salesExecutiveId: string;
+  designerId: string;
+  siteEngineerId: string;
   productTypeId: string;
   status: StatusKey;
   markupMultiplier: number;
@@ -87,6 +91,10 @@ export function blankQuote(quoteNumber: string, defaultMarkup: number): Quote {
     customerId: null,
     architectId: null,
     revision: 0,
+    propertyTypeId: "",
+    salesExecutiveId: "",
+    designerId: "",
+    siteEngineerId: "",
     productTypeId: "",
     status: "draft",
     markupMultiplier: defaultMarkup,

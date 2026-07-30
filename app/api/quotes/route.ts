@@ -23,7 +23,10 @@ export async function POST(req: Request) {
   const b = await req.json();
   const data = {
     quoteNumber: b.quoteNumber, date: b.date ?? "", customerId: b.customerId ?? null,
-    architectId: b.architectId ?? null, revision: b.revision ?? 0, productTypeId: b.productTypeId ?? "",
+    architectId: b.architectId ?? null, revision: b.revision ?? 0,
+    propertyTypeId: b.propertyTypeId ?? "", salesExecutiveId: b.salesExecutiveId ?? "",
+    designerId: b.designerId ?? "", siteEngineerId: b.siteEngineerId ?? "",
+    productTypeId: b.productTypeId ?? "",
     status: b.status ?? "draft", markupMultiplier: b.markupMultiplier ?? 1,
     materialDescriptionId: b.materialDescriptionId ?? "", shutterFinishId: b.shutterFinishId ?? "",
     handleTypeId: b.handleTypeId ?? "", hingesTypeId: b.hingesTypeId ?? "",

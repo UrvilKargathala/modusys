@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { CustomerPicker, CustomerReadOnlyDetails } from "@/components/quotes/create/customer-picker";
 import { ArchitectPicker, ArchitectReadOnlyDetails } from "@/components/quotes/create/architect-picker";
+import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { statusConfig, type StatusKey } from "@/lib/status";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
@@ -61,6 +62,40 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
           <Field label="Architect Name">
             <ArchitectPicker value={quote.architectId ?? ""} onChange={(id) => onChange({ architectId: id || null })} />
             {quote.architectId && <ArchitectReadOnlyDetails architectId={quote.architectId} />}
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 lg:gap-3">
+          <Field label="Property Type">
+            <MaterialReferenceSelect
+              category="property-type"
+              value={quote.propertyTypeId}
+              onChange={(id) => onChange({ propertyTypeId: id })}
+            />
+          </Field>
+
+          <Field label="Sales Executive">
+            <MaterialReferenceSelect
+              category="sales-executive"
+              value={quote.salesExecutiveId}
+              onChange={(id) => onChange({ salesExecutiveId: id })}
+            />
+          </Field>
+
+          <Field label="Designer">
+            <MaterialReferenceSelect
+              category="designer"
+              value={quote.designerId}
+              onChange={(id) => onChange({ designerId: id })}
+            />
+          </Field>
+
+          <Field label="Site Engineer">
+            <MaterialReferenceSelect
+              category="site-engineer"
+              value={quote.siteEngineerId}
+              onChange={(id) => onChange({ siteEngineerId: id })}
+            />
           </Field>
         </div>
 
