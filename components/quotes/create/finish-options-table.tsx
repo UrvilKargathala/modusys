@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Plus, Copy, Trash2 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import type { FinishOption } from "@/lib/mock/quote";
 
 // Option letter derives from row position: 0→A, 1→B, ..., 25→Z. Simple mod
@@ -28,6 +30,8 @@ export function FinishOptionsTable({
   options: FinishOption[];
   onChange: (next: FinishOption[]) => void;
 }) {
+  const [deleteTarget, setDeleteTarget] = useState<FinishOption | null>(null);
+
   const update = (id: string, patch: Partial<FinishOption>) =>
     onChange(options.map((o) => (o.id === id ? { ...o, ...patch } : o)));
 
@@ -126,7 +130,7 @@ export function FinishOptionsTable({
                       <Tooltip>
                         <TooltipTrigger
                           aria-label="Delete"
-                          onClick={() => remove(row.id)}
+                          onClick={() => setDeleteTarget(row)}
                           className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -141,6 +145,14 @@ export function FinishOptionsTable({
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={`Remove Option ${deleteTarget ? letterAt(options.findIndex((o) => o.id === deleteTarget.id)) : ""}?`}
+        description="This removes the finish option and its price from the quote."
+        onConfirm={() => deleteTarget && remove(deleteTarget.id)}
+      />
     </div>
   );
 }
