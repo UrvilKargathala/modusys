@@ -46,6 +46,10 @@ export type FurnitureLineItem = {
   externalColourId: string;
   levelTypeId?: string; // Material Library → Level Type (optional)
   qty: number;
+  // Manual Rate override — when set, pricing uses this instead of the
+  // Furniture Price List match. Undefined/cleared falls back to the
+  // price-list rate as before.
+  rateOverride?: number;
 };
 
 // One row per attached Cabinet Type "slot" — a distinct id from the Cabinet
@@ -73,6 +77,10 @@ export type UnitTypeHardware = {
   brandId?: string;
   description?: string;
   levelTypeId?: string;
+  // Manual Rate override — when set, pricing uses this instead of the
+  // Hardware Price List's rate-after-discount. Undefined/cleared falls
+  // back to the price-list rate as before.
+  rateOverride?: number;
 };
 
 export type UnitType = {

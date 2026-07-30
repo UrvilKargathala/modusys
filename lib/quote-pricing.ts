@@ -80,17 +80,31 @@ export function findFurnitureMatch(item: FurnitureLineItem, furnitureItems: Furn
   );
 }
 
+// Manual Rate override wins over the price-list lookup wherever a Rate is
+// used for pricing — row display, group subtotal, and quote-level totals
+// all funnel through here so they never disagree.
+export function effectiveFurnitureRate(item: FurnitureLineItem, furnitureItems: FurniturePriceItem[]): number | undefined {
+  if (item.rateOverride !== undefined) return item.rateOverride;
+  return findFurnitureMatch(item, furnitureItems)?.rate;
+}
+
+export function effectiveHardwareRate(item: UnitTypeHardware, hardwareItems: HardwarePriceItem[]): number | undefined {
+  if (item.rateOverride !== undefined) return item.rateOverride;
+  const matched = hardwareItems.find((h) => h.id === item.hardwareItemId);
+  return matched ? rateAfterDiscount(matched) : undefined;
+}
+
 export function furnitureLineTotal(
   item: FurnitureLineItem,
   unit: { width: number; depth: number; height: number },
   furnitureItems: FurniturePriceItem[]
 ): number {
-  const match = findFurnitureMatch(item, furnitureItems);
-  if (!match) return 0;
+  const rate = effectiveFurnitureRate(item, furnitureItems);
+  if (rate === undefined) return 0;
   const w = evaluateFormula(item.widthFormula, { W: unit.width, D: unit.depth, H: unit.height });
   const h = evaluateFormula(item.heightFormula, { W: unit.width, D: unit.depth, H: unit.height });
   const areaSqFt = (w * h) / SQMM_PER_SQFT;
-  return match.rate * areaSqFt * item.qty;
+  return rate * areaSqFt * item.qty;
 }
 
 export function hardwareLineTotal(
@@ -98,10 +112,10 @@ export function hardwareLineTotal(
   unit: { width: number; depth: number; height: number },
   hardwareItems: HardwarePriceItem[]
 ): number {
-  const matched = hardwareItems.find((h) => h.id === item.hardwareItemId);
-  if (!matched) return 0;
+  const rate = effectiveHardwareRate(item, hardwareItems);
+  if (rate === undefined) return 0;
   const qty = evaluateFormula(item.qtyFormula, { W: unit.width, D: unit.depth, H: unit.height });
-  return rateAfterDiscount(matched) * qty;
+  return rate * qty;
 }
 
 export function groupTotal(

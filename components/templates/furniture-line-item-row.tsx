@@ -90,6 +90,11 @@ export function FurnitureLineItemRow({
     );
   }, [furnitureItems, combinationComplete, value.thicknessId, value.rawMaterialTypeId, value.internalColourId, value.externalColourId]);
 
+  // Manual override wins — same rule quote-pricing.ts's effectiveFurnitureRate
+  // applies for Amount/subtotal/quote-total math, kept in sync here so the
+  // row's own display never disagrees with those totals.
+  const effectiveRate = value.rateOverride ?? match?.rate;
+
   return (
     <div
       ref={setNodeRef}
@@ -186,20 +191,35 @@ export function FurnitureLineItemRow({
           <div className="flex flex-col gap-1.5 lg:col-span-2">
             <Label>Amount</Label>
             <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-900">
-              ₹{(match ? match.rate * totalSqFt : 0).toFixed(2)}
+              ₹{(effectiveRate !== undefined ? effectiveRate * totalSqFt : 0).toFixed(2)}
             </div>
           </div>
         )}
         <div className="flex flex-col gap-1.5 lg:col-span-2">
           <Label>Rate</Label>
-          {match ? (
-            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-700">
-              {match.rate.toFixed(2)}/sq.ft
-            </div>
-          ) : (
-            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body text-grey-400">
-              —
-            </div>
+          <div className="relative">
+            <Input
+              type="number"
+              step="0.01"
+              min={0}
+              placeholder={match ? match.rate.toFixed(2) : "0.00"}
+              value={value.rateOverride ?? ""}
+              onChange={(e) => {
+                const raw = e.target.value;
+                handleFieldChange({ rateOverride: raw === "" ? undefined : Number(raw) });
+              }}
+              className="pr-14"
+            />
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">/sq.ft</span>
+          </div>
+          {value.rateOverride !== undefined && match && value.rateOverride !== match.rate && (
+            <button
+              type="button"
+              onClick={() => handleFieldChange({ rateOverride: undefined })}
+              className="w-fit text-xs font-body text-primary hover:underline"
+            >
+              Reset to price-list rate (₹{match.rate.toFixed(2)})
+            </button>
           )}
         </div>
 

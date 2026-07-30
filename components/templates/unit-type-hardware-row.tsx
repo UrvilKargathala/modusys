@@ -150,9 +150,13 @@ export function UnitTypeHardwareRow({
   };
   // qtyFormula is a raw formula ("H/450") in the Unit Type builder but a
   // resolved plain number once Auto Populate runs it against a real unit —
-  // only compute Amount once it's a concrete number.
+  // only compute Amount once it's a concrete number. Manual rateOverride
+  // wins over the price-list rate — same rule quote-pricing.ts's
+  // effectiveHardwareRate applies for group/quote totals.
   const resolvedQty = Number(value.qtyFormula);
-  const amount = matched && Number.isFinite(resolvedQty) ? rateAfterDiscount(matched) * resolvedQty : undefined;
+  const priceListRate = matched ? rateAfterDiscount(matched) : undefined;
+  const effectiveRate = value.rateOverride ?? priceListRate;
+  const amount = effectiveRate !== undefined && Number.isFinite(resolvedQty) ? effectiveRate * resolvedQty : undefined;
 
   return (
     <div
@@ -263,9 +267,30 @@ export function UnitTypeHardwareRow({
 
         <div className="flex flex-col gap-1.5">
           <Label>Rate</Label>
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-700">
-            {matched ? `₹${rateAfterDiscount(matched).toFixed(2)}` : "—"}
+          <div className="relative">
+            <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">₹</span>
+            <Input
+              type="number"
+              step="0.01"
+              min={0}
+              placeholder={priceListRate !== undefined ? priceListRate.toFixed(2) : "0.00"}
+              value={value.rateOverride ?? ""}
+              onChange={(e) => {
+                const raw = e.target.value;
+                onChange({ rateOverride: raw === "" ? undefined : Number(raw) });
+              }}
+              className="pl-5"
+            />
           </div>
+          {value.rateOverride !== undefined && priceListRate !== undefined && value.rateOverride !== priceListRate && (
+            <button
+              type="button"
+              onClick={() => onChange({ rateOverride: undefined })}
+              className="w-fit text-xs font-body text-primary hover:underline"
+            >
+              Reset (₹{priceListRate.toFixed(2)})
+            </button>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5 lg:col-span-2">
