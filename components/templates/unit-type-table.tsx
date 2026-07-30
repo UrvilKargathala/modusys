@@ -112,10 +112,10 @@ export function UnitTypeTable() {
                 <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("name", "Name")}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("shortCode", "Short Code")}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("cabinet", "Cabinet Type")}</th>
-                <th className="w-px whitespace-nowrap px-3 py-2.5 text-center text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("components", "Components")}</th>
-                <th className="w-px whitespace-nowrap px-3 py-2.5 text-center text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("externalFinish", "External Finish")}</th>
-                <th className="w-px whitespace-nowrap px-3 py-2.5 text-center text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("hardware", "Hardware")}</th>
-                <th className="w-px whitespace-nowrap px-3 py-2.5 text-center text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("otherPanel", "Other Panel")}</th>
+                <th className="w-px whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("components", "Components")}</th>
+                <th className="w-px whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("externalFinish", "External Finish")}</th>
+                <th className="w-px whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("hardware", "Hardware")}</th>
+                <th className="w-px whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("otherPanel", "Other Panel")}</th>
                 <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("status", "Status")}</th>
                 <th className="px-3 py-2.5 text-right text-xs font-body font-medium uppercase tracking-wide text-grey-500">Actions</th>
               </tr>
@@ -127,10 +127,10 @@ export function UnitTypeTable() {
                   <td className="px-3 py-3 text-sm font-body font-medium text-grey-900">{i.name}</td>
                   <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-700">{i.shortCode}</td>
                   <td className="px-3 py-3 text-sm font-body text-grey-700">{cabinetTypeLabel(i.cabinetTypeLinks)}</td>
-                  <td className="whitespace-nowrap px-3 py-3 text-center text-sm font-body text-grey-700">{i.components.length}</td>
-                  <td className="whitespace-nowrap px-3 py-3 text-center text-sm font-body text-grey-700">{i.externalFinishes.length}</td>
-                  <td className="whitespace-nowrap px-3 py-3 text-center text-sm font-body text-grey-700">{i.hardware.length}</td>
-                  <td className="whitespace-nowrap px-3 py-3 text-center text-sm font-body text-grey-700">{i.otherPanels.length}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-700">{i.components.length}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-700">{i.externalFinishes.length}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-700">{i.hardware.length}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-700">{i.otherPanels.length}</td>
                   <td className="whitespace-nowrap px-3 py-3">
                     <span
                       className={cn(
