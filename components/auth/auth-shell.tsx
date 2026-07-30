@@ -10,7 +10,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             <div className="mb-2 flex h-11 w-11 items-center justify-center rounded-xl bg-primary font-heading text-lg font-bold text-white">
               M
             </div>
-            <span className="font-heading text-2xl font-semibold text-grey-900">modusys</span>
+            <span className="font-heading text-2xl font-semibold text-grey-900">Modusys</span>
             <span className="text-sm font-body text-grey-400">Modular Business Platform</span>
           </div>
 
