@@ -32,7 +32,7 @@ export function PricingListSection() {
             <TabsTrigger value="furniture">Furniture Price List</TabsTrigger>
             <TabsTrigger value="hardware">Hardware Price List</TabsTrigger>
           </TabsList>
-          <SimpleCsvPanel label={subTab === "furniture" ? "Furniture Price List" : "Hardware Price List"} />
+          <SimpleCsvPanel label={subTab === "furniture" ? "Furniture Price List" : "Hardware Price List"} kind={subTab} />
         </div>
 
         <TabsContent value="furniture" className="pt-6">
