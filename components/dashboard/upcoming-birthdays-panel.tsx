@@ -61,7 +61,7 @@ export function UpcomingBirthdaysPanel() {
             message="No birthdays on file yet. Add customers or architects with a birthday to see them here."
           />
         ) : (
-          <ul className="flex max-h-80 flex-col divide-y divide-grey-100 overflow-y-auto">
+          <ul className="scrollbar-hide flex max-h-80 flex-col divide-y divide-grey-100 overflow-y-auto">
             {rows.map((person) => {
               const dateLabel = `${String(person.day).padStart(2, "0")}/${String(person.monthIdx + 1).padStart(2, "0")}`;
               return (

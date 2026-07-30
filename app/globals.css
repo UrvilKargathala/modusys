@@ -322,3 +322,12 @@
     @apply font-sans;
   }
 }
+
+/* Scrollable but no visible scrollbar — for compact dashboard-style lists. */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
