@@ -175,6 +175,14 @@ export function FurnitureLineItemRow({
           />
         </div>
         {totalSqFt !== undefined && (
+          <div className="flex flex-col gap-1.5">
+            <Label>Total sq.ft</Label>
+            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-700">
+              {totalSqFt.toFixed(2)}
+            </div>
+          </div>
+        )}
+        {totalSqFt !== undefined && (
           <div className="flex flex-col gap-1.5 lg:col-span-2">
             <Label>Amount</Label>
             <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-900">
@@ -194,14 +202,6 @@ export function FurnitureLineItemRow({
             </div>
           )}
         </div>
-        {totalSqFt !== undefined && (
-          <div className="flex flex-col gap-1.5">
-            <Label>Total sq.ft</Label>
-            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-700">
-              {totalSqFt.toFixed(2)}
-            </div>
-          </div>
-        )}
 
         <div className={`flex flex-col gap-1.5 ${materialColSpan} lg:col-start-1`}>
           <Label>Raw Material</Label>
