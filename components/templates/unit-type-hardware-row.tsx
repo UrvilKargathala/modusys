@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { rateAfterDiscount } from "@/lib/mock/pricing-list";
@@ -28,6 +29,7 @@ export function UnitTypeHardwareRow({
   onRemove: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const hardwareItems = useHardwarePriceItems();
   const brands = useMaterialItems("brand");
@@ -177,7 +179,7 @@ export function UnitTypeHardwareRow({
         <span className="text-xs font-body font-medium uppercase tracking-wide text-grey-400">Hardware</span>
         <button
           type="button"
-          onClick={onRemove}
+          onClick={() => setDeleteOpen(true)}
           aria-label="Remove hardware"
           className="ml-auto rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error"
         >
@@ -300,6 +302,14 @@ export function UnitTypeHardwareRow({
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Remove this hardware?"
+        description="This removes the line item and its pricing from the quote."
+        onConfirm={onRemove}
+      />
     </div>
   );
 }
