@@ -73,10 +73,6 @@ export function FurnitureLineItemRow({
   // applying rather than silently reprice the row.
   const requestMaterialChange = (field: string, id: string) => setPendingMaterialChange({ field, id });
 
-  // Row 2 fits either 3 dropdowns (Carcass/Shutter) or 4 (Other Panel with Level Type)
-  // — shrink to lg:col-span-3 in the 4-field case so all four fit on one row.
-  const materialColSpan = showLevelType ? "lg:col-span-3" : "lg:col-span-4";
-
   const match = useMemo(() => {
     if (!combinationComplete) return null;
     return (
@@ -195,68 +191,73 @@ export function FurnitureLineItemRow({
             </div>
           </div>
         )}
-        <div className="flex flex-col gap-1.5 lg:col-span-2">
-          <Label>Rate</Label>
-          <div className="relative">
-            <Input
-              type="number"
-              step="0.01"
-              min={0}
-              placeholder="0.00"
-              value={value.rateOverride ?? (match ? match.rate.toFixed(2) : "")}
-              onChange={(e) => {
-                const raw = e.target.value;
-                handleFieldChange({ rateOverride: raw === "" ? undefined : Number(raw) });
-              }}
-              className="pr-14"
-            />
-            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">/sq.ft</span>
+        {/* Fixed 2-col sub-grid (not viewport-breakpoint spans) so Rate +
+            material fields lay out as a clean 2x2 regardless of how narrow
+            the surrounding container actually is. */}
+        <div className="col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-12 grid grid-cols-2 gap-x-3 gap-y-3">
+          <div className="flex flex-col gap-1.5">
+            <Label>Rate</Label>
+            <div className="relative">
+              <Input
+                type="number"
+                step="0.01"
+                min={0}
+                placeholder="0.00"
+                value={value.rateOverride ?? (match ? match.rate.toFixed(2) : "")}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  handleFieldChange({ rateOverride: raw === "" ? undefined : Number(raw) });
+                }}
+                className="pr-14"
+              />
+              <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">/sq.ft</span>
+            </div>
+            {value.rateOverride !== undefined && match && value.rateOverride !== match.rate && (
+              <button
+                type="button"
+                onClick={() => handleFieldChange({ rateOverride: undefined })}
+                className="w-fit text-xs font-body text-primary hover:underline"
+              >
+                Reset to price-list rate (₹{match.rate.toFixed(2)})
+              </button>
+            )}
           </div>
-          {value.rateOverride !== undefined && match && value.rateOverride !== match.rate && (
-            <button
-              type="button"
-              onClick={() => handleFieldChange({ rateOverride: undefined })}
-              className="w-fit text-xs font-body text-primary hover:underline"
-            >
-              Reset to price-list rate (₹{match.rate.toFixed(2)})
-            </button>
+
+          <div className="flex flex-col gap-1.5">
+            <Label>Raw Material</Label>
+            <MaterialReferenceSelect
+              category="raw-material-type"
+              value={value.rawMaterialTypeId}
+              onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Internal Colour</Label>
+            <MaterialReferenceSelect
+              category="internal-colour"
+              value={value.internalColourId}
+              onChange={(id) => requestMaterialChange("internalColourId", id)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>External Colour</Label>
+            <MaterialReferenceSelect
+              category="external-colour"
+              value={value.externalColourId}
+              onChange={(id) => requestMaterialChange("externalColourId", id)}
+            />
+          </div>
+          {showLevelType && (
+            <div className="flex flex-col gap-1.5">
+              <Label>Level Type</Label>
+              <MaterialReferenceSelect
+                category="level-type"
+                value={value.levelTypeId ?? ""}
+                onChange={(id) => handleFieldChange({ levelTypeId: id })}
+              />
+            </div>
           )}
         </div>
-
-        <div className={`flex flex-col gap-1.5 ${materialColSpan} lg:col-start-1`}>
-          <Label>Raw Material</Label>
-          <MaterialReferenceSelect
-            category="raw-material-type"
-            value={value.rawMaterialTypeId}
-            onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)}
-          />
-        </div>
-        <div className={`flex flex-col gap-1.5 ${materialColSpan}`}>
-          <Label>Internal Colour</Label>
-          <MaterialReferenceSelect
-            category="internal-colour"
-            value={value.internalColourId}
-            onChange={(id) => requestMaterialChange("internalColourId", id)}
-          />
-        </div>
-        <div className={`flex flex-col gap-1.5 ${materialColSpan}`}>
-          <Label>External Colour</Label>
-          <MaterialReferenceSelect
-            category="external-colour"
-            value={value.externalColourId}
-            onChange={(id) => requestMaterialChange("externalColourId", id)}
-          />
-        </div>
-        {showLevelType && (
-          <div className={`flex flex-col gap-1.5 ${materialColSpan}`}>
-            <Label>Level Type</Label>
-            <MaterialReferenceSelect
-              category="level-type"
-              value={value.levelTypeId ?? ""}
-              onChange={(id) => handleFieldChange({ levelTypeId: id })}
-            />
-          </div>
-        )}
       </div>
 
       {combinationComplete && !match && (
