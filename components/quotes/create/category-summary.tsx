@@ -56,8 +56,8 @@ export function CategorySummary({ quote }: { quote: Quote }) {
   const fmtSqft = (n: number) => (n ? n.toFixed(3) : "—");
 
   return (
-    <div className="flex flex-col gap-4">
-      <h2 className="font-heading text-lg font-semibold text-grey-900">Category Summary</h2>
+    <div className="flex flex-col gap-3">
+      <h3 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-500">Category Summary</h3>
       <div className="overflow-x-auto rounded-lg border border-grey-100">
         <table className="w-full text-left">
           <thead className="bg-light-600">

@@ -24,8 +24,8 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
   );
 
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-grey-100 bg-card p-6">
-      <h2 className="font-heading text-lg font-semibold text-grey-900">Pricing Summary</h2>
+    <div className="flex flex-col gap-3">
+      <h3 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-500">Pricing Summary</h3>
 
       <div className="flex flex-col gap-3 rounded-lg bg-light-600 p-4 text-sm font-body">
         <Row label="Raw Total" value={formatInr(rawTotal)} />
@@ -112,7 +112,7 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
           <span>{formatInr(waterfall.finalOffer)}</span>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
