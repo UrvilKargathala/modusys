@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { IndianRupee, FileText, Loader2, CheckCircle2 } from "lucide-react";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { ListPageShell } from "@/components/shared/list-page-shell";
@@ -23,13 +22,15 @@ import { MOCK_CREDITS_BALANCE } from "@/lib/mock/credits";
 import { useTasks, visibleTasks } from "@/lib/store/tasks-store";
 import { TaskFormDialog } from "@/components/crm/tasks/task-form-dialog";
 import { getCurrentUser } from "@/lib/session";
+import { useQuotes } from "@/lib/store/quotes-store";
+import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import {
   getDashboardKpis,
   getQuoteTrends,
   getStatusDistribution,
   type DateRange,
   type TrendGranularity,
-} from "@/lib/mock/dashboard";
+} from "@/lib/dashboard-metrics";
 
 function defaultRange(): DateRange {
   const to = new Date();
@@ -58,27 +59,26 @@ export default function DashboardPage() {
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
     .slice(0, 5);
 
-  const { data: kpis } = useQuery({
-    queryKey: ["dashboard-kpis", range],
-    queryFn: () => getDashboardKpis(range),
-  });
-  const { data: distribution } = useQuery({
-    queryKey: ["dashboard-status-distribution", range],
-    queryFn: () => getStatusDistribution(range),
-  });
-  const { data: trends } = useQuery({
-    queryKey: ["dashboard-trends", range, granularity],
-    queryFn: () => getQuoteTrends(range, granularity),
-  });
-  const donutData =
-    distribution?.map((d) => ({
-      name: statusConfig[d.status].label,
-      value: d.count,
-      color: statusChartColor[d.status as StatusKey],
-    })) ?? [];
+  const quotes = useQuotes();
+  const furnitureItems = useFurniturePriceItems();
+  const hardwareItems = useHardwarePriceItems();
 
-  const trendData =
-    trends?.map((t) => ({ label: t.label, volume: t.quotes, value: t.revenue })) ?? [];
+  const kpis = useMemo(
+    () => getDashboardKpis(quotes, furnitureItems, hardwareItems, range),
+    [quotes, furnitureItems, hardwareItems, range]
+  );
+  const distribution = useMemo(() => getStatusDistribution(quotes, range), [quotes, range]);
+  const trends = useMemo(
+    () => getQuoteTrends(quotes, furnitureItems, hardwareItems, range, granularity),
+    [quotes, furnitureItems, hardwareItems, range, granularity]
+  );
+  const donutData = distribution.map((d) => ({
+    name: statusConfig[d.status].label,
+    value: d.count,
+    color: statusChartColor[d.status as StatusKey],
+  }));
+
+  const trendData = trends.map((t) => ({ label: t.label, volume: t.quotes, value: t.revenue }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -86,7 +86,7 @@ export default function DashboardPage() {
         name={currentUser.name.split(" ")[0] || currentUser.name}
         stats={[
           { label: "Tasks Due", value: String(pendingTasks.length) },
-          { label: "Active Quotes", value: kpis ? String(kpis.activeQuotes) : "—" },
+          { label: "Active Quotes", value: String(kpis.activeQuotes) },
           { label: "Credits", value: formatInr(MOCK_CREDITS_BALANCE) },
         ]}
       />
@@ -97,17 +97,13 @@ export default function DashboardPage() {
         <>
           <KpiCard
             label="Total Revenue"
-            value={kpis ? formatInr(kpis.totalRevenue) : "—"}
+            value={formatInr(kpis.totalRevenue)}
             icon={IndianRupee}
-            trend={
-              kpis
-                ? { value: `${formatPercent(kpis.totalRevenueDeltaPct)} vs last month`, positive: kpis.totalRevenueDeltaPct >= 0 }
-                : undefined
-            }
+            trend={{ value: `${formatPercent(kpis.totalRevenueDeltaPct)} vs previous period`, positive: kpis.totalRevenueDeltaPct >= 0 }}
           />
-          <KpiCard label="Total Quotes" value={kpis ? String(kpis.totalQuotes) : "—"} icon={FileText} />
-          <KpiCard label="Active Quotes" value={kpis ? String(kpis.activeQuotes) : "—"} icon={Loader2} />
-          <KpiCard label="Completed" value={kpis ? String(kpis.completedQuotes) : "—"} icon={CheckCircle2} />
+          <KpiCard label="Total Quotes" value={String(kpis.totalQuotes)} icon={FileText} />
+          <KpiCard label="Active Quotes" value={String(kpis.activeQuotes)} icon={Loader2} />
+          <KpiCard label="Completed" value={String(kpis.completedQuotes)} icon={CheckCircle2} />
         </>
       }
     >

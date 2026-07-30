@@ -1,6 +1,6 @@
 "use client";
 
-import type { DateRange } from "@/lib/mock/dashboard";
+import type { DateRange } from "@/lib/types";
 
 export function DateRangeControl({
   value,
