@@ -93,7 +93,13 @@ export function CustomerReadOnlyDetails({ customerId }: { customerId: string }) 
   // dot separators so the block collapses to whatever detail actually exists.
   const address = override.area ?? customer.address;
   const cityLine = [override.city, override.state, override.postcode].filter(Boolean).join(", ");
-  const bits = [address, cityLine, override.email, override.gst && `GST ${override.gst}`].filter(Boolean);
+  const bits = [
+    customer.customerCode && `Code ${customer.customerCode}`,
+    address,
+    cityLine,
+    override.email,
+    override.gst && `GST ${override.gst}`,
+  ].filter(Boolean);
   if (bits.length === 0) return null;
 
   return (
