@@ -7,6 +7,7 @@ import { toastStore } from "@/lib/store/toast-store";
 import { parseCsv, downloadCsv } from "@/lib/csv";
 import { pricingListStore, type NewFurniturePriceInput, type NewHardwarePriceInput } from "@/lib/store/pricing-list-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
+import { rateAfterDiscount } from "@/lib/mock/pricing-list";
 import type { MaterialItem, MaterialCategoryKey } from "@/lib/mock/material-spec";
 
 type ImportMode = "upsert" | "insert-only" | "update-only";
@@ -17,8 +18,11 @@ const importModeHelp: Record<ImportMode, string> = {
   "update-only": "Only updates rows that already exist — skips anything not already in this table, nothing new gets created.",
 };
 
-const HARDWARE_HEADER = ["Article No", "Category", "Brand", "Description", "Level Type", "Unit", "MRP", "Discount %"];
-const HARDWARE_TEMPLATE_ROW = ["BLM-CLIP-110", "Hinges", "Blum", "Clip Top Soft-Close Hinge, 110°, full overlay", "Primary", "Pcs", "420", "15"];
+// "Rate After Discount" is a trailing, read-only reference column — computed
+// from MRP/Discount, not a real field, so import ignores whatever's in it
+// (or its absence) rather than trying to parse it back.
+const HARDWARE_HEADER = ["Article No", "Category", "Brand", "Description", "Level Type", "Unit", "MRP", "Discount %", "Rate After Discount"];
+const HARDWARE_TEMPLATE_ROW = ["BLM-CLIP-110", "Hinges", "Blum", "Clip Top Soft-Close Hinge, 110°, full overlay", "Primary", "Pcs", "420", "15", "357.00"];
 
 const FURNITURE_HEADER = ["Thickness", "Raw Material Type", "Internal Colour", "External Colour", "Rate"];
 const FURNITURE_TEMPLATE_ROW = ["18mm", "BWP Ply", "White", "Matte Charcoal", "145"];
@@ -74,6 +78,7 @@ export function SimpleCsvPanel({ label, kind }: { label: string; kind: "furnitur
           nameOf(materialItems, i.unitId),
           String(i.mrp),
           String(i.discountPct),
+          rateAfterDiscount(i).toFixed(2),
         ]),
       ];
       downloadCsv(`${label.toLowerCase().replace(/\s+/g, "-")}.csv`, rows);
