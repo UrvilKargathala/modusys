@@ -9,9 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { FurniturePriceFormDialog } from "@/components/templates/furniture-price-form-dialog";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useFurniturePriceItems, pricingListStore } from "@/lib/store/pricing-list-store";
 import { cn } from "@/lib/utils";
 import type { FurnitureLineItem } from "@/lib/mock/unit-type";
+
+const materialFieldLabel: Record<string, string> = {
+  thicknessId: "Thickness",
+  rawMaterialTypeId: "Raw Material",
+  internalColourId: "Internal Colour",
+  externalColourId: "External Colour",
+};
 
 // Shared by Unit Type's Components and External Finish tabs (and could
 // replace Cabinet Type's near-identical row too) — same four-way material
@@ -43,6 +51,8 @@ export function FurnitureLineItemRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   const [addPriceOpen, setAddPriceOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [pendingMaterialChange, setPendingMaterialChange] = useState<{ field: string; id: string } | null>(null);
 
   const furnitureItems = useFurniturePriceItems();
   const combinationComplete =
@@ -57,6 +67,11 @@ export function FurnitureLineItemRow({
       onChange(patch);
     }
   };
+
+  // Thickness/Raw Material/Internal/External Colour drive the price-list
+  // lookup — changing any of them changes Rate/Amount, so confirm before
+  // applying rather than silently reprice the row.
+  const requestMaterialChange = (field: string, id: string) => setPendingMaterialChange({ field, id });
 
   // Row 2 fits either 3 dropdowns (Carcass/Shutter) or 4 (Other Panel with Level Type)
   // — shrink to lg:col-span-3 in the 4-field case so all four fit on one row.
@@ -104,7 +119,7 @@ export function FurnitureLineItemRow({
         )}
         <button
           type="button"
-          onClick={onRemove}
+          onClick={() => setDeleteOpen(true)}
           aria-label={`Remove ${label.toLowerCase()}`}
           className="ml-auto rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error"
         >
@@ -156,7 +171,7 @@ export function FurnitureLineItemRow({
           <MaterialReferenceSelect
             category="thickness"
             value={value.thicknessId}
-            onChange={(id) => handleFieldChange({ thicknessId: id })}
+            onChange={(id) => requestMaterialChange("thicknessId", id)}
           />
         </div>
         {totalSqFt !== undefined && (
@@ -193,7 +208,7 @@ export function FurnitureLineItemRow({
           <MaterialReferenceSelect
             category="raw-material-type"
             value={value.rawMaterialTypeId}
-            onChange={(id) => handleFieldChange({ rawMaterialTypeId: id })}
+            onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)}
           />
         </div>
         <div className={`flex flex-col gap-1.5 ${materialColSpan}`}>
@@ -201,7 +216,7 @@ export function FurnitureLineItemRow({
           <MaterialReferenceSelect
             category="internal-colour"
             value={value.internalColourId}
-            onChange={(id) => handleFieldChange({ internalColourId: id })}
+            onChange={(id) => requestMaterialChange("internalColourId", id)}
           />
         </div>
         <div className={`flex flex-col gap-1.5 ${materialColSpan}`}>
@@ -209,7 +224,7 @@ export function FurnitureLineItemRow({
           <MaterialReferenceSelect
             category="external-colour"
             value={value.externalColourId}
-            onChange={(id) => handleFieldChange({ externalColourId: id })}
+            onChange={(id) => requestMaterialChange("externalColourId", id)}
           />
         </div>
         {showLevelType && (
@@ -246,6 +261,25 @@ export function FurnitureLineItemRow({
         }}
         onSubmit={(values) => pricingListStore.createFurnitureItem(values)}
         onEditExisting={() => setAddPriceOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Remove this ${label.toLowerCase()}?`}
+        description="This removes the line item and its pricing from the quote."
+        onConfirm={onRemove}
+      />
+
+      <ConfirmDialog
+        open={pendingMaterialChange !== null}
+        onOpenChange={(open) => !open && setPendingMaterialChange(null)}
+        title={`Change ${pendingMaterialChange ? materialFieldLabel[pendingMaterialChange.field] : ""}?`}
+        description="This changes the price-list match for this line item, which updates its Rate and Amount."
+        confirmLabel="Change"
+        onConfirm={() => {
+          if (pendingMaterialChange) handleFieldChange({ [pendingMaterialChange.field]: pendingMaterialChange.id });
+        }}
       />
     </div>
   );
