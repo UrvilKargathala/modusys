@@ -17,6 +17,7 @@ import { ClientDetailsSection } from "@/components/quotes/create/client-details-
 import { MaterialSpecificationSection } from "@/components/quotes/create/material-specification-section";
 import { UnitsSection } from "@/components/quotes/create/units-section";
 import { QuoteSummarySection } from "@/components/quotes/create/quote-summary-section";
+import { RemarkSection } from "@/components/quotes/create/remark-section";
 import { FinishOptionsTable } from "@/components/quotes/create/finish-options-table";
 import { blankQuote, type Quote } from "@/lib/mock/quote";
 import { applyShutterFinishToUnits } from "@/lib/quote-pricing";
@@ -66,6 +67,14 @@ function CreateQuotePage() {
     quotesStore.saveQuote(quote);
     toastStore.show(`${quote.quoteNumber} saved`);
     router.push("/quotes");
+  };
+
+  // Same persistence as the top Save button, minus the redirect — for the
+  // Remark box's own inline Save action, which shouldn't navigate away.
+  const handleSaveRemark = () => {
+    if (!quote) return;
+    quotesStore.saveQuote(quote);
+    toastStore.show("Remark saved");
   };
 
   const title = readonly ? "View Quote" : editId ? "Edit Quote" : "Create New Quote";
@@ -130,19 +139,7 @@ function CreateQuotePage() {
         <UnitsSection units={quote.units} shutterFinishId={quote.shutterFinishId} onChange={(units) => patchQuote({ units })} />
         <QuoteSummarySection quote={quote} onChange={patchQuote} />
 
-        <section className="flex flex-col gap-3 rounded-xl border border-grey-100 bg-card p-6">
-          <label htmlFor="q-remark" className="font-heading text-lg font-semibold text-grey-900">
-            Remark
-          </label>
-          <textarea
-            id="q-remark"
-            value={quote.remark ?? ""}
-            onChange={(e) => patchQuote({ remark: e.target.value })}
-            placeholder="Notes, follow-up items, internal comments…"
-            rows={4}
-            className="w-full resize-y rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none placeholder:text-grey-300 focus:border-primary"
-          />
-        </section>
+        <RemarkSection quote={quote} onChange={patchQuote} onSave={handleSaveRemark} />
 
         <FinishOptionsTable
           options={quote.finishOptions ?? []}
