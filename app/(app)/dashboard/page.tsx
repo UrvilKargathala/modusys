@@ -14,6 +14,8 @@ import { UpcomingTasksPanel } from "@/components/dashboard/upcoming-tasks-panel"
 import { UpcomingBirthdaysPanel } from "@/components/dashboard/upcoming-birthdays-panel";
 import { PipelineFunnelPanel } from "@/components/dashboard/pipeline-funnel-panel";
 import { NotificationsPanel } from "@/components/dashboard/notifications-panel";
+import { RecentQuotesPanel } from "@/components/dashboard/recent-quotes-panel";
+import { StaleQuotesPanel } from "@/components/dashboard/stale-quotes-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { statusChartColor, statusConfig, type StatusKey } from "@/lib/status";
 import { formatInr, formatPercent } from "@/lib/format";
@@ -130,6 +132,9 @@ export default function DashboardPage() {
             <DualAxisTrendChart data={trendData} />
           </CardContent>
         </Card>
+
+        <RecentQuotesPanel />
+        <StaleQuotesPanel />
 
         <UpcomingTasksPanel
           tasks={pendingTasks}
