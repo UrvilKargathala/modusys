@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Plus, FileStack, Search, Eye, Pencil, Copy, FileSpreadsheet, Trash2 } from "lucide-react";
+import { Plus, FileStack, Search, Eye, Pencil, Copy, FileSpreadsheet, FileText, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -211,6 +211,16 @@ export default function QuotesPage() {
                                 <FileSpreadsheet className="h-4 w-4" />
                               </TooltipTrigger>
                               <TooltipContent>Export Excel (CSV)</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger
+                                aria-label="Export PDF"
+                                onClick={() => window.open(`/quotes/${quote.id}/pdf`, "_blank", "noopener,noreferrer")}
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                              >
+                                <FileText className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent>Export PDF</TooltipContent>
                             </Tooltip>
                             <Tooltip>
                               <TooltipTrigger
