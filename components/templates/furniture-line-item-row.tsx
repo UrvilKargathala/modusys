@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, X, AlertTriangle, Plus } from "lucide-react";
+import { GripVertical, Trash2, AlertTriangle, Plus } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ export function FurnitureLineItemRow({
   showComponentName,
   showLevelType,
   totalSqFt,
+  compact,
 }: {
   value: FurnitureLineItem;
   onChange: (patch: Partial<FurnitureLineItem>) => void;
@@ -48,6 +49,7 @@ export function FurnitureLineItemRow({
   // Type builders) never have, so this stays optional and Templates simply
   // omits it.
   totalSqFt?: number;
+  compact?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   const [addPriceOpen, setAddPriceOpen] = useState(false);
@@ -124,14 +126,14 @@ export function FurnitureLineItemRow({
           aria-label={`Remove ${label.toLowerCase()}`}
           className="ml-auto rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error"
         >
-          <X className="h-4 w-4" />
+          <Trash2 className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-12 [&>div]:min-w-0">
+      <div className={cn("grid gap-x-3 gap-y-3 [&>div]:min-w-0", compact ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-6" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6")}>
         {showComponentName && (
-          <div className="col-span-2 flex flex-col gap-1.5 sm:col-span-1 lg:col-span-3">
-            <Label>Component Name</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className="whitespace-nowrap">Component Name</Label>
             <MaterialReferenceSelect
               category="furniture-component"
               value={value.componentTypeId ?? ""}
@@ -139,7 +141,7 @@ export function FurnitureLineItemRow({
             />
           </div>
         )}
-        <div className="flex flex-col gap-1.5 lg:col-span-2">
+        <div className="flex flex-col gap-1.5">
           <Label htmlFor={`w-${value.id}`}>Width</Label>
           <Input
             id={`w-${value.id}`}
@@ -148,7 +150,7 @@ export function FurnitureLineItemRow({
             onChange={(e) => handleFieldChange({ widthFormula: e.target.value })}
           />
         </div>
-        <div className="flex flex-col gap-1.5 lg:col-span-2">
+        <div className="flex flex-col gap-1.5">
           <Label htmlFor={`h-${value.id}`}>Height</Label>
           <Input
             id={`h-${value.id}`}
@@ -157,7 +159,7 @@ export function FurnitureLineItemRow({
             onChange={(e) => handleFieldChange({ heightFormula: e.target.value })}
           />
         </div>
-        <div className="flex flex-col gap-1.5 lg:col-span-2">
+        <div className="flex flex-col gap-1.5">
           <Label htmlFor={`qty-${value.id}`}>Qty</Label>
           <Input
             id={`qty-${value.id}`}
@@ -167,7 +169,7 @@ export function FurnitureLineItemRow({
             onChange={(e) => handleFieldChange({ qty: Number(e.target.value) })}
           />
         </div>
-        <div className="flex flex-col gap-1.5 lg:col-span-2">
+        <div className="flex flex-col gap-1.5">
           <Label>Thickness</Label>
           <MaterialReferenceSelect
             category="thickness"
@@ -183,81 +185,75 @@ export function FurnitureLineItemRow({
             </div>
           </div>
         )}
-        {totalSqFt !== undefined && (
-          <div className="flex flex-col gap-1.5 lg:col-span-2">
-            <Label>Amount</Label>
-            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-900">
-              ₹{(effectiveRate !== undefined ? effectiveRate * totalSqFt : 0).toFixed(2)}
-            </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Amount</Label>
+          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-900">
+            {totalSqFt !== undefined
+              ? `₹${(effectiveRate !== undefined ? effectiveRate * totalSqFt : 0).toFixed(2)}`
+              : "—"}
           </div>
-        )}
-        {/* Fixed 2-col sub-grid (not viewport-breakpoint spans) so Rate +
-            material fields lay out as a clean 2x2 regardless of how narrow
-            the surrounding container actually is. */}
-        <div className="col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-12 grid grid-cols-2 gap-x-3 gap-y-3">
-          <div className="flex flex-col gap-1.5">
-            <Label>Rate</Label>
-            <div className="relative">
-              <Input
-                type="number"
-                step="0.01"
-                min={0}
-                placeholder="0.00"
-                value={value.rateOverride ?? (match ? match.rate.toFixed(2) : "")}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  handleFieldChange({ rateOverride: raw === "" ? undefined : Number(raw) });
-                }}
-                className="pr-14"
-              />
-              <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">/sq.ft</span>
-            </div>
-            {value.rateOverride !== undefined && match && value.rateOverride !== match.rate && (
-              <button
-                type="button"
-                onClick={() => handleFieldChange({ rateOverride: undefined })}
-                className="w-fit text-xs font-body text-primary hover:underline"
-              >
-                Reset to price-list rate (₹{match.rate.toFixed(2)})
-              </button>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>Raw Material</Label>
-            <MaterialReferenceSelect
-              category="raw-material-type"
-              value={value.rawMaterialTypeId}
-              onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Rate</Label>
+          <div className="relative">
+            <Input
+              type="number"
+              step="0.01"
+              min={0}
+              placeholder="0.00"
+              value={value.rateOverride ?? (match ? match.rate.toFixed(2) : "")}
+              onChange={(e) => {
+                const raw = e.target.value;
+                handleFieldChange({ rateOverride: raw === "" ? undefined : Number(raw) });
+              }}
+              className="pr-14"
             />
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">/sq.ft</span>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Internal Colour</Label>
-            <MaterialReferenceSelect
-              category="internal-colour"
-              value={value.internalColourId}
-              onChange={(id) => requestMaterialChange("internalColourId", id)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>External Colour</Label>
-            <MaterialReferenceSelect
-              category="external-colour"
-              value={value.externalColourId}
-              onChange={(id) => requestMaterialChange("externalColourId", id)}
-            />
-          </div>
-          {showLevelType && (
-            <div className="flex flex-col gap-1.5">
-              <Label>Level Type</Label>
-              <MaterialReferenceSelect
-                category="level-type"
-                value={value.levelTypeId ?? ""}
-                onChange={(id) => handleFieldChange({ levelTypeId: id })}
-              />
-            </div>
+          {value.rateOverride !== undefined && match && value.rateOverride !== match.rate && (
+            <button
+              type="button"
+              onClick={() => handleFieldChange({ rateOverride: undefined })}
+              className="w-fit text-xs font-body text-primary hover:underline"
+            >
+              Reset to price-list rate (₹{match.rate.toFixed(2)})
+            </button>
           )}
         </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Raw Material</Label>
+          <MaterialReferenceSelect
+            category="raw-material-type"
+            value={value.rawMaterialTypeId}
+            onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Internal Colour</Label>
+          <MaterialReferenceSelect
+            category="internal-colour"
+            value={value.internalColourId}
+            onChange={(id) => requestMaterialChange("internalColourId", id)}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>External Colour</Label>
+          <MaterialReferenceSelect
+            category="external-colour"
+            value={value.externalColourId}
+            onChange={(id) => requestMaterialChange("externalColourId", id)}
+          />
+        </div>
+        {showLevelType && (
+          <div className="flex flex-col gap-1.5">
+            <Label>Level Type</Label>
+            <MaterialReferenceSelect
+              category="level-type"
+              value={value.levelTypeId ?? ""}
+              onChange={(id) => handleFieldChange({ levelTypeId: id })}
+            />
+          </div>
+        )}
       </div>
 
       {combinationComplete && !match && (

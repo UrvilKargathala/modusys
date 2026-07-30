@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { Plus, FileStack, Search, Eye, Pencil, Copy, FileSpreadsheet, FileText, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useQuotes, quotesStore } from "@/lib/store/quotes-store";
 import { useCustomers } from "@/lib/store/customers-store";
@@ -44,6 +45,7 @@ export default function QuotesPage() {
   const furnitureItems = useFurniturePriceItems();
   const hardwareItems = useHardwarePriceItems();
   const [search, setSearch] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Quote | null>(null);
 
   const customerName = (id: string | null) => (id ? customers.find((c) => c.id === id)?.name ?? "—" : "—");
   const productTypeName = (id: string) => productTypes.find((p) => p.id === id)?.name ?? "—";
@@ -225,7 +227,7 @@ export default function QuotesPage() {
                             <Tooltip>
                               <TooltipTrigger
                                 aria-label="Delete"
-                                onClick={() => deleteQuote(quote)}
+                                onClick={() => setDeleteTarget(quote)}
                                 className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -243,6 +245,18 @@ export default function QuotesPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete this quote?"
+        description={
+          deleteTarget ? `This removes ${deleteTarget.quoteNumber} and all its line items. This can be undone right after.` : ""
+        }
+        onConfirm={() => {
+          if (deleteTarget) deleteQuote(deleteTarget);
+        }}
+      />
     </div>
   );
 }

@@ -55,6 +55,8 @@ export function FurnitureGroup({
   onChange,
   addLabel,
   accent = "primary",
+  onUnitChange,
+  onAutoPopulate,
 }: {
   title: string;
   label: string;
@@ -65,6 +67,8 @@ export function FurnitureGroup({
   onChange: (items: FurnitureLineItem[]) => void;
   addLabel: string;
   accent?: keyof typeof groupAccent;
+  onUnitChange?: (patch: { width?: number; depth?: number; height?: number; qty?: number }) => void;
+  onAutoPopulate?: () => void;
 }) {
   const furnitureItems = useFurniturePriceItems();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -95,11 +99,42 @@ export function FurnitureGroup({
             {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
           <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-700">{title}</h4>
-          <span className="text-xs font-body text-grey-500">
-            W {unit.width || 0} · D {unit.depth || 0} · H {unit.height || 0}
-          </span>
+          {onUnitChange ? (
+            <div className="flex items-center gap-1.5">
+              {(["W", "D", "H"] as const).map((dim) => {
+                const key = dim === "W" ? "width" : dim === "D" ? "depth" : "height";
+                return (
+                  <div key={dim} className="flex items-center gap-1">
+                    <span className="text-xs font-body text-grey-500">{dim}</span>
+                    <Input
+                      type="number"
+                      value={unit[key] || ""}
+                      onChange={(e) => onUnitChange({ [key]: Number(e.target.value) })}
+                      className="h-7 w-16 bg-card text-sm"
+                    />
+                  </div>
+                );
+              })}
+              <div className="flex items-center gap-1">
+                <span className="text-xs font-body text-grey-500">Qty</span>
+                <Input
+                  type="number"
+                  min={1}
+                  value={unit.qty || ""}
+                  onChange={(e) => onUnitChange({ qty: Number(e.target.value) })}
+                  className="h-7 w-14 bg-card text-sm"
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
         <div className="flex items-center gap-3">
+          {onAutoPopulate && (
+            <Button type="button" size="sm" onClick={onAutoPopulate}>
+              <Sparkles className="h-3.5 w-3.5" />
+              Auto Populate
+            </Button>
+          )}
           <span className="text-sm font-body font-semibold text-grey-700">₹{subtotal.toFixed(2)}</span>
           <Button
             type="button"
@@ -180,9 +215,6 @@ function HardwareGroup({
             {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
           <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-700">Hardware</h4>
-          <span className="text-xs font-body text-grey-500">
-            W {unit.width || 0} · D {unit.depth || 0} · H {unit.height || 0}
-          </span>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm font-body font-semibold text-grey-700">₹{total.toFixed(2)}</span>
@@ -262,6 +294,7 @@ export function QuoteCabinetGroup({
   onChange,
   onRemove,
   onDuplicate,
+  onUnitChange,
 }: {
   cabinet: QuoteCabinet;
   index: number;
@@ -270,6 +303,7 @@ export function QuoteCabinetGroup({
   onChange: (patch: Partial<QuoteCabinet>) => void;
   onRemove: () => void;
   onDuplicate: () => void;
+  onUnitChange?: (patch: { width?: number; depth?: number; height?: number; qty?: number }) => void;
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const isViewMode = useSearchParams().get("mode") === "view";
@@ -341,6 +375,8 @@ export function QuoteCabinetGroup({
             unit={unit}
             addLabel="Add Component"
             onChange={(components) => onChange({ components })}
+            onUnitChange={onUnitChange}
+            onAutoPopulate={selectedCabinetType ? runAutoPopulate : undefined}
           />
           <FurnitureGroup
             title="Shutter"

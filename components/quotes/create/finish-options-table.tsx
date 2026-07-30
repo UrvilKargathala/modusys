@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Copy, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Copy, Trash2 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { cn } from "@/lib/utils";
 import type { FinishOption } from "@/lib/mock/quote";
 
 // Option letter derives from row position: 0→A, 1→B, ..., 25→Z. Simple mod
@@ -31,6 +32,7 @@ export function FinishOptionsTable({
   onChange: (next: FinishOption[]) => void;
 }) {
   const [deleteTarget, setDeleteTarget] = useState<FinishOption | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   const update = (id: string, patch: Partial<FinishOption>) =>
     onChange(options.map((o) => (o.id === id ? { ...o, ...patch } : o)));
@@ -46,16 +48,24 @@ export function FinishOptionsTable({
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6 rounded-xl border border-grey-100 bg-card p-6">
       <div className="flex items-center justify-between">
-        <h2 className="font-heading text-lg font-semibold text-grey-900">Finish Options</h2>
+        <button
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          className="flex items-center gap-2 text-left"
+          aria-label={collapsed ? "Expand Finish Options" : "Collapse Finish Options"}
+        >
+          {collapsed ? <ChevronRight className="h-4 w-4 text-grey-400" /> : <ChevronDown className="h-4 w-4 text-grey-400" />}
+          <h2 className="font-heading text-lg font-semibold text-grey-900">Finish Options</h2>
+        </button>
         <Button type="button" size="sm" onClick={() => onChange([...options, newOption()])}>
           <Plus className="h-4 w-4" />
           Add Option
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-grey-100">
+      <div className={cn("overflow-x-auto rounded-lg border border-grey-100", collapsed && "hidden")}>
         <table className="w-full text-left">
           <thead className="bg-light-600">
             <tr>

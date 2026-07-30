@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useCallback, type ReactNode } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,11 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote; onChange: (patch: Partial<Quote>) => void }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [pending, setPending] = useState<{ label: string; patch: Partial<Quote> } | null>(null);
+
+  const confirmChange = useCallback((label: string, patch: Partial<Quote>) => {
+    setPending({ label, patch });
+  }, []);
 
   return (
     <section className="flex flex-col gap-6 rounded-xl border border-grey-100 bg-card p-6">
@@ -36,7 +42,7 @@ export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote
           <MaterialReferenceSelect
             category="product-type"
             value={quote.productTypeId}
-            onChange={(id) => onChange({ productTypeId: id })}
+            onChange={(id) => confirmChange("Product Type", { productTypeId: id })}
           />
         </Field>
 
@@ -44,7 +50,7 @@ export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote
           <MaterialReferenceSelect
             category="raw-material-description"
             value={quote.materialDescriptionId}
-            onChange={(id) => onChange({ materialDescriptionId: id })}
+            onChange={(id) => confirmChange("Material Description", { materialDescriptionId: id })}
           />
         </Field>
 
@@ -52,7 +58,7 @@ export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote
           <MaterialReferenceSelect
             category="external-colour"
             value={quote.shutterFinishId}
-            onChange={(id) => onChange({ shutterFinishId: id })}
+            onChange={(id) => confirmChange("Shutter Finish", { shutterFinishId: id })}
           />
         </Field>
 
@@ -60,7 +66,7 @@ export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote
           <MaterialReferenceSelect
             category="handle-type"
             value={quote.handleTypeId}
-            onChange={(id) => onChange({ handleTypeId: id })}
+            onChange={(id) => confirmChange("Handle", { handleTypeId: id })}
           />
         </Field>
 
@@ -68,7 +74,7 @@ export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote
           <MaterialReferenceSelect
             category="hinges-type"
             value={quote.hingesTypeId}
-            onChange={(id) => onChange({ hingesTypeId: id })}
+            onChange={(id) => confirmChange("Hinges", { hingesTypeId: id })}
           />
         </Field>
 
@@ -76,7 +82,7 @@ export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote
           <MaterialReferenceSelect
             category="client-responsibility"
             value={quote.clientResponsibilityId}
-            onChange={(id) => onChange({ clientResponsibilityId: id })}
+            onChange={(id) => confirmChange("Client Responsibility", { clientResponsibilityId: id })}
           />
         </Field>
 
@@ -84,10 +90,21 @@ export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote
           <MaterialReferenceSelect
             category="tandem-drawer-type"
             value={quote.tandemDrawerTypeId}
-            onChange={(id) => onChange({ tandemDrawerTypeId: id })}
+            onChange={(id) => confirmChange("Tandem Drawer Type", { tandemDrawerTypeId: id })}
           />
         </Field>
       </div>
+
+      <ConfirmDialog
+        open={pending !== null}
+        onOpenChange={(open) => !open && setPending(null)}
+        title={`Change ${pending?.label ?? ""}?`}
+        description={`Are you sure you want to change the ${pending?.label?.toLowerCase() ?? ""} for this quote?`}
+        confirmLabel="Change"
+        onConfirm={() => {
+          if (pending) onChange(pending.patch);
+        }}
+      />
     </section>
   );
 }

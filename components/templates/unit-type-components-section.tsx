@@ -206,6 +206,7 @@ export function UnitTypeComponentsSection({
                             value={c}
                             label="Component"
                             showComponentName
+                            compact
                             onChange={(patch) => updateComponent(c.id, patch)}
                             onRemove={() => removeComponent(c.id)}
                           />
@@ -247,6 +248,7 @@ export function UnitTypeComponentsSection({
                       value={c}
                       label="Component"
                       showComponentName
+                      compact
                       onChange={(patch) => updateComponent(c.id, patch)}
                       onRemove={() => removeComponent(c.id)}
                     />

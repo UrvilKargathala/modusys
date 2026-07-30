@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useCallback, type ReactNode } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { CustomerPicker, CustomerReadOnlyDetails } from "@/components/quotes/cre
 import { ArchitectPicker, ArchitectReadOnlyDetails } from "@/components/quotes/create/architect-picker";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { StatusPicker } from "@/components/quotes/create/status-picker";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import type { StatusKey } from "@/lib/status";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,11 @@ function Field({
 
 export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChange: (patch: Partial<Quote>) => void }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [pending, setPending] = useState<{ label: string; patch: Partial<Quote> } | null>(null);
+
+  const confirmChange = useCallback((label: string, patch: Partial<Quote>) => {
+    setPending({ label, patch });
+  }, []);
 
   return (
     <section className="flex flex-col gap-6 rounded-xl border border-grey-100 bg-card p-6">
@@ -54,12 +60,12 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
       <div className={cn("flex flex-col gap-4", collapsed && "hidden")}>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Field label="Customer Name">
-            <CustomerPicker value={quote.customerId ?? ""} onChange={(id) => onChange({ customerId: id || null })} />
+            <CustomerPicker value={quote.customerId ?? ""} onChange={(id) => confirmChange("Customer", { customerId: id || null })} />
             {quote.customerId && <CustomerReadOnlyDetails customerId={quote.customerId} />}
           </Field>
 
           <Field label="Architect Name">
-            <ArchitectPicker value={quote.architectId ?? ""} onChange={(id) => onChange({ architectId: id || null })} />
+            <ArchitectPicker value={quote.architectId ?? ""} onChange={(id) => confirmChange("Architect", { architectId: id || null })} />
             {quote.architectId && <ArchitectReadOnlyDetails architectId={quote.architectId} />}
           </Field>
         </div>
@@ -69,7 +75,7 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
             <MaterialReferenceSelect
               category="property-type"
               value={quote.propertyTypeId}
-              onChange={(id) => onChange({ propertyTypeId: id })}
+              onChange={(id) => confirmChange("Property Type", { propertyTypeId: id })}
             />
           </Field>
 
@@ -77,7 +83,7 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
             <MaterialReferenceSelect
               category="sales-executive"
               value={quote.salesExecutiveId}
-              onChange={(id) => onChange({ salesExecutiveId: id })}
+              onChange={(id) => confirmChange("Sales Executive", { salesExecutiveId: id })}
             />
           </Field>
 
@@ -85,7 +91,7 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
             <MaterialReferenceSelect
               category="designer"
               value={quote.designerId}
-              onChange={(id) => onChange({ designerId: id })}
+              onChange={(id) => confirmChange("Designer", { designerId: id })}
             />
           </Field>
 
@@ -93,7 +99,7 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
             <MaterialReferenceSelect
               category="site-engineer"
               value={quote.siteEngineerId}
-              onChange={(id) => onChange({ siteEngineerId: id })}
+              onChange={(id) => confirmChange("Site Engineer", { siteEngineerId: id })}
             />
           </Field>
         </div>
@@ -110,7 +116,7 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
               id="q-date"
               type="date"
               value={quote.date}
-              onChange={(e) => onChange({ date: e.target.value })}
+              onChange={(e) => confirmChange("Date", { date: e.target.value })}
             />
           </Field>
 
@@ -121,10 +127,21 @@ export function ClientDetailsSection({ quote, onChange }: { quote: Quote; onChan
           </Field>
 
           <Field label="Status">
-            <StatusPicker value={quote.status as StatusKey} onChange={(status) => onChange({ status })} />
+            <StatusPicker value={quote.status as StatusKey} onChange={(status) => confirmChange("Status", { status })} />
           </Field>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={pending !== null}
+        onOpenChange={(open) => !open && setPending(null)}
+        title={`Change ${pending?.label ?? ""}?`}
+        description={`Are you sure you want to change the ${pending?.label?.toLowerCase() ?? ""} for this quote?`}
+        confirmLabel="Change"
+        onConfirm={() => {
+          if (pending) onChange(pending.patch);
+        }}
+      />
     </section>
   );
 }
