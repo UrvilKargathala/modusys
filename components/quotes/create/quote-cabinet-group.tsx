@@ -95,6 +95,9 @@ export function FurnitureGroup({
             {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
           <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-700">{title}</h4>
+          <span className="text-xs font-body text-grey-500">
+            W {unit.width || 0} · D {unit.depth || 0} · H {unit.height || 0}
+          </span>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm font-body font-semibold text-grey-700">₹{subtotal.toFixed(2)}</span>
@@ -177,6 +180,9 @@ function HardwareGroup({
             {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
           <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-700">Hardware</h4>
+          <span className="text-xs font-body text-grey-500">
+            W {unit.width || 0} · D {unit.depth || 0} · H {unit.height || 0}
+          </span>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm font-body font-semibold text-grey-700">₹{total.toFixed(2)}</span>

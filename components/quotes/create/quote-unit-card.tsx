@@ -273,19 +273,19 @@ export function QuoteUnitCard({
         <div className="grid grid-cols-4 gap-2 sm:contents">
           <div className="flex flex-col gap-1.5 sm:w-24">
             <Label htmlFor={`w-${unit.id}`}>W</Label>
-            <Input id={`w-${unit.id}`} type="number" value={unit.width || ""} onChange={(e) => onChange({ width: Number(e.target.value) })} />
+            <Input className="bg-card" id={`w-${unit.id}`} type="number" value={unit.width || ""} onChange={(e) => onChange({ width: Number(e.target.value) })} />
           </div>
           <div className="flex flex-col gap-1.5 sm:w-24">
             <Label htmlFor={`d-${unit.id}`}>D</Label>
-            <Input id={`d-${unit.id}`} type="number" value={unit.depth || ""} onChange={(e) => onChange({ depth: Number(e.target.value) })} />
+            <Input className="bg-card" id={`d-${unit.id}`} type="number" value={unit.depth || ""} onChange={(e) => onChange({ depth: Number(e.target.value) })} />
           </div>
           <div className="flex flex-col gap-1.5 sm:w-24">
             <Label htmlFor={`h-${unit.id}`}>H</Label>
-            <Input id={`h-${unit.id}`} type="number" value={unit.height || ""} onChange={(e) => onChange({ height: Number(e.target.value) })} />
+            <Input className="bg-card" id={`h-${unit.id}`} type="number" value={unit.height || ""} onChange={(e) => onChange({ height: Number(e.target.value) })} />
           </div>
           <div className="flex flex-col gap-1.5 sm:w-20">
             <Label htmlFor={`qty-${unit.id}`}>Qty</Label>
-            <Input id={`qty-${unit.id}`} type="number" min={1} value={unit.qty || ""} onChange={(e) => onChange({ qty: Number(e.target.value) })} />
+            <Input className="bg-card" id={`qty-${unit.id}`} type="number" min={1} value={unit.qty || ""} onChange={(e) => onChange({ qty: Number(e.target.value) })} />
           </div>
         </div>
 
