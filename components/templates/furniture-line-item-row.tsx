@@ -143,7 +143,7 @@ export function FurnitureLineItemRow({
             />
           </div>
         )}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 lg:col-span-2">
           <Label htmlFor={`w-${value.id}`}>Width</Label>
           <Input
             id={`w-${value.id}`}
@@ -152,7 +152,7 @@ export function FurnitureLineItemRow({
             onChange={(e) => handleFieldChange({ widthFormula: e.target.value })}
           />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 lg:col-span-2">
           <Label htmlFor={`h-${value.id}`}>Height</Label>
           <Input
             id={`h-${value.id}`}
@@ -161,7 +161,7 @@ export function FurnitureLineItemRow({
             onChange={(e) => handleFieldChange({ heightFormula: e.target.value })}
           />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 lg:col-span-2">
           <Label htmlFor={`qty-${value.id}`}>Qty</Label>
           <Input
             id={`qty-${value.id}`}
@@ -171,7 +171,7 @@ export function FurnitureLineItemRow({
             onChange={(e) => handleFieldChange({ qty: Number(e.target.value) })}
           />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 lg:col-span-2">
           <Label>Thickness</Label>
           <MaterialReferenceSelect
             category="thickness"
