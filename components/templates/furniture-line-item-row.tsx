@@ -202,8 +202,8 @@ export function FurnitureLineItemRow({
               type="number"
               step="0.01"
               min={0}
-              placeholder={match ? match.rate.toFixed(2) : "0.00"}
-              value={value.rateOverride ?? ""}
+              placeholder="0.00"
+              value={value.rateOverride ?? (match ? match.rate.toFixed(2) : "")}
               onChange={(e) => {
                 const raw = e.target.value;
                 handleFieldChange({ rateOverride: raw === "" ? undefined : Number(raw) });

@@ -273,8 +273,8 @@ export function UnitTypeHardwareRow({
               type="number"
               step="0.01"
               min={0}
-              placeholder={priceListRate !== undefined ? priceListRate.toFixed(2) : "0.00"}
-              value={value.rateOverride ?? ""}
+              placeholder="0.00"
+              value={value.rateOverride ?? (priceListRate !== undefined ? priceListRate.toFixed(2) : "")}
               onChange={(e) => {
                 const raw = e.target.value;
                 onChange({ rateOverride: raw === "" ? undefined : Number(raw) });
