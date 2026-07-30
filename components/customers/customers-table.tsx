@@ -14,6 +14,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CustomerFormDialog } from "@/components/customers/customer-form-dialog";
+import { CustomersCsvPanel } from "@/components/customers/customers-csv-panel";
 import { DeleteCustomerDialog } from "@/components/customers/delete-customer-dialog";
 import { useCustomers, customersStore } from "@/lib/store/customers-store";
 import { profileOverridesStore, useProfileOverride } from "@/lib/store/customer-profile-overrides-store";
@@ -156,10 +157,13 @@ export function CustomersTable() {
             className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
           />
         </div>
-        <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Add Customer
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <CustomersCsvPanel />
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Add Customer
+          </Button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (

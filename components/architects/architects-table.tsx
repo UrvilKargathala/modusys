@@ -14,6 +14,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ArchitectFormDialog } from "@/components/architects/architect-form-dialog";
+import { ArchitectsCsvPanel } from "@/components/architects/architects-csv-panel";
 import { DeleteArchitectDialog } from "@/components/architects/delete-architect-dialog";
 import { useArchitects, architectsStore } from "@/lib/store/architects-store";
 import { architectPanelStore } from "@/lib/store/architect-panel-store";
@@ -170,10 +171,13 @@ export function ArchitectsTable() {
             className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
           />
         </div>
-        <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Add Architect
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <ArchitectsCsvPanel />
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Add Architect
+          </Button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
