@@ -55,6 +55,7 @@ export function FurnitureGroup({
   onChange,
   addLabel,
   accent = "primary",
+  hideWhenEmpty,
 }: {
   title: string;
   label: string;
@@ -65,6 +66,11 @@ export function FurnitureGroup({
   onChange: (items: FurnitureLineItem[]) => void;
   addLabel: string;
   accent?: keyof typeof groupAccent;
+  // A newly Added Cabinet should show only Carcass until the user
+  // explicitly starts a Shutter/Other Panel — those groups stay hidden
+  // (revealed by the cabinet header's quick-add buttons) rather than
+  // showing an empty section nobody asked for.
+  hideWhenEmpty?: boolean;
 }) {
   const furnitureItems = useFurniturePriceItems();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -80,6 +86,8 @@ export function FurnitureGroup({
     if (oldIndex === -1 || newIndex === -1) return;
     onChange(arrayMove(items, oldIndex, newIndex));
   };
+
+  if (hideWhenEmpty && items.length === 0) return null;
 
   const a = groupAccent[accent];
   return (
@@ -143,10 +151,12 @@ function HardwareGroup({
   items,
   unit,
   onChange,
+  hideWhenEmpty,
 }: {
   items: UnitTypeHardware[];
   unit: { width: number; depth: number; height: number; qty: number };
   onChange: (items: UnitTypeHardware[]) => void;
+  hideWhenEmpty?: boolean;
 }) {
   const hardwareItems = useHardwarePriceItems();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -162,6 +172,8 @@ function HardwareGroup({
     if (oldIndex === -1 || newIndex === -1) return;
     onChange(arrayMove(items, oldIndex, newIndex));
   };
+
+  if (hideWhenEmpty && items.length === 0) return null;
 
   const a = groupAccent.info;
   return (
@@ -260,7 +272,7 @@ export function QuoteCabinetGroup({
   onAddCabinet,
 }: {
   cabinet: QuoteCabinet;
-  index: number;
+  index: string;
   unit: { width: number; depth: number; height: number; qty: number };
   total: number;
   onChange: (patch: Partial<QuoteCabinet>) => void;
@@ -333,6 +345,24 @@ export function QuoteCabinetGroup({
           <Sparkles className="h-3.5 w-3.5" />
           Auto Populate
         </Button>
+        {cabinet.externalFinishes.length === 0 && (
+          <Button type="button" size="sm" variant="outline" onClick={() => onChange({ externalFinishes: [blankLineItem()] })}>
+            <Plus className="h-3.5 w-3.5" />
+            Shutter
+          </Button>
+        )}
+        {cabinet.panels.length === 0 && (
+          <Button type="button" size="sm" variant="outline" onClick={() => onChange({ panels: [blankLineItem()] })}>
+            <Plus className="h-3.5 w-3.5" />
+            Other Panel
+          </Button>
+        )}
+        {cabinet.hardware.length === 0 && (
+          <Button type="button" size="sm" variant="outline" onClick={() => onChange({ hardware: [blankHardware()] })}>
+            <Plus className="h-3.5 w-3.5" />
+            Hardware
+          </Button>
+        )}
         <div className="ml-auto flex items-center gap-3">
           {onAddCabinet && (
             <Button type="button" size="sm" variant="outline" onClick={onAddCabinet}>
@@ -382,6 +412,7 @@ export function QuoteCabinetGroup({
             unit={unit}
             addLabel="Add Shutter"
             onChange={(externalFinishes) => onChange({ externalFinishes })}
+            hideWhenEmpty
           />
           <FurnitureGroup
             title="Other Panel"
@@ -393,8 +424,9 @@ export function QuoteCabinetGroup({
             unit={unit}
             addLabel="Other Panel"
             onChange={(panels) => onChange({ panels })}
+            hideWhenEmpty
           />
-          <HardwareGroup items={cabinet.hardware} unit={unit} onChange={(hardware) => onChange({ hardware })} />
+          <HardwareGroup items={cabinet.hardware} unit={unit} onChange={(hardware) => onChange({ hardware })} hideWhenEmpty />
         </>
       )}
 

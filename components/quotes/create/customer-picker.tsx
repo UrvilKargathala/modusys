@@ -94,7 +94,7 @@ export function CustomerReadOnlyDetails({ customerId }: { customerId: string }) 
   const address = override.area ?? customer.address;
   const cityLine = [override.city, override.state, override.postcode].filter(Boolean).join(", ");
   const bits = [
-    customer.customerCode && `Code ${customer.customerCode}`,
+    customer.srNo && `Code ${String(customer.srNo).padStart(4, "0")}${customer.customerCode ? `-${customer.customerCode}` : ""}`,
     address,
     cityLine,
     override.email,

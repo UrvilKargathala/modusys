@@ -113,11 +113,14 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
                 ) : (
                   <span className="relative inline-block">
                     <Input
-                      type="number"
-                      min={0}
+                      type="text"
+                      inputMode="numeric"
                       placeholder="0"
-                      value={quote.installationFreightCost || ""}
-                      onChange={(e) => onChange({ installationFreightCost: Number(e.target.value) })}
+                      value={quote.installationFreightCost ? quote.installationFreightCost.toLocaleString("en-IN") : ""}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/[^\d]/g, "");
+                        onChange({ installationFreightCost: digits ? Number(digits) : 0 });
+                      }}
                       className="h-7 w-28 pl-5 text-right text-sm"
                     />
                     <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">₹</span>

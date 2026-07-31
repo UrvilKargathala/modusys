@@ -322,7 +322,7 @@ export function QuoteUnitCard({
             <QuoteCabinetGroup
               key={cabinet.id}
               cabinet={cabinet}
-              index={cabinetIndex + 1}
+              index={`${index + 1}.${cabinetIndex + 1}`}
               unit={unit}
               total={cabinetTotal(cabinet, unit, furnitureItems, hardwareItems)}
               onChange={(patch) => onChange({ cabinets: unit.cabinets.map((c) => (c.id === cabinet.id ? { ...c, ...patch } : c)) })}
