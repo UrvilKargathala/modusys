@@ -58,7 +58,7 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
                         const v = Number(e.target.value);
                         if (!Number.isNaN(v) && v >= 0) onChange({ markupMultiplier: v });
                       }}
-                      className="h-7 w-20 pr-5 text-right text-sm"
+                      className="h-9 w-28 pr-6 text-left text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                     <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-grey-400">×</span>
                   </span>
@@ -79,7 +79,7 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
                       max={100}
                       value={quote.specialDiscountPct || ""}
                       onChange={(e) => onChange({ specialDiscountPct: Number(e.target.value) })}
-                      className="h-7 w-20 pr-5 text-right text-sm"
+                      className="h-9 w-28 pr-6 text-left text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                     <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-grey-400">%</span>
                   </span>

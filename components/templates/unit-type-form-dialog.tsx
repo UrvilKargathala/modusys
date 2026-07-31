@@ -330,6 +330,7 @@ export function UnitTypeFormDialog({
                       <UnitTypeHardwareRow
                         key={h.id}
                         value={h}
+                        confirmChanges
                         onChange={(patch) => updateHardware(h.id, patch)}
                         onRemove={() => removeHardware(h.id)}
                       />

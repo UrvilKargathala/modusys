@@ -23,13 +23,26 @@ export function UnitTypeHardwareRow({
   value,
   onChange,
   onRemove,
+  confirmChanges,
 }: {
   value: UnitTypeHardware;
   onChange: (patch: Partial<UnitTypeHardware>) => void;
   onRemove: () => void;
+  // Opt-in — confirm before Category/Brand/Description/Level Type changes
+  // reprice the row.
+  confirmChanges?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [pendingChange, setPendingChange] = useState<{ label: string; patch: Partial<UnitTypeHardware> } | null>(null);
+
+  const commit = (label: string, patch: Partial<UnitTypeHardware>) => {
+    if (confirmChanges) {
+      setPendingChange({ label, patch });
+    } else {
+      onChange(patch);
+    }
+  };
 
   const hardwareItems = useHardwarePriceItems();
   const brands = useMaterialItems("brand");
@@ -110,7 +123,7 @@ export function UnitTypeHardwareRow({
     ) {
       patch.description = "";
     }
-    onChange(resolveFromCombo(patch, value));
+    commit("Category", resolveFromCombo(patch, value));
   };
 
   const handleBrandChange = (brandId: string) => {
@@ -126,11 +139,11 @@ export function UnitTypeHardwareRow({
     ) {
       patch.description = "";
     }
-    onChange(resolveFromCombo(patch, value));
+    commit("Brand", resolveFromCombo(patch, value));
   };
 
   const handleDescriptionChange = (description: string) => {
-    onChange(resolveFromCombo({ description }, value));
+    commit("Description", resolveFromCombo({ description }, value));
   };
 
   const handleArticleNoChange = (articleNo: string) => {
@@ -246,7 +259,7 @@ export function UnitTypeHardwareRow({
           <MaterialReferenceSelect
             category="level-type"
             value={value.levelTypeId ?? ""}
-            onChange={(id) => onChange({ levelTypeId: id })}
+            onChange={(id) => commit("Level Type", { levelTypeId: id })}
           />
         </div>
 
@@ -309,6 +322,17 @@ export function UnitTypeHardwareRow({
         title="Remove this hardware?"
         description="This removes the line item and its pricing from the quote."
         onConfirm={onRemove}
+      />
+
+      <ConfirmDialog
+        open={pendingChange !== null}
+        onOpenChange={(open) => !open && setPendingChange(null)}
+        title={`Change ${pendingChange?.label ?? ""}?`}
+        description={`Are you sure you want to change the ${pendingChange?.label?.toLowerCase() ?? ""} for this hardware line? This updates its Rate and Amount.`}
+        confirmLabel="Change"
+        onConfirm={() => {
+          if (pendingChange) onChange(pendingChange.patch);
+        }}
       />
     </div>
   );

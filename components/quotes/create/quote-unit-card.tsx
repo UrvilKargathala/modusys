@@ -329,13 +329,16 @@ export function QuoteUnitCard({
               onRemove={() => onChange({ cabinets: unit.cabinets.filter((c) => c.id !== cabinet.id) })}
               onDuplicate={() => duplicateCabinet(cabinet.id)}
               onUnitChange={(patch) => onChange(patch)}
+              onAddCabinet={cabinetIndex === unit.cabinets.length - 1 ? addBlankCabinet : undefined}
             />
           ))}
 
-          <Button type="button" size="sm" variant="outline" className="w-fit" onClick={addBlankCabinet}>
-            <Plus className="h-3.5 w-3.5" />
-            Add Cabinet
-          </Button>
+          {unit.cabinets.length === 0 && (
+            <Button type="button" size="sm" variant="outline" className="w-fit" onClick={addBlankCabinet}>
+              <Plus className="h-3.5 w-3.5" />
+              Add Cabinet
+            </Button>
+          )}
         </div>
       )}
 

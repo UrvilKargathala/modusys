@@ -233,6 +233,7 @@ function HardwareGroup({
                 <UnitTypeHardwareRow
                   key={item.id}
                   value={item}
+                  confirmChanges
                   onChange={(patch) => onChange(items.map((i) => (i.id === item.id ? { ...i, ...patch } : i)))}
                   onRemove={() => onChange(items.filter((i) => i.id !== item.id))}
                 />
@@ -295,6 +296,7 @@ export function QuoteCabinetGroup({
   onRemove,
   onDuplicate,
   onUnitChange,
+  onAddCabinet,
 }: {
   cabinet: QuoteCabinet;
   index: number;
@@ -304,6 +306,7 @@ export function QuoteCabinetGroup({
   onRemove: () => void;
   onDuplicate: () => void;
   onUnitChange?: (patch: { width?: number; depth?: number; height?: number; qty?: number }) => void;
+  onAddCabinet?: () => void;
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const isViewMode = useSearchParams().get("mode") === "view";
@@ -343,6 +346,12 @@ export function QuoteCabinetGroup({
           Auto Populate
         </Button>
         <div className="ml-auto flex items-center gap-3">
+          {onAddCabinet && (
+            <Button type="button" size="sm" variant="outline" onClick={onAddCabinet}>
+              <Plus className="h-3.5 w-3.5" />
+              Add Cabinet
+            </Button>
+          )}
           <span className="text-sm font-body font-semibold text-grey-900">Cabinet Total: ₹{total.toFixed(2)}</span>
           <button
             type="button"
