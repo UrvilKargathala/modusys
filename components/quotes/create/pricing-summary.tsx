@@ -97,37 +97,32 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
             </tr>
             <tr className="border-t border-grey-100">
               <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">
-                <span className="flex items-center gap-3">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={quote.installationFreightIncluded}
-                      onChange={(e) => onChange({ installationFreightIncluded: e.target.checked })}
-                      className="h-4 w-4 accent-primary"
-                    />
-                    Installation &amp; Freight Included
-                  </label>
-                  {!quote.installationFreightIncluded && (
-                    <span className="relative">
-                      <Input
-                        type="number"
-                        min={0}
-                        placeholder="0"
-                        value={quote.installationFreightCost || ""}
-                        onChange={(e) => onChange({ installationFreightCost: Number(e.target.value) })}
-                        className="h-7 w-28 pl-5 text-right text-sm"
-                      />
-                      <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">₹</span>
-                    </span>
-                  )}
-                </span>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={quote.installationFreightIncluded}
+                    onChange={(e) => onChange({ installationFreightIncluded: e.target.checked })}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Installation &amp; Freight Included
+                </label>
               </td>
               <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-body font-semibold text-grey-800">
-                {quote.installationFreightIncluded
-                  ? "Included"
-                  : waterfall.installationFreight > 0
-                    ? `+${formatInr(waterfall.installationFreight)}`
-                    : "—"}
+                {quote.installationFreightIncluded ? (
+                  "Included"
+                ) : (
+                  <span className="relative inline-block">
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      value={quote.installationFreightCost || ""}
+                      onChange={(e) => onChange({ installationFreightCost: Number(e.target.value) })}
+                      className="h-7 w-28 pl-5 text-right text-sm"
+                    />
+                    <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">₹</span>
+                  </span>
+                )}
               </td>
             </tr>
             <tr className="border-t border-grey-100">

@@ -13,7 +13,7 @@ import { UnitTypeHardwareRow } from "@/components/templates/unit-type-hardware-r
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
-import { groupTotal, hardwareLineTotal, evaluateFormula, SQMM_PER_SQFT, resolveLineItemDimensions } from "@/lib/quote-pricing";
+import { groupTotal, hardwareLineTotal, evaluateFormula, SQMM_PER_SQFT, resolveLineItemDimensions, carcassUnitFor } from "@/lib/quote-pricing";
 import type { QuoteCabinet } from "@/lib/mock/quote";
 import type { FurnitureLineItem, UnitTypeHardware } from "@/lib/mock/unit-type";
 import { cn } from "@/lib/utils";
@@ -55,8 +55,6 @@ export function FurnitureGroup({
   onChange,
   addLabel,
   accent = "primary",
-  onUnitChange,
-  onAutoPopulate,
 }: {
   title: string;
   label: string;
@@ -67,8 +65,6 @@ export function FurnitureGroup({
   onChange: (items: FurnitureLineItem[]) => void;
   addLabel: string;
   accent?: keyof typeof groupAccent;
-  onUnitChange?: (patch: { width?: number; depth?: number; height?: number; qty?: number }) => void;
-  onAutoPopulate?: () => void;
 }) {
   const furnitureItems = useFurniturePriceItems();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -99,42 +95,8 @@ export function FurnitureGroup({
             {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
           <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-700">{title}</h4>
-          {onUnitChange ? (
-            <div className="flex items-center gap-1.5">
-              {(["W", "D", "H"] as const).map((dim) => {
-                const key = dim === "W" ? "width" : dim === "D" ? "depth" : "height";
-                return (
-                  <div key={dim} className="flex items-center gap-1">
-                    <span className="text-xs font-body text-grey-500">{dim}</span>
-                    <Input
-                      type="number"
-                      value={unit[key] || ""}
-                      onChange={(e) => onUnitChange({ [key]: Number(e.target.value) })}
-                      className="h-7 w-16 bg-card text-sm"
-                    />
-                  </div>
-                );
-              })}
-              <div className="flex items-center gap-1">
-                <span className="text-xs font-body text-grey-500">Qty</span>
-                <Input
-                  type="number"
-                  min={1}
-                  value={unit.qty || ""}
-                  onChange={(e) => onUnitChange({ qty: Number(e.target.value) })}
-                  className="h-7 w-14 bg-card text-sm"
-                />
-              </div>
-            </div>
-          ) : null}
         </div>
         <div className="flex items-center gap-3">
-          {onAutoPopulate && (
-            <Button type="button" size="sm" onClick={onAutoPopulate}>
-              <Sparkles className="h-3.5 w-3.5" />
-              Auto Populate
-            </Button>
-          )}
           <span className="text-sm font-body font-semibold text-grey-700">₹{subtotal.toFixed(2)}</span>
           <Button
             type="button"
@@ -295,7 +257,6 @@ export function QuoteCabinetGroup({
   onChange,
   onRemove,
   onDuplicate,
-  onUnitChange,
   onAddCabinet,
 }: {
   cabinet: QuoteCabinet;
@@ -305,7 +266,6 @@ export function QuoteCabinetGroup({
   onChange: (patch: Partial<QuoteCabinet>) => void;
   onRemove: () => void;
   onDuplicate: () => void;
-  onUnitChange?: (patch: { width?: number; depth?: number; height?: number; qty?: number }) => void;
   onAddCabinet?: () => void;
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -313,12 +273,13 @@ export function QuoteCabinetGroup({
   const [collapsed, setCollapsed] = useState(isViewMode);
   const cabinetTypes = useCabinetTypes();
   const selectedCabinetType = cabinetTypes.find((c) => c.id === cabinet.cabinetTypeId);
+  const carcassUnit = carcassUnitFor(cabinet, unit);
 
   const runAutoPopulate = () => {
     if (!selectedCabinetType) return;
     onChange({
       components: selectedCabinetType.components.map((c) =>
-        resolveLineItemDimensions({ ...c, id: `qli-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }, unit)
+        resolveLineItemDimensions({ ...c, id: `qli-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }, carcassUnit)
       ),
     });
   };
@@ -341,6 +302,33 @@ export function QuoteCabinetGroup({
           value={cabinet.cabinetTypeId}
           onChange={(cabinetTypeId) => onChange({ cabinetTypeId })}
         />
+        <div className="flex items-center gap-1.5">
+          {(["W", "D", "H"] as const).map((dim) => {
+            const key = dim === "W" ? "carcassWidth" : dim === "D" ? "carcassDepth" : "carcassHeight";
+            const fallback = dim === "W" ? unit.width : dim === "D" ? unit.depth : unit.height;
+            return (
+              <div key={dim} className="flex items-center gap-1">
+                <span className="text-xs font-body text-grey-500">{dim}</span>
+                <Input
+                  type="number"
+                  value={cabinet[key] ?? fallback ?? ""}
+                  onChange={(e) => onChange({ [key]: Number(e.target.value) })}
+                  className="h-7 w-16 bg-card text-sm"
+                />
+              </div>
+            );
+          })}
+          <div className="flex items-center gap-1">
+            <span className="text-xs font-body text-grey-500">Qty</span>
+            <Input
+              type="number"
+              min={1}
+              value={cabinet.carcassQty ?? unit.qty ?? ""}
+              onChange={(e) => onChange({ carcassQty: Number(e.target.value) })}
+              className="h-7 w-14 bg-card text-sm"
+            />
+          </div>
+        </div>
         <Button type="button" size="sm" disabled={!selectedCabinetType} onClick={runAutoPopulate}>
           <Sparkles className="h-3.5 w-3.5" />
           Auto Populate
@@ -381,11 +369,9 @@ export function QuoteCabinetGroup({
             showComponentName
             accent="primary"
             items={cabinet.components}
-            unit={unit}
+            unit={carcassUnit}
             addLabel="Add Component"
             onChange={(components) => onChange({ components })}
-            onUnitChange={onUnitChange}
-            onAutoPopulate={selectedCabinetType ? runAutoPopulate : undefined}
           />
           <FurnitureGroup
             title="Shutter"

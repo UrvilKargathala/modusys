@@ -328,7 +328,6 @@ export function QuoteUnitCard({
               onChange={(patch) => onChange({ cabinets: unit.cabinets.map((c) => (c.id === cabinet.id ? { ...c, ...patch } : c)) })}
               onRemove={() => onChange({ cabinets: unit.cabinets.filter((c) => c.id !== cabinet.id) })}
               onDuplicate={() => duplicateCabinet(cabinet.id)}
-              onUnitChange={(patch) => onChange(patch)}
               onAddCabinet={cabinetIndex === unit.cabinets.length - 1 ? addBlankCabinet : undefined}
             />
           ))}

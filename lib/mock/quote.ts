@@ -14,6 +14,13 @@ export type QuoteCabinet = {
   externalFinishes: FurnitureLineItem[];
   hardware: UnitTypeHardware[];
   panels: FurnitureLineItem[];
+  // Carcass-only W/D/H/Qty override — unset means "inherit the Unit's".
+  // Editing these must never resize Shutter/Other Panel/Hardware, which
+  // stay pinned to the Unit's own dimensions.
+  carcassWidth?: number;
+  carcassDepth?: number;
+  carcassHeight?: number;
+  carcassQty?: number;
 };
 
 export type QuoteUnit = {

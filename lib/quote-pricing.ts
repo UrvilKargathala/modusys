@@ -126,14 +126,30 @@ export function groupTotal(
   return items.reduce((sum, i) => sum + furnitureLineTotal(i, unit, furnitureItems), 0);
 }
 
+// Carcass reads its own W/D/H/Qty override when set, falling back to the
+// Unit's — Shutter/Other Panel/Hardware always use the Unit's directly, so
+// editing Carcass dimensions never resizes them.
+export function carcassUnitFor(
+  cabinet: QuoteCabinet,
+  unit: { width: number; depth: number; height: number; qty: number }
+): { width: number; depth: number; height: number; qty: number } {
+  return {
+    width: cabinet.carcassWidth ?? unit.width,
+    depth: cabinet.carcassDepth ?? unit.depth,
+    height: cabinet.carcassHeight ?? unit.height,
+    qty: cabinet.carcassQty ?? unit.qty,
+  };
+}
+
 export function cabinetTotal(
   cabinet: QuoteCabinet,
-  unit: { width: number; depth: number; height: number },
+  unit: { width: number; depth: number; height: number; qty: number },
   furnitureItems: FurniturePriceItem[],
   hardwareItems: HardwarePriceItem[]
 ): number {
+  const carcassUnit = carcassUnitFor(cabinet, unit);
   return (
-    groupTotal(cabinet.components, unit, furnitureItems) +
+    groupTotal(cabinet.components, carcassUnit, furnitureItems) +
     groupTotal(cabinet.externalFinishes, unit, furnitureItems) +
     groupTotal(cabinet.panels, unit, furnitureItems) +
     cabinet.hardware.reduce((sum, h) => sum + hardwareLineTotal(h, unit, hardwareItems), 0)
