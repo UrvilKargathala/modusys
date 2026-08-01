@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Plus, Copy, Trash2 } from "lucide-react";
+import { Plus, Copy, Trash2 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { cn } from "@/lib/utils";
 import type { FinishOption } from "@/lib/mock/quote";
 
 // Option letter derives from row position: 0→A, 1→B, ..., 25→Z. Simple mod
@@ -32,7 +31,6 @@ export function FinishOptionsTable({
   onChange: (next: FinishOption[]) => void;
 }) {
   const [deleteTarget, setDeleteTarget] = useState<FinishOption | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
 
   const update = (id: string, patch: Partial<FinishOption>) =>
     onChange(options.map((o) => (o.id === id ? { ...o, ...patch } : o)));
@@ -48,24 +46,16 @@ export function FinishOptionsTable({
   };
 
   return (
-    <div className="flex flex-col gap-6 rounded-xl border border-grey-100 bg-card p-6">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setCollapsed((c) => !c)}
-          className="flex items-center gap-2 text-left"
-          aria-label={collapsed ? "Expand Finish Options" : "Collapse Finish Options"}
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4 text-grey-400" /> : <ChevronDown className="h-4 w-4 text-grey-400" />}
-          <h2 className="font-heading text-lg font-semibold text-grey-900">Finish Options</h2>
-        </button>
+        <h3 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-500">Finish Options</h3>
         <Button type="button" size="sm" onClick={() => onChange([...options, newOption()])}>
           <Plus className="h-4 w-4" />
           Add Option
         </Button>
       </div>
 
-      <div className={cn("overflow-x-auto rounded-lg border border-grey-100", collapsed && "hidden")}>
+      <div className="overflow-x-auto rounded-lg border border-grey-100">
         <table className="w-full text-left">
           <thead className="bg-light-600">
             <tr>
@@ -104,6 +94,7 @@ export function FinishOptionsTable({
                           value={row.externalColourId}
                           onChange={(id) => update(row.id, { externalColourId: id })}
                           nameOnly
+                          bold
                         />
                       </div>
                       <span className="text-sm font-body text-grey-400">+</span>
@@ -112,17 +103,29 @@ export function FinishOptionsTable({
                           category="tandem-drawer-type"
                           value={row.tandemDrawerTypeId}
                           onChange={(id) => update(row.id, { tandemDrawerTypeId: id })}
+                          bold
                         />
                       </div>
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <Input
-                      type="number"
-                      min={0}
-                      value={row.price || ""}
-                      onChange={(e) => update(row.id, { price: Number(e.target.value) })}
-                      className="w-32"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={
+                        row.price
+                          ? row.price.toLocaleString("en-IN", { maximumFractionDigits: 2 })
+                          : ""
+                      }
+                      onChange={(e) => {
+                        const cleaned = e.target.value.replace(/[^\d.]/g, "");
+                        const firstDot = cleaned.indexOf(".");
+                        const normalized =
+                          firstDot === -1 ? cleaned : cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, "");
+                        update(row.id, { price: normalized ? Number(normalized) : 0 });
+                      }}
+                      className="w-32 font-semibold"
                     />
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">

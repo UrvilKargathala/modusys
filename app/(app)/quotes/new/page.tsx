@@ -17,8 +17,7 @@ import { ClientDetailsSection } from "@/components/quotes/create/client-details-
 import { MaterialSpecificationSection } from "@/components/quotes/create/material-specification-section";
 import { UnitsSection } from "@/components/quotes/create/units-section";
 import { QuoteSummarySection } from "@/components/quotes/create/quote-summary-section";
-import { RemarkSection } from "@/components/quotes/create/remark-section";
-import { FinishOptionsTable } from "@/components/quotes/create/finish-options-table";
+import { RemarkAndFinishesSection } from "@/components/quotes/create/remark-and-finishes-section";
 import { blankQuote, type Quote } from "@/lib/mock/quote";
 import { applyShutterFinishToUnits } from "@/lib/quote-pricing";
 import { quotesStore, useQuotes } from "@/lib/store/quotes-store";
@@ -139,12 +138,7 @@ function CreateQuotePage() {
         <UnitsSection units={quote.units} shutterFinishId={quote.shutterFinishId} onChange={(units) => patchQuote({ units })} />
         <QuoteSummarySection quote={quote} onChange={patchQuote} />
 
-        <RemarkSection quote={quote} onChange={patchQuote} onSave={handleSaveRemark} />
-
-        <FinishOptionsTable
-          options={quote.finishOptions ?? []}
-          onChange={(finishOptions) => patchQuote({ finishOptions })}
-        />
+        <RemarkAndFinishesSection quote={quote} onChange={patchQuote} onSaveRemark={handleSaveRemark} />
       </div>
 
       <ConfirmDialog

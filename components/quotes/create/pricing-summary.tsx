@@ -6,7 +6,7 @@ import { quoteRawTotal, quoteWaterfall } from "@/lib/quote-pricing";
 import type { Quote } from "@/lib/mock/quote";
 
 function formatInr(value: number) {
-  return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  return `₹${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (patch: Partial<Quote>) => void }) {
