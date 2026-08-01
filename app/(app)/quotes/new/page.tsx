@@ -133,9 +133,14 @@ function CreateQuotePage() {
             : "flex flex-col gap-6"
         }
       >
-        <ClientDetailsSection quote={quote} onChange={patchQuote} />
-        <MaterialSpecificationSection quote={quote} onChange={patchQuote} />
-        <UnitsSection units={quote.units} shutterFinishId={quote.shutterFinishId} onChange={(units) => patchQuote({ units })} />
+        <ClientDetailsSection quote={quote} onChange={patchQuote} confirmChanges={!!editId} />
+        <MaterialSpecificationSection quote={quote} onChange={patchQuote} confirmChanges={!!editId} />
+        <UnitsSection
+          units={quote.units}
+          shutterFinishId={quote.shutterFinishId}
+          onChange={(units) => patchQuote({ units })}
+          confirmChanges={!!editId}
+        />
         <QuoteSummarySection quote={quote} onChange={patchQuote} />
 
         <RemarkAndFinishesSection quote={quote} onChange={patchQuote} onSaveRemark={handleSaveRemark} />

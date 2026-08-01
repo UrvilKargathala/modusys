@@ -152,11 +152,13 @@ function HardwareGroup({
   unit,
   onChange,
   hideWhenEmpty,
+  confirmChanges,
 }: {
   items: UnitTypeHardware[];
   unit: { width: number; depth: number; height: number; qty: number };
   onChange: (items: UnitTypeHardware[]) => void;
   hideWhenEmpty?: boolean;
+  confirmChanges?: boolean;
 }) {
   const hardwareItems = useHardwarePriceItems();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -207,7 +209,7 @@ function HardwareGroup({
                 <UnitTypeHardwareRow
                   key={item.id}
                   value={item}
-                  confirmChanges
+                  confirmChanges={confirmChanges}
                   onChange={(patch) => onChange(items.map((i) => (i.id === item.id ? { ...i, ...patch } : i)))}
                   onRemove={() => onChange(items.filter((i) => i.id !== item.id))}
                 />
@@ -270,6 +272,7 @@ export function QuoteCabinetGroup({
   onRemove,
   onDuplicate,
   onAddCabinet,
+  confirmChanges = false,
 }: {
   cabinet: QuoteCabinet;
   index: string;
@@ -279,6 +282,7 @@ export function QuoteCabinetGroup({
   onRemove: () => void;
   onDuplicate: () => void;
   onAddCabinet?: () => void;
+  confirmChanges?: boolean;
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const isViewMode = useSearchParams().get("mode") === "view";
@@ -426,7 +430,13 @@ export function QuoteCabinetGroup({
             onChange={(panels) => onChange({ panels })}
             hideWhenEmpty
           />
-          <HardwareGroup items={cabinet.hardware} unit={unit} onChange={(hardware) => onChange({ hardware })} hideWhenEmpty />
+          <HardwareGroup
+            items={cabinet.hardware}
+            unit={unit}
+            onChange={(hardware) => onChange({ hardware })}
+            hideWhenEmpty
+            confirmChanges={confirmChanges}
+          />
         </>
       )}
 

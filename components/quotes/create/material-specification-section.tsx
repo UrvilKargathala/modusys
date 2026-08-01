@@ -17,13 +17,31 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-export function MaterialSpecificationSection({ quote, onChange }: { quote: Quote; onChange: (patch: Partial<Quote>) => void }) {
+export function MaterialSpecificationSection({
+  quote,
+  onChange,
+  confirmChanges = false,
+}: {
+  quote: Quote;
+  onChange: (patch: Partial<Quote>) => void;
+  // Only Edit mode has existing data worth confirming before overwriting —
+  // a brand-new quote has nothing to lose, so Create mode applies changes
+  // immediately with no popup.
+  confirmChanges?: boolean;
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const [pending, setPending] = useState<{ label: string; patch: Partial<Quote> } | null>(null);
 
-  const confirmChange = useCallback((label: string, patch: Partial<Quote>) => {
-    setPending({ label, patch });
-  }, []);
+  const confirmChange = useCallback(
+    (label: string, patch: Partial<Quote>) => {
+      if (confirmChanges) {
+        setPending({ label, patch });
+      } else {
+        onChange(patch);
+      }
+    },
+    [confirmChanges, onChange]
+  );
 
   return (
     <section className="flex flex-col gap-6 rounded-xl border border-grey-100 bg-card p-6">
