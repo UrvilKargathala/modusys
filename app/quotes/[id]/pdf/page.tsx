@@ -263,23 +263,22 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
               Email: {branding.email} | Tel: {branding.phone}
             </span>
           </div>
-          {branding.logoDataUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={branding.logoDataUrl} alt="" className="h-12 w-24 object-contain" />
-          )}
-        </div>
-
-        <SectionLabel>Client Information</SectionLabel>
-        <div className="grid grid-cols-[70%_30%] p-3 pt-2">
-          <div className="flex flex-col gap-1.5">
-            <Field label="Client Name" value={customer?.name ?? "—"} />
-            <Field label="Address" value={customerAddressLine} />
-            <Field label="Architect" value={architect ? fullName(architect) : "—"} />
-          </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex w-64 shrink-0 flex-col gap-1.5">
+            {branding.logoDataUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={branding.logoDataUrl} alt="" className="ml-auto h-12 w-24 object-contain" />
+            )}
             <Field label="Quote No" value={quote.quoteNumber} />
             <Field label="Quote Date" value={formatDate(quote.date)} />
             <Field label="Revision" value={quote.revision} />
+            <div className="mt-1.5 border-t pt-1.5" style={{ borderColor: "rgba(255,248,234,0.3)" }}>
+              <span className="font-heading text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>
+                Client Details
+              </span>
+            </div>
+            <Field label="Client Name" value={customer?.name ?? "—"} />
+            <Field label="Address" value={customerAddressLine} />
+            <Field label="Architect" value={architect ? fullName(architect) : "—"} />
           </div>
         </div>
 
