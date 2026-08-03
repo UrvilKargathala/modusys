@@ -72,7 +72,7 @@ export function TopNavbar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-body font-medium transition-colors",
+                "whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-body font-bold transition-colors",
                 active ? "bg-primary text-white shadow-sm" : "text-grey-700 hover:text-grey-900"
               )}
             >
