@@ -232,7 +232,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         {isDownload ? "Download as PDF" : "Print / Save as PDF"}
       </button>
 
-      <div className="quote-pdf-sheet w-full max-w-[960px] rounded-sm p-10 font-body text-[13px] shadow-sm print:max-w-none print:shadow-none">
+      <div className={`quote-pdf-sheet w-full max-w-[960px] rounded-sm p-10 font-body text-[13px] shadow-sm print:max-w-none print:shadow-none${isDownload ? "" : " pdf-print-mode"}`}>
         <div className="flex items-start justify-between pb-4">
           <div className="flex flex-col gap-1.5">
             <BrandMark className="h-10" />
