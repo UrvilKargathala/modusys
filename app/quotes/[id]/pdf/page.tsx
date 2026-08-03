@@ -18,7 +18,7 @@ import type { FurnitureLineItem, UnitTypeHardware } from "@/lib/mock/unit-type";
 import type { QuoteUnit } from "@/lib/mock/quote";
 
 function formatInr(value: number) {
-  return `₹${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatDate(d: string) {
@@ -236,10 +236,10 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         <div className="flex items-start justify-between pb-4">
           <div className="flex flex-col gap-1.5">
             <BrandMark className="h-10" />
-            <span className="pdf-cream-muted text-xs">{branding.tagline}</span>
+            <span className="pdf-cream-muted pdf-heading text-xs">{branding.tagline}</span>
             <span className="pdf-cream pdf-heading font-heading text-[14px] font-bold">{branding.companyName}</span>
-            <span className="pdf-cream-muted text-xs">{branding.address}</span>
-            <span className="pdf-cream-muted text-xs">
+            <span className="pdf-cream-muted pdf-heading text-xs">{branding.address}</span>
+            <span className="pdf-cream-muted pdf-heading text-xs">
               Email: {branding.email} | Tel: <span className="font-number">{branding.phone}</span>
             </span>
           </div>
@@ -309,7 +309,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             ) : (
               cabinetGroups.map((group) => (
                 <>
-                  <tr key={`h-${group.index}`} className="pdf-cream pdf-border border-t font-semibold">
+                  <tr key={`h-${group.index}`} className="pdf-cream pdf-heading pdf-border border-t font-semibold">
                     <td className="whitespace-nowrap px-2.5 py-1.5 font-number">{group.index}</td>
                     <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.brand}</td>
                     <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.product}</td>
@@ -378,7 +378,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         {quote.finishOptions.length > 0 && (
           <>
             <SectionLabel>Finish Options</SectionLabel>
-            <table className="w-full border-collapse text-[10.5px]">
+            <table className="w-full border-collapse text-xs">
               <thead>
                 <tr className="pdf-cream-dim text-left">
                   <th className="w-16 px-2 py-1.5 font-bold">Options</th>
@@ -467,7 +467,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
               <span className="pdf-cream-dim max-w-xs text-[11px]">{signature.additionalFooterText}</span>
             )}
           </div>
-          <span className="font-medium">{signature.signatureTitle}</span>
+          <span className="pdf-heading font-medium">{signature.signatureTitle}</span>
         </div>
       </div>
     </div>
