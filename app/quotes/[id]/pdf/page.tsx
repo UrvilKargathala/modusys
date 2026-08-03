@@ -282,27 +282,27 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         <SectionLabel>Unit Details</SectionLabel>
         <table className="w-full table-fixed border-collapse text-[10.5px]">
           <colgroup>
-            <col style={{ width: "5%" }} />
+            <col style={{ width: "7%" }} />
             <col style={{ width: "9%" }} />
             <col style={{ width: "14%" }} />
-            <col style={{ width: "38%" }} />
+            <col style={{ width: "34%" }} />
             <col style={{ width: "7%" }} />
             <col style={{ width: "7%" }} />
             <col style={{ width: "7%" }} />
-            <col style={{ width: "5%" }} />
-            <col style={{ width: "5%" }} />
+            <col style={{ width: "6%" }} />
+            <col style={{ width: "9%" }} />
           </colgroup>
           <thead>
             <tr className="text-left" style={{ color: "rgba(255,248,234,0.6)" }}>
-              <th className="whitespace-nowrap px-2 py-1.5 font-medium">Unit No</th>
-              <th className="whitespace-nowrap px-2 py-1.5 font-medium">Brand</th>
-              <th className="px-2 py-1.5 font-medium">Product</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-medium">Unit No</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-medium">Brand</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-medium">Product</th>
               <th className="px-2 py-1.5 font-medium">Material Description</th>
-              <th className="whitespace-nowrap px-2 py-1.5 text-right font-medium">Width</th>
-              <th className="whitespace-nowrap px-2 py-1.5 text-right font-medium">Depth</th>
-              <th className="whitespace-nowrap px-2 py-1.5 text-right font-medium">Height</th>
-              <th className="whitespace-nowrap px-2 py-1.5 text-right font-medium">Qty</th>
-              <th className="whitespace-nowrap px-2 py-1.5 font-medium">Unit</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-medium">Width</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-medium">Depth</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-medium">Height</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-medium">Qty</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-medium">Unit</th>
             </tr>
           </thead>
           <tbody>
