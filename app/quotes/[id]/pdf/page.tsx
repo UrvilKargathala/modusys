@@ -256,7 +256,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         <div className="flex items-start justify-between pb-4">
           <div className="flex flex-col gap-1.5">
             <BrandMark color="#FFF8EA" className="h-10" />
-            <span className="font-heading text-xl font-medium" style={{ color: "#FFF8EA" }}>{branding.companyName}</span>
+            <span className="font-heading text-[14px] font-bold" style={{ color: "#FFF8EA" }}>{branding.companyName}</span>
             <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>{branding.tagline}</span>
             <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>{branding.address}</span>
             <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>
