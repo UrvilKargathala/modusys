@@ -451,9 +451,9 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         <div className="pdf-cream-body mt-5 flex flex-col gap-1 text-[11px]">
           <span className="pdf-cream font-semibold">Bank Details</span>
-          <div className="flex flex-col gap-0.5 pl-4">
-            <span>Bank: {banking.bankName} ({banking.branch})</span>
+          <div className="flex flex-wrap gap-x-6 gap-y-0.5 pl-4">
             <span>Account Name: {banking.accountName}</span>
+            <span>Bank: {banking.bankName} ({banking.branch})</span>
             <span>A/C No: <span className="font-number">{banking.accountNumber}</span></span>
             <span>IFSC: <span className="font-number">{banking.ifscCode}</span></span>
           </div>
