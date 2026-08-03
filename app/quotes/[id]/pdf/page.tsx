@@ -69,7 +69,7 @@ function BrandMark({ color, className }: { color: string; className?: string }) 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex gap-2 text-[11px] leading-relaxed">
-      <span className="w-32 shrink-0 font-medium tracking-wide" style={{ color: "rgba(255,248,234,0.6)" }}>{label}</span>
+      <span className="w-32 shrink-0 font-bold tracking-wide" style={{ color: "rgba(255,248,234,0.6)" }}>{label}</span>
       <span style={{ color: "#FFF8EA" }}>{value}</span>
     </div>
   );
@@ -308,15 +308,15 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </colgroup>
           <thead>
             <tr className="text-left" style={{ color: "rgba(255,248,234,0.6)" }}>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-medium">Unit</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-medium">Brand</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-medium">Product</th>
-              <th className="px-2 py-1.5 font-medium">Material Description</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-medium">Width</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-medium">Depth</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-medium">Height</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-medium">Qty</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-medium">Unit</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-bold">Unit</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-bold">Brand</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-bold">Product</th>
+              <th className="px-2 py-1.5 font-bold">Material Description</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-bold">Width</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-bold">Depth</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-bold">Height</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-bold">Qty</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-bold">Unit</th>
             </tr>
           </thead>
           <tbody>
@@ -399,9 +399,9 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <table className="w-full border-collapse text-[10.5px]">
               <thead>
                 <tr className="text-left" style={{ color: "rgba(255,248,234,0.6)" }}>
-                  <th className="w-16 px-2 py-1.5 font-medium">Options</th>
-                  <th className="px-2 py-1.5 font-medium">Exposed Material Finish With Hardware Fitting Description</th>
-                  <th className="w-28 px-2 py-1.5 text-right font-medium">Final Amount</th>
+                  <th className="w-16 px-2 py-1.5 font-bold">Options</th>
+                  <th className="px-2 py-1.5 font-bold">Exposed Material Finish With Hardware Fitting Description</th>
+                  <th className="w-28 px-2 py-1.5 text-right font-bold">Final Amount</th>
                 </tr>
               </thead>
               <tbody>
