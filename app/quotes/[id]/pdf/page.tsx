@@ -272,7 +272,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <Field label="Quote Date" value={formatDate(quote.date)} />
             <Field label="Revision" value={quote.revision} />
             <div className="mt-1.5 border-t pt-1.5" style={{ borderColor: "rgba(255,248,234,0.3)" }}>
-              <span className="font-heading text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>
+              <span className="font-heading text-[11px] font-semibold tracking-wide" style={{ color: "#FFF8EA" }}>
                 Client Details
               </span>
             </div>
