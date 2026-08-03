@@ -253,21 +253,21 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         className="w-full max-w-[820px] rounded-sm p-8 font-body text-[13px] shadow-sm print:max-w-none print:shadow-none"
         style={{ backgroundColor: "#9E7676", color: "#FFF8EA" }}
       >
-        <div className="flex items-start justify-between pb-4" style={{ borderBottom: "2px solid #FFF8EA" }}>
+        <div className="flex items-start justify-between pb-4">
           <div className="flex flex-col gap-1">
-            <BrandMark color="#FFF8EA" />
-            <span className="font-heading text-xl font-bold" style={{ color: "#FFF8EA" }}>{branding.companyName}</span>
+            <div className="flex flex-col items-center gap-1">
+              <BrandMark color="#FFF8EA" />
+              <span className="font-heading text-xl font-bold" style={{ color: "#FFF8EA" }}>{branding.companyName}</span>
+            </div>
             <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>{branding.tagline}</span>
             <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>{branding.address}</span>
             <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>
               Email: {branding.email} | Tel: {branding.phone}
             </span>
           </div>
-          {branding.logoDataUrl ? (
+          {branding.logoDataUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={branding.logoDataUrl} alt="" className="h-12 w-24 object-contain" />
-          ) : (
-            <span className="font-heading text-2xl font-bold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Quote</span>
           )}
         </div>
 
