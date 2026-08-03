@@ -40,8 +40,8 @@ function descOf(items: MaterialItem[], id?: string) {
 // so the document reads as one consistent system instead of ad hoc headers.
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mt-6 bg-primary-transparent px-3 py-1.5">
-      <h2 className="font-heading text-[11px] font-semibold uppercase tracking-wide text-primary">{children}</h2>
+    <div className="mt-6 px-3 py-1.5" style={{ backgroundColor: "#9E7676" }}>
+      <h2 className="font-heading text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>{children}</h2>
     </div>
   );
 }
@@ -230,7 +230,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
       </button>
 
       <div className="w-full max-w-[820px] rounded-sm border border-grey-100 bg-white p-8 font-body text-[13px] text-grey-800 shadow-sm print:max-w-none print:border-0 print:shadow-none">
-        <div className="flex items-start justify-between border-b-2 border-primary pb-4">
+        <div className="flex items-start justify-between pb-4" style={{ borderBottom: "2px solid #9E7676" }}>
           <div className="flex flex-col gap-0.5">
             <span className="font-heading text-xl font-bold text-grey-900">{branding.companyName}</span>
             <span className="text-xs text-grey-500">{branding.tagline}</span>
@@ -290,7 +290,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <col style={{ width: "5%" }} />
           </colgroup>
           <thead>
-            <tr className="bg-primary-transparent text-left text-primary">
+            <tr className="text-left" style={{ backgroundColor: "#9E7676", color: "#FFF8EA" }}>
               <th className="whitespace-nowrap px-2 py-1.5 font-medium">Unit No</th>
               <th className="whitespace-nowrap px-2 py-1.5 font-medium">Brand</th>
               <th className="px-2 py-1.5 font-medium">Product</th>
@@ -344,8 +344,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         <div className="mt-6 flex flex-col items-end">
           <div className="w-full max-w-sm">
-            <div className="bg-primary-transparent px-3 py-1.5">
-              <h2 className="font-heading text-[11px] font-semibold uppercase tracking-wide text-primary">Pricing Summary</h2>
+            <div className="px-3 py-1.5" style={{ backgroundColor: "#9E7676" }}>
+              <h2 className="font-heading text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Pricing Summary</h2>
             </div>
             <div className="flex flex-col gap-1 border border-t-0 border-grey-100 p-3 text-xs">
               {quote.remark && (
@@ -374,7 +374,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                   </div>
                 </>
               )}
-              <div className="flex justify-between border-t-2 border-primary pt-1.5 text-sm font-semibold text-grey-900">
+              <div className="flex justify-between pt-1.5 text-sm font-semibold text-grey-900" style={{ borderTop: "2px solid #9E7676" }}>
                 <span>Final Offer Price</span>
                 <span>{formatInr(waterfall.finalOffer)}</span>
               </div>
@@ -387,7 +387,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <SectionLabel>Finish Options</SectionLabel>
             <table className="w-full border-collapse border border-t-0 border-grey-100 text-[10.5px]">
               <thead>
-                <tr className="bg-primary-transparent text-left text-primary">
+                <tr className="text-left" style={{ backgroundColor: "#9E7676", color: "#FFF8EA" }}>
                   <th className="w-16 px-2 py-1.5 font-medium">Options</th>
                   <th className="px-2 py-1.5 font-medium">Exposed Material Finish With Hardware Fitting Description</th>
                   <th className="w-28 px-2 py-1.5 text-right font-medium">Final Amount</th>
@@ -415,7 +415,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         {notes.length > 0 && (
           <div className="mt-5 text-[11px] text-grey-600">
-            <span className="font-heading font-semibold uppercase tracking-wide text-primary">Note</span>
+            <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#9E7676" }}>Note</span>
             <ol className="mt-1 list-decimal pl-4">
               {notes.map((n) => (
                 <li key={n.id}>{n.text}</li>
@@ -426,7 +426,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         {terms.length > 0 && (
           <div className="mt-4 text-[11px] text-grey-600">
-            <span className="font-heading font-semibold uppercase tracking-wide text-primary">Terms &amp; Conditions</span>
+            <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#9E7676" }}>Terms &amp; Conditions</span>
             <ol className="mt-1 list-decimal pl-4">
               {terms.map((t) => (
                 <li key={t.id}>{t.text}</li>
@@ -437,7 +437,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         {paymentTerms.length > 0 && (
           <div className="mt-4 text-[11px] text-grey-600">
-            <span className="font-heading font-semibold uppercase tracking-wide text-primary">Payment Terms</span>
+            <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#9E7676" }}>Payment Terms</span>
             <ol className="mt-1 list-decimal pl-4">
               {paymentTerms.map((t) => (
                 <li key={t.id}>{t.text}</li>
