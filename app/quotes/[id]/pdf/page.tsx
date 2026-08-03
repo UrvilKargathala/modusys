@@ -77,7 +77,7 @@ function BrandMark({ color, className }: { color: string; className?: string }) 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex gap-2 text-[11px] leading-relaxed">
-      <span className="w-32 shrink-0 font-bold tracking-wide" style={{ color: "rgba(255,248,234,0.6)" }}>{label}</span>
+      <span className="pdf-label w-32 shrink-0 font-bold tracking-wide" style={{ color: "rgba(255,248,234,0.6)" }}>{label}</span>
       <span style={{ color: "#FFF8EA" }}>{value}</span>
     </div>
   );
@@ -253,7 +253,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
       </button>
 
       <div
-        className="w-full max-w-[960px] rounded-sm p-10 font-body text-[13px] shadow-sm print:max-w-none print:shadow-none"
+        className="quote-pdf-sheet w-full max-w-[960px] rounded-sm p-10 font-body text-[13px] shadow-sm print:max-w-none print:shadow-none"
         style={{ backgroundColor: "#9E7676", color: "#FFF8EA" }}
       >
         <div className="flex items-start justify-between pb-4">

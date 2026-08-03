@@ -324,13 +324,25 @@
   }
 }
 
-/* Browsers drop background colors when printing/saving-as-PDF unless told
-   otherwise — without this, the Quote PDF's mauve background and every
-   status/section background color would silently vanish on export. */
+/* Quote PDF prints on white with black text — overrides the on-screen mauve
+   theme so the exported document is clean and ink-friendly. The !important
+   beats the inline styles on the sheet elements. */
 @media print {
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+  .quote-pdf-sheet {
+    background-color: #fff !important;
+    color: #262626 !important;
+  }
+  .quote-pdf-sheet * {
+    color: #262626 !important;
+    border-color: #e2e4e8 !important;
+  }
+  .quote-pdf-sheet th,
+  .quote-pdf-sheet .pdf-label {
+    color: #5d6772 !important;
+  }
+  .quote-pdf-sheet svg rect,
+  .quote-pdf-sheet svg path {
+    fill: #262626 !important;
   }
 }
 
