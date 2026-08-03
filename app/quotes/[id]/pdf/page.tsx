@@ -48,9 +48,9 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 // The Furn's "T—f" wordmark, recreated as strokes so it can be tinted to
 // match the PDF's cream text color instead of shipping a raster asset.
-function BrandMark({ color }: { color: string }) {
+function BrandMark({ color, className }: { color: string; className?: string }) {
   return (
-    <svg viewBox="100 420 1080 420" className="h-8 w-auto" aria-hidden="true">
+    <svg viewBox="100 420 1080 420" className={`w-auto ${className ?? "h-8"}`} aria-hidden="true">
       <rect x="125" y="443" width="240" height="45" fill={color} />
       <rect x="232" y="443" width="45" height="375" fill={color} />
       <rect x="232" y="565" width="628" height="45" fill={color} />
@@ -254,11 +254,9 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         style={{ backgroundColor: "#9E7676", color: "#FFF8EA" }}
       >
         <div className="flex items-start justify-between pb-4">
-          <div className="flex flex-col gap-1">
-            <div className="flex flex-col items-center gap-1">
-              <BrandMark color="#FFF8EA" />
-              <span className="font-heading text-xl font-bold" style={{ color: "#FFF8EA" }}>{branding.companyName}</span>
-            </div>
+          <div className="flex flex-col gap-1.5">
+            <BrandMark color="#FFF8EA" className="h-10" />
+            <span className="font-heading text-xl font-medium" style={{ color: "#FFF8EA" }}>{branding.companyName}</span>
             <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>{branding.tagline}</span>
             <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>{branding.address}</span>
             <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>
