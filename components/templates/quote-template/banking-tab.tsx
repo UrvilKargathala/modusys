@@ -68,7 +68,7 @@ export function BankingTab({ disabled }: { disabled: boolean }) {
               type={revealAccount ? "text" : "password"}
               key={String(banking.accountNumber)}
               defaultValue={banking.accountNumber}
-              className="pr-8"
+              className="pr-8 font-number"
               onBlur={(e) => {
                 quoteTemplateStore.updateBanking({ accountNumber: e.target.value });
                 bump();

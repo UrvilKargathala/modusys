@@ -137,7 +137,7 @@ export function MediaGallery({ customerId }: { customerId: string }) {
                         <Play className="h-6 w-6 fill-white text-white" />
                       </div>
                       {item.durationSec && (
-                        <span className="absolute bottom-1 right-1 rounded bg-grey-900/70 px-1 text-[10px] text-white">
+                        <span className="absolute bottom-1 right-1 rounded bg-grey-900/70 px-1 text-[10px] font-number text-white">
                           {Math.floor(item.durationSec / 60)}:{String(item.durationSec % 60).padStart(2, "0")}
                         </span>
                       )}
@@ -147,7 +147,7 @@ export function MediaGallery({ customerId }: { customerId: string }) {
                     <div className="flex h-full flex-col items-center justify-center gap-1 p-2 text-center">
                       <FileText className="h-6 w-6 text-grey-400" />
                       <span className="w-full truncate text-[10px] text-grey-500">{item.name}</span>
-                      <span className="text-[9px] text-grey-300">{formatSize(item.sizeBytes)}</span>
+                      <span className="text-[9px] font-number text-grey-300">{formatSize(item.sizeBytes)}</span>
                     </div>
                   )}
 

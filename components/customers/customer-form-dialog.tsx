@@ -167,7 +167,7 @@ export function CustomerFormDialog({
             <div className="grid grid-cols-3 gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="c-srno">SR No</Label>
-                <div className="flex h-9 items-center justify-center rounded-lg border border-grey-100 bg-light-600 px-1 text-sm font-body font-medium text-grey-700">
+                <div className="flex h-9 items-center justify-center rounded-lg border border-grey-100 bg-light-600 px-1 text-sm font-number font-medium text-grey-700">
                   {pad4(srNo)}{liveCode ? `-${liveCode}` : ""}
                 </div>
               </div>
@@ -199,7 +199,7 @@ export function CustomerFormDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="c-mobile">Mobile Number</Label>
-              <Input id="c-mobile" placeholder="+91 98765 43210" {...register("mobile")} />
+              <Input id="c-mobile" placeholder="+91 98765 43210" className="font-number" {...register("mobile")} />
               {errors.mobile && <span className="text-xs font-body text-error">{errors.mobile.message}</span>}
             </div>
             <div className="flex flex-col gap-1.5">
@@ -211,7 +211,7 @@ export function CustomerFormDialog({
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="c-gst">GST No</Label>
-            <Input id="c-gst" placeholder="22AAAAA0000A1Z5" {...register("gst")} />
+            <Input id="c-gst" placeholder="22AAAAA0000A1Z5" className="font-number" {...register("gst")} />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -230,7 +230,7 @@ export function CustomerFormDialog({
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="c-postcode">Postcode</Label>
-              <Input id="c-postcode" {...register("postcode")} />
+              <Input id="c-postcode" className="font-number" {...register("postcode")} />
               {errors.postcode && (
                 <span className="text-xs font-body text-error">{errors.postcode.message}</span>
               )}
@@ -244,7 +244,7 @@ export function CustomerFormDialog({
                 id="c-bday-day"
                 aria-label="Birthday day"
                 {...register("birthdayDay")}
-                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
+                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-number text-grey-900 outline-none focus:border-primary"
               >
                 <option value="">Day</option>
                 {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
@@ -270,7 +270,7 @@ export function CustomerFormDialog({
                 id="c-bday-year"
                 aria-label="Birthday year"
                 {...register("birthdayYear")}
-                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
+                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-number text-grey-900 outline-none focus:border-primary"
               >
                 <option value="">Year</option>
                 {birthYears.map((y) => (
@@ -286,11 +286,11 @@ export function CustomerFormDialog({
             override?.updatedAt && (
               <p className="text-xs font-body text-grey-400">
                 Last updated{" "}
-                {new Date(override.updatedAt).toLocaleDateString("en-IN", {
+                <span className="font-number">{new Date(override.updatedAt).toLocaleDateString("en-IN", {
                   day: "2-digit",
                   month: "short",
                   year: "numeric",
-                })}
+                })}</span>
                 {updatedBy && ` by ${updatedBy}`}
               </p>
             )

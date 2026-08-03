@@ -35,7 +35,7 @@ export function LayoutTab({ disabled }: { disabled: boolean }) {
             <div className="flex flex-1 flex-col">
               <span className="text-sm font-body font-medium text-grey-700">{layout.referencePdfName}</span>
               <span className="text-xs font-body text-grey-400">
-                Uploaded {layout.referencePdfUploadedAt ? new Date(layout.referencePdfUploadedAt).toLocaleDateString("en-IN") : "—"}
+                Uploaded <span className="font-number">{layout.referencePdfUploadedAt ? new Date(layout.referencePdfUploadedAt).toLocaleDateString("en-IN") : "—"}</span>
               </span>
             </div>
             {!disabled && (

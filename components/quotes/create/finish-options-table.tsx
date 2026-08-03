@@ -125,7 +125,7 @@ export function FinishOptionsTable({
                           firstDot === -1 ? cleaned : cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, "");
                         update(row.id, { price: normalized ? Number(normalized) : 0 });
                       }}
-                      className="w-32 font-semibold"
+                      className="w-32 font-number font-semibold"
                     />
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">

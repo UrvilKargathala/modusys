@@ -128,6 +128,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
           <Input
             id="qt-phone"
             disabled={disabled}
+            className="font-number"
             key={String(branding.phone)}
             defaultValue={branding.phone}
             onBlur={(e) => {
@@ -153,7 +154,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
             disabled={disabled}
             key={String(branding.defaultMarkupMultiplier)}
             defaultValue={branding.defaultMarkupMultiplier}
-            className="max-w-32"
+            className="max-w-32 font-number"
             onBlur={(e) => {
               const value = Number(e.target.value);
               if (!Number.isNaN(value) && value > 0) {

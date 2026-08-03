@@ -53,7 +53,7 @@ export function TaskRow({ task }: { task: Task }) {
           </span>
         </div>
         <span className="text-xs font-body text-grey-400">
-          {task.dueDate ? `Due ${formatDueDate(task.dueDate)}` : "No due date"} ·{" "}
+          {task.dueDate ? <><span className="font-number">Due {formatDueDate(task.dueDate)}</span></> : "No due date"} ·{" "}
           {differentPeople ? `${userName(task.createdById)} → ${userName(task.assigneeId)}` : userName(task.assigneeId)}
           {customer && (
             <>

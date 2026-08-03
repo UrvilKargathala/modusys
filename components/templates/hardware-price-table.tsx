@@ -100,7 +100,7 @@ export function HardwarePriceTable() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="font-heading text-base font-semibold text-grey-900">Hardware Price List</h3>
-          <p className="text-xs font-body text-grey-400">{items.length} SKUs</p>
+          <p className="text-xs font-body text-grey-400"><span className="font-number">{items.length}</span> SKUs</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-44">
@@ -145,7 +145,7 @@ export function HardwarePriceTable() {
 
       {canEdit && selectedIds.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg bg-primary-transparent px-3 py-2 text-sm font-body text-primary">
-          <span className="font-medium">{selectedIds.length} selected</span>
+          <span className="font-medium"><span className="font-number">{selectedIds.length}</span> selected</span>
           <select
             defaultValue=""
             onChange={(e) => {

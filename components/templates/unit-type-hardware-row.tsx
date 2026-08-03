@@ -294,7 +294,7 @@ export function UnitTypeHardwareRow({
                 const raw = e.target.value;
                 onChange({ rateOverride: raw === "" ? undefined : Number(raw) });
               }}
-              className="pl-5"
+              className="pl-5 font-number"
             />
           </div>
           {value.rateOverride !== undefined && priceListRate !== undefined && value.rateOverride !== priceListRate && (
@@ -303,7 +303,7 @@ export function UnitTypeHardwareRow({
               onClick={() => onChange({ rateOverride: undefined })}
               className="w-fit text-xs font-body text-primary hover:underline"
             >
-              Reset (₹{priceListRate.toFixed(2)})
+              Reset (<span className="font-number">₹{priceListRate.toFixed(2)}</span>)
             </button>
           )}
         </div>

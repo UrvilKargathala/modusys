@@ -7,10 +7,12 @@ export function EditableField({
   label,
   value,
   onSave,
+  numeric,
 }: {
   label: string;
   value: string;
   onSave: (next: string) => void;
+  numeric?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -34,7 +36,7 @@ export function EditableField({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             autoFocus
-            className="min-w-0 flex-1 rounded-md border border-primary bg-card px-2 py-1 text-sm font-body text-grey-900 outline-none"
+            className={`min-w-0 flex-1 rounded-md border border-primary bg-card px-2 py-1 text-sm ${numeric ? "font-number" : "font-body"} text-grey-900 outline-none`}
           />
           <button
             type="button"
@@ -55,7 +57,7 @@ export function EditableField({
         </div>
       ) : (
         <div className="group flex min-w-0 items-start gap-1.5">
-          <span className="min-w-0 break-words text-sm font-body text-grey-900">{value}</span>
+          <span className={`min-w-0 break-words text-sm ${numeric ? "font-number" : "font-body"} text-grey-900`}>{value}</span>
           <button
             type="button"
             onClick={() => setEditing(true)}

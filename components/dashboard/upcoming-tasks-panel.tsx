@@ -62,7 +62,7 @@ export function UpcomingTasksPanel({
                     {task.title}
                   </span>
                   <span className="text-xs font-body text-grey-400">
-                    {task.dueDate ? `Due ${formatDueDate(task.dueDate)}` : "No due date"} · {userName(task.assigneeId)}
+                    {task.dueDate ? <><span className="font-number">Due {formatDueDate(task.dueDate)}</span> · </> : "No due date · "}{userName(task.assigneeId)}
                   </span>
                 </div>
               </li>

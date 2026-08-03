@@ -16,7 +16,7 @@ export function DateRangeControl({
         value={value.from}
         max={value.to}
         onChange={(e) => onChange({ ...value, from: e.target.value })}
-        className="min-w-0 flex-1 bg-transparent text-grey-700 outline-none sm:flex-none"
+        className="min-w-0 flex-1 bg-transparent font-number text-grey-700 outline-none sm:flex-none"
         aria-label="From date"
       />
       <span className="text-grey-300">→</span>
@@ -25,7 +25,7 @@ export function DateRangeControl({
         value={value.to}
         min={value.from}
         onChange={(e) => onChange({ ...value, to: e.target.value })}
-        className="min-w-0 flex-1 bg-transparent text-grey-700 outline-none sm:flex-none"
+        className="min-w-0 flex-1 bg-transparent font-number text-grey-700 outline-none sm:flex-none"
         aria-label="To date"
       />
     </div>

@@ -66,7 +66,7 @@ export function RecentQuotesPanel() {
                     >
                       {q.quoteNumber} · {customerName(q.customerId)}
                     </Link>
-                    <span className="text-xs font-body text-grey-400">{formatDate(q.updatedAt)}</span>
+                    <span className="text-xs font-number text-grey-400">{formatDate(q.updatedAt)}</span>
                   </div>
                   <span className="text-sm font-number font-medium text-grey-800">{formatInr(finalAmount(q))}</span>
                   <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium", cfg.bg, cfg.color)}>

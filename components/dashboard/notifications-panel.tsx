@@ -60,7 +60,7 @@ export function NotificationsPanel() {
                     </span>
                     <span className="flex flex-col gap-0.5">
                       <span className="text-sm font-body text-grey-800">{n.message}</span>
-                      <span className="text-xs font-body text-grey-400">{timeAgo(n.createdAt)}</span>
+                      <span className="text-xs font-number text-grey-400">{timeAgo(n.createdAt)}</span>
                     </span>
                   </button>
                 </li>

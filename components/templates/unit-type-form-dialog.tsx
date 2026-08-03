@@ -168,10 +168,10 @@ export function UnitTypeFormDialog({
         <Tabs value={tab} onValueChange={(v) => setTab(String(v))}>
           <TabsList className="flex-wrap">
             <TabsTrigger value="basic">Basic Info</TabsTrigger>
-            <TabsTrigger value="components">Components ({values.components.length})</TabsTrigger>
-            <TabsTrigger value="external-finish">External Finish ({values.externalFinishes.length})</TabsTrigger>
-            <TabsTrigger value="other-panel">Other Panel ({values.otherPanels.length})</TabsTrigger>
-            <TabsTrigger value="hardware">Hardware ({values.hardware.length})</TabsTrigger>
+            <TabsTrigger value="components">Components (<span className="font-number">{values.components.length}</span>)</TabsTrigger>
+            <TabsTrigger value="external-finish">External Finish (<span className="font-number">{values.externalFinishes.length}</span>)</TabsTrigger>
+            <TabsTrigger value="other-panel">Other Panel (<span className="font-number">{values.otherPanels.length}</span>)</TabsTrigger>
+            <TabsTrigger value="hardware">Hardware (<span className="font-number">{values.hardware.length}</span>)</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic" className="flex flex-col gap-4 pt-4">

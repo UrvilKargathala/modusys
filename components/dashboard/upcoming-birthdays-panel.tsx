@@ -80,7 +80,7 @@ export function UpcomingBirthdaysPanel() {
                     <span className="text-sm font-body text-grey-800">{person.name}</span>
                     <span className="text-xs font-body text-grey-400">{person.role}</span>
                   </div>
-                  <span className="text-xs font-body font-medium text-grey-500">{dateLabel}</span>
+                  <span className="text-xs font-number font-medium text-grey-500">{dateLabel}</span>
                 </li>
               );
             })}

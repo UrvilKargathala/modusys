@@ -78,7 +78,7 @@ export function UnitTypeTable() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="font-heading text-base font-semibold text-grey-900">Unit Type</h3>
-          <p className="text-xs font-body text-grey-400">{items.length} unit types</p>
+          <p className="text-xs font-body text-grey-400"><span className="font-number">{items.length}</span> unit types</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-44">

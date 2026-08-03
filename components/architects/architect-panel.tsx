@@ -116,11 +116,11 @@ export function ArchitectPanel() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1">
                     <span className="text-xs font-body text-grey-500">Mobile</span>
-                    <span className="text-sm font-body text-grey-900">{architect.mobile || "—"}</span>
+                    <span className="text-sm font-number text-grey-900">{architect.mobile || "—"}</span>
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-xs font-body text-grey-500">Office</span>
-                    <span className="text-sm font-body text-grey-900">{architect.office || "—"}</span>
+                    <span className="text-sm font-number text-grey-900">{architect.office || "—"}</span>
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-xs font-body text-grey-500">Instagram</span>
@@ -170,7 +170,7 @@ export function ArchitectPanel() {
                         className="flex items-center justify-between gap-2 rounded-lg border border-grey-100 bg-light-600/60 px-3 py-2 transition-colors hover:bg-light-600"
                       >
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-sm font-body font-medium text-grey-800">{quote.quoteNumber}</span>
+                          <span className="text-sm font-number font-medium text-grey-800">{quote.quoteNumber}</span>
                           <span className="text-xs font-body text-grey-400">{quote.customerName}</span>
                         </div>
                         <div className="flex items-center gap-2">

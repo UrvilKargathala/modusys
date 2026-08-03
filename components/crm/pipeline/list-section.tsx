@@ -40,8 +40,9 @@ const columns: ColumnDef<Customer>[] = [
   {
     accessorKey: "lastActivity",
     header: "Last Activity",
-    cell: ({ getValue }) =>
-      new Date(getValue<string>()).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }),
+    cell: ({ getValue }) => (
+      <span className="font-number">{new Date(getValue<string>()).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</span>
+    ),
   },
   { accessorKey: "assignee", header: "Assignee" },
   {

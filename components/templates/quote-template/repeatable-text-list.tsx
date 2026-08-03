@@ -45,7 +45,7 @@ export function RepeatableTextList({
 
       {items.map((item, index) => (
         <div key={item.id} className="flex items-start gap-2 rounded-md border border-grey-100 bg-card p-2">
-          <span className="mt-1.5 shrink-0 text-xs font-body font-medium text-grey-400">{index + 1}.</span>
+          <span className="mt-1.5 shrink-0 text-xs font-number font-medium text-grey-400">{index + 1}.</span>
           <input
             value={item.text}
             disabled={disabled}

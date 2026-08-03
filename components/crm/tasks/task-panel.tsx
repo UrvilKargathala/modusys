@@ -55,7 +55,7 @@ export function TaskPanel() {
             <div className="flex flex-col gap-2 rounded-lg bg-light-600 p-3 text-sm font-body">
               <div className="flex items-center gap-2 text-grey-600">
                 <Calendar className="h-4 w-4 text-grey-400" />
-                Due {formatDueDate(task.dueDate)}
+                Due <span className="font-number">{formatDueDate(task.dueDate)}</span>
               </div>
               <div className="flex items-center gap-2 text-grey-600">
                 <Avatar className="h-5 w-5">

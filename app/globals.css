@@ -334,6 +334,11 @@
   }
 }
 
+/* Ordered-list markers in Outfit Light (font-number) for the PDF sheet. */
+.marker-number::marker {
+  font-family: var(--font-number);
+}
+
 /* Scrollable but no visible scrollbar — for compact dashboard-style lists. */
 .scrollbar-hide {
   scrollbar-width: none;

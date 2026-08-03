@@ -79,7 +79,7 @@ export function FurniturePriceTable() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="font-heading text-base font-semibold text-grey-900">Furniture Price List</h3>
-          <p className="text-xs font-body text-grey-400">{items.length} combinations priced</p>
+          <p className="text-xs font-body text-grey-400"><span className="font-number">{items.length}</span> combinations priced</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-44">

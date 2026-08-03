@@ -124,7 +124,7 @@ export function ClientDetailsSection({
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 lg:gap-3">
           <Field label="Quote Number" htmlFor="q-number" helper="Auto-generated">
-            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-medium text-grey-700">
+            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-number font-medium text-grey-700">
               {quote.quoteNumber}
             </div>
           </Field>
@@ -133,13 +133,14 @@ export function ClientDetailsSection({
             <Input
               id="q-date"
               type="date"
+              className="font-number"
               value={quote.date}
               onChange={(e) => confirmChange("Date", { date: e.target.value })}
             />
           </Field>
 
           <Field label="Revision" htmlFor="q-revision" helper="Increments on duplicate/revise">
-            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-medium text-grey-700">
+            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-number font-medium text-grey-700">
               {quote.revision}
             </div>
           </Field>

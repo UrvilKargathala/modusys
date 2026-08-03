@@ -240,12 +240,12 @@ export function ArchitectFormDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="a-mobile">Mobile Number</Label>
-              <Input id="a-mobile" placeholder="+91 98765 43210" {...register("mobile")} />
+              <Input id="a-mobile" placeholder="+91 98765 43210" className="font-number" {...register("mobile")} />
               {errors.mobile && <span className="text-xs font-body text-error">{errors.mobile.message}</span>}
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="a-office">Office Number</Label>
-              <Input id="a-office" placeholder="+91 22 2650 1122" {...register("office")} />
+              <Input id="a-office" placeholder="+91 22 2650 1122" className="font-number" {...register("office")} />
               {errors.office && <span className="text-xs font-body text-error">{errors.office.message}</span>}
             </div>
           </div>
@@ -285,7 +285,7 @@ export function ArchitectFormDialog({
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="a-postcode">Postcode</Label>
-              <Input id="a-postcode" {...register("postcode")} />
+              <Input id="a-postcode" className="font-number" {...register("postcode")} />
               {errors.postcode && <span className="text-xs font-body text-error">{errors.postcode.message}</span>}
             </div>
           </div>
@@ -297,7 +297,7 @@ export function ArchitectFormDialog({
                 id="a-bday-day"
                 aria-label="Birthday day"
                 {...register("birthdayDay")}
-                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
+                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-number text-grey-900 outline-none focus:border-primary"
               >
                 <option value="">Day</option>
                 {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
@@ -323,7 +323,7 @@ export function ArchitectFormDialog({
                 id="a-bday-year"
                 aria-label="Birthday year"
                 {...register("birthdayYear")}
-                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
+                className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-number text-grey-900 outline-none focus:border-primary"
               >
                 <option value="">Year</option>
                 {birthYears.map((y) => (
@@ -338,12 +338,12 @@ export function ArchitectFormDialog({
           {isEdit && (
             <p className="text-xs font-body text-grey-400">
               Added{" "}
-              {architect &&
+              <span className="font-number">{architect &&
                 new Date(architect.createdAt).toLocaleDateString("en-IN", {
                   day: "2-digit",
                   month: "short",
                   year: "numeric",
-                })}
+                })}</span>
               {createdBy && ` by ${createdBy}`}
             </p>
           )}

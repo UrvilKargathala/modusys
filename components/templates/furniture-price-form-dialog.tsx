@@ -118,6 +118,7 @@ export function FurniturePriceFormDialog({
               type="number"
               min={0}
               step={0.01}
+              className="font-number"
               value={values.rate || ""}
               onChange={(e) => setValues((v) => ({ ...v, rate: Number(e.target.value) }))}
             />

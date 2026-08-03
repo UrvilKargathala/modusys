@@ -34,7 +34,7 @@ function VoiceBubble({ message }: { message: CustomerMessage }) {
           <span key={i} className="w-0.5 rounded-full bg-primary-300" style={{ height: `${h}%` }} />
         ))}
       </div>
-      <span className="text-xs font-body text-grey-400">
+      <span className="text-xs font-number text-grey-400">
         0:{String(message.durationSec ?? 0).padStart(2, "0")}
       </span>
       <audio
@@ -54,7 +54,7 @@ export function MessageBubble({ message }: { message: CustomerMessage }) {
     return (
       <div className="flex justify-center py-1">
         <span className="rounded-full bg-light-600 px-3 py-1 text-xs font-body text-grey-400">
-          {message.text} · {timeAgo(message.createdAt)}
+          {message.text} · <span className="font-number">{timeAgo(message.createdAt)}</span>
         </span>
       </div>
     );
@@ -83,7 +83,7 @@ export function MessageBubble({ message }: { message: CustomerMessage }) {
             <MessageText text={message.text ?? ""} inverted={isSelf} />
           )}
         </div>
-        <div className="flex items-center gap-1.5 text-[11px] font-body text-grey-300">
+        <div className="flex items-center gap-1.5 text-[11px] font-number text-grey-300">
           {message.status === "pending" && (
             <>
               <Clock className="h-3 w-3" /> Sending…

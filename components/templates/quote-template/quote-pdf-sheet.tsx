@@ -44,7 +44,7 @@ export function QuotePdfSheet({ settings }: { settings: QuoteTemplateSettings })
           <span className="text-xs text-grey-500">{branding.tagline}</span>
           <span className="text-xs text-grey-500">{branding.address}</span>
           <span className="text-xs text-grey-500">
-            Email: {branding.email} | Tel: {branding.phone}
+            Email: {branding.email} | Tel: <span className="font-number">{branding.phone}</span>
           </span>
         </div>
         {branding.logoDataUrl && (
@@ -56,7 +56,7 @@ export function QuotePdfSheet({ settings }: { settings: QuoteTemplateSettings })
       {/* Client */}
       <div className="mt-4 flex flex-col gap-0.5 text-xs text-grey-600">
         <span className="font-medium text-grey-800">Client: Sample Customer</span>
-        <span>Quote No: Q-SAMPLE-001 · Date: {new Date().toLocaleDateString("en-IN")}</span>
+        <span>Quote No: <span className="font-number">Q-SAMPLE-001</span> · Date: <span className="font-number">{new Date().toLocaleDateString("en-IN")}</span></span>
       </div>
 
       {/* Pricing table */}
@@ -72,7 +72,7 @@ export function QuotePdfSheet({ settings }: { settings: QuoteTemplateSettings })
           {SAMPLE_UNITS.map((u) => (
             <tr key={u.name} className="border-t border-grey-100">
               <td className="px-2 py-1.5">{u.name}</td>
-              {layout.showUnitLevelPricing && <td className="px-2 py-1.5 text-right">{formatInr(u.cost)}</td>}
+              {layout.showUnitLevelPricing && <td className="px-2 py-1.5 text-right font-number">{formatInr(u.cost)}</td>}
             </tr>
           ))}
         </tbody>
@@ -81,16 +81,16 @@ export function QuotePdfSheet({ settings }: { settings: QuoteTemplateSettings })
       {/* Waterfall */}
       <SectionLabel>Pricing Summary</SectionLabel>
       <div className="flex flex-col gap-1 border border-t-0 border-grey-100 p-3 text-xs">
-        <div className="flex justify-between"><span>Total</span><span>{formatInr(total)}</span></div>
-        <div className="flex justify-between"><span>Discount</span><span>-{formatInr(discount)}</span></div>
-        <div className="flex justify-between"><span>Amount After Discount</span><span>{formatInr(afterDiscount)}</span></div>
+        <div className="flex justify-between"><span>Total</span><span className="font-number">{formatInr(total)}</span></div>
+        <div className="flex justify-between"><span>Discount</span><span className="font-number">-{formatInr(discount)}</span></div>
+        <div className="flex justify-between"><span>Amount After Discount</span><span className="font-number">{formatInr(afterDiscount)}</span></div>
         <div className="flex justify-between">
           <span>Installation &amp; Freight {layout.installationFreightText}</span>
           <span>—</span>
         </div>
         <div className="flex justify-between border-t-2 border-primary pt-1.5 font-semibold text-grey-900">
           <span>Final Offer</span>
-          <span>{formatInr(finalOffer)}</span>
+          <span className="font-number">{formatInr(finalOffer)}</span>
         </div>
       </div>
 
@@ -127,7 +127,7 @@ export function QuotePdfSheet({ settings }: { settings: QuoteTemplateSettings })
       <div className="mt-5 flex flex-col gap-1 border-t border-grey-100 pt-3 text-[11px] text-grey-600">
         <span>
           <span className="font-semibold text-grey-800">Bank Details: </span>
-          {banking.bankName} ({banking.branch}) | {banking.accountName} | A/C No: {banking.accountNumber} | IFSC: {banking.ifscCode}
+          {banking.bankName} ({banking.branch}) | {banking.accountName} | A/C No: <span className="font-number">{banking.accountNumber}</span> | IFSC: <span className="font-number">{banking.ifscCode}</span>
         </span>
         <span>Cheque or RTGS/NEFT should be in favour of &apos;{layout.chequePayableTo}&apos;.</span>
         <span>{layout.quoteValidityText}</span>

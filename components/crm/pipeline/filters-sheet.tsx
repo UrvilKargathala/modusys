@@ -49,6 +49,7 @@ export function FiltersSheet({
                 placeholder="Min"
                 value={filters.minOffer}
                 onChange={(e) => onChange({ ...filters, minOffer: e.target.value })}
+                className="font-number"
               />
               <span className="text-grey-300">–</span>
               <Input
@@ -56,6 +57,7 @@ export function FiltersSheet({
                 placeholder="Max"
                 value={filters.maxOffer}
                 onChange={(e) => onChange({ ...filters, maxOffer: e.target.value })}
+                className="font-number"
               />
             </div>
           </div>

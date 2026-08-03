@@ -23,14 +23,14 @@ export function DetailsSection({ customer }: { customer: Customer }) {
         <EditableField label="Address" value={merged.area} onSave={save("area")} />
         <EditableField label="City" value={merged.city} onSave={save("city")} />
         <EditableField label="State" value={merged.state} onSave={save("state")} />
-        <EditableField label="Postcode" value={merged.postcode} onSave={save("postcode")} />
+        <EditableField label="Postcode" value={merged.postcode} onSave={save("postcode")} numeric />
         <EditableField label="Email" value={merged.email} onSave={save("email")} />
-        <EditableField label="Phone" value={merged.phone} onSave={save("phone")} />
-        <EditableField label="GST No" value={merged.gst} onSave={save("gst")} />
+        <EditableField label="Phone" value={merged.phone} onSave={save("phone")} numeric />
+        <EditableField label="GST No" value={merged.gst} onSave={save("gst")} numeric />
         <div className="flex min-w-0 flex-col gap-1">
           <span className="text-xs font-body text-grey-500">Birthday</span>
           <span className="text-sm font-body text-grey-900">
-            {merged.birthdayMonth} {merged.birthdayDay}
+            {merged.birthdayMonth} <span className="font-number">{merged.birthdayDay}</span>
           </span>
         </div>
       </div>
@@ -54,8 +54,8 @@ export function DetailsSection({ customer }: { customer: Customer }) {
               className="flex items-center justify-between gap-2 rounded-lg border border-grey-100 bg-light-600/60 px-3 py-2 transition-colors hover:bg-light-600"
             >
               <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-body font-medium text-grey-800">{quote.quoteNumber}</span>
-                <span className="text-xs font-body text-grey-400">
+                <span className="text-sm font-number font-medium text-grey-800">{quote.quoteNumber}</span>
+                <span className="text-xs font-number text-grey-400">
                   {new Date(quote.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                 </span>
               </div>

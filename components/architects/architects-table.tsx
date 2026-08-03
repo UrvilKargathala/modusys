@@ -86,7 +86,7 @@ export function ArchitectsTable() {
         id: "mobile",
         accessorFn: (a) => a.mobile,
         header: "Mobile",
-        cell: ({ row }) => row.original.mobile || "—",
+        cell: ({ row }) => <span className="font-number">{row.original.mobile || "—"}</span>,
       },
       {
         id: "actions",

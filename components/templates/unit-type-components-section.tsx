@@ -180,7 +180,7 @@ export function UnitTypeComponentsSection({
                 {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 Cabinet Type: {cabinetType?.name ?? "—"}
               </button>
-              <span className="text-xs font-body text-grey-400">({groupItems.length})</span>
+              <span className="text-xs font-number text-grey-400">({groupItems.length})</span>
               <button
                 type="button"
                 onClick={() => requestRemoveCabinetType(link.id)}

@@ -161,6 +161,7 @@ export function HardwarePriceFormDialog({
                 id="hp-mrp"
                 type="number"
                 min={0}
+                className="font-number"
                 value={values.mrp || ""}
                 onChange={(e) => setValues((v) => ({ ...v, mrp: Number(e.target.value) }))}
               />
@@ -175,7 +176,7 @@ export function HardwarePriceFormDialog({
                   max={100}
                   value={values.discountPct || ""}
                   onChange={(e) => setValues((v) => ({ ...v, discountPct: Math.min(100, Math.max(0, Number(e.target.value))) }))}
-                  className="pr-7"
+                  className="pr-7 font-number"
                 />
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-body text-grey-400">%</span>
               </div>

@@ -173,7 +173,7 @@ export function TasksTab() {
           {[...grouped.entries()].map(([assigneeId, tasks]) => (
             <div key={assigneeId} className="flex flex-col gap-2">
               <span className="text-xs font-body font-medium uppercase tracking-wide text-grey-400">
-                {users.find((u) => u.id === assigneeId)?.name ?? "Unknown"} · {tasks.length}
+                {users.find((u) => u.id === assigneeId)?.name ?? "Unknown"} · <span className="font-number">{tasks.length}</span>
               </span>
               {tasks.map((task) => (
                 <TaskRow key={task.id} task={task} />

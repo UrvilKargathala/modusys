@@ -126,7 +126,7 @@ export function TopNavbar() {
           >
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
-              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[10px] font-medium text-white">
+              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[10px] font-number font-medium text-white">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
@@ -169,7 +169,7 @@ export function TopNavbar() {
                     <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                     <span className="flex flex-col gap-0.5">
                       <span className="text-sm font-body text-grey-800">{n.message}</span>
-                      <span className="text-xs font-body text-grey-400">{timeAgo(n.createdAt)}</span>
+                      <span className="text-xs font-number text-grey-400">{timeAgo(n.createdAt)}</span>
                     </span>
                   </button>
                 );

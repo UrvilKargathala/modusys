@@ -56,7 +56,7 @@ export function StaleQuotesPanel() {
                     >
                       {q.quoteNumber} · {customerName(q.customerId)}
                     </Link>
-                    <span className="text-xs font-body text-warning-900">No activity in {days} days</span>
+                    <span className="text-xs font-body text-warning-900">No activity in <span className="font-number">{days}</span> days</span>
                   </div>
                   <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium", cfg.bg, cfg.color)}>
                     {cfg.label}

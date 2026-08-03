@@ -167,9 +167,9 @@ export default function QuotesPage() {
                     const cfg = statusConfig[status] ?? statusConfig.draft;
                     return (
                       <tr key={quote.id} className="border-b border-grey-100 last:border-0 hover:bg-light-600/60">
-                        <td className="whitespace-nowrap px-4 py-3 font-medium text-grey-800">{quote.quoteNumber}</td>
+                        <td className="whitespace-nowrap px-4 py-3 font-number font-medium text-grey-800">{quote.quoteNumber}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-grey-700">{customerName(quote.customerId)}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-grey-500">{formatDate(quote.date)}</td>
+                        <td className="whitespace-nowrap px-4 py-3 font-number text-grey-500">{formatDate(quote.date)}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-grey-700">{productTypeName(quote.productTypeId)}</td>
                         <td className="whitespace-nowrap px-4 py-3 font-number font-medium text-grey-800">{formatInr(finalAmount(quote))}</td>
                         <td className="whitespace-nowrap px-4 py-3 font-number text-grey-500">{quote.revision}</td>

@@ -18,13 +18,20 @@ import type { FurnitureLineItem, UnitTypeHardware } from "@/lib/mock/unit-type";
 import type { QuoteUnit } from "@/lib/mock/quote";
 
 function formatInr(value: number) {
-  return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  return `₹${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function formatDate(d: string) {
   if (!d) return "—";
   const parsed = new Date(d);
   return Number.isNaN(parsed.getTime()) ? d : parsed.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function numFont(text: string) {
+  const parts = text.split(/(\d[\d,.%]*%?)/g);
+  return parts.map((part, i) =>
+    /\d/.test(part) ? <span key={i} className="font-number">{part}</span> : part
+  );
 }
 
 function nameOf(items: MaterialItem[], id?: string) {
@@ -163,7 +170,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
     const w = Math.round(evaluateFormula(item.widthFormula, { W: dims.width, D: dims.depth, H: dims.height }));
     const h = Math.round(evaluateFormula(item.heightFormula, { W: dims.width, D: dims.depth, H: dims.height }));
     return {
-      brand: componentName,
+      brand: nameOf(externalColours, item.externalColourId),
       product: componentName,
       description: descOf(externalColours, item.externalColourId),
       width: w || "—",
@@ -246,17 +253,17 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
       </button>
 
       <div
-        className="w-full max-w-[820px] rounded-sm p-8 font-body text-[13px] shadow-sm print:max-w-none print:shadow-none"
+        className="w-full max-w-[960px] rounded-sm p-10 font-body text-[13px] shadow-sm print:max-w-none print:shadow-none"
         style={{ backgroundColor: "#9E7676", color: "#FFF8EA" }}
       >
         <div className="flex items-start justify-between pb-4">
           <div className="flex flex-col gap-1.5">
             <BrandMark color="#FFF8EA" className="h-10" />
-            <span className="font-heading text-[14px] font-bold" style={{ color: "#FFF8EA" }}>{branding.companyName}</span>
             <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>{branding.tagline}</span>
+            <span className="font-heading text-[14px] font-bold" style={{ color: "#FFF8EA" }}>{branding.companyName}</span>
             <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>{branding.address}</span>
             <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>
-              Email: {branding.email} | Tel: {branding.phone}
+              Email: {branding.email} | Tel: <span className="font-number">{branding.phone}</span>
             </span>
           </div>
           <div className="flex w-64 shrink-0 flex-col gap-1.5 pt-[46px]">
@@ -264,8 +271,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
               // eslint-disable-next-line @next/next/no-img-element
               <img src={branding.logoDataUrl} alt="" className="ml-auto h-12 w-24 object-contain" />
             )}
-            <Field label="Quote No" value={quote.quoteNumber} />
-            <Field label="Quote Date" value={formatDate(quote.date)} />
+            <Field label="Quote No" value={<span className="font-number">{quote.quoteNumber}</span>} />
+            <Field label="Quote Date" value={<span className="font-number">{formatDate(quote.date)}</span>} />
             <Field label="Revision" value={<span className="font-number">{quote.revision}</span>} />
             <div className="mt-1.5 border-t pt-1.5" style={{ borderColor: "rgba(255,248,234,0.3)" }}>
               <span className="font-heading text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>
@@ -292,8 +299,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         <SectionLabel>Unit Details</SectionLabel>
         <table className="w-full table-fixed border-collapse text-[10.5px]">
           <colgroup>
-            <col style={{ width: "7%" }} />
-            <col style={{ width: "9%" }} />
+            <col style={{ width: "4%" }} />
+            <col style={{ width: "12%" }} />
             <col style={{ width: "14%" }} />
             <col style={{ width: "34%" }} />
             <col style={{ width: "7%" }} />
@@ -304,18 +311,18 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </colgroup>
           <thead>
             <tr className="text-left" style={{ color: "rgba(255,248,234,0.6)" }}>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 font-bold">Unit</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 font-bold">Brand</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 font-bold">Product</th>
-              <th className="px-2 py-1 font-bold">Material Description</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 text-right font-bold">Width</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 text-right font-bold">Depth</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 text-right font-bold">Height</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 text-right font-bold">Qty</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 font-bold">Unit</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-2 font-bold">No</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-2 font-bold">Brand</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-2 font-bold">Product</th>
+              <th className="px-2.5 py-2 font-bold">Material Description</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-2 text-right font-bold">Width</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-2 text-right font-bold">Depth</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-2 text-right font-bold">Height</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-2 text-right font-bold">Qty</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-2 font-bold">Unit</th>
             </tr>
           </thead>
-          <tbody className="leading-tight">
+          <tbody className="leading-snug">
             {cabinetGroups.length === 0 ? (
               <tr>
                 <td colSpan={9} className="py-3 text-center" style={{ color: "rgba(255,248,234,0.5)" }}>
@@ -326,27 +333,27 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
               cabinetGroups.map((group) => (
                 <>
                   <tr key={`h-${group.index}`} className="border-t font-semibold" style={{ borderColor: "rgba(255,248,234,0.3)", color: "#FFF8EA" }}>
-                    <td className="whitespace-nowrap px-2 py-1 font-number">{group.index}</td>
-                    <td className="whitespace-nowrap px-2 py-1">{group.headerRow.brand}</td>
-                    <td className="whitespace-nowrap px-2 py-1">{group.headerRow.product}</td>
-                    <td className="px-2 py-1">{group.headerRow.description}</td>
-                    <td className="whitespace-nowrap px-2 py-1 text-right font-number">{group.headerRow.width}</td>
-                    <td className="whitespace-nowrap px-2 py-1 text-right font-number">{group.headerRow.depth}</td>
-                    <td className="whitespace-nowrap px-2 py-1 text-right font-number">{group.headerRow.height}</td>
-                    <td className="whitespace-nowrap px-2 py-1 text-right font-number">{group.headerRow.qty}</td>
-                    <td className="whitespace-nowrap px-2 py-1">{group.headerRow.unit}</td>
+                    <td className="whitespace-nowrap px-2.5 py-1.5 font-number">{group.index}</td>
+                    <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.brand}</td>
+                    <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.product}</td>
+                    <td className="px-2.5 py-1.5">{group.headerRow.description}</td>
+                    <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.width}</td>
+                    <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.depth}</td>
+                    <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.height}</td>
+                    <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.qty}</td>
+                    <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.unit}</td>
                   </tr>
                   {group.rows.map((row, i) => (
                     <tr key={`${group.index}-${i}`} style={{ color: "rgba(255,248,234,0.85)" }}>
-                      <td className="px-2 py-0.5" />
-                      <td className="px-2 py-0.5">{row.brand}</td>
-                      <td className="px-2 py-0.5">{row.product}</td>
-                      <td className="px-2 py-0.5">{row.description}</td>
-                      <td className="whitespace-nowrap px-2 py-0.5 text-right font-number">{row.width}</td>
-                      <td className="whitespace-nowrap px-2 py-0.5 text-right font-number">{row.depth}</td>
-                      <td className="whitespace-nowrap px-2 py-0.5 text-right font-number">{row.height}</td>
-                      <td className="whitespace-nowrap px-2 py-0.5 text-right font-number">{row.qty}</td>
-                      <td className="whitespace-nowrap px-2 py-0.5">{row.unit}</td>
+                      <td className="px-2.5 py-1" />
+                      <td className="px-2.5 py-1">{row.brand}</td>
+                      <td className="px-2.5 py-1">{row.product}</td>
+                      <td className="px-2.5 py-1">{row.description}</td>
+                      <td className="whitespace-nowrap px-2.5 py-1 text-right font-number">{row.width}</td>
+                      <td className="whitespace-nowrap px-2.5 py-1 text-right font-number">{row.depth}</td>
+                      <td className="whitespace-nowrap px-2.5 py-1 text-right font-number">{row.height}</td>
+                      <td className="whitespace-nowrap px-2.5 py-1 text-right font-number">{row.qty}</td>
+                      <td className="whitespace-nowrap px-2.5 py-1">{row.unit}</td>
                     </tr>
                   ))}
                 </>
@@ -360,32 +367,34 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <div className="border-b pb-1.5" style={{ borderColor: "rgba(255,248,234,0.3)" }}>
               <h2 className="font-heading text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Pricing Summary</h2>
             </div>
-            <div className="flex flex-col gap-1 p-3 pt-2 text-xs" style={{ color: "#FFF8EA" }}>
-              <div className="flex justify-between">
-                <span>Total</span>
-                <span className="font-number">{formatInr(waterfall.total)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Installation &amp; Freight</span>
-                <span className="font-number">{quote.installationFreightIncluded ? "Included" : formatInr(waterfall.installationFreight)}</span>
-              </div>
-              {waterfall.discount > 0 && (
-                <>
-                  <div className="flex justify-between">
-                    <span>Discount (<span className="font-number">{quote.specialDiscountPct}</span>%)</span>
-                    <span className="font-number">-{formatInr(waterfall.discount)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Amount After Discount</span>
-                    <span className="font-number">{formatInr(waterfall.afterDiscount)}</span>
-                  </div>
-                </>
-              )}
-              <div className="flex justify-between pt-1.5 text-sm font-semibold" style={{ borderTop: "2px solid #FFF8EA", color: "#FFF8EA" }}>
-                <span>Final Offer Price</span>
-                <span className="font-number">{formatInr(waterfall.finalOffer)}</span>
-              </div>
-            </div>
+            <table className="w-full border-collapse text-xs" style={{ color: "#FFF8EA" }}>
+              <tbody>
+                <tr>
+                  <td className="py-1 pr-4">Total</td>
+                  <td className="py-1 text-right font-number">{formatInr(waterfall.total)}</td>
+                </tr>
+                <tr>
+                  <td className="py-1 pr-4">Installation &amp; Freight</td>
+                  <td className="py-1 text-right font-number">{quote.installationFreightIncluded ? "Included" : formatInr(waterfall.installationFreight)}</td>
+                </tr>
+                {waterfall.discount > 0 && (
+                  <>
+                    <tr>
+                      <td className="py-1 pr-4">Discount (<span className="font-number">{quote.specialDiscountPct}</span>%)</td>
+                      <td className="py-1 text-right font-number">-{formatInr(waterfall.discount)}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-1 pr-4">Amount After Discount</td>
+                      <td className="py-1 text-right font-number">{formatInr(waterfall.afterDiscount)}</td>
+                    </tr>
+                  </>
+                )}
+                <tr className="text-sm font-semibold" style={{ borderTop: "2px solid #FFF8EA" }}>
+                  <td className="pt-2 pr-4">Final Offer Price</td>
+                  <td className="pt-2 text-right font-number">{formatInr(waterfall.finalOffer)}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -396,21 +405,22 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
               <thead>
                 <tr className="text-left" style={{ color: "rgba(255,248,234,0.6)" }}>
                   <th className="w-16 px-2 py-1.5 font-bold">Options</th>
-                  <th className="px-2 py-1.5 font-bold">Exposed Material Finish With Hardware Fitting Description</th>
+                  <th className="px-2 py-1.5 font-bold">Product Description</th>
                   <th className="w-28 px-2 py-1.5 text-right font-bold">Final Amount</th>
                 </tr>
               </thead>
               <tbody>
                 {quote.finishOptions.map((opt, idx) => {
+                  const productTypeName = nameOf(productTypes, quote.productTypeId);
                   const shutterName = nameOf(externalColours, opt.externalColourId);
                   const tandemName = nameOf(tandemDrawerTypes, opt.tandemDrawerTypeId);
-                  const desc = [shutterName, tandemName].filter((v) => v !== "—").join(" + ");
+                  const desc = [productTypeName, shutterName, tandemName].filter((v) => v !== "—").join(" + ");
                   const finalAmount = waterfall.finalOffer + opt.price;
                   const letter = String.fromCharCode(65 + idx);
                   return (
-                    <tr key={opt.id} className="border-t" style={{ borderColor: "rgba(255,248,234,0.15)", color: "#FFF8EA" }}>
+                    <tr key={opt.id} style={{ color: "#FFF8EA" }}>
                       <td className="px-2 py-1.5 font-semibold">{letter}</td>
-                      <td className="px-2 py-1.5">{desc || "—"}</td>
+                      <td className="px-2 py-1.5 font-bold">{desc || "—"}</td>
                       <td className="px-2 py-1.5 text-right font-number font-semibold">{formatInr(finalAmount)}</td>
                     </tr>
                   );
@@ -421,9 +431,11 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         )}
 
         {quote.remark && (
-          <div className="mt-4 text-[11px]" style={{ color: "rgba(255,248,234,0.7)" }}>
-            <span className="font-semibold uppercase" style={{ color: "#FFF8EA" }}>Remarks: </span>
-            {quote.remark}
+          <div className="mt-5 text-[11px]" style={{ color: "rgba(255,248,234,0.85)" }}>
+            <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Remarks</span>
+            <ol className="mt-1 list-decimal pl-4">
+              <li className="marker-number">{numFont(quote.remark)}</li>
+            </ol>
           </div>
         )}
 
@@ -432,7 +444,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Note</span>
             <ol className="mt-1 list-decimal pl-4">
               {notes.map((n) => (
-                <li key={n.id}>{n.text}</li>
+                <li key={n.id} className="marker-number">{numFont(n.text)}</li>
               ))}
             </ol>
           </div>
@@ -443,7 +455,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Terms &amp; Conditions</span>
             <ol className="mt-1 list-decimal pl-4">
               {terms.map((t) => (
-                <li key={t.id}>{t.text}</li>
+                <li key={t.id} className="marker-number">{numFont(t.text)}</li>
               ))}
             </ol>
           </div>
@@ -454,24 +466,26 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Payment Terms</span>
             <ol className="mt-1 list-decimal pl-4">
               {paymentTerms.map((t) => (
-                <li key={t.id}>{t.text}</li>
+                <li key={t.id} className="marker-number">{numFont(t.text)}</li>
               ))}
             </ol>
           </div>
         )}
 
-        <div className="mt-5 flex flex-col gap-1 border-t pt-3 text-[11px]" style={{ borderColor: "rgba(255,248,234,0.3)", color: "rgba(255,248,234,0.85)" }}>
-          <span>
-            <span className="font-semibold" style={{ color: "#FFF8EA" }}>Bank Details: </span>
-            {banking.bankName} ({banking.branch}) | {banking.accountName} | A/C No: {banking.accountNumber} | IFSC: {banking.ifscCode}
-          </span>
-          <span>Cheque or RTGS/NEFT should be in favour of &apos;{layout.chequePayableTo}&apos;.</span>
-          <span>{layout.quoteValidityText}</span>
+        <div className="mt-5 flex flex-col gap-1 text-[11px]" style={{ color: "rgba(255,248,234,0.85)" }}>
+          <span className="font-semibold" style={{ color: "#FFF8EA" }}>Bank Details</span>
+          <div className="flex flex-col gap-0.5 pl-4">
+            <span>Bank: {banking.bankName} ({banking.branch})</span>
+            <span>Account Name: {banking.accountName}</span>
+            <span>A/C No: <span className="font-number">{banking.accountNumber}</span></span>
+            <span>IFSC: <span className="font-number">{banking.ifscCode}</span></span>
+          </div>
+          <span>{numFont(layout.quoteValidityText)}</span>
         </div>
 
         <div className="mt-8 flex flex-col items-end gap-6 text-right text-xs" style={{ color: "#FFF8EA" }}>
           <div className="flex flex-col items-end gap-0.5">
-            <span className="font-medium">For, {signature.companyName}</span>
+            <span className="font-bold">For, {signature.companyName}</span>
             {signature.additionalFooterText && (
               <span className="max-w-xs text-[11px]" style={{ color: "rgba(255,248,234,0.6)" }}>{signature.additionalFooterText}</span>
             )}

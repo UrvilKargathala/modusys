@@ -135,6 +135,7 @@ export function CabinetTypeComponentRow({
             id={`qty-${value.id}`}
             type="number"
             min={1}
+            className="font-number"
             value={value.qty || ""}
             onChange={(e) => onChange({ qty: Number(e.target.value) })}
           />

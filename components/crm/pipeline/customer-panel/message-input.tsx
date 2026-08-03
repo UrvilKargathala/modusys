@@ -109,7 +109,7 @@ export function MessageInput({ customerId }: { customerId: string }) {
       {recording ? (
         <div className="flex items-center gap-3 rounded-lg bg-error-transparent px-3 py-2">
           <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-error" />
-          <span className="flex-1 text-sm font-body text-error">
+          <span className="flex-1 text-sm font-number text-error">
             Recording… 0:{String(recordSeconds).padStart(2, "0")}
           </span>
           <button

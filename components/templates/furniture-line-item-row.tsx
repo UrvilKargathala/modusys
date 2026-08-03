@@ -165,6 +165,7 @@ export function FurnitureLineItemRow({
             id={`qty-${value.id}`}
             type="number"
             min={1}
+            className="font-number"
             value={value.qty || ""}
             onChange={(e) => handleFieldChange({ qty: Number(e.target.value) })}
           />
@@ -206,7 +207,7 @@ export function FurnitureLineItemRow({
                 const raw = e.target.value;
                 handleFieldChange({ rateOverride: raw === "" ? undefined : Number(raw) });
               }}
-              className="pr-14"
+              className="pr-14 font-number"
             />
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">/sq.ft</span>
           </div>
@@ -216,7 +217,7 @@ export function FurnitureLineItemRow({
               onClick={() => handleFieldChange({ rateOverride: undefined })}
               className="w-fit text-xs font-body text-primary hover:underline"
             >
-              Reset to price-list rate (₹{match.rate.toFixed(2)})
+              Reset to price-list rate (<span className="font-number">₹{match.rate.toFixed(2)}</span>)
             </button>
           )}
         </div>

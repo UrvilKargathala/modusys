@@ -102,7 +102,7 @@ export function UsersTable({ users }: { users: OrgUser[] }) {
         accessorKey: "lastActive",
         header: "Last Active",
         cell: ({ getValue }) => (
-          <span className="text-grey-500">{formatLastActive(getValue<string>())}</span>
+          <span className="font-number text-grey-500">{formatLastActive(getValue<string>())}</span>
         ),
       },
       ...(canSetPassword || canEditUser

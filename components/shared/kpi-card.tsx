@@ -27,7 +27,7 @@ export function KpiCard({ label, value, icon: Icon, trend, className, notTracked
           {!notTracked && trend && (
             <span
               className={cn(
-                "text-xs font-body",
+                "text-xs font-number",
                 trend.positive ? "text-success" : "text-error"
               )}
             >

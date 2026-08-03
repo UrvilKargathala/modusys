@@ -36,7 +36,7 @@ export function SecurityAuditList() {
             {events.map((e) => (
               <li key={e.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                 <span className="text-sm font-body text-grey-800">{e.message}</span>
-                <span className="shrink-0 text-xs font-body text-grey-400">{timeAgo(e.createdAt)}</span>
+                <span className="shrink-0 text-xs font-number text-grey-400">{timeAgo(e.createdAt)}</span>
               </li>
             ))}
           </ul>
