@@ -35,12 +35,12 @@ function descOf(items: MaterialItem[], id?: string) {
   return item?.description || item?.name || "—";
 }
 
-// Section title on a light brand-tinted bar — used for every major block
-// (Client Details, Finish & Hardware, Material Specification, Unit Details)
-// so the document reads as one consistent system instead of ad hoc headers.
+// Section title as a plain uppercase label with a rule underneath — mirrors
+// the flat, single-tone reference layout instead of ad hoc colored header
+// bars, so the whole sheet reads as one consistent dark document.
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mt-6 px-3 py-1.5" style={{ backgroundColor: "#9E7676" }}>
+    <div className="mt-6 border-b pb-1.5" style={{ borderColor: "rgba(255,248,234,0.3)" }}>
       <h2 className="font-heading text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>{children}</h2>
     </div>
   );
@@ -49,8 +49,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex gap-2 text-[11px] leading-relaxed">
-      <span className="w-32 shrink-0 font-medium uppercase tracking-wide text-grey-400">{label}</span>
-      <span className="text-grey-800">{value}</span>
+      <span className="w-32 shrink-0 font-medium uppercase tracking-wide" style={{ color: "rgba(255,248,234,0.6)" }}>{label}</span>
+      <span style={{ color: "#FFF8EA" }}>{value}</span>
     </div>
   );
 }
@@ -229,13 +229,16 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         Print / Save as PDF
       </button>
 
-      <div className="w-full max-w-[820px] rounded-sm border border-grey-100 bg-white p-8 font-body text-[13px] text-grey-800 shadow-sm print:max-w-none print:border-0 print:shadow-none">
-        <div className="flex items-start justify-between pb-4" style={{ borderBottom: "2px solid #9E7676" }}>
+      <div
+        className="w-full max-w-[820px] rounded-sm p-8 font-body text-[13px] shadow-sm print:max-w-none print:shadow-none"
+        style={{ backgroundColor: "#9E7676", color: "#FFF8EA" }}
+      >
+        <div className="flex items-start justify-between pb-4" style={{ borderBottom: "2px solid #FFF8EA" }}>
           <div className="flex flex-col gap-0.5">
-            <span className="font-heading text-xl font-bold text-grey-900">{branding.companyName}</span>
-            <span className="text-xs text-grey-500">{branding.tagline}</span>
-            <span className="text-xs text-grey-500">{branding.address}</span>
-            <span className="text-xs text-grey-500">
+            <span className="font-heading text-xl font-bold" style={{ color: "#FFF8EA" }}>{branding.companyName}</span>
+            <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>{branding.tagline}</span>
+            <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>{branding.address}</span>
+            <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>
               Email: {branding.email} | Tel: {branding.phone}
             </span>
           </div>
@@ -243,12 +246,12 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             // eslint-disable-next-line @next/next/no-img-element
             <img src={branding.logoDataUrl} alt="" className="h-12 w-24 object-contain" />
           ) : (
-            <span className="font-heading text-2xl font-bold uppercase tracking-wide text-primary-200">Quote</span>
+            <span className="font-heading text-2xl font-bold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Quote</span>
           )}
         </div>
 
         <SectionLabel>Client Details</SectionLabel>
-        <div className="grid grid-cols-[70%_30%] border border-t-0 border-grey-100 p-3">
+        <div className="grid grid-cols-[70%_30%] p-3 pt-2">
           <div className="flex flex-col gap-1.5">
             <Field label="Client Name" value={customer?.name ?? "—"} />
             <Field label="Address" value={customerAddressLine} />
@@ -262,12 +265,12 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         </div>
 
         <SectionLabel>Finish &amp; Hardware</SectionLabel>
-        <div className="border border-t-0 border-grey-100 p-3">
+        <div className="p-3 pt-2">
           <Field label="Product Type" value={[nameOf(productTypes, quote.productTypeId), nameOf(externalColours, quote.shutterFinishId), nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId)].filter((v) => v !== "—").join(" + ")} />
         </div>
 
         <SectionLabel>Material Specification</SectionLabel>
-        <div className="flex flex-col gap-1.5 border border-t-0 border-grey-100 p-3">
+        <div className="flex flex-col gap-1.5 p-3 pt-2">
           <Field label="Carcase Material" value={descOf(rawMaterialDescriptions, quote.materialDescriptionId)} />
           <Field label="Shutter Finish" value={descOf(externalColours, quote.shutterFinishId)} />
           <Field label="Tandem Runner" value={nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId)} />
@@ -277,7 +280,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         </div>
 
         <SectionLabel>Unit Details</SectionLabel>
-        <table className="w-full table-fixed border-collapse border border-t-0 border-grey-100 text-[10.5px]">
+        <table className="w-full table-fixed border-collapse text-[10.5px]">
           <colgroup>
             <col style={{ width: "5%" }} />
             <col style={{ width: "9%" }} />
@@ -290,7 +293,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <col style={{ width: "5%" }} />
           </colgroup>
           <thead>
-            <tr className="text-left" style={{ backgroundColor: "#9E7676", color: "#FFF8EA" }}>
+            <tr className="text-left" style={{ color: "rgba(255,248,234,0.6)" }}>
               <th className="whitespace-nowrap px-2 py-1.5 font-medium">Unit No</th>
               <th className="whitespace-nowrap px-2 py-1.5 font-medium">Brand</th>
               <th className="px-2 py-1.5 font-medium">Product</th>
@@ -305,14 +308,14 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           <tbody>
             {cabinetGroups.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-3 text-center text-grey-400">
+                <td colSpan={9} className="py-3 text-center" style={{ color: "rgba(255,248,234,0.5)" }}>
                   No units added to this quote.
                 </td>
               </tr>
             ) : (
               cabinetGroups.map((group) => (
                 <>
-                  <tr key={`h-${group.index}`} className="border-t border-grey-100 bg-light-600 font-semibold text-grey-900">
+                  <tr key={`h-${group.index}`} className="border-t font-semibold" style={{ borderColor: "rgba(255,248,234,0.3)", color: "#FFF8EA" }}>
                     <td className="whitespace-nowrap px-2 py-1.5">{group.index}</td>
                     <td className="whitespace-nowrap px-2 py-1.5">{group.headerRow.brand}</td>
                     <td className="whitespace-nowrap px-2 py-1.5">{group.headerRow.product}</td>
@@ -324,7 +327,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                     <td className="whitespace-nowrap px-2 py-1.5">{group.headerRow.unit}</td>
                   </tr>
                   {group.rows.map((row, i) => (
-                    <tr key={`${group.index}-${i}`} className="border-t border-grey-100 text-grey-700">
+                    <tr key={`${group.index}-${i}`} className="border-t" style={{ borderColor: "rgba(255,248,234,0.15)", color: "rgba(255,248,234,0.85)" }}>
                       <td className="px-2 py-1.5" />
                       <td className="px-2 py-1.5">{row.brand}</td>
                       <td className="px-2 py-1.5">{row.product}</td>
@@ -344,13 +347,13 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         <div className="mt-6 flex flex-col items-end">
           <div className="w-full max-w-sm">
-            <div className="px-3 py-1.5" style={{ backgroundColor: "#9E7676" }}>
+            <div className="border-b pb-1.5" style={{ borderColor: "rgba(255,248,234,0.3)" }}>
               <h2 className="font-heading text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Pricing Summary</h2>
             </div>
-            <div className="flex flex-col gap-1 border border-t-0 border-grey-100 p-3 text-xs">
+            <div className="flex flex-col gap-1 p-3 pt-2 text-xs" style={{ color: "#FFF8EA" }}>
               {quote.remark && (
-                <div className="mb-1 text-[11px] text-grey-600">
-                  <span className="font-semibold uppercase text-grey-800">Remarks: </span>
+                <div className="mb-1 text-[11px]" style={{ color: "rgba(255,248,234,0.7)" }}>
+                  <span className="font-semibold uppercase" style={{ color: "#FFF8EA" }}>Remarks: </span>
                   {quote.remark}
                 </div>
               )}
@@ -374,7 +377,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                   </div>
                 </>
               )}
-              <div className="flex justify-between pt-1.5 text-sm font-semibold text-grey-900" style={{ borderTop: "2px solid #9E7676" }}>
+              <div className="flex justify-between pt-1.5 text-sm font-semibold" style={{ borderTop: "2px solid #FFF8EA", color: "#FFF8EA" }}>
                 <span>Final Offer Price</span>
                 <span>{formatInr(waterfall.finalOffer)}</span>
               </div>
@@ -385,9 +388,9 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         {quote.finishOptions.length > 0 && (
           <>
             <SectionLabel>Finish Options</SectionLabel>
-            <table className="w-full border-collapse border border-t-0 border-grey-100 text-[10.5px]">
+            <table className="w-full border-collapse text-[10.5px]">
               <thead>
-                <tr className="text-left" style={{ backgroundColor: "#9E7676", color: "#FFF8EA" }}>
+                <tr className="text-left" style={{ color: "rgba(255,248,234,0.6)" }}>
                   <th className="w-16 px-2 py-1.5 font-medium">Options</th>
                   <th className="px-2 py-1.5 font-medium">Exposed Material Finish With Hardware Fitting Description</th>
                   <th className="w-28 px-2 py-1.5 text-right font-medium">Final Amount</th>
@@ -401,7 +404,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                   const finalAmount = waterfall.finalOffer + opt.price;
                   const letter = String.fromCharCode(65 + idx);
                   return (
-                    <tr key={opt.id} className="border-t border-grey-100 text-grey-800">
+                    <tr key={opt.id} className="border-t" style={{ borderColor: "rgba(255,248,234,0.15)", color: "#FFF8EA" }}>
                       <td className="px-2 py-1.5 font-semibold">{letter}</td>
                       <td className="px-2 py-1.5">{desc || "—"}</td>
                       <td className="px-2 py-1.5 text-right font-semibold">{formatInr(finalAmount)}</td>
@@ -414,8 +417,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         )}
 
         {notes.length > 0 && (
-          <div className="mt-5 text-[11px] text-grey-600">
-            <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#9E7676" }}>Note</span>
+          <div className="mt-5 text-[11px]" style={{ color: "rgba(255,248,234,0.85)" }}>
+            <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Note</span>
             <ol className="mt-1 list-decimal pl-4">
               {notes.map((n) => (
                 <li key={n.id}>{n.text}</li>
@@ -425,8 +428,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         )}
 
         {terms.length > 0 && (
-          <div className="mt-4 text-[11px] text-grey-600">
-            <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#9E7676" }}>Terms &amp; Conditions</span>
+          <div className="mt-4 text-[11px]" style={{ color: "rgba(255,248,234,0.85)" }}>
+            <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Terms &amp; Conditions</span>
             <ol className="mt-1 list-decimal pl-4">
               {terms.map((t) => (
                 <li key={t.id}>{t.text}</li>
@@ -436,8 +439,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         )}
 
         {paymentTerms.length > 0 && (
-          <div className="mt-4 text-[11px] text-grey-600">
-            <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#9E7676" }}>Payment Terms</span>
+          <div className="mt-4 text-[11px]" style={{ color: "rgba(255,248,234,0.85)" }}>
+            <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Payment Terms</span>
             <ol className="mt-1 list-decimal pl-4">
               {paymentTerms.map((t) => (
                 <li key={t.id}>{t.text}</li>
@@ -446,20 +449,20 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </div>
         )}
 
-        <div className="mt-5 flex flex-col gap-1 border-t border-grey-100 pt-3 text-[11px] text-grey-600">
+        <div className="mt-5 flex flex-col gap-1 border-t pt-3 text-[11px]" style={{ borderColor: "rgba(255,248,234,0.3)", color: "rgba(255,248,234,0.85)" }}>
           <span>
-            <span className="font-semibold text-grey-800">Bank Details: </span>
+            <span className="font-semibold" style={{ color: "#FFF8EA" }}>Bank Details: </span>
             {banking.bankName} ({banking.branch}) | {banking.accountName} | A/C No: {banking.accountNumber} | IFSC: {banking.ifscCode}
           </span>
           <span>Cheque or RTGS/NEFT should be in favour of &apos;{layout.chequePayableTo}&apos;.</span>
           <span>{layout.quoteValidityText}</span>
         </div>
 
-        <div className="mt-8 flex flex-col items-end gap-6 text-right text-xs">
+        <div className="mt-8 flex flex-col items-end gap-6 text-right text-xs" style={{ color: "#FFF8EA" }}>
           <div className="flex flex-col items-end gap-0.5">
             <span className="font-medium">For, {signature.companyName}</span>
             {signature.additionalFooterText && (
-              <span className="max-w-xs text-[11px] text-grey-400">{signature.additionalFooterText}</span>
+              <span className="max-w-xs text-[11px]" style={{ color: "rgba(255,248,234,0.6)" }}>{signature.additionalFooterText}</span>
             )}
           </div>
           <span className="font-medium">{signature.signatureTitle}</span>
