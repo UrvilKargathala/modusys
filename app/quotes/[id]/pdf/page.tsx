@@ -270,9 +270,9 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             )}
             <Field label="Quote No" value={quote.quoteNumber} />
             <Field label="Quote Date" value={formatDate(quote.date)} />
-            <Field label="Revision" value={quote.revision} />
+            <Field label="Revision" value={<span className="font-number">{quote.revision}</span>} />
             <div className="mt-1.5 border-t pt-1.5" style={{ borderColor: "rgba(255,248,234,0.3)" }}>
-              <span className="font-heading text-[11px] font-semibold tracking-wide" style={{ color: "#FFF8EA" }}>
+              <span className="font-heading text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>
                 Client Details
               </span>
             </div>
@@ -330,14 +330,14 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
               cabinetGroups.map((group) => (
                 <>
                   <tr key={`h-${group.index}`} className="border-t font-semibold" style={{ borderColor: "rgba(255,248,234,0.3)", color: "#FFF8EA" }}>
-                    <td className="whitespace-nowrap px-2 py-1.5">{group.index}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 font-number">{group.index}</td>
                     <td className="whitespace-nowrap px-2 py-1.5">{group.headerRow.brand}</td>
                     <td className="whitespace-nowrap px-2 py-1.5">{group.headerRow.product}</td>
                     <td className="px-2 py-1.5">{group.headerRow.description}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-right">{group.headerRow.width}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-right">{group.headerRow.depth}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-right">{group.headerRow.height}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-right">{group.headerRow.qty}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{group.headerRow.width}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{group.headerRow.depth}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{group.headerRow.height}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{group.headerRow.qty}</td>
                     <td className="whitespace-nowrap px-2 py-1.5">{group.headerRow.unit}</td>
                   </tr>
                   {group.rows.map((row, i) => (
@@ -346,10 +346,10 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                       <td className="px-2 py-1.5">{row.brand}</td>
                       <td className="px-2 py-1.5">{row.product}</td>
                       <td className="px-2 py-1.5">{row.description}</td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right">{row.width}</td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right">{row.depth}</td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right">{row.height}</td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right">{row.qty}</td>
+                      <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{row.width}</td>
+                      <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{row.depth}</td>
+                      <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{row.height}</td>
+                      <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{row.qty}</td>
                       <td className="whitespace-nowrap px-2 py-1.5">{row.unit}</td>
                     </tr>
                   ))}
@@ -365,35 +365,29 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
               <h2 className="font-heading text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Pricing Summary</h2>
             </div>
             <div className="flex flex-col gap-1 p-3 pt-2 text-xs" style={{ color: "#FFF8EA" }}>
-              {quote.remark && (
-                <div className="mb-1 text-[11px]" style={{ color: "rgba(255,248,234,0.7)" }}>
-                  <span className="font-semibold uppercase" style={{ color: "#FFF8EA" }}>Remarks: </span>
-                  {quote.remark}
-                </div>
-              )}
               <div className="flex justify-between">
                 <span>Total</span>
-                <span>{formatInr(waterfall.total)}</span>
+                <span className="font-number">{formatInr(waterfall.total)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Installation &amp; Freight</span>
-                <span>{quote.installationFreightIncluded ? "Included" : formatInr(waterfall.installationFreight)}</span>
+                <span className="font-number">{quote.installationFreightIncluded ? "Included" : formatInr(waterfall.installationFreight)}</span>
               </div>
               {waterfall.discount > 0 && (
                 <>
                   <div className="flex justify-between">
-                    <span>Discount ({quote.specialDiscountPct}%)</span>
-                    <span>-{formatInr(waterfall.discount)}</span>
+                    <span>Discount (<span className="font-number">{quote.specialDiscountPct}</span>%)</span>
+                    <span className="font-number">-{formatInr(waterfall.discount)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Amount After Discount</span>
-                    <span>{formatInr(waterfall.afterDiscount)}</span>
+                    <span className="font-number">{formatInr(waterfall.afterDiscount)}</span>
                   </div>
                 </>
               )}
               <div className="flex justify-between pt-1.5 text-sm font-semibold" style={{ borderTop: "2px solid #FFF8EA", color: "#FFF8EA" }}>
                 <span>Final Offer Price</span>
-                <span>{formatInr(waterfall.finalOffer)}</span>
+                <span className="font-number">{formatInr(waterfall.finalOffer)}</span>
               </div>
             </div>
           </div>
@@ -421,13 +415,20 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                     <tr key={opt.id} className="border-t" style={{ borderColor: "rgba(255,248,234,0.15)", color: "#FFF8EA" }}>
                       <td className="px-2 py-1.5 font-semibold">{letter}</td>
                       <td className="px-2 py-1.5">{desc || "—"}</td>
-                      <td className="px-2 py-1.5 text-right font-semibold">{formatInr(finalAmount)}</td>
+                      <td className="px-2 py-1.5 text-right font-number font-semibold">{formatInr(finalAmount)}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </>
+        )}
+
+        {quote.remark && (
+          <div className="mt-4 text-[11px]" style={{ color: "rgba(255,248,234,0.7)" }}>
+            <span className="font-semibold uppercase" style={{ color: "#FFF8EA" }}>Remarks: </span>
+            {quote.remark}
+          </div>
         )}
 
         {notes.length > 0 && (
