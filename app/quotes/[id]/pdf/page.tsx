@@ -337,7 +337,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                     <td className="whitespace-nowrap px-2 py-1.5">{group.headerRow.unit}</td>
                   </tr>
                   {group.rows.map((row, i) => (
-                    <tr key={`${group.index}-${i}`} className="border-t" style={{ borderColor: "rgba(255,248,234,0.15)", color: "rgba(255,248,234,0.85)" }}>
+                    <tr key={`${group.index}-${i}`} style={{ color: "rgba(255,248,234,0.85)" }}>
                       <td className="px-2 py-1.5" />
                       <td className="px-2 py-1.5">{row.brand}</td>
                       <td className="px-2 py-1.5">{row.product}</td>
