@@ -69,7 +69,7 @@ function BrandMark({ color, className }: { color: string; className?: string }) 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex gap-2 text-[11px] leading-relaxed">
-      <span className="w-32 shrink-0 font-medium uppercase tracking-wide" style={{ color: "rgba(255,248,234,0.6)" }}>{label}</span>
+      <span className="w-32 shrink-0 font-medium tracking-wide" style={{ color: "rgba(255,248,234,0.6)" }}>{label}</span>
       <span style={{ color: "#FFF8EA" }}>{value}</span>
     </div>
   );
