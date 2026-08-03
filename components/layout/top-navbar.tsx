@@ -64,7 +64,7 @@ export function TopNavbar() {
         </span>
       </Link>
 
-      <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 overflow-x-auto rounded-full bg-primary-transparent p-1 lg:flex">
+      <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 overflow-x-auto rounded-full bg-primary/40 p-1 lg:flex">
         {navigationItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
