@@ -43,32 +43,27 @@ function descOf(items: MaterialItem[], id?: string) {
   return item?.description || item?.name || "—";
 }
 
-// Section title as a plain uppercase label with a rule underneath — mirrors
-// the flat, single-tone reference layout instead of ad hoc colored header
-// bars, so the whole sheet reads as one consistent dark document.
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mt-6 border-b pb-1.5" style={{ borderColor: "rgba(255,248,234,0.3)" }}>
-      <h2 className="font-heading text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>{children}</h2>
+    <div className="pdf-border mt-6 border-b pb-1.5">
+      <h2 className="pdf-cream font-heading text-[11px] font-semibold uppercase tracking-wide">{children}</h2>
     </div>
   );
 }
 
-// The Furn's "T—f" wordmark, recreated as strokes so it can be tinted to
-// match the PDF's cream text color instead of shipping a raster asset.
-function BrandMark({ color, className }: { color: string; className?: string }) {
+function BrandMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="125 435 1035 390" className={`w-auto self-start ${className ?? "h-8"}`} aria-hidden="true">
-      <rect x="125" y="443" width="240" height="45" fill={color} />
-      <rect x="232" y="443" width="45" height="375" fill={color} />
-      <rect x="232" y="565" width="628" height="45" fill={color} />
-      <rect x="895" y="565" width="35" height="45" fill={color} />
-      <rect x="960" y="565" width="35" height="45" fill={color} />
-      <rect x="1020" y="565" width="45" height="255" fill={color} />
-      <rect x="1020" y="565" width="140" height="45" fill={color} />
+    <svg viewBox="125 435 1035 390" className={`pdf-svg w-auto self-start ${className ?? "h-8"}`} aria-hidden="true">
+      <rect x="125" y="443" width="240" height="45" fill="currentColor" />
+      <rect x="232" y="443" width="45" height="375" fill="currentColor" />
+      <rect x="232" y="565" width="628" height="45" fill="currentColor" />
+      <rect x="895" y="565" width="35" height="45" fill="currentColor" />
+      <rect x="960" y="565" width="35" height="45" fill="currentColor" />
+      <rect x="1020" y="565" width="45" height="255" fill="currentColor" />
+      <rect x="1020" y="565" width="140" height="45" fill="currentColor" />
       <path
         d="M1020 565 C1020 480 1060 460 1100 450 L1155 438 L1148 480 L1110 490 C1085 496 1065 508 1065 545 L1065 565 Z"
-        fill={color}
+        fill="currentColor"
       />
     </svg>
   );
@@ -77,8 +72,8 @@ function BrandMark({ color, className }: { color: string; className?: string }) 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex gap-2 text-[11px] leading-relaxed">
-      <span className="pdf-label w-32 shrink-0 font-bold tracking-wide" style={{ color: "rgba(255,248,234,0.6)" }}>{label}</span>
-      <span style={{ color: "#FFF8EA" }}>{value}</span>
+      <span className="pdf-cream-dim w-32 shrink-0 font-bold tracking-wide">{label}</span>
+      <span className="pdf-cream">{value}</span>
     </div>
   );
 }
@@ -95,11 +90,6 @@ type DetailRow = {
   highlight?: boolean;
 };
 
-// Standalone route outside the (app) group — no top bar/sidebar chrome, just
-// the printable sheet, so window.print() → "Save as PDF" produces a clean
-// document instead of the whole app UI. Auth is still real: every store here
-// hydrates from the same session-gated /api/* routes as the rest of the app,
-// this page just doesn't render AppShell/AuthGuard's client-side redirect.
 export default function QuotePdfPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const quotes = useQuotes();
@@ -131,12 +121,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   const quote = quotes.find((q) => q.id === id);
 
   useEffect(() => {
-    // Download mode leaves the print dialog for the user to trigger via the
-    // on-page button — Print mode (the default) auto-opens it immediately.
     if (quote && !printed && !isDownload) {
       setPrinted(true);
-      // Small delay so the sheet has actually painted before the print
-      // dialog steals focus.
       const t = setTimeout(() => window.print(), 300);
       return () => clearTimeout(t);
     }
@@ -162,9 +148,6 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
     ? [customer.address, [customer.city, customer.state, customer.postcode].filter(Boolean).join(", ")].filter(Boolean).join(", ")
     : "—";
 
-  // Carcass rows resolve against the cabinet's own W/D/H override (falls
-  // back to the Unit's) — Shutter/Other Panel/Hardware always use the
-  // Unit's, matching the same split the quote editor uses.
   function furnitureRow(item: FurnitureLineItem, dims: { width: number; depth: number; height: number }): DetailRow {
     const componentName = nameOf(furnitureComponents, item.componentTypeId);
     const w = Math.round(evaluateFormula(item.widthFormula, { W: dims.width, D: dims.depth, H: dims.height }));
@@ -198,9 +181,6 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
     };
   }
 
-  // Flatten every cabinet across every unit into one running-numbered list —
-  // the source PDF this redesign follows numbers cabinets 1..N straight
-  // through, not grouped by Unit.
   let runningIndex = 0;
   const cabinetGroups = quote.units.flatMap((unit) =>
     unit.cabinets.map((cabinet) => {
@@ -252,17 +232,14 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         {isDownload ? "Download as PDF" : "Print / Save as PDF"}
       </button>
 
-      <div
-        className="quote-pdf-sheet w-full max-w-[960px] rounded-sm p-10 font-body text-[13px] shadow-sm print:max-w-none print:shadow-none"
-        style={{ backgroundColor: "#9E7676", color: "#FFF8EA" }}
-      >
+      <div className="quote-pdf-sheet w-full max-w-[960px] rounded-sm p-10 font-body text-[13px] shadow-sm print:max-w-none print:shadow-none">
         <div className="flex items-start justify-between pb-4">
           <div className="flex flex-col gap-1.5">
-            <BrandMark color="#FFF8EA" className="h-10" />
-            <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>{branding.tagline}</span>
-            <span className="font-heading text-[14px] font-bold" style={{ color: "#FFF8EA" }}>{branding.companyName}</span>
-            <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>{branding.address}</span>
-            <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>
+            <BrandMark className="h-10" />
+            <span className="pdf-cream-muted text-xs">{branding.tagline}</span>
+            <span className="pdf-cream font-heading text-[14px] font-bold">{branding.companyName}</span>
+            <span className="pdf-cream-muted text-xs">{branding.address}</span>
+            <span className="pdf-cream-muted text-xs">
               Email: {branding.email} | Tel: <span className="font-number">{branding.phone}</span>
             </span>
           </div>
@@ -274,8 +251,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <Field label="Quote No" value={<span className="font-number">{quote.quoteNumber}</span>} />
             <Field label="Quote Date" value={<span className="font-number">{formatDate(quote.date)}</span>} />
             <Field label="Revision" value={<span className="font-number">{quote.revision}</span>} />
-            <div className="mt-1.5 border-t pt-1.5" style={{ borderColor: "rgba(255,248,234,0.3)" }}>
-              <span className="font-heading text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>
+            <div className="pdf-border mt-1.5 border-t pt-1.5">
+              <span className="pdf-cream font-heading text-[11px] font-semibold uppercase tracking-wide">
                 Client Details
               </span>
             </div>
@@ -310,7 +287,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <col style={{ width: "9%" }} />
           </colgroup>
           <thead>
-            <tr className="text-left" style={{ color: "rgba(255,248,234,0.6)" }}>
+            <tr className="pdf-cream-dim text-left">
               <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-2 font-bold">No</th>
               <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-2 font-bold">Brand</th>
               <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-2 font-bold">Product</th>
@@ -325,14 +302,14 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           <tbody className="leading-snug">
             {cabinetGroups.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-3 text-center" style={{ color: "rgba(255,248,234,0.5)" }}>
+                <td colSpan={9} className="pdf-cream-dim py-3 text-center">
                   No units added to this quote.
                 </td>
               </tr>
             ) : (
               cabinetGroups.map((group) => (
                 <>
-                  <tr key={`h-${group.index}`} className="border-t font-semibold" style={{ borderColor: "rgba(255,248,234,0.3)", color: "#FFF8EA" }}>
+                  <tr key={`h-${group.index}`} className="pdf-cream pdf-border border-t font-semibold">
                     <td className="whitespace-nowrap px-2.5 py-1.5 font-number">{group.index}</td>
                     <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.brand}</td>
                     <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.product}</td>
@@ -344,7 +321,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                     <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.unit}</td>
                   </tr>
                   {group.rows.map((row, i) => (
-                    <tr key={`${group.index}-${i}`} style={{ color: "rgba(255,248,234,0.85)" }}>
+                    <tr key={`${group.index}-${i}`} className="pdf-cream-body">
                       <td className="px-2.5 py-1" />
                       <td className="px-2.5 py-1">{row.brand}</td>
                       <td className="px-2.5 py-1">{row.product}</td>
@@ -364,10 +341,10 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         <div className="mt-6 flex flex-col items-end">
           <div className="w-full max-w-sm">
-            <div className="border-b pb-1.5" style={{ borderColor: "rgba(255,248,234,0.3)" }}>
-              <h2 className="font-heading text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Pricing Summary</h2>
+            <div className="pdf-border border-b pb-1.5">
+              <h2 className="pdf-cream font-heading text-[11px] font-semibold uppercase tracking-wide">Pricing Summary</h2>
             </div>
-            <table className="w-full border-collapse text-xs" style={{ color: "#FFF8EA" }}>
+            <table className="pdf-cream w-full border-collapse text-xs">
               <tbody>
                 <tr>
                   <td className="py-1 pr-4">Total</td>
@@ -389,7 +366,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                     </tr>
                   </>
                 )}
-                <tr className="text-sm font-semibold" style={{ borderTop: "2px solid #FFF8EA" }}>
+                <tr className="pdf-rule text-sm font-semibold">
                   <td className="pt-2 pr-4">Final Offer Price</td>
                   <td className="pt-2 text-right font-number">{formatInr(waterfall.finalOffer)}</td>
                 </tr>
@@ -403,7 +380,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <SectionLabel>Finish Options</SectionLabel>
             <table className="w-full border-collapse text-[10.5px]">
               <thead>
-                <tr className="text-left" style={{ color: "rgba(255,248,234,0.6)" }}>
+                <tr className="pdf-cream-dim text-left">
                   <th className="w-16 px-2 py-1.5 font-bold">Options</th>
                   <th className="px-2 py-1.5 font-bold">Product Description</th>
                   <th className="w-28 px-2 py-1.5 text-right font-bold">Final Amount</th>
@@ -418,7 +395,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                   const finalAmount = waterfall.finalOffer + opt.price;
                   const letter = String.fromCharCode(65 + idx);
                   return (
-                    <tr key={opt.id} style={{ color: "#FFF8EA" }}>
+                    <tr key={opt.id} className="pdf-cream">
                       <td className="px-2 py-1.5 font-semibold">{letter}</td>
                       <td className="px-2 py-1.5 font-bold">{desc || "—"}</td>
                       <td className="px-2 py-1.5 text-right font-number font-semibold">{formatInr(finalAmount)}</td>
@@ -431,8 +408,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         )}
 
         {quote.remark && (
-          <div className="mt-5 text-[11px]" style={{ color: "rgba(255,248,234,0.85)" }}>
-            <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Remarks</span>
+          <div className="pdf-cream-body mt-5 text-[11px]">
+            <span className="pdf-cream font-heading font-semibold uppercase tracking-wide">Remarks</span>
             <ol className="mt-1 list-decimal pl-4">
               <li className="marker-number">{numFont(quote.remark)}</li>
             </ol>
@@ -440,8 +417,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         )}
 
         {notes.length > 0 && (
-          <div className="mt-5 text-[11px]" style={{ color: "rgba(255,248,234,0.85)" }}>
-            <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Note</span>
+          <div className="pdf-cream-body mt-5 text-[11px]">
+            <span className="pdf-cream font-heading font-semibold uppercase tracking-wide">Note</span>
             <ol className="mt-1 list-decimal pl-4">
               {notes.map((n) => (
                 <li key={n.id} className="marker-number">{numFont(n.text)}</li>
@@ -451,8 +428,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         )}
 
         {terms.length > 0 && (
-          <div className="mt-4 text-[11px]" style={{ color: "rgba(255,248,234,0.85)" }}>
-            <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Terms &amp; Conditions</span>
+          <div className="pdf-cream-body mt-4 text-[11px]">
+            <span className="pdf-cream font-heading font-semibold uppercase tracking-wide">Terms &amp; Conditions</span>
             <ol className="mt-1 list-decimal pl-4">
               {terms.map((t) => (
                 <li key={t.id} className="marker-number">{numFont(t.text)}</li>
@@ -462,8 +439,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         )}
 
         {paymentTerms.length > 0 && (
-          <div className="mt-4 text-[11px]" style={{ color: "rgba(255,248,234,0.85)" }}>
-            <span className="font-heading font-semibold uppercase tracking-wide" style={{ color: "#FFF8EA" }}>Payment Terms</span>
+          <div className="pdf-cream-body mt-4 text-[11px]">
+            <span className="pdf-cream font-heading font-semibold uppercase tracking-wide">Payment Terms</span>
             <ol className="mt-1 list-decimal pl-4">
               {paymentTerms.map((t) => (
                 <li key={t.id} className="marker-number">{numFont(t.text)}</li>
@@ -472,8 +449,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </div>
         )}
 
-        <div className="mt-5 flex flex-col gap-1 text-[11px]" style={{ color: "rgba(255,248,234,0.85)" }}>
-          <span className="font-semibold" style={{ color: "#FFF8EA" }}>Bank Details</span>
+        <div className="pdf-cream-body mt-5 flex flex-col gap-1 text-[11px]">
+          <span className="pdf-cream font-semibold">Bank Details</span>
           <div className="flex flex-col gap-0.5 pl-4">
             <span>Bank: {banking.bankName} ({banking.branch})</span>
             <span>Account Name: {banking.accountName}</span>
@@ -483,11 +460,11 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           <span>{numFont(layout.quoteValidityText)}</span>
         </div>
 
-        <div className="mt-8 flex flex-col items-end gap-6 text-right text-xs" style={{ color: "#FFF8EA" }}>
+        <div className="pdf-cream mt-8 flex flex-col items-end gap-6 text-right text-xs">
           <div className="flex flex-col items-end gap-0.5">
             <span className="font-bold">For, {signature.companyName}</span>
             {signature.additionalFooterText && (
-              <span className="max-w-xs text-[11px]" style={{ color: "rgba(255,248,234,0.6)" }}>{signature.additionalFooterText}</span>
+              <span className="pdf-cream-dim max-w-xs text-[11px]">{signature.additionalFooterText}</span>
             )}
           </div>
           <span className="font-medium">{signature.signatureTitle}</span>

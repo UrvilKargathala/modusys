@@ -324,25 +324,40 @@
   }
 }
 
-/* Quote PDF prints on white with black text — overrides the on-screen mauve
-   theme so the exported document is clean and ink-friendly. The !important
-   beats the inline styles on the sheet elements. */
+/* Quote PDF — mauve theme on screen, white+black when printed. */
+.quote-pdf-sheet {
+  background-color: #9E7676;
+  color: #FFF8EA;
+}
+.pdf-cream { color: #FFF8EA; }
+.pdf-cream-muted { color: rgba(255,248,234,0.7); }
+.pdf-cream-dim { color: rgba(255,248,234,0.6); }
+.pdf-cream-body { color: rgba(255,248,234,0.85); }
+.pdf-border { border-color: rgba(255,248,234,0.3); }
+.pdf-rule { border-top: 2px solid #FFF8EA; }
+
 @media print {
-  .quote-pdf-sheet {
-    background-color: #fff !important;
-    color: #262626 !important;
-  }
+  .quote-pdf-sheet,
   .quote-pdf-sheet * {
-    color: #262626 !important;
-    border-color: #e2e4e8 !important;
+    background-color: #fff;
+    color: #262626;
   }
-  .quote-pdf-sheet th,
-  .quote-pdf-sheet .pdf-label {
-    color: #5d6772 !important;
+  .pdf-cream-muted,
+  .pdf-cream-dim,
+  .quote-pdf-sheet th {
+    color: #5d6772;
+  }
+  .pdf-border,
+  .quote-pdf-sheet td,
+  .quote-pdf-sheet tr {
+    border-color: #e2e4e8;
+  }
+  .pdf-rule {
+    border-top-color: #262626;
   }
   .quote-pdf-sheet svg rect,
   .quote-pdf-sheet svg path {
-    fill: #262626 !important;
+    fill: #262626;
   }
 }
 
