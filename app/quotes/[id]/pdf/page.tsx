@@ -263,7 +263,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
               Email: {branding.email} | Tel: {branding.phone}
             </span>
           </div>
-          <div className="flex w-64 shrink-0 flex-col gap-1.5">
+          <div className="flex w-64 shrink-0 flex-col gap-1.5 pt-[46px]">
             {branding.logoDataUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={branding.logoDataUrl} alt="" className="ml-auto h-12 w-24 object-contain" />
