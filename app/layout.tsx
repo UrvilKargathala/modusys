@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
-import { Outfit, Montserrat } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
-const outfit = Outfit({
+const raleway = localFont({
   variable: "--font-heading",
-  subsets: ["latin"],
+  src: [{ path: "./fonts/Raleway-Regular.ttf", weight: "400", style: "normal" }],
 });
 
-const montserrat = Montserrat({
+const ralewayLight = localFont({
   variable: "--font-body",
-  subsets: ["latin"],
+  src: [{ path: "./fonts/Raleway-Light.ttf", weight: "300", style: "normal" }],
 });
 
 export const metadata: Metadata = {
@@ -26,7 +26,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${montserrat.variable} h-full antialiased`}
+      className={`${raleway.variable} ${ralewayLight.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-body">
         <Providers>{children}</Providers>
