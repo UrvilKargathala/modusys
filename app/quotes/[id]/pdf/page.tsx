@@ -236,10 +236,10 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         <div className="flex items-start justify-between pb-4">
           <div className="flex flex-col gap-1.5">
             <BrandMark className="h-10" />
-            <span className="pdf-cream-muted pdf-heading text-xs">{branding.tagline}</span>
+            <span className="pdf-cream-muted pdf-heading text-xs font-bold">{branding.tagline}</span>
             <span className="pdf-cream pdf-heading font-heading text-[14px] font-bold">{branding.companyName}</span>
-            <span className="pdf-cream-muted pdf-heading text-xs">{branding.address}</span>
-            <span className="pdf-cream-muted pdf-heading text-xs">
+            <span className="pdf-cream-muted pdf-heading text-xs font-bold">{branding.address}</span>
+            <span className="pdf-cream-muted pdf-heading text-xs font-bold">
               Email: {branding.email} | Tel: <span className="font-number">{branding.phone}</span>
             </span>
           </div>
