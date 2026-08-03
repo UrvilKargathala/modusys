@@ -30,6 +30,11 @@ function nameOf(items: MaterialItem[], id?: string) {
   return items.find((i) => i.id === id)?.name || "—";
 }
 
+function descOf(items: MaterialItem[], id?: string) {
+  const item = items.find((i) => i.id === id);
+  return item?.description || item?.name || "—";
+}
+
 // Section title on a light brand-tinted bar — used for every major block
 // (Client Details, Finish & Hardware, Material Specification, Unit Details)
 // so the document reads as one consistent system instead of ad hoc headers.
@@ -90,6 +95,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   const rawMaterialTypes = useMaterialItems("raw-material-type");
   const internalColours = useMaterialItems("internal-colour");
   const thicknesses = useMaterialItems("thickness");
+  const levelTypes = useMaterialItems("level-type");
+  const secondaryLevelTypeId = levelTypes.find((l) => l.name === "Secondary")?.id;
   const brands = useMaterialItems("brand");
   const hardwareCategories = useMaterialItems("category");
   const unitOfMeasures = useMaterialItems("unit");
@@ -180,7 +187,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
       const carcassUnit = carcassUnitFor(cabinet, unit);
       const label = `${unitType?.name ?? cabinetType?.name ?? "Unit"}${cabinetType?.shortCode ? ` (${cabinetType.shortCode})` : ""}`;
       const headerRow: DetailRow = {
-        brand: "",
+        brand: cabinetType ? nameOf(brands, cabinetType.brandId) : "—",
         product: label,
         description: "",
         width: carcassUnit.width,
@@ -190,11 +197,22 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         unit: "SET",
         highlight: true,
       };
+      const carcassSummary: DetailRow = {
+        brand: cabinetType ? nameOf(brands, cabinetType.brandId) : "—",
+        product: cabinetType?.name ?? "—",
+        description: cabinetType?.description ?? "—",
+        width: carcassUnit.width,
+        depth: carcassUnit.depth,
+        height: carcassUnit.height,
+        qty: carcassUnit.qty,
+        unit: "PCS",
+      };
+      const isSecondary = (levelTypeId?: string) => levelTypeId === secondaryLevelTypeId;
       const rows: DetailRow[] = [
-        ...cabinet.components.map((i) => furnitureRow(i, carcassUnit)),
-        ...cabinet.externalFinishes.map((i) => furnitureRow(i, unit)),
-        ...cabinet.panels.map((i) => furnitureRow(i, unit)),
-        ...cabinet.hardware.map((i) => hardwareRow(i, unit)),
+        carcassSummary,
+        ...cabinet.externalFinishes.filter((i) => !isSecondary(i.levelTypeId)).map((i) => furnitureRow(i, unit)),
+        ...cabinet.panels.filter((i) => !isSecondary(i.levelTypeId)).map((i) => furnitureRow(i, unit)),
+        ...cabinet.hardware.filter((i) => !isSecondary(i.levelTypeId)).map((i) => hardwareRow(i, unit)),
       ];
       return { index: runningIndex, headerRow, rows, cost: unitTotal({ ...unit, cabinets: [cabinet] }, furnitureItems, hardwareItems) };
     })
@@ -230,7 +248,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         </div>
 
         <SectionLabel>Client Details</SectionLabel>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 border border-t-0 border-grey-100 p-3">
+        <div className="grid grid-cols-[70%_30%] border border-t-0 border-grey-100 p-3">
           <div className="flex flex-col gap-1.5">
             <Field label="Client Name" value={customer?.name ?? "—"} />
             <Field label="Address" value={customerAddressLine} />
@@ -245,26 +263,37 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         <SectionLabel>Finish &amp; Hardware</SectionLabel>
         <div className="border border-t-0 border-grey-100 p-3">
-          <Field label="Product Type" value={nameOf(productTypes, quote.productTypeId)} />
+          <Field label="Product Type" value={[nameOf(productTypes, quote.productTypeId), nameOf(externalColours, quote.shutterFinishId), nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId)].filter((v) => v !== "—").join(" + ")} />
         </div>
 
         <SectionLabel>Material Specification</SectionLabel>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 border border-t-0 border-grey-100 p-3">
-          <Field label="Handle" value={nameOf(handleTypes, quote.handleTypeId)} />
-          <Field label="Hinges" value={nameOf(hingesTypes, quote.hingesTypeId)} />
+        <div className="flex flex-col gap-1.5 border border-t-0 border-grey-100 p-3">
+          <Field label="Carcase Material" value={descOf(rawMaterialDescriptions, quote.materialDescriptionId)} />
+          <Field label="Shutter Finish" value={descOf(externalColours, quote.shutterFinishId)} />
           <Field label="Tandem Runner" value={nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId)} />
-          <Field label="Shutter Finish" value={nameOf(externalColours, quote.shutterFinishId)} />
-          <Field label="Carcase Material" value={nameOf(rawMaterialDescriptions, quote.materialDescriptionId)} />
+          <Field label="Hinges" value={descOf(hingesTypes, quote.hingesTypeId)} />
+          <Field label="Handle" value={descOf(handleTypes, quote.handleTypeId)} />
           <Field label="Client Responsibilities" value={nameOf(clientResponsibilities, quote.clientResponsibilityId)} />
         </div>
 
         <SectionLabel>Unit Details</SectionLabel>
-        <table className="w-full border-collapse border border-t-0 border-grey-100 text-[10.5px]">
+        <table className="w-full table-fixed border-collapse border border-t-0 border-grey-100 text-[10.5px]">
+          <colgroup>
+            <col style={{ width: "5%" }} />
+            <col style={{ width: "9%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "38%" }} />
+            <col style={{ width: "7%" }} />
+            <col style={{ width: "7%" }} />
+            <col style={{ width: "7%" }} />
+            <col style={{ width: "5%" }} />
+            <col style={{ width: "5%" }} />
+          </colgroup>
           <thead>
             <tr className="bg-primary-transparent text-left text-primary">
               <th className="whitespace-nowrap px-2 py-1.5 font-medium">Unit No</th>
               <th className="whitespace-nowrap px-2 py-1.5 font-medium">Brand</th>
-              <th className="whitespace-nowrap px-2 py-1.5 font-medium">Product</th>
+              <th className="px-2 py-1.5 font-medium">Product</th>
               <th className="px-2 py-1.5 font-medium">Material Description</th>
               <th className="whitespace-nowrap px-2 py-1.5 text-right font-medium">Width</th>
               <th className="whitespace-nowrap px-2 py-1.5 text-right font-medium">Depth</th>
@@ -285,8 +314,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                 <>
                   <tr key={`h-${group.index}`} className="border-t border-grey-100 bg-light-600 font-semibold text-grey-900">
                     <td className="whitespace-nowrap px-2 py-1.5">{group.index}</td>
-                    <td className="px-2 py-1.5">{group.headerRow.brand}</td>
-                    <td className="px-2 py-1.5">{group.headerRow.product}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5">{group.headerRow.brand}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5">{group.headerRow.product}</td>
                     <td className="px-2 py-1.5">{group.headerRow.description}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">{group.headerRow.width}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">{group.headerRow.depth}</td>
@@ -314,27 +343,37 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         </table>
 
         <div className="mt-6 flex flex-col items-end">
-          <div className="w-full max-w-xs">
+          <div className="w-full max-w-sm">
             <div className="bg-primary-transparent px-3 py-1.5">
               <h2 className="font-heading text-[11px] font-semibold uppercase tracking-wide text-primary">Pricing Summary</h2>
             </div>
             <div className="flex flex-col gap-1 border border-t-0 border-grey-100 p-3 text-xs">
+              {quote.remark && (
+                <div className="mb-1 text-[11px] text-grey-600">
+                  <span className="font-semibold uppercase text-grey-800">Remarks: </span>
+                  {quote.remark}
+                </div>
+              )}
               <div className="flex justify-between">
                 <span>Total</span>
                 <span>{formatInr(waterfall.total)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Discount ({quote.specialDiscountPct || 0}%)</span>
-                <span>-{formatInr(waterfall.discount)}</span>
+                <span>Installation &amp; Freight</span>
+                <span>{quote.installationFreightIncluded ? "Included" : formatInr(waterfall.installationFreight)}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Amount After Discount</span>
-                <span>{formatInr(waterfall.afterDiscount)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Installation &amp; Freight {layout.installationFreightText}</span>
-                <span>{quote.installationFreightIncluded ? "—" : formatInr(waterfall.installationFreight)}</span>
-              </div>
+              {waterfall.discount > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <span>Discount ({quote.specialDiscountPct}%)</span>
+                    <span>-{formatInr(waterfall.discount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Amount After Discount</span>
+                    <span>{formatInr(waterfall.afterDiscount)}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between border-t-2 border-primary pt-1.5 text-sm font-semibold text-grey-900">
                 <span>Final Offer Price</span>
                 <span>{formatInr(waterfall.finalOffer)}</span>
@@ -343,11 +382,35 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </div>
         </div>
 
-        {quote.remark && (
-          <div className="mt-5 text-[11px] text-grey-600">
-            <span className="font-heading font-semibold uppercase tracking-wide text-primary">Remark: </span>
-            {quote.remark}
-          </div>
+        {quote.finishOptions.length > 0 && (
+          <>
+            <SectionLabel>Finish Options</SectionLabel>
+            <table className="w-full border-collapse border border-t-0 border-grey-100 text-[10.5px]">
+              <thead>
+                <tr className="bg-primary-transparent text-left text-primary">
+                  <th className="w-16 px-2 py-1.5 font-medium">Options</th>
+                  <th className="px-2 py-1.5 font-medium">Exposed Material Finish With Hardware Fitting Description</th>
+                  <th className="w-28 px-2 py-1.5 text-right font-medium">Final Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quote.finishOptions.map((opt, idx) => {
+                  const shutterName = nameOf(externalColours, opt.externalColourId);
+                  const tandemName = nameOf(tandemDrawerTypes, opt.tandemDrawerTypeId);
+                  const desc = [shutterName, tandemName].filter((v) => v !== "—").join(" + ");
+                  const finalAmount = waterfall.finalOffer + opt.price;
+                  const letter = String.fromCharCode(65 + idx);
+                  return (
+                    <tr key={opt.id} className="border-t border-grey-100 text-grey-800">
+                      <td className="px-2 py-1.5 font-semibold">{letter}</td>
+                      <td className="px-2 py-1.5">{desc || "—"}</td>
+                      <td className="px-2 py-1.5 text-right font-semibold">{formatInr(finalAmount)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </>
         )}
 
         {notes.length > 0 && (
