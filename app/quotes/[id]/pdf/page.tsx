@@ -46,6 +46,26 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+// The Furn's "T—f" wordmark, recreated as strokes so it can be tinted to
+// match the PDF's cream text color instead of shipping a raster asset.
+function BrandMark({ color }: { color: string }) {
+  return (
+    <svg viewBox="100 420 1080 420" className="h-8 w-auto" aria-hidden="true">
+      <rect x="125" y="443" width="240" height="45" fill={color} />
+      <rect x="232" y="443" width="45" height="375" fill={color} />
+      <rect x="232" y="565" width="628" height="45" fill={color} />
+      <rect x="895" y="565" width="35" height="45" fill={color} />
+      <rect x="960" y="565" width="35" height="45" fill={color} />
+      <rect x="1020" y="565" width="45" height="255" fill={color} />
+      <rect x="1020" y="565" width="140" height="45" fill={color} />
+      <path
+        d="M1020 565 C1020 480 1060 460 1100 450 L1155 438 L1148 480 L1110 490 C1085 496 1065 508 1065 545 L1065 565 Z"
+        fill={color}
+      />
+    </svg>
+  );
+}
+
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex gap-2 text-[11px] leading-relaxed">
@@ -234,7 +254,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         style={{ backgroundColor: "#9E7676", color: "#FFF8EA" }}
       >
         <div className="flex items-start justify-between pb-4" style={{ borderBottom: "2px solid #FFF8EA" }}>
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-1">
+            <BrandMark color="#FFF8EA" />
             <span className="font-heading text-xl font-bold" style={{ color: "#FFF8EA" }}>{branding.companyName}</span>
             <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>{branding.tagline}</span>
             <span className="text-xs" style={{ color: "rgba(255,248,234,0.7)" }}>{branding.address}</span>
@@ -250,7 +271,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           )}
         </div>
 
-        <SectionLabel>Client Details</SectionLabel>
+        <SectionLabel>Client Information</SectionLabel>
         <div className="grid grid-cols-[70%_30%] p-3 pt-2">
           <div className="flex flex-col gap-1.5">
             <Field label="Client Name" value={customer?.name ?? "—"} />
@@ -264,13 +285,9 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </div>
         </div>
 
-        <SectionLabel>Finish &amp; Hardware</SectionLabel>
-        <div className="p-3 pt-2">
-          <Field label="Product Type" value={[nameOf(productTypes, quote.productTypeId), nameOf(externalColours, quote.shutterFinishId), nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId)].filter((v) => v !== "—").join(" + ")} />
-        </div>
-
         <SectionLabel>Material Specification</SectionLabel>
         <div className="flex flex-col gap-1.5 p-3 pt-2">
+          <Field label="Product Type" value={[nameOf(productTypes, quote.productTypeId), nameOf(externalColours, quote.shutterFinishId), nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId)].filter((v) => v !== "—").join(" + ")} />
           <Field label="Carcase Material" value={descOf(rawMaterialDescriptions, quote.materialDescriptionId)} />
           <Field label="Shutter Finish" value={descOf(externalColours, quote.shutterFinishId)} />
           <Field label="Tandem Runner" value={nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId)} />
