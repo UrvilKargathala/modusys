@@ -1,7 +1,8 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { Printer } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Printer, Download } from "lucide-react";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useArchitects } from "@/lib/store/architects-store";
@@ -102,6 +103,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   const furnitureItems = useFurniturePriceItems();
   const hardwareItems = useHardwarePriceItems();
   const settings = useQuoteTemplateSettings();
+  const searchParams = useSearchParams();
+  const isDownload = searchParams.get("download") === "1";
   const [printed, setPrinted] = useState(false);
 
   const productTypes = useMaterialItems("product-type");
@@ -124,14 +127,16 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   const quote = quotes.find((q) => q.id === id);
 
   useEffect(() => {
-    if (quote && !printed) {
+    // Download mode leaves the print dialog for the user to trigger via the
+    // on-page button — Print mode (the default) auto-opens it immediately.
+    if (quote && !printed && !isDownload) {
       setPrinted(true);
       // Small delay so the sheet has actually painted before the print
       // dialog steals focus.
       const t = setTimeout(() => window.print(), 300);
       return () => clearTimeout(t);
     }
-  }, [quote, printed]);
+  }, [quote, printed, isDownload]);
 
   if (!quote) {
     return <p className="p-6 text-sm font-body text-grey-400">Loading quote…</p>;
@@ -245,8 +250,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         onClick={() => window.print()}
         className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-body font-medium text-white shadow-sm print:hidden"
       >
-        <Printer className="h-4 w-4" />
-        Print / Save as PDF
+        {isDownload ? <Download className="h-4 w-4" /> : <Printer className="h-4 w-4" />}
+        {isDownload ? "Download as PDF" : "Print / Save as PDF"}
       </button>
 
       <div

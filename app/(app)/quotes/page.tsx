@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Plus, FileStack, Search, Eye, Pencil, Copy, FileSpreadsheet, FileText, Trash2 } from "lucide-react";
+import { Plus, FileStack, Search, Eye, Pencil, Copy, FileSpreadsheet, FileText, Trash2, Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useQuotes, quotesStore } from "@/lib/store/quotes-store";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
@@ -85,6 +86,11 @@ export default function QuotesPage() {
         q.revision,
       ],
     ]);
+  };
+
+  const openPdf = (q: Quote, mode: "download" | "print") => {
+    const url = mode === "download" ? `/quotes/${q.id}/pdf?download=1` : `/quotes/${q.id}/pdf`;
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const deleteQuote = (q: Quote) => {
@@ -214,16 +220,30 @@ export default function QuotesPage() {
                               </TooltipTrigger>
                               <TooltipContent>Export Excel (CSV)</TooltipContent>
                             </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
                                 aria-label="Export PDF"
-                                onClick={() => window.open(`/quotes/${quote.id}/pdf`, "_blank", "noopener,noreferrer")}
                                 className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
                               >
                                 <FileText className="h-4 w-4" />
-                              </TooltipTrigger>
-                              <TooltipContent>Export PDF</TooltipContent>
-                            </Tooltip>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="min-w-36">
+                                <DropdownMenuItem
+                                  onClick={() => openPdf(quote, "download")}
+                                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                                >
+                                  <Download className="h-4 w-4 shrink-0 text-grey-400" />
+                                  Download
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openPdf(quote, "print")}
+                                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                                >
+                                  <Printer className="h-4 w-4 shrink-0 text-grey-400" />
+                                  Print
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                             <Tooltip>
                               <TooltipTrigger
                                 aria-label="Delete"
