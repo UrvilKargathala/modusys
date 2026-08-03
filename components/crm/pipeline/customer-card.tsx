@@ -70,7 +70,7 @@ export function CustomerCard({
 
       {customer.finalOfferLakh !== null && (
         <span className="text-xs font-body font-medium text-grey-700">
-          Final Offer: ₹{customer.finalOfferLakh.toFixed(1)}L
+          Final Offer: <span className="font-number">₹{customer.finalOfferLakh.toFixed(1)}L</span>
         </span>
       )}
     </div>

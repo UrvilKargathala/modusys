@@ -143,7 +143,7 @@ export function CabinetTypeComponentRow({
         <div className="flex flex-col gap-1.5">
           <Label>Rate</Label>
           {match ? (
-            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-700">
+            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-number font-semibold text-grey-700">
               {match.rate.toFixed(2)}/sq.ft
             </div>
           ) : (

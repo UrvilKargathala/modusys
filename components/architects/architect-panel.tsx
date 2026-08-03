@@ -175,7 +175,7 @@ export function ArchitectPanel() {
                         </div>
                         <div className="flex items-center gap-2">
                           <StatusBadge status={quote.status} />
-                          <span className="text-sm font-body font-semibold text-grey-800">
+                          <span className="text-sm font-number font-semibold text-grey-800">
                             ₹{quote.finalOfferLakh.toFixed(1)}L
                           </span>
                           <ExternalLink className="h-3.5 w-3.5 text-grey-300" />

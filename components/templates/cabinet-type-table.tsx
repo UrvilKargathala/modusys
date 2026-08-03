@@ -111,11 +111,11 @@ export function CabinetTypeTable() {
             <tbody>
               {sorted.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-medium text-grey-900">{i.name}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{i.shortCode}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{brandName(i.brandId)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{i.components.length}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-number text-grey-700">{i.components.length}</td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <span
                       className={cn(

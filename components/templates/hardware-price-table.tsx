@@ -264,7 +264,7 @@ export function HardwarePriceTable() {
                       />
                     </td>
                   )}
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-medium text-grey-900">{i.articleNo}</td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <span className="whitespace-nowrap rounded-full bg-grey-transparent px-2 py-0.5 text-xs font-body text-grey-600">
@@ -275,9 +275,9 @@ export function HardwarePriceTable() {
                   <td className="max-w-xs px-4 py-3 text-sm font-body text-grey-500">{i.description || "—"}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{levelTypeName(i.levelTypeId)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{unitName(i.unitId)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">₹{i.mrp}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{i.discountPct}%</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-number text-grey-700">₹{i.mrp}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-number text-grey-700">{i.discountPct}%</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-number font-semibold text-grey-900">
                     ₹{rateAfterDiscount(i).toFixed(2)}
                   </td>
                   <td className="px-4 py-3">

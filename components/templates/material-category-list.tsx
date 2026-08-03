@@ -132,7 +132,7 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
               {filtered.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
                   {category.group === "library" && (
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
                   )}
                   <td className="px-4 py-3 text-sm font-body text-grey-900">
                     {i.name}

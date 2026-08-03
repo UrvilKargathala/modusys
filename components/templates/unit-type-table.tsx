@@ -123,14 +123,14 @@ export function UnitTypeTable() {
             <tbody>
               {sorted.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
-                  <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-sm font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
                   <td className="whitespace-nowrap px-3 py-3 text-sm font-body font-medium text-grey-900">{i.name}</td>
                   <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-700">{i.shortCode}</td>
                   <td className="whitespace-nowrap px-3 py-3 text-sm font-body text-grey-700">{cabinetTypeLabel(i.cabinetTypeLinks)}</td>
-                  <td className="whitespace-nowrap px-2 py-3 text-sm font-body text-grey-700">{i.components.length}</td>
-                  <td className="whitespace-nowrap px-2 py-3 text-sm font-body text-grey-700">{i.externalFinishes.length}</td>
-                  <td className="whitespace-nowrap px-2 py-3 text-sm font-body text-grey-700">{i.hardware.length}</td>
-                  <td className="whitespace-nowrap px-2 py-3 text-sm font-body text-grey-700">{i.otherPanels.length}</td>
+                  <td className="whitespace-nowrap px-2 py-3 text-sm font-number text-grey-700">{i.components.length}</td>
+                  <td className="whitespace-nowrap px-2 py-3 text-sm font-number text-grey-700">{i.externalFinishes.length}</td>
+                  <td className="whitespace-nowrap px-2 py-3 text-sm font-number text-grey-700">{i.hardware.length}</td>
+                  <td className="whitespace-nowrap px-2 py-3 text-sm font-number text-grey-700">{i.otherPanels.length}</td>
                   <td className="whitespace-nowrap px-3 py-3">
                     <span
                       className={cn(

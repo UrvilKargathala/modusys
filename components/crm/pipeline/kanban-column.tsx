@@ -49,7 +49,7 @@ export function KanbanColumn({
           {stage.label}
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
-          <span className="rounded-full bg-card px-2 py-0.5 text-xs font-body font-medium text-grey-500">
+          <span className="rounded-full bg-card px-2 py-0.5 text-xs font-number font-medium text-grey-500">
             {customers.length}
           </span>
           <SortMenu value={sort} onChange={setSort} />

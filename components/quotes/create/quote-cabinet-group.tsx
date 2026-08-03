@@ -105,7 +105,7 @@ export function FurnitureGroup({
           <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-700">{title}</h4>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm font-body font-semibold text-grey-700">₹{subtotal.toFixed(2)}</span>
+          <span className="text-sm font-number font-semibold text-grey-700">₹{subtotal.toFixed(2)}</span>
           <Button
             type="button"
             size="sm"
@@ -193,7 +193,7 @@ function HardwareGroup({
           <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-700">Hardware</h4>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm font-body font-semibold text-grey-700">₹{total.toFixed(2)}</span>
+          <span className="text-sm font-number font-semibold text-grey-700">₹{total.toFixed(2)}</span>
           <Button type="button" size="sm" variant="outline" onClick={() => onChange([...items, blankHardware()])}>
             <Plus className="h-3.5 w-3.5" />
             Add Hardware
@@ -374,7 +374,7 @@ export function QuoteCabinetGroup({
               Add Cabinet
             </Button>
           )}
-          <span className="text-sm font-body font-semibold text-grey-900">Cabinet Total: ₹{total.toFixed(2)}</span>
+          <span className="text-sm font-body font-semibold text-grey-900">Cabinet Total: <span className="font-number">₹{total.toFixed(2)}</span></span>
           <button
             type="button"
             aria-label="Duplicate cabinet"

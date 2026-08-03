@@ -1,6 +1,7 @@
 import { Building2, Wallet, Users, Tag } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatInr } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export function OrgDetailsCard({
   name,
@@ -14,10 +15,10 @@ export function OrgDetailsCard({
   totalMembers: number;
 }) {
   const stats = [
-    { label: "Org Name", value: name, icon: Building2 },
-    { label: "Type", value: type, icon: Tag },
-    { label: "Credits Balance", value: formatInr(creditsBalance), icon: Wallet },
-    { label: "Total Members", value: String(totalMembers), icon: Users },
+    { label: "Org Name", value: name, icon: Building2, numeric: false },
+    { label: "Type", value: type, icon: Tag, numeric: false },
+    { label: "Credits Balance", value: formatInr(creditsBalance), icon: Wallet, numeric: true },
+    { label: "Total Members", value: String(totalMembers), icon: Users, numeric: true },
   ];
 
   return (
@@ -30,7 +31,7 @@ export function OrgDetailsCard({
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-xs font-body text-grey-400">{stat.label}</span>
-              <span className="truncate font-heading text-base font-semibold text-grey-900">
+              <span className={cn("truncate font-heading text-base font-semibold text-grey-900", stat.numeric && "font-number")}>
                 {stat.value}
               </span>
             </div>

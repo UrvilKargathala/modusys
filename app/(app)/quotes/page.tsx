@@ -165,8 +165,8 @@ export default function QuotesPage() {
                         <td className="whitespace-nowrap px-4 py-3 text-grey-700">{customerName(quote.customerId)}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-grey-500">{formatDate(quote.date)}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-grey-700">{productTypeName(quote.productTypeId)}</td>
-                        <td className="whitespace-nowrap px-4 py-3 font-medium text-grey-800">{formatInr(finalAmount(quote))}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-grey-500">{quote.revision}</td>
+                        <td className="whitespace-nowrap px-4 py-3 font-number font-medium text-grey-800">{formatInr(finalAmount(quote))}</td>
+                        <td className="whitespace-nowrap px-4 py-3 font-number text-grey-500">{quote.revision}</td>
                         <td className="whitespace-nowrap px-4 py-3">
                           <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium", cfg.bg, cfg.color)}>
                             {cfg.label}

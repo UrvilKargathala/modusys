@@ -68,7 +68,7 @@ export function PipelineFunnelPanel() {
                   style={{ backgroundColor: stageColorTokens[stage.color].solid }}
                 />
                 <span className="min-w-0 flex-1 truncate text-grey-600">{stage.label}</span>
-                <span className="shrink-0 font-medium text-grey-800">{count}</span>
+                <span className="shrink-0 font-number font-medium text-grey-800">{count}</span>
               </Link>
             ))}
           </div>

@@ -93,7 +93,7 @@ export function PanelHeader({
       {customer.finalOfferLakh !== null && (
         <div className="flex flex-col gap-0.5">
           <span className="text-xs font-body text-grey-400">Final Offer</span>
-          <span className="font-body text-2xl font-bold text-grey-900">
+          <span className="font-number text-2xl font-bold text-grey-900">
             ₹{customer.finalOfferLakh.toFixed(1)}L
           </span>
         </div>

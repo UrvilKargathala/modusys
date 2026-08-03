@@ -184,7 +184,7 @@ export function HardwarePriceFormDialog({
 
           <div className="flex flex-col gap-1.5">
             <Label>Rate After Discount</Label>
-            <div className="rounded-lg border border-grey-100 bg-light-600 px-3 py-2 text-sm font-body font-semibold text-grey-700">
+            <div className="rounded-lg border border-grey-100 bg-light-600 px-3 py-2 text-sm font-number font-semibold text-grey-700">
               ₹{rateAfterDiscount(values).toFixed(2)}
             </div>
           </div>

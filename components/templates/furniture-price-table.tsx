@@ -149,12 +149,12 @@ export function FurniturePriceTable() {
             <tbody>
               {sorted.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-medium text-grey-900">{materialName(i.thicknessId)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-900">{materialName(i.rawMaterialTypeId)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{materialName(i.internalColourId)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{materialName(i.externalColourId)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">{i.rate.toFixed(2)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-number font-semibold text-grey-900">{i.rate.toFixed(2)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       {canEdit && (

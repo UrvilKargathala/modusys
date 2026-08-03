@@ -297,7 +297,7 @@ export function QuoteUnitCard({
         </Button>
 
         <div className="flex items-center justify-end gap-3 sm:ml-auto">
-          <span className="text-sm font-body font-semibold text-grey-900">Unit Total: ₹{total.toFixed(2)}</span>
+          <span className="text-sm font-body font-semibold text-grey-900">Unit Total: <span className="font-number">₹{total.toFixed(2)}</span></span>
           <button
             type="button"
             aria-label="Duplicate unit"

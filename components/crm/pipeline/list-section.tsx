@@ -33,7 +33,7 @@ const columns: ColumnDef<Customer>[] = [
       return value === null ? (
         <span className="text-grey-300">—</span>
       ) : (
-        <span className="font-medium text-grey-800">₹{value.toFixed(1)}L</span>
+        <span className="font-number font-medium text-grey-800">₹{value.toFixed(1)}L</span>
       );
     },
   },

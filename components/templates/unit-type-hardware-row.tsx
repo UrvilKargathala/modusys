@@ -310,7 +310,7 @@ export function UnitTypeHardwareRow({
 
         <div className="flex flex-col gap-1.5 lg:col-span-2">
           <Label>Amount</Label>
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body font-semibold text-grey-900">
+          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-number font-semibold text-grey-900">
             {amount !== undefined ? `₹${amount.toFixed(2)}` : "—"}
           </div>
         </div>
