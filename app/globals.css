@@ -328,6 +328,8 @@
 .quote-pdf-sheet {
   background-color: #9E7676;
   color: #FFF8EA;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 .pdf-cream { color: #FFF8EA; }
 .pdf-cream-muted { color: rgba(255,248,234,0.7); }
@@ -336,7 +338,7 @@
 .pdf-border { border-color: rgba(255,248,234,0.3); }
 .pdf-rule { border-top: 2px solid #FFF8EA; }
 
-/* Print route: white bg + black text on screen */
+/* Print route: white bg + black text on screen AND in print */
 .quote-pdf-sheet.pdf-print-mode,
 .quote-pdf-sheet.pdf-print-mode * {
   background-color: #fff;
@@ -358,31 +360,6 @@
 .pdf-print-mode svg rect,
 .pdf-print-mode svg path {
   fill: #262626;
-}
-
-@media print {
-  .quote-pdf-sheet,
-  .quote-pdf-sheet * {
-    background-color: #fff;
-    color: #262626;
-  }
-  .pdf-cream-muted,
-  .pdf-cream-dim,
-  .quote-pdf-sheet th {
-    color: #5d6772;
-  }
-  .pdf-border,
-  .quote-pdf-sheet td,
-  .quote-pdf-sheet tr {
-    border-color: #e2e4e8;
-  }
-  .pdf-rule {
-    border-top-color: #262626;
-  }
-  .quote-pdf-sheet svg rect,
-  .quote-pdf-sheet svg path {
-    fill: #262626;
-  }
 }
 
 /* Ordered-list markers in Outfit Light (font-number) for the PDF sheet. */
