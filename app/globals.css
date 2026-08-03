@@ -10,6 +10,7 @@
   --font-sans: var(--font-body);
   --font-heading: var(--font-heading);
   --font-body: var(--font-body);
+  --font-number: var(--font-number);
 
   /* Brand */
   --color-white: #ffffff;

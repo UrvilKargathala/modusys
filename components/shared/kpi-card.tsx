@@ -22,7 +22,7 @@ export function KpiCard({ label, value, icon: Icon, trend, className, notTracked
           {notTracked ? (
             <span className="text-sm font-body italic text-grey-300">Not tracked yet</span>
           ) : (
-            <span className="text-2xl font-heading font-semibold text-grey-900">{value}</span>
+            <span className="text-2xl font-number font-semibold text-grey-900">{value}</span>
           )}
           {!notTracked && trend && (
             <span

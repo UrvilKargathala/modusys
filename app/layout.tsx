@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
@@ -11,6 +12,12 @@ const raleway = localFont({
 const ralewayLight = localFont({
   variable: "--font-body",
   src: [{ path: "./fonts/Raleway-Light.ttf", weight: "300", style: "normal" }],
+});
+
+const outfitLight = Outfit({
+  variable: "--font-number",
+  weight: "300",
+  subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
@@ -26,7 +33,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${raleway.variable} ${ralewayLight.variable} h-full antialiased`}
+      className={`${raleway.variable} ${ralewayLight.variable} ${outfitLight.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-body">
         <Providers>{children}</Providers>

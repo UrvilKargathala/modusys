@@ -15,7 +15,7 @@ export function WelcomeBanner({ name, stats }: { name: string; stats: Stat[] }) 
       <div className="flex gap-8">
         {stats.map((stat) => (
           <div key={stat.label} className="flex flex-col items-start md:items-end">
-            <span className="font-heading text-2xl font-bold text-grey-900">{stat.value}</span>
+            <span className="font-number text-2xl font-bold text-grey-900">{stat.value}</span>
             <span className="text-xs font-body text-grey-500">{stat.label}</span>
           </div>
         ))}
