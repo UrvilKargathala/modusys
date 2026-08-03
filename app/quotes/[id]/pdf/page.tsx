@@ -115,9 +115,6 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   const rawMaterialDescriptions = useMaterialItems("raw-material-description");
   const clientResponsibilities = useMaterialItems("client-responsibility");
   const furnitureComponents = useMaterialItems("furniture-component");
-  const rawMaterialTypes = useMaterialItems("raw-material-type");
-  const internalColours = useMaterialItems("internal-colour");
-  const thicknesses = useMaterialItems("thickness");
   const levelTypes = useMaterialItems("level-type");
   const secondaryLevelTypeId = levelTypes.find((l) => l.name === "Secondary")?.id;
   const brands = useMaterialItems("brand");
@@ -165,16 +162,10 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
     const componentName = nameOf(furnitureComponents, item.componentTypeId);
     const w = Math.round(evaluateFormula(item.widthFormula, { W: dims.width, D: dims.depth, H: dims.height }));
     const h = Math.round(evaluateFormula(item.heightFormula, { W: dims.width, D: dims.depth, H: dims.height }));
-    const thick = nameOf(thicknesses, item.thicknessId);
-    const rawMat = nameOf(rawMaterialTypes, item.rawMaterialTypeId);
-    const intCol = nameOf(internalColours, item.internalColourId);
-    const extCol = nameOf(externalColours, item.externalColourId);
-    const descriptionBits = [thick !== "—" ? thick : "", rawMat !== "—" ? rawMat : ""].filter(Boolean).join(" ");
-    const colourBits = [intCol !== "—" && `Int: ${intCol}`, extCol !== "—" && `Ext: ${extCol}`].filter(Boolean).join(", ");
     return {
       brand: componentName,
       product: componentName,
-      description: [descriptionBits, colourBits].filter(Boolean).join(" — ") || "—",
+      description: descOf(externalColours, item.externalColourId),
       width: w || "—",
       depth: "—",
       height: h || "—",
