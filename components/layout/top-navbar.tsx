@@ -64,7 +64,7 @@ export function TopNavbar() {
         </span>
       </Link>
 
-      <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 overflow-x-auto rounded-full bg-teal-transparent p-1 lg:flex">
+      <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 overflow-x-auto rounded-full bg-primary-transparent p-1 lg:flex">
         {navigationItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
@@ -73,7 +73,7 @@ export function TopNavbar() {
               href={item.href}
               className={cn(
                 "whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-body font-medium transition-colors",
-                active ? "bg-teal text-grey-900 shadow-sm" : "text-grey-700 hover:text-grey-900"
+                active ? "bg-primary text-white shadow-sm" : "text-grey-700 hover:text-grey-900"
               )}
             >
               {item.label}
@@ -88,7 +88,7 @@ export function TopNavbar() {
               administrationItems.some(
                 (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
               )
-                ? "bg-teal text-grey-900 shadow-sm"
+                ? "bg-primary text-white shadow-sm"
                 : "text-grey-700 hover:text-grey-900"
             )}
           >
