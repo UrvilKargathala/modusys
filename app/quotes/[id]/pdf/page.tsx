@@ -50,7 +50,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // match the PDF's cream text color instead of shipping a raster asset.
 function BrandMark({ color, className }: { color: string; className?: string }) {
   return (
-    <svg viewBox="125 435 1035 390" className={`w-auto ${className ?? "h-8"}`} aria-hidden="true">
+    <svg viewBox="125 435 1035 390" className={`w-auto self-start ${className ?? "h-8"}`} aria-hidden="true">
       <rect x="125" y="443" width="240" height="45" fill={color} />
       <rect x="232" y="443" width="45" height="375" fill={color} />
       <rect x="232" y="565" width="628" height="45" fill={color} />
