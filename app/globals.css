@@ -344,6 +344,9 @@
   background-color: #fff;
   color: #262626;
 }
+.pdf-print-mode .pdf-heading {
+  color: #9E7676;
+}
 .pdf-print-mode .pdf-cream-muted,
 .pdf-print-mode .pdf-cream-dim,
 .pdf-print-mode th {

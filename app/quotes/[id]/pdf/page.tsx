@@ -46,7 +46,7 @@ function descOf(items: MaterialItem[], id?: string) {
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="pdf-border mt-6 border-b pb-1.5">
-      <h2 className="pdf-cream font-heading text-[11px] font-semibold uppercase tracking-wide">{children}</h2>
+      <h2 className="pdf-cream pdf-heading font-heading text-[11px] font-semibold uppercase tracking-wide">{children}</h2>
     </div>
   );
 }
@@ -237,7 +237,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           <div className="flex flex-col gap-1.5">
             <BrandMark className="h-10" />
             <span className="pdf-cream-muted text-xs">{branding.tagline}</span>
-            <span className="pdf-cream font-heading text-[14px] font-bold">{branding.companyName}</span>
+            <span className="pdf-cream pdf-heading font-heading text-[14px] font-bold">{branding.companyName}</span>
             <span className="pdf-cream-muted text-xs">{branding.address}</span>
             <span className="pdf-cream-muted text-xs">
               Email: {branding.email} | Tel: <span className="font-number">{branding.phone}</span>
@@ -252,7 +252,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <Field label="Quote Date" value={<span className="font-number">{formatDate(quote.date)}</span>} />
             <Field label="Revision" value={<span className="font-number">{quote.revision}</span>} />
             <div className="pdf-border mt-1.5 border-t pt-1.5">
-              <span className="pdf-cream font-heading text-[11px] font-semibold uppercase tracking-wide">
+              <span className="pdf-cream pdf-heading font-heading text-[11px] font-semibold uppercase tracking-wide">
                 Client Details
               </span>
             </div>
@@ -342,7 +342,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         <div className="mt-6 flex flex-col items-end">
           <div className="w-full max-w-sm">
             <div className="pdf-border border-b pb-1.5">
-              <h2 className="pdf-cream font-heading text-[11px] font-semibold uppercase tracking-wide">Pricing Summary</h2>
+              <h2 className="pdf-cream pdf-heading font-heading text-[11px] font-semibold uppercase tracking-wide">Pricing Summary</h2>
             </div>
             <table className="pdf-cream w-full border-collapse text-xs">
               <tbody>
@@ -409,7 +409,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         {quote.remark && (
           <div className="pdf-cream-body mt-5 text-[11px]">
-            <span className="pdf-cream font-heading font-semibold uppercase tracking-wide">Remarks</span>
+            <span className="pdf-cream pdf-heading font-heading font-semibold uppercase tracking-wide">Remarks</span>
             <ol className="mt-1 list-decimal pl-4">
               <li className="marker-number">{numFont(quote.remark)}</li>
             </ol>
@@ -418,7 +418,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         {notes.length > 0 && (
           <div className="pdf-cream-body mt-5 text-[11px]">
-            <span className="pdf-cream font-heading font-semibold uppercase tracking-wide">Note</span>
+            <span className="pdf-cream pdf-heading font-heading font-semibold uppercase tracking-wide">Note</span>
             <ol className="mt-1 list-decimal pl-4">
               {notes.map((n) => (
                 <li key={n.id} className="marker-number">{numFont(n.text)}</li>
@@ -429,7 +429,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         {terms.length > 0 && (
           <div className="pdf-cream-body mt-4 text-[11px]">
-            <span className="pdf-cream font-heading font-semibold uppercase tracking-wide">Terms &amp; Conditions</span>
+            <span className="pdf-cream pdf-heading font-heading font-semibold uppercase tracking-wide">Terms &amp; Conditions</span>
             <ol className="mt-1 list-decimal pl-4">
               {terms.map((t) => (
                 <li key={t.id} className="marker-number">{numFont(t.text)}</li>
@@ -440,7 +440,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         {paymentTerms.length > 0 && (
           <div className="pdf-cream-body mt-4 text-[11px]">
-            <span className="pdf-cream font-heading font-semibold uppercase tracking-wide">Payment Terms</span>
+            <span className="pdf-cream pdf-heading font-heading font-semibold uppercase tracking-wide">Payment Terms</span>
             <ol className="mt-1 list-decimal pl-4">
               {paymentTerms.map((t) => (
                 <li key={t.id} className="marker-number">{numFont(t.text)}</li>
@@ -450,7 +450,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         )}
 
         <div className="pdf-cream-body mt-5 flex flex-col gap-1 text-[11px]">
-          <span className="pdf-cream font-semibold">Bank Details</span>
+          <span className="pdf-cream pdf-heading font-semibold">Bank Details</span>
           <div className="flex flex-wrap gap-x-6 gap-y-0.5 pl-4">
             <span>Account Name: {banking.accountName}</span>
             <span>Bank: {banking.bankName} ({banking.branch})</span>
@@ -462,7 +462,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         <div className="pdf-cream mt-8 flex flex-col items-end gap-6 text-right text-xs">
           <div className="flex flex-col items-end gap-0.5">
-            <span className="font-bold">For, {signature.companyName}</span>
+            <span className="pdf-heading font-bold">For, {signature.companyName}</span>
             {signature.additionalFooterText && (
               <span className="pdf-cream-dim max-w-xs text-[11px]">{signature.additionalFooterText}</span>
             )}
