@@ -304,18 +304,18 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </colgroup>
           <thead>
             <tr className="text-left" style={{ color: "rgba(255,248,234,0.6)" }}>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-bold">Unit</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-bold">Brand</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-bold">Product</th>
-              <th className="px-2 py-1.5 font-bold">Material Description</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-bold">Width</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-bold">Depth</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-bold">Height</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 text-right font-bold">Qty</th>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-bold">Unit</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 font-bold">Unit</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 font-bold">Brand</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 font-bold">Product</th>
+              <th className="px-2 py-1 font-bold">Material Description</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 text-right font-bold">Width</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 text-right font-bold">Depth</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 text-right font-bold">Height</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 text-right font-bold">Qty</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1 font-bold">Unit</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="leading-tight">
             {cabinetGroups.length === 0 ? (
               <tr>
                 <td colSpan={9} className="py-3 text-center" style={{ color: "rgba(255,248,234,0.5)" }}>
@@ -326,27 +326,27 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
               cabinetGroups.map((group) => (
                 <>
                   <tr key={`h-${group.index}`} className="border-t font-semibold" style={{ borderColor: "rgba(255,248,234,0.3)", color: "#FFF8EA" }}>
-                    <td className="whitespace-nowrap px-2 py-1.5 font-number">{group.index}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5">{group.headerRow.brand}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5">{group.headerRow.product}</td>
-                    <td className="px-2 py-1.5">{group.headerRow.description}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{group.headerRow.width}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{group.headerRow.depth}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{group.headerRow.height}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{group.headerRow.qty}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5">{group.headerRow.unit}</td>
+                    <td className="whitespace-nowrap px-2 py-1 font-number">{group.index}</td>
+                    <td className="whitespace-nowrap px-2 py-1">{group.headerRow.brand}</td>
+                    <td className="whitespace-nowrap px-2 py-1">{group.headerRow.product}</td>
+                    <td className="px-2 py-1">{group.headerRow.description}</td>
+                    <td className="whitespace-nowrap px-2 py-1 text-right font-number">{group.headerRow.width}</td>
+                    <td className="whitespace-nowrap px-2 py-1 text-right font-number">{group.headerRow.depth}</td>
+                    <td className="whitespace-nowrap px-2 py-1 text-right font-number">{group.headerRow.height}</td>
+                    <td className="whitespace-nowrap px-2 py-1 text-right font-number">{group.headerRow.qty}</td>
+                    <td className="whitespace-nowrap px-2 py-1">{group.headerRow.unit}</td>
                   </tr>
                   {group.rows.map((row, i) => (
                     <tr key={`${group.index}-${i}`} style={{ color: "rgba(255,248,234,0.85)" }}>
-                      <td className="px-2 py-1.5" />
-                      <td className="px-2 py-1.5">{row.brand}</td>
-                      <td className="px-2 py-1.5">{row.product}</td>
-                      <td className="px-2 py-1.5">{row.description}</td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{row.width}</td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{row.depth}</td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{row.height}</td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-right font-number">{row.qty}</td>
-                      <td className="whitespace-nowrap px-2 py-1.5">{row.unit}</td>
+                      <td className="px-2 py-0.5" />
+                      <td className="px-2 py-0.5">{row.brand}</td>
+                      <td className="px-2 py-0.5">{row.product}</td>
+                      <td className="px-2 py-0.5">{row.description}</td>
+                      <td className="whitespace-nowrap px-2 py-0.5 text-right font-number">{row.width}</td>
+                      <td className="whitespace-nowrap px-2 py-0.5 text-right font-number">{row.depth}</td>
+                      <td className="whitespace-nowrap px-2 py-0.5 text-right font-number">{row.height}</td>
+                      <td className="whitespace-nowrap px-2 py-0.5 text-right font-number">{row.qty}</td>
+                      <td className="whitespace-nowrap px-2 py-0.5">{row.unit}</td>
                     </tr>
                   ))}
                 </>
