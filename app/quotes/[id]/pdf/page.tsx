@@ -294,7 +294,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </colgroup>
           <thead>
             <tr className="text-left" style={{ color: "rgba(255,248,234,0.6)" }}>
-              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-medium">Unit No</th>
+              <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-medium">Unit</th>
               <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-medium">Brand</th>
               <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2 py-1.5 font-medium">Product</th>
               <th className="px-2 py-1.5 font-medium">Material Description</th>
