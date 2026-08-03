@@ -324,6 +324,16 @@
   }
 }
 
+/* Browsers drop background colors when printing/saving-as-PDF unless told
+   otherwise — without this, the Quote PDF's mauve background and every
+   status/section background color would silently vanish on export. */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
 /* Scrollable but no visible scrollbar — for compact dashboard-style lists. */
 .scrollbar-hide {
   scrollbar-width: none;
