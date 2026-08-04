@@ -72,7 +72,7 @@ function BrandMark({ className }: { className?: string }) {
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex gap-2 leading-relaxed">
-      <span className="pdf-cream-dim w-32 shrink-0 font-bold tracking-wide">{label}</span>
+      <span className="pdf-cream-dim w-28 shrink-0 font-bold tracking-wide">{label}</span>
       <span className="pdf-cream">{value}</span>
     </div>
   );
@@ -222,7 +222,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   );
 
   return (
-    <div className="flex min-h-screen flex-col items-center gap-4 bg-grey-100 p-6 print:bg-white print:p-0">
+    <div className={`flex min-h-screen flex-col items-center gap-4 p-6 print:p-0${isDownload ? " bg-[#9E7676] print:bg-[#9E7676]" : " bg-grey-100 print:bg-white"}`}>
       <button
         type="button"
         onClick={() => window.print()}
@@ -276,15 +276,15 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         <SectionLabel>Unit Details</SectionLabel>
         <table className="w-full table-fixed border-collapse text-[10.5px]">
           <colgroup>
-            <col style={{ width: "4%" }} />
-            <col style={{ width: "12%" }} />
-            <col style={{ width: "14%" }} />
-            <col style={{ width: "31%" }} />
-            <col style={{ width: "8%" }} />
-            <col style={{ width: "8%" }} />
-            <col style={{ width: "8%" }} />
-            <col style={{ width: "6%" }} />
+            <col style={{ width: "5%" }} />
+            <col style={{ width: "11%" }} />
+            <col style={{ width: "13%" }} />
+            <col style={{ width: "28%" }} />
             <col style={{ width: "9%" }} />
+            <col style={{ width: "9%" }} />
+            <col style={{ width: "9%" }} />
+            <col style={{ width: "6%" }} />
+            <col style={{ width: "10%" }} />
           </colgroup>
           <thead>
             <tr className="pdf-cream-dim text-left">
