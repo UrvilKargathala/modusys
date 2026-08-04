@@ -339,7 +339,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </tbody>
         </table>
 
-        <div className="mt-6 flex flex-col items-end">
+        <div className="pdf-rule mt-6" />
+        <div className="mt-4 flex flex-col items-end">
           <div className="w-full max-w-sm">
             <div className="pdf-border border-b pb-1.5">
               <h2 className="pdf-cream pdf-heading font-heading text-[11px] font-semibold uppercase tracking-wide">Pricing Summary</h2>
@@ -366,8 +367,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                     </tr>
                   </>
                 )}
-                <tr className="pdf-rule text-sm font-semibold">
-                  <td className="pt-2 pr-4">Final Offer Price</td>
+                <tr className="pdf-rule font-semibold">
+                  <td className="pt-2 pr-4 font-heading text-[11px] uppercase tracking-wide">Final Offer Price</td>
                   <td className="pt-2 text-right font-number">{formatInr(waterfall.finalOffer)}</td>
                 </tr>
               </tbody>
@@ -407,8 +408,9 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </>
         )}
 
+        <div className="pdf-rule mt-5" />
         {quote.remark && (
-          <div className="pdf-cream-body mt-5 text-[11px]">
+          <div className="pdf-cream-body mt-3 text-[11px]">
             <span className="pdf-cream pdf-heading font-heading font-semibold uppercase tracking-wide">Remarks</span>
             <ol className="mt-1 list-decimal pl-4">
               <li className="marker-number">{numFont(quote.remark)}</li>
