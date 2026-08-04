@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Plus, FileStack, Search, Eye, Pencil, Copy, Sheet, FileText, Trash2, Download, Printer } from "lucide-react";
+import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -19,6 +19,27 @@ import { toastStore } from "@/lib/store/toast-store";
 import { statusConfig, type StatusKey } from "@/lib/status";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
+
+function ExcelIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 2v6h6" />
+      <path d="m9 15 6-6" />
+      <path d="m9 9 6 6" />
+    </svg>
+  );
+}
+
+function PdfIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 2v6h6" />
+      <text x="12" y="17" textAnchor="middle" fill="currentColor" stroke="none" fontSize="5.5" fontWeight="700" fontFamily="system-ui">PDF</text>
+    </svg>
+  );
+}
 
 function formatDate(d: string) {
   if (!d) return "—";
@@ -216,7 +237,7 @@ export default function QuotesPage() {
                                 onClick={() => exportExcel(quote)}
                                 className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
                               >
-                                <Sheet className="h-4 w-4" />
+                                <ExcelIcon className="h-4 w-4" />
                               </TooltipTrigger>
                               <TooltipContent>Export Excel (CSV)</TooltipContent>
                             </Tooltip>
@@ -225,7 +246,7 @@ export default function QuotesPage() {
                                 aria-label="Export PDF"
                                 className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
                               >
-                                <FileText className="h-4 w-4" />
+                                <PdfIcon className="h-4 w-4" />
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="min-w-36">
                                 <DropdownMenuItem
