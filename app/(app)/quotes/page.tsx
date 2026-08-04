@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Plus, FileStack, Search, Eye, Pencil, Copy, FileSpreadsheet, FileText, Trash2, Download, Printer } from "lucide-react";
+import { Plus, FileStack, Search, Eye, Pencil, Copy, Sheet, FileText, Trash2, Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -216,7 +216,7 @@ export default function QuotesPage() {
                                 onClick={() => exportExcel(quote)}
                                 className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
                               >
-                                <FileSpreadsheet className="h-4 w-4" />
+                                <Sheet className="h-4 w-4" />
                               </TooltipTrigger>
                               <TooltipContent>Export Excel (CSV)</TooltipContent>
                             </Tooltip>

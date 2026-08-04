@@ -238,17 +238,17 @@ export function HardwarePriceTable() {
             <thead className="bg-[#DACCCC]">
               <tr>
                 {canEdit && <th className="w-8 px-4 py-2.5" />}
-                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">SR No</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("articleNo", "Article No.")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("category", "Category")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("brand", "Brand")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("description", "Description")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("levelType", "Level Type")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("unit", "Unit")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("mrp", "MRP")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("discount", "Discount %")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("rate", "Rate After Discount")}</th>
-                <th className="px-4 py-2.5 text-right text-sm font-body font-medium uppercase tracking-wide text-grey-900">Actions</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">SR No</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("articleNo", "Article No.")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("category", "Category")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("brand", "Brand")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("description", "Description")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("levelType", "Level Type")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("unit", "Unit")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("mrp", "MRP")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("discount", "Discount %")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("rate", "Rate After Discount")}</th>
+                <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Actions</th>
               </tr>
             </thead>
             <tbody>

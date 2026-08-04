@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Download, Upload, FileDown, Info } from "lucide-react";
+import { FileSpreadsheet, Upload, FileDown, Info } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { toastStore } from "@/lib/store/toast-store";
 import { materialCategories, type MaterialCategoryKey } from "@/lib/mock/material-spec";
@@ -76,7 +76,7 @@ export function CsvImportExportPanel() {
           onClick={() => toastStore.show(`Exported ${categoryLabel} to CSV`)}
           className="rounded-lg border border-grey-100 p-1.5 text-grey-600 transition-colors hover:bg-light-600 hover:text-primary"
         >
-          <Download className="h-4 w-4" />
+          <FileSpreadsheet className="h-4 w-4" />
         </TooltipTrigger>
         <TooltipContent>Export data</TooltipContent>
       </Tooltip>

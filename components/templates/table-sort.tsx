@@ -17,7 +17,7 @@ export function useTableSort<K extends string>(defaultKey: K) {
     <button
       type="button"
       onClick={() => toggle(key)}
-      className={cn("flex items-center gap-1 uppercase tracking-wide hover:text-grey-700", className)}
+      className={cn("flex items-center gap-1 uppercase tracking-wide font-semibold text-grey-900 hover:text-grey-700", className)}
       aria-label={`Sort by ${typeof label === "string" ? label : key}`}
     >
       {label}

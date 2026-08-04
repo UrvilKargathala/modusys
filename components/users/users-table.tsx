@@ -168,14 +168,14 @@ export function UsersTable({ users }: { users: OrgUser[] }) {
 
       <div className="overflow-x-auto rounded-lg border border-grey-100 bg-card">
         <table className="w-full text-sm font-body">
-          <thead>
+          <thead className="bg-[#DACCCC]">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b border-grey-100">
+              <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
                     onClick={header.column.getToggleSortingHandler()}
-                    className="cursor-pointer select-none whitespace-nowrap px-4 py-2.5 text-left text-xs font-medium text-grey-400"
+                    className="cursor-pointer select-none whitespace-nowrap px-4 py-2.5 text-left text-sm font-semibold uppercase tracking-wide text-grey-900"
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
                     {{ asc: " ▲", desc: " ▼" }[header.column.getIsSorted() as string] ?? ""}

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, X } from "lucide-react";
+import { GripVertical, Copy, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
@@ -23,11 +23,13 @@ export function UnitTypeHardwareRow({
   value,
   onChange,
   onRemove,
+  onCopy,
   confirmChanges,
 }: {
   value: UnitTypeHardware;
   onChange: (patch: Partial<UnitTypeHardware>) => void;
   onRemove: () => void;
+  onCopy?: () => void;
   // Opt-in — confirm before Category/Brand/Description/Level Type changes
   // reprice the row.
   confirmChanges?: boolean;
@@ -190,11 +192,21 @@ export function UnitTypeHardwareRow({
           <GripVertical className="h-4 w-4" />
         </button>
         <span className="text-xs font-body font-medium uppercase tracking-wide text-grey-400">Hardware</span>
+        {onCopy && (
+          <button
+            type="button"
+            onClick={onCopy}
+            aria-label="Copy hardware"
+            className="ml-auto rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-primary"
+          >
+            <Copy className="h-4 w-4" />
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setDeleteOpen(true)}
           aria-label="Remove hardware"
-          className="ml-auto rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error"
+          className={`${onCopy ? "" : "ml-auto "}rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error`}
         >
           <X className="h-4 w-4" />
         </button>
@@ -208,6 +220,7 @@ export function UnitTypeHardwareRow({
             placeholder="e.g. BLM-CLIP-110"
             value={value.articleNo ?? ""}
             onChange={(e) => handleArticleNoChange(e.target.value)}
+            className="bg-[#F0E4E4]"
           />
         </div>
 
@@ -217,6 +230,7 @@ export function UnitTypeHardwareRow({
             category="category"
             value={value.categoryId}
             onChange={handleCategoryChange}
+            triggerClassName="bg-[#F0E4E4]"
           />
         </div>
 
@@ -226,7 +240,7 @@ export function UnitTypeHardwareRow({
             id={`hw-brand-${value.id}`}
             value={value.brandId ?? ""}
             onChange={(e) => handleBrandChange(e.target.value)}
-            className="w-full rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+            className="w-full rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
           >
             <option value="">Select brand</option>
             {brandOptions.map((b) => (
@@ -243,7 +257,7 @@ export function UnitTypeHardwareRow({
             id={`hw-desc-${value.id}`}
             value={value.description ?? ""}
             onChange={(e) => handleDescriptionChange(e.target.value)}
-            className="w-full rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+            className="w-full rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
           >
             <option value="">Select description</option>
             {descriptionOptions.map((d) => (
@@ -260,6 +274,7 @@ export function UnitTypeHardwareRow({
             category="level-type"
             value={value.levelTypeId ?? ""}
             onChange={(id) => commit("Level Type", { levelTypeId: id })}
+            triggerClassName="bg-[#F0E4E4]"
           />
         </div>
 
@@ -270,12 +285,13 @@ export function UnitTypeHardwareRow({
             placeholder="e.g. 2 or H/450"
             value={value.qtyFormula}
             onChange={(e) => onChange({ qtyFormula: e.target.value })}
+            className="bg-[#F0E4E4]"
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
           <Label>Unit</Label>
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-body text-grey-700">
+          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 text-sm font-body text-grey-700">
             {matched ? unitName(matched.unitId) : "—"}
           </div>
         </div>
@@ -294,7 +310,7 @@ export function UnitTypeHardwareRow({
                 const raw = e.target.value;
                 onChange({ rateOverride: raw === "" ? undefined : Number(raw) });
               }}
-              className="pl-5 font-number"
+              className="pl-5 font-number bg-[#F0E4E4]"
             />
           </div>
           {value.rateOverride !== undefined && priceListRate !== undefined && value.rateOverride !== priceListRate && (
@@ -310,7 +326,7 @@ export function UnitTypeHardwareRow({
 
         <div className="flex flex-col gap-1.5 lg:col-span-2">
           <Label>Amount</Label>
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-number font-semibold text-grey-900">
+          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 text-sm font-number font-semibold text-grey-900">
             {amount !== undefined ? `₹${amount.toFixed(2)}` : "—"}
           </div>
         </div>

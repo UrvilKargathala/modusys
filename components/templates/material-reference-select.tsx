@@ -19,17 +19,14 @@ export function MaterialReferenceSelect({
   onChange,
   nameOnly = false,
   bold = false,
+  triggerClassName,
 }: {
   category: MaterialCategoryKey;
   value: string;
   onChange: (id: string) => void;
-  // When true, hide the "— description" suffix in both trigger and option
-  // list — for places where the description doesn't help the picker.
   nameOnly?: boolean;
-  // Bolds the trigger's selected-value text — for tables like Finish
-  // Options where the row's picked values should read like data, not a
-  // muted placeholder-weight label.
   bold?: boolean;
+  triggerClassName?: string;
 }) {
   const meta = getMaterialCategory(category);
   const items = useMaterialItems(category);
@@ -45,7 +42,7 @@ export function MaterialReferenceSelect({
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary">
+        <PopoverTrigger className={cn("flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary", triggerClassName)}>
           {selected ? (
             <span className={cn("min-w-0 truncate", bold && "font-semibold")}>
               {selected.name}

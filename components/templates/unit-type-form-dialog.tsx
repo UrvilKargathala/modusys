@@ -124,6 +124,10 @@ export function UnitTypeFormDialog({
     return {
       list,
       add: () => set([...list, newLineItem()]),
+      copy: (item: FurnitureLineItem) => {
+        const copy = { ...item, id: newLineItem().id, isCustomized: undefined, sourceLinkId: undefined, isExtra: true };
+        set([...list, copy]);
+      },
       update: (id: string, patch: Partial<FurnitureLineItem>) =>
         set(list.map((c) => (c.id === id ? { ...c, ...patch } : c))),
       remove: (id: string) => set(list.filter((c) => c.id !== id)),
@@ -274,6 +278,7 @@ export function UnitTypeFormDialog({
                         compact
                         onChange={(patch) => externalFinishes.update(c.id, patch)}
                         onRemove={() => externalFinishes.remove(c.id)}
+                        onCopy={() => externalFinishes.copy(c)}
                       />
                     ))}
                   </div>
@@ -305,6 +310,7 @@ export function UnitTypeFormDialog({
                         compact
                         onChange={(patch) => otherPanels.update(c.id, patch)}
                         onRemove={() => otherPanels.remove(c.id)}
+                        onCopy={() => otherPanels.copy(c)}
                       />
                     ))}
                   </div>
@@ -333,6 +339,10 @@ export function UnitTypeFormDialog({
                         confirmChanges
                         onChange={(patch) => updateHardware(h.id, patch)}
                         onRemove={() => removeHardware(h.id)}
+                        onCopy={() => {
+                          const copy = { ...h, id: newHardwareLine().id };
+                          setHardware([...hardware, copy]);
+                        }}
                       />
                     ))}
                   </div>

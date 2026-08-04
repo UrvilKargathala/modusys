@@ -97,9 +97,9 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
             <thead className="bg-[#DACCCC]">
               <tr>
                 {category.group === "library" && (
-                  <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">SR No</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">SR No</th>
                 )}
-                <th className="px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">
+                <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
                   <button
                     type="button"
                     onClick={() => toggleSort("name")}
@@ -111,7 +111,7 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                   </button>
                 </th>
                 {!category.longDescription && !category.noDescription && (
-                  <th className="px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">
+                  <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
                     <button
                       type="button"
                       onClick={() => toggleSort("description")}
@@ -123,7 +123,7 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                     </button>
                   </th>
                 )}
-                <th className="px-4 py-2.5 text-right text-sm font-body font-medium uppercase tracking-wide text-grey-900">
+                <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
                   Actions
                 </th>
               </tr>

@@ -108,23 +108,23 @@ export function UnitTypeTable() {
           <table className="w-full text-left">
             <thead className="bg-[#DACCCC]">
               <tr>
-                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">SR No</th>
-                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("name", "Name")}</th>
-                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("shortCode", "Short Code")}</th>
-                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("cabinet", "Cabinet Type")}</th>
-                <th className="w-px whitespace-nowrap px-2 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("components", "Comp.")}</th>
-                <th className="w-px whitespace-nowrap px-2 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("externalFinish", "Ext. Finish")}</th>
-                <th className="w-px whitespace-nowrap px-2 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("hardware", "Hardware")}</th>
-                <th className="w-px whitespace-nowrap px-2 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("otherPanel", "Panel")}</th>
-                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("status", "Status")}</th>
-                <th className="px-3 py-2.5 text-right text-sm font-body font-medium uppercase tracking-wide text-grey-900">Actions</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">SR No</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("name", "Name")}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("shortCode", "Short Code")}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("cabinet", "Cabinet Type")}</th>
+                <th className="w-px whitespace-nowrap px-2 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("components", "Comp.")}</th>
+                <th className="w-px whitespace-nowrap px-2 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("externalFinish", "Ext. Finish")}</th>
+                <th className="w-px whitespace-nowrap px-2 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("hardware", "Hardware")}</th>
+                <th className="w-px whitespace-nowrap px-2 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("otherPanel", "Panel")}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("status", "Status")}</th>
+                <th className="px-3 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Actions</th>
               </tr>
             </thead>
             <tbody>
               {sorted.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
                   <td className="whitespace-nowrap px-3 py-3 text-[13px] font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
-                  <td className="whitespace-nowrap px-3 py-3 text-[13px] font-body font-medium text-grey-900">{i.name}</td>
+                  <td className="max-w-xs px-3 py-3 text-[13px] font-body font-medium text-grey-900"><div className="line-clamp-2">{i.name}</div></td>
                   <td className="whitespace-nowrap px-3 py-3 text-[13px] font-body text-grey-700">{i.shortCode}</td>
                   <td className="whitespace-nowrap px-3 py-3 text-[13px] font-body text-grey-700">{cabinetTypeLabel(i.cabinetTypeLinks)}</td>
                   <td className="whitespace-nowrap px-2 py-3 text-[13px] font-number text-grey-700">{i.components.length}</td>

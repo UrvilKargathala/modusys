@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2, AlertTriangle, Plus } from "lucide-react";
+import { GripVertical, Copy, Trash2, AlertTriangle, Plus } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ export function FurnitureLineItemRow({
   value,
   onChange,
   onRemove,
+  onCopy,
   label,
   showComponentName,
   showLevelType,
@@ -39,6 +40,7 @@ export function FurnitureLineItemRow({
   value: FurnitureLineItem;
   onChange: (patch: Partial<FurnitureLineItem>) => void;
   onRemove: () => void;
+  onCopy?: () => void;
   label: string;
   showComponentName: boolean;
   // Opt-in Level Type picker (Material Library) — only shown where wanted
@@ -120,11 +122,21 @@ export function FurnitureLineItemRow({
             Customized
           </span>
         )}
+        {onCopy && (
+          <button
+            type="button"
+            onClick={onCopy}
+            aria-label={`Copy ${label.toLowerCase()}`}
+            className="ml-auto rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-primary"
+          >
+            <Copy className="h-4 w-4" />
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setDeleteOpen(true)}
           aria-label={`Remove ${label.toLowerCase()}`}
-          className="ml-auto rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error"
+          className={cn(onCopy ? "" : "ml-auto", "rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error")}
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -138,6 +150,7 @@ export function FurnitureLineItemRow({
               category="furniture-component"
               value={value.componentTypeId ?? ""}
               onChange={(id) => handleFieldChange({ componentTypeId: id })}
+              triggerClassName="bg-[#F0E4E4]"
             />
           </div>
         )}
@@ -148,6 +161,7 @@ export function FurnitureLineItemRow({
             placeholder="e.g. (W-95)/2"
             value={value.widthFormula}
             onChange={(e) => handleFieldChange({ widthFormula: e.target.value })}
+            className="bg-[#F0E4E4]"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -157,6 +171,7 @@ export function FurnitureLineItemRow({
             placeholder="e.g. H-20"
             value={value.heightFormula}
             onChange={(e) => handleFieldChange({ heightFormula: e.target.value })}
+            className="bg-[#F0E4E4]"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -165,7 +180,7 @@ export function FurnitureLineItemRow({
             id={`qty-${value.id}`}
             type="number"
             min={1}
-            className="font-number"
+            className="font-number bg-[#F0E4E4]"
             value={value.qty || ""}
             onChange={(e) => handleFieldChange({ qty: Number(e.target.value) })}
           />
@@ -176,19 +191,20 @@ export function FurnitureLineItemRow({
             category="thickness"
             value={value.thicknessId}
             onChange={(id) => requestMaterialChange("thicknessId", id)}
+            triggerClassName="bg-[#F0E4E4]"
           />
         </div>
         {totalSqFt !== undefined && (
           <div className="flex flex-col gap-1.5">
             <Label>Total sq.ft</Label>
-            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-number font-semibold text-grey-700">
+            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 text-sm font-number font-semibold text-grey-700">
               {totalSqFt.toFixed(2)}
             </div>
           </div>
         )}
         <div className="flex flex-col gap-1.5">
           <Label>Amount</Label>
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-number font-semibold text-grey-900">
+          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 text-sm font-number font-semibold text-grey-900">
             {totalSqFt !== undefined
               ? `₹${(effectiveRate !== undefined ? effectiveRate * totalSqFt : 0).toFixed(2)}`
               : "—"}
@@ -207,7 +223,7 @@ export function FurnitureLineItemRow({
                 const raw = e.target.value;
                 handleFieldChange({ rateOverride: raw === "" ? undefined : Number(raw) });
               }}
-              className="pr-14 font-number"
+              className="pr-14 font-number bg-[#F0E4E4]"
             />
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">/sq.ft</span>
           </div>
@@ -227,6 +243,7 @@ export function FurnitureLineItemRow({
             category="raw-material-type"
             value={value.rawMaterialTypeId}
             onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)}
+            triggerClassName="bg-[#F0E4E4]"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -235,23 +252,26 @@ export function FurnitureLineItemRow({
             category="internal-colour"
             value={value.internalColourId}
             onChange={(id) => requestMaterialChange("internalColourId", id)}
+            triggerClassName="bg-[#F0E4E4]"
           />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className={cn("flex flex-col gap-1.5", !showLevelType && "md:col-span-3")}>
           <Label>External Colour</Label>
           <MaterialReferenceSelect
             category="external-colour"
             value={value.externalColourId}
             onChange={(id) => requestMaterialChange("externalColourId", id)}
+            triggerClassName="bg-[#F0E4E4]"
           />
         </div>
         {showLevelType && (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 md:col-span-2">
             <Label>Level Type</Label>
             <MaterialReferenceSelect
               category="level-type"
               value={value.levelTypeId ?? ""}
               onChange={(id) => handleFieldChange({ levelTypeId: id })}
+              triggerClassName="bg-[#F0E4E4]"
             />
           </div>
         )}

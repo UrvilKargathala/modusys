@@ -185,7 +185,7 @@ export function ArchitectsTable() {
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full text-left">
-            <thead className="bg-light-600">
+            <thead className="bg-[#DACCCC]">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
@@ -195,13 +195,13 @@ export function ArchitectsTable() {
                     return (
                       <th
                         key={header.id}
-                        className="px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500"
+                        className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900"
                       >
                         {canSort ? (
                           <button
                             type="button"
                             onClick={header.column.getToggleSortingHandler()}
-                            className="flex items-center gap-1 uppercase tracking-wide hover:text-grey-700"
+                            className="flex items-center gap-1 uppercase tracking-wide font-semibold text-grey-900 hover:text-grey-700"
                           >
                             {rendered}
                             {sorted === "asc" ? (

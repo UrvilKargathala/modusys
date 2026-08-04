@@ -113,6 +113,10 @@ export function UnitTypeComponentsSection({
   const addToGroup = (sourceLinkId?: string) => {
     onComponentsChange([...components, blankLineItem(sourceLinkId)]);
   };
+  const copyComponent = (item: FurnitureLineItem) => {
+    const copy = { ...item, id: blankLineItem().id, isCustomized: undefined, sourceLinkId: item.sourceLinkId, isExtra: true };
+    onComponentsChange([...components, copy]);
+  };
   const reorderWithinGroup = (groupItems: FurnitureLineItem[], event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -209,6 +213,7 @@ export function UnitTypeComponentsSection({
                             compact
                             onChange={(patch) => updateComponent(c.id, patch)}
                             onRemove={() => removeComponent(c.id)}
+                            onCopy={() => copyComponent(c)}
                           />
                         ))}
                       </div>
