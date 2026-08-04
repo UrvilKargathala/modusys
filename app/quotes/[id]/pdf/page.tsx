@@ -222,7 +222,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   );
 
   return (
-    <div className={`flex min-h-screen flex-col items-center gap-4 p-6 print:p-0${isDownload ? " bg-[#9E7676] print:bg-[#9E7676]" : " bg-grey-100 print:bg-white"}`}>
+    <div className="flex min-h-screen flex-col items-center gap-4 bg-grey-100 p-6 print:bg-white print:p-0">
       <button
         type="button"
         onClick={() => window.print()}
