@@ -73,7 +73,7 @@ export default function SignInPage() {
           {...register("password")}
         />
 
-        <Button type="submit" size="lg" disabled={isSubmitting} className="mt-1 w-full font-body font-semibold">
+        <Button type="submit" size="lg" disabled={isSubmitting} className="mt-1 w-full bg-[#9E7676] font-body font-semibold hover:bg-[#8A6565]">
           {isSubmitting ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -87,7 +87,7 @@ export default function SignInPage() {
         <button
           type="button"
           onClick={() => setForgotOpen(true)}
-          className="text-center text-sm font-body text-secondary hover:underline"
+          className="text-center text-sm font-body text-grey-900 hover:underline"
         >
           Forgot your password?
         </button>
