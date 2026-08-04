@@ -22,7 +22,7 @@ function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
   void fetchJson<UnitType[]>("/api/unit-types").then((data) => {
-    if (data) {
+    if (data && data.length > 0) {
       items = data;
       emit();
     }

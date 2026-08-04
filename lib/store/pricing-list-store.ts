@@ -15,6 +15,7 @@ import { fetchJson, makeDebouncedPut } from "@/lib/store/api-sync";
 let furnitureItems: FurniturePriceItem[] = mockFurniturePriceItems;
 let hardwareItems: HardwarePriceItem[] = mockHardwarePriceItems;
 let hydrated = false;
+let idCounter = 0;
 const listeners = new Set<() => void>();
 
 const putFurniture = makeDebouncedPut("/api/pricing/furniture");
@@ -32,13 +33,13 @@ function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
   void fetchJson<FurniturePriceItem[]>("/api/pricing/furniture").then((data) => {
-    if (data) {
+    if (data && data.length > 0) {
       furnitureItems = data;
       emit();
     }
   });
   void fetchJson<HardwarePriceItem[]>("/api/pricing/hardware").then((data) => {
-    if (data) {
+    if (data && data.length > 0) {
       hardwareItems = data;
       emit();
     }
@@ -86,7 +87,7 @@ export const pricingListStore = {
   },
   createFurnitureItem(input: NewFurniturePriceInput) {
     ensureHydrated();
-    const created: FurniturePriceItem = { ...input, id: `fpl-new-${Date.now()}`, createdAt: new Date().toISOString() };
+    const created: FurniturePriceItem = { ...input, id: `fpl-new-${Date.now()}-${++idCounter}`, createdAt: new Date().toISOString() };
     furnitureItems = [...furnitureItems, created];
     persist();
     emit();
@@ -119,7 +120,7 @@ export const pricingListStore = {
   },
   createHardwareItem(input: NewHardwarePriceInput) {
     ensureHydrated();
-    const created: HardwarePriceItem = { ...input, id: `hpl-new-${Date.now()}`, createdAt: new Date().toISOString() };
+    const created: HardwarePriceItem = { ...input, id: `hpl-new-${Date.now()}-${++idCounter}`, createdAt: new Date().toISOString() };
     hardwareItems = [...hardwareItems, created];
     persist();
     emit();

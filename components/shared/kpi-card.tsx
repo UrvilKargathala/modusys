@@ -15,7 +15,7 @@ type KpiCardProps = {
 
 export function KpiCard({ label, value, icon: Icon, trend, className, notTracked }: KpiCardProps) {
   return (
-    <Card className={cn("border-grey-100", className)}>
+    <Card className={cn("border-grey-100 bg-[#D9C8C9]", className)}>
       <CardContent className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
           <span className="text-sm font-body text-grey-500">{label}</span>

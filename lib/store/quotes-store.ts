@@ -19,7 +19,7 @@ function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
   void fetchJson<Quote[]>("/api/quotes").then((data) => {
-    if (data) {
+    if (data && data.length > 0) {
       quotes = data;
       emit();
     }

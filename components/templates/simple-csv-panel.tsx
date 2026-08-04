@@ -123,7 +123,7 @@ export function SimpleCsvPanel({ label, kind }: { label: string; kind: "furnitur
         discountPct,
       };
 
-      const match = existing.find((i) => !i.deleted && i.articleNo.toLowerCase() === input.articleNo.toLowerCase());
+      const match = existing.find((i) => !i.deleted && i.articleNo.toLowerCase() === input.articleNo.toLowerCase() && i.description.toLowerCase() === input.description.toLowerCase());
       if (match) {
         if (mode === "insert-only") { skipped++; continue; }
         pricingListStore.updateHardwareItem(match.id, input);
