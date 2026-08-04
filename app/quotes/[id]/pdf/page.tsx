@@ -71,7 +71,7 @@ function BrandMark({ className }: { className?: string }) {
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex gap-2 text-[11px] leading-relaxed">
+    <div className="flex gap-2 leading-relaxed">
       <span className="pdf-cream-dim w-32 shrink-0 font-bold tracking-wide">{label}</span>
       <span className="pdf-cream">{value}</span>
     </div>
@@ -243,7 +243,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
               Email: {branding.email} | Tel: <span className="font-number">{branding.phone}</span>
             </span>
           </div>
-          <div className="flex w-64 shrink-0 flex-col gap-1.5 pt-[46px]">
+          <div className="flex w-64 shrink-0 flex-col gap-1.5 pt-[46px] text-[13px]">
             {branding.logoDataUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={branding.logoDataUrl} alt="" className="ml-auto h-12 w-24 object-contain" />
@@ -263,7 +263,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         </div>
 
         <SectionLabel>Material Specification</SectionLabel>
-        <div className="flex flex-col gap-1.5 p-3 pt-2">
+        <div className="flex flex-col gap-1.5 p-3 pt-2 text-[11px]">
           <Field label="Product Type" value={[nameOf(productTypes, quote.productTypeId), nameOf(externalColours, quote.shutterFinishId), nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId)].filter((v) => v !== "—").join(" + ")} />
           <Field label="Carcase Material" value={descOf(rawMaterialDescriptions, quote.materialDescriptionId)} />
           <Field label="Shutter Finish" value={descOf(externalColours, quote.shutterFinishId)} />
