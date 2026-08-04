@@ -243,7 +243,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
               Email: {branding.email} | Tel: <span className="font-number">{branding.phone}</span>
             </span>
           </div>
-          <div className="flex w-64 shrink-0 flex-col gap-1.5 pt-[46px] text-[13px]">
+          <div className="flex w-80 shrink-0 flex-col gap-1.5 pt-[46px] text-[13px]">
             {branding.logoDataUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={branding.logoDataUrl} alt="" className="ml-auto h-12 w-24 object-contain" />
@@ -279,10 +279,10 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <col style={{ width: "4%" }} />
             <col style={{ width: "12%" }} />
             <col style={{ width: "14%" }} />
-            <col style={{ width: "34%" }} />
-            <col style={{ width: "7%" }} />
-            <col style={{ width: "7%" }} />
-            <col style={{ width: "7%" }} />
+            <col style={{ width: "31%" }} />
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "8%" }} />
+            <col style={{ width: "8%" }} />
             <col style={{ width: "6%" }} />
             <col style={{ width: "9%" }} />
           </colgroup>
