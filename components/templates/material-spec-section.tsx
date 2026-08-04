@@ -70,7 +70,7 @@ export function MaterialSpecSection() {
               }}
               className={cn(
                 "w-full shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm font-body font-medium transition-colors lg:whitespace-normal",
-                selected.key === c.key ? "bg-primary-transparent text-primary" : "text-grey-600 hover:bg-light-600"
+                selected.key === c.key ? "bg-[#DACCCC] text-grey-900 font-bold" : "text-grey-600 hover:bg-light-600"
               )}
             >
               {c.label}

@@ -94,12 +94,12 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full text-left">
-            <thead className="bg-light-600">
+            <thead className="bg-[#DACCCC]">
               <tr>
                 {category.group === "library" && (
-                  <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">SR No</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">SR No</th>
                 )}
-                <th className="px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
+                <th className="px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">
                   <button
                     type="button"
                     onClick={() => toggleSort("name")}
@@ -111,7 +111,7 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                   </button>
                 </th>
                 {!category.longDescription && !category.noDescription && (
-                  <th className="px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
+                  <th className="px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">
                     <button
                       type="button"
                       onClick={() => toggleSort("description")}
@@ -123,7 +123,7 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                     </button>
                   </th>
                 )}
-                <th className="px-4 py-2.5 text-right text-xs font-body font-medium uppercase tracking-wide text-grey-500">
+                <th className="px-4 py-2.5 text-right text-sm font-body font-medium uppercase tracking-wide text-grey-900">
                   Actions
                 </th>
               </tr>
@@ -132,16 +132,16 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
               {filtered.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
                   {category.group === "library" && (
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
                   )}
-                  <td className="px-4 py-3 text-sm font-body text-grey-900">
+                  <td className="px-4 py-3 text-[13px] font-body text-grey-900">
                     {i.name}
                     {category.longDescription && i.description && (
                       <p className="mt-0.5 text-xs font-body text-grey-400">{i.description}</p>
                     )}
                   </td>
                   {!category.longDescription && !category.noDescription && (
-                    <td className="px-4 py-3 text-sm font-body text-grey-500">{i.description || "—"}</td>
+                    <td className="px-4 py-3 text-[13px] font-body text-grey-500">{i.description || "—"}</td>
                   )}
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">

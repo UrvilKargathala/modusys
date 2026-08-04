@@ -235,20 +235,20 @@ export function HardwarePriceTable() {
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full text-left">
-            <thead className="bg-light-600">
+            <thead className="bg-[#DACCCC]">
               <tr>
                 {canEdit && <th className="w-8 px-4 py-2.5" />}
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">SR No</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("articleNo", "Article No.")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("category", "Category")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("brand", "Brand")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("description", "Description")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("levelType", "Level Type")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("unit", "Unit")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("mrp", "MRP")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("discount", "Discount %")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("rate", "Rate After Discount")}</th>
-                <th className="px-4 py-2.5 text-right text-xs font-body font-medium uppercase tracking-wide text-grey-500">Actions</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">SR No</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("articleNo", "Article No.")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("category", "Category")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("brand", "Brand")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("description", "Description")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("levelType", "Level Type")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("unit", "Unit")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("mrp", "MRP")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("discount", "Discount %")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("rate", "Rate After Discount")}</th>
+                <th className="px-4 py-2.5 text-right text-sm font-body font-medium uppercase tracking-wide text-grey-900">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -264,20 +264,20 @@ export function HardwarePriceTable() {
                       />
                     </td>
                   )}
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-medium text-grey-900">{i.articleNo}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body font-medium text-grey-900">{i.articleNo}</td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <span className="whitespace-nowrap rounded-full bg-grey-transparent px-2 py-0.5 text-xs font-body text-grey-600">
                       {categoryName(i.categoryId)}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{brandName(i.brandId)}</td>
-                  <td className="max-w-xs px-4 py-3 text-sm font-body text-grey-500">{i.description || "—"}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{levelTypeName(i.levelTypeId)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{unitName(i.unitId)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-number text-grey-700">₹{i.mrp}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-number text-grey-700">{i.discountPct}%</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-number font-semibold text-grey-900">
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{brandName(i.brandId)}</td>
+                  <td className="max-w-xs px-4 py-3 text-[13px] font-body text-grey-500">{i.description || "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{levelTypeName(i.levelTypeId)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{unitName(i.unitId)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-700">₹{i.mrp}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-700">{i.discountPct}%</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number font-semibold text-grey-900">
                     ₹{rateAfterDiscount(i).toFixed(2)}
                   </td>
                   <td className="px-4 py-3">

@@ -135,26 +135,26 @@ export function FurniturePriceTable() {
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full text-left">
-            <thead className="bg-light-600">
+            <thead className="bg-[#DACCCC]">
               <tr>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">SR No</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("thickness", "Thickness")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("rawMaterial", "Raw Material Type")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("internal", "Internal Colours and Description")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("external", "External Colours and Description")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">{header("rate", "Rate/sq.ft")}</th>
-                <th className="px-4 py-2.5 text-right text-xs font-body font-medium uppercase tracking-wide text-grey-500">Actions</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">SR No</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("thickness", "Thickness")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("rawMaterial", "Raw Material Type")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("internal", "Internal Colours and Description")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("external", "External Colours and Description")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-medium uppercase tracking-wide text-grey-900">{header("rate", "Rate/sq.ft")}</th>
+                <th className="px-4 py-2.5 text-right text-sm font-body font-medium uppercase tracking-wide text-grey-900">Actions</th>
               </tr>
             </thead>
             <tbody>
               {sorted.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-medium text-grey-900">{materialName(i.thicknessId)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-900">{materialName(i.rawMaterialTypeId)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{materialName(i.internalColourId)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body text-grey-700">{materialName(i.externalColourId)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-number font-semibold text-grey-900">{i.rate.toFixed(2)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body font-medium text-grey-900">{materialName(i.thicknessId)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-900">{materialName(i.rawMaterialTypeId)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{materialName(i.internalColourId)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{materialName(i.externalColourId)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number font-semibold text-grey-900">{i.rate.toFixed(2)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       {canEdit && (
