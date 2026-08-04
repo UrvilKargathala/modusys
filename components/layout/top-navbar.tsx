@@ -56,7 +56,7 @@ export function TopNavbar() {
   return (
     <header className="flex h-16 items-center justify-between gap-4 border-b border-grey-100 bg-card px-4 md:px-6">
       <Link href="/dashboard" className="flex shrink-0 items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary font-heading text-sm font-bold text-white">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#B08B8B] font-heading text-sm font-bold text-white">
           M
         </div>
         <span className="hidden font-heading text-lg font-semibold text-grey-900 sm:inline">
@@ -84,7 +84,7 @@ export function TopNavbar() {
         <DropdownMenu>
           <DropdownMenuTrigger
             className={cn(
-              "flex items-center gap-1 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-body font-medium transition-colors",
+              "flex items-center gap-1 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-body font-bold transition-colors",
               administrationItems.some(
                 (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
               )
@@ -100,7 +100,7 @@ export function TopNavbar() {
               <DropdownMenuItem
                 key={item.href}
                 render={<Link href={item.href} />}
-                className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm font-semibold"
               >
                 <item.icon className="h-4 w-4 shrink-0 text-grey-400" />
                 {item.label}

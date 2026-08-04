@@ -16,6 +16,7 @@ export type QuoteTemplateSettings = {
     companyName: string;
     tagline: string;
     address: string;
+    addressLine2: string;
     email: string;
     phone: string;
     defaultMarkupMultiplier: number;
@@ -50,7 +51,8 @@ export const mockQuoteTemplateSettings: QuoteTemplateSettings = {
     logoDataUrl: null,
     companyName: "The Furn Projects LLP",
     tagline: "Modular Kitchens & Furniture",
-    address: "204, Shivalik Complex, Vastrapur, Ahmedabad, Gujarat 380015",
+    address: "204, Shivalik Complex, Vastrapur",
+    addressLine2: "Ahmedabad, Gujarat 380015",
     email: "sales@thefurn.in",
     phone: "+91 98765 43210",
     defaultMarkupMultiplier: 1.35,

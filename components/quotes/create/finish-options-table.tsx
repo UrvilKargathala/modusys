@@ -115,7 +115,7 @@ export function FinishOptionsTable({
                       placeholder="0"
                       value={
                         row.price
-                          ? row.price.toLocaleString("en-IN", { maximumFractionDigits: 2 })
+                          ? row.price.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                           : ""
                       }
                       onChange={(e) => {

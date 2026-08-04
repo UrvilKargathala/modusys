@@ -46,7 +46,7 @@ function descOf(items: MaterialItem[], id?: string) {
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="pdf-border mt-6 border-b pb-1.5">
-      <h2 className="pdf-cream pdf-heading font-heading text-[11px] font-semibold uppercase tracking-wide">{children}</h2>
+      <h2 className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">{children}</h2>
     </div>
   );
 }
@@ -188,7 +188,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
       const unitType = unitTypes.find((t) => t.id === unit.unitTypeId);
       const cabinetType = cabinetTypes.find((c) => c.id === cabinet.cabinetTypeId);
       const carcassUnit = carcassUnitFor(cabinet, unit);
-      const label = `${unitType?.name ?? cabinetType?.name ?? "Unit"}${cabinetType?.shortCode ? ` (${cabinetType.shortCode})` : ""}`;
+      const label = unitType?.name ?? cabinetType?.name ?? "Unit";
       const headerRow: DetailRow = {
         brand: cabinetType ? nameOf(brands, cabinetType.brandId) : "—",
         product: label,
@@ -236,10 +236,13 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         <div className="flex items-start justify-between pb-4">
           <div className="flex flex-col gap-1.5">
             <BrandMark className="h-10" />
-            <span className="pdf-cream-muted pdf-heading text-xs font-bold">{branding.tagline}</span>
+            <span className="pdf-cream-muted pdf-heading text-[11px] font-bold">{branding.tagline}</span>
             <span className="pdf-cream pdf-heading font-heading text-[14px] font-bold">{branding.companyName}</span>
-            <span className="pdf-cream-muted pdf-heading text-xs font-bold">{branding.address}</span>
-            <span className="pdf-cream-muted pdf-heading text-xs font-bold">
+            <span className="pdf-cream-muted text-[11px] font-bold">{numFont(branding.address)}</span>
+            {branding.addressLine2 && (
+              <span className="pdf-cream-muted text-[11px] font-bold">{numFont(branding.addressLine2)}</span>
+            )}
+            <span className="pdf-cream-muted text-[11px] font-bold">
               Email: {branding.email} | Tel: <span className="font-number">{branding.phone}</span>
             </span>
           </div>
@@ -252,29 +255,35 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <Field label="Quote Date" value={<span className="font-number">{formatDate(quote.date)}</span>} />
             <Field label="Revision" value={<span className="font-number">{quote.revision}</span>} />
             <div className="pdf-border mt-1.5 border-t pt-1.5">
-              <span className="pdf-cream pdf-heading font-heading text-[11px] font-semibold uppercase tracking-wide">
+              <span className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">
                 Client Details
               </span>
             </div>
             <Field label="Client Name" value={customer?.name ?? "—"} />
             <Field label="Address" value={customerAddressLine} />
-            <Field label="Architect" value={architect ? fullName(architect) : "—"} />
+            <Field label="Architect Name" value={architect ? fullName(architect) : "—"} />
+            {architect?.company && (
+              <div className="flex gap-2 leading-relaxed">
+                <span className="w-28 shrink-0" />
+                <span className="pdf-cream">{architect.company}</span>
+              </div>
+            )}
           </div>
         </div>
 
         <SectionLabel>Material Specification</SectionLabel>
         <div className="flex flex-col gap-1.5 p-3 pt-2 text-[11px]">
-          <Field label="Product Type" value={[nameOf(productTypes, quote.productTypeId), nameOf(externalColours, quote.shutterFinishId), nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId)].filter((v) => v !== "—").join(" + ")} />
-          <Field label="Carcase Material" value={descOf(rawMaterialDescriptions, quote.materialDescriptionId)} />
-          <Field label="Shutter Finish" value={descOf(externalColours, quote.shutterFinishId)} />
-          <Field label="Tandem Runner" value={nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId)} />
-          <Field label="Hinges" value={descOf(hingesTypes, quote.hingesTypeId)} />
-          <Field label="Handle" value={descOf(handleTypes, quote.handleTypeId)} />
-          <Field label="Client Responsibilities" value={nameOf(clientResponsibilities, quote.clientResponsibilityId)} />
+          <Field label="Product Type" value={numFont([nameOf(productTypes, quote.productTypeId), nameOf(externalColours, quote.shutterFinishId), nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId)].filter((v) => v !== "—").join(" + "))} />
+          <Field label="Carcase Material" value={numFont(descOf(rawMaterialDescriptions, quote.materialDescriptionId))} />
+          <Field label="Shutter Finish" value={numFont(descOf(externalColours, quote.shutterFinishId))} />
+          <Field label="Tandem Runner" value={numFont(nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId))} />
+          <Field label="Hinges" value={numFont(descOf(hingesTypes, quote.hingesTypeId))} />
+          <Field label="Handle" value={numFont(descOf(handleTypes, quote.handleTypeId))} />
+          <Field label="Client Responsibilities" value={numFont(nameOf(clientResponsibilities, quote.clientResponsibilityId))} />
         </div>
 
         <SectionLabel>Unit Details</SectionLabel>
-        <table className="w-full table-fixed border-collapse text-[10.5px]">
+        <table className="w-full table-fixed border-collapse text-[11px]">
           <colgroup>
             <col style={{ width: "5%" }} />
             <col style={{ width: "11%" }} />
@@ -312,8 +321,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                   <tr key={`h-${group.index}`} className="pdf-cream pdf-heading pdf-border border-t font-semibold">
                     <td className="whitespace-nowrap px-2.5 py-1.5 font-number">{group.index}</td>
                     <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.brand}</td>
-                    <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.product}</td>
-                    <td className="px-2.5 py-1.5">{group.headerRow.description}</td>
+                    <td colSpan={2} className="px-2.5 py-1.5 overflow-hidden" style={{ maxHeight: "2.8em" }}>{group.headerRow.product}</td>
                     <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.width}</td>
                     <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.depth}</td>
                     <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.height}</td>
@@ -339,11 +347,11 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </tbody>
         </table>
 
-        <div className="pdf-rule mt-6" />
+        <div className="pdf-border mt-6 border-t" />
         <div className="mt-4 flex flex-col items-end">
           <div className="w-full max-w-sm">
             <div className="pdf-border border-b pb-1.5">
-              <h2 className="pdf-cream pdf-heading font-heading text-[11px] font-semibold uppercase tracking-wide">Pricing Summary</h2>
+              <h2 className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">Pricing Summary</h2>
             </div>
             <table className="pdf-cream w-full border-collapse text-xs">
               <tbody>
@@ -368,7 +376,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                   </>
                 )}
                 <tr className="pdf-rule font-semibold">
-                  <td className="pt-2 pr-4 font-heading text-[11px] uppercase tracking-wide">Final Offer Price</td>
+                  <td className="pt-2 pr-4 font-heading text-xs uppercase tracking-wide">Final Offer Price</td>
                   <td className="pt-2 text-right font-number">{formatInr(waterfall.finalOffer)}</td>
                 </tr>
               </tbody>
@@ -393,7 +401,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                   const shutterName = nameOf(externalColours, opt.externalColourId);
                   const tandemName = nameOf(tandemDrawerTypes, opt.tandemDrawerTypeId);
                   const desc = [productTypeName, shutterName, tandemName].filter((v) => v !== "—").join(" + ");
-                  const finalAmount = waterfall.finalOffer + opt.price;
+                  const finalAmount = opt.price;
                   const letter = String.fromCharCode(65 + idx);
                   return (
                     <tr key={opt.id} className="pdf-cream">
@@ -408,10 +416,10 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </>
         )}
 
-        <div className="pdf-rule mt-5" />
+        <div className="pdf-border mt-5 border-t" />
         {quote.remark && (
           <div className="pdf-cream-body mt-3 text-[11px]">
-            <span className="pdf-cream pdf-heading font-heading font-semibold uppercase tracking-wide">Remarks</span>
+            <span className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">Remarks</span>
             <ol className="mt-1 list-decimal pl-4">
               <li className="marker-number">{numFont(quote.remark)}</li>
             </ol>
@@ -420,7 +428,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         {notes.length > 0 && (
           <div className="pdf-cream-body mt-5 text-[11px]">
-            <span className="pdf-cream pdf-heading font-heading font-semibold uppercase tracking-wide">Note</span>
+            <span className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">Note</span>
             <ol className="mt-1 list-decimal pl-4">
               {notes.map((n) => (
                 <li key={n.id} className="marker-number">{numFont(n.text)}</li>
@@ -431,7 +439,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         {terms.length > 0 && (
           <div className="pdf-cream-body mt-4 text-[11px]">
-            <span className="pdf-cream pdf-heading font-heading font-semibold uppercase tracking-wide">Terms &amp; Conditions</span>
+            <span className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">Terms &amp; Conditions</span>
             <ol className="mt-1 list-decimal pl-4">
               {terms.map((t) => (
                 <li key={t.id} className="marker-number">{numFont(t.text)}</li>
@@ -442,7 +450,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         {paymentTerms.length > 0 && (
           <div className="pdf-cream-body mt-4 text-[11px]">
-            <span className="pdf-cream pdf-heading font-heading font-semibold uppercase tracking-wide">Payment Terms</span>
+            <span className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">Payment Terms</span>
             <ol className="mt-1 list-decimal pl-4">
               {paymentTerms.map((t) => (
                 <li key={t.id} className="marker-number">{numFont(t.text)}</li>
@@ -452,12 +460,13 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         )}
 
         <div className="pdf-cream-body mt-5 flex flex-col gap-1 text-[11px]">
-          <span className="pdf-cream pdf-heading font-semibold">Bank Details</span>
+          <span className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">Bank Details</span>
           <div className="flex flex-wrap gap-x-6 gap-y-0.5 pl-4">
-            <span>Account Name: {banking.accountName}</span>
-            <span>Bank: {banking.bankName} ({banking.branch})</span>
-            <span>A/C No: <span className="font-number">{banking.accountNumber}</span></span>
-            <span>IFSC: <span className="font-number">{banking.ifscCode}</span></span>
+            <span>Account Name : {banking.accountName}</span>
+            <span>Bank : {banking.bankName}</span>
+            <span>Branch : {banking.branch}</span>
+            <span>Current A/C No : <span className="font-number">{banking.accountNumber}</span></span>
+            <span>IFSC : <span className="font-number">{banking.ifscCode}</span></span>
           </div>
           <span>{numFont(layout.quoteValidityText)}</span>
         </div>

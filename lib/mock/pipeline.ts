@@ -20,6 +20,7 @@ export type Customer = {
   birthdayMonth?: string;
   birthdayDay?: string;
   address: string;
+  companyName?: string;
   stage: PipelineStageKey;
   finalOfferLakh: number | null;
   assignee: string;

@@ -111,6 +111,19 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
           />
         </PdfField>
 
+        <PdfField label="City / State / Pincode" htmlFor="qt-address2" savedTick={saveTick}>
+          <Input
+            id="qt-address2"
+            disabled={disabled}
+            key={String(branding.addressLine2)}
+            defaultValue={branding.addressLine2}
+            onBlur={(e) => {
+              quoteTemplateStore.updateBranding({ addressLine2: e.target.value });
+              bump();
+            }}
+          />
+        </PdfField>
+
         <PdfField label="Email" htmlFor="qt-email" savedTick={saveTick}>
           <Input
             id="qt-email"

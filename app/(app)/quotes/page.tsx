@@ -141,9 +141,9 @@ export default function QuotesPage() {
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-grey-100 bg-card">
-            <table className="w-full text-sm font-body">
+            <table className="w-full text-[13px] font-body">
               <thead>
-                <tr className="border-b border-grey-100 text-left text-xs font-medium text-grey-400">
+                <tr className="border-b border-grey-100 bg-[#DACCCC] text-left text-sm font-medium text-grey-900">
                   <th className="whitespace-nowrap px-4 py-2.5">Quote No.</th>
                   <th className="whitespace-nowrap px-4 py-2.5">Customer</th>
                   <th className="whitespace-nowrap px-4 py-2.5">Date</th>

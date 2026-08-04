@@ -356,6 +356,7 @@
 .quote-pdf-sheet.pdf-print-mode .pdf-heading td,
 .quote-pdf-sheet.pdf-print-mode .pdf-heading span {
   color: #9E7676;
+  font-weight: 700;
 }
 .pdf-print-mode .pdf-border,
 .pdf-print-mode td,
@@ -372,6 +373,9 @@
 .pdf-print-mode svg rect,
 .pdf-print-mode svg path {
   fill: #9E7676;
+}
+.quote-pdf-sheet.pdf-print-mode .font-number {
+  font-weight: 400;
 }
 
 /* Ordered-list markers in Outfit Light (font-number) for the PDF sheet. */

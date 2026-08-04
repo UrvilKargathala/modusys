@@ -43,6 +43,7 @@ export function QuotePdfSheet({ settings }: { settings: QuoteTemplateSettings })
           <span className="font-heading text-lg font-bold text-grey-900">{branding.companyName}</span>
           <span className="text-xs text-grey-500">{branding.tagline}</span>
           <span className="text-xs text-grey-500">{branding.address}</span>
+          {branding.addressLine2 && <span className="text-xs text-grey-500">{branding.addressLine2}</span>}
           <span className="text-xs text-grey-500">
             Email: {branding.email} | Tel: <span className="font-number">{branding.phone}</span>
           </span>
