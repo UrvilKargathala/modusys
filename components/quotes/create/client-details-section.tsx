@@ -19,16 +19,18 @@ function Field({
   label,
   htmlFor,
   helper,
+  required,
   children,
 }: {
   label: string;
   htmlFor?: string;
   helper?: string;
+  required?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[auto_1fr] sm:gap-2">
-      <Label htmlFor={htmlFor} className="whitespace-nowrap sm:pt-2 sm:leading-tight">{label}</Label>
+      <Label htmlFor={htmlFor} className="whitespace-nowrap sm:pt-2 sm:leading-tight">{label}{required && <span className="text-error"> *</span>}</Label>
       <div className="flex flex-col gap-1">
         {children}
         {helper && <span className="text-xs font-body text-grey-400">{helper}</span>}
@@ -77,19 +79,19 @@ export function ClientDetailsSection({
 
       <div className={cn("flex flex-col gap-4", collapsed && "hidden")}>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Field label="Customer Name">
+          <Field label="Customer Name" required>
             <CustomerPicker value={quote.customerId ?? ""} onChange={(id) => confirmChange("Customer", { customerId: id || null })} />
             {quote.customerId && <CustomerReadOnlyDetails customerId={quote.customerId} />}
           </Field>
 
-          <Field label="Architect Name">
+          <Field label="Architect Name" required>
             <ArchitectPicker value={quote.architectId ?? ""} onChange={(id) => confirmChange("Architect", { architectId: id || null })} />
             {quote.architectId && <ArchitectReadOnlyDetails architectId={quote.architectId} />}
           </Field>
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 lg:gap-3">
-          <Field label="Property Type">
+          <Field label="Property Type" required>
             <MaterialReferenceSelect
               category="property-type"
               value={quote.propertyTypeId}
@@ -97,7 +99,7 @@ export function ClientDetailsSection({
             />
           </Field>
 
-          <Field label="Sales Executive">
+          <Field label="Sales Executive" required>
             <MaterialReferenceSelect
               category="sales-executive"
               value={quote.salesExecutiveId}
@@ -105,7 +107,7 @@ export function ClientDetailsSection({
             />
           </Field>
 
-          <Field label="Designer">
+          <Field label="Designer" required>
             <MaterialReferenceSelect
               category="designer"
               value={quote.designerId}
@@ -113,7 +115,7 @@ export function ClientDetailsSection({
             />
           </Field>
 
-          <Field label="Site Engineer">
+          <Field label="Site Engineer" required>
             <MaterialReferenceSelect
               category="site-engineer"
               value={quote.siteEngineerId}

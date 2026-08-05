@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, FileText } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -12,33 +12,70 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 
-// Shared by Furniture and Hardware Price List delete confirmations — same
-// deactivate-first philosophy as Material Spec/Unit Types (permanent delete
-// is a real risk here since historical quotes likely reference these rows).
+export type PriceUsageRef = { label: string; id: string; kind: "quote" | "unit-type" };
+
 export function DeletePriceItemDialog({
   open,
   onOpenChange,
   title,
   onConfirm,
+  usedIn,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string | null;
   onConfirm: () => void;
+  usedIn?: PriceUsageRef[];
 }) {
   if (!title) return null;
+
+  const quoteRefs = usedIn?.filter((r) => r.kind === "quote") ?? [];
+  const unitTypeRefs = usedIn?.filter((r) => r.kind === "unit-type") ?? [];
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Permanently delete "{title}"?</AlertDialogTitle>
+          <AlertDialogTitle>Permanently delete &ldquo;{title}&rdquo;?</AlertDialogTitle>
           <AlertDialogDescription>
-            This pricing entry may already be referenced on historical quotes — deleting it here does not
-            change those quotes, they'll keep showing this rate as historical text, but it will no longer be
-            selectable for new ones.
+            This pricing entry will no longer be selectable for new quotes.
+            {(quoteRefs.length > 0 || unitTypeRefs.length > 0)
+              ? " Existing references will keep showing it as historical text."
+              : ""}
           </AlertDialogDescription>
         </AlertDialogHeader>
+
+        {unitTypeRefs.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-lg bg-warning-transparent px-3 py-2.5">
+            <span className="text-sm font-body font-medium text-grey-800">
+              Used in {unitTypeRefs.length} unit type{unitTypeRefs.length > 1 ? "s" : ""}:
+            </span>
+            <ul className="flex flex-col gap-1 max-h-32 overflow-y-auto">
+              {unitTypeRefs.map((ref) => (
+                <li key={ref.id} className="flex items-center gap-1.5 text-sm font-body text-grey-600">
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-grey-400" />
+                  {ref.label}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {quoteRefs.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-lg bg-warning-transparent px-3 py-2.5">
+            <span className="text-sm font-body font-medium text-grey-800">
+              Used in {quoteRefs.length} quote{quoteRefs.length > 1 ? "s" : ""}:
+            </span>
+            <ul className="flex flex-col gap-1 max-h-32 overflow-y-auto">
+              {quoteRefs.map((ref) => (
+                <li key={ref.id} className="flex items-center gap-1.5 text-sm font-body text-grey-600">
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-grey-400" />
+                  {ref.label}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="flex items-start gap-2 rounded-lg bg-error-transparent px-3 py-2 text-sm font-body text-error">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />

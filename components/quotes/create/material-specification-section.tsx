@@ -8,10 +8,10 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
     <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[170px_1fr] sm:gap-3">
-      <Label className="whitespace-nowrap sm:pt-2 sm:leading-tight">{label}</Label>
+      <Label className="whitespace-nowrap sm:pt-2 sm:leading-tight">{label}{required && <span className="text-error"> *</span>}</Label>
       <div className="min-w-0">{children}</div>
     </div>
   );
@@ -56,7 +56,7 @@ export function MaterialSpecificationSection({
       </button>
 
       <div className={cn("grid grid-cols-1 gap-4 lg:grid-cols-2", collapsed && "hidden")}>
-        <Field label="Product Type">
+        <Field label="Product Type" required>
           <MaterialReferenceSelect
             category="product-type"
             value={quote.productTypeId}
@@ -64,7 +64,7 @@ export function MaterialSpecificationSection({
           />
         </Field>
 
-        <Field label="Material Description">
+        <Field label="Material Description" required>
           <MaterialReferenceSelect
             category="raw-material-description"
             value={quote.materialDescriptionId}
@@ -72,7 +72,7 @@ export function MaterialSpecificationSection({
           />
         </Field>
 
-        <Field label="Shutter Finish">
+        <Field label="Shutter Finish" required>
           <MaterialReferenceSelect
             category="external-colour"
             value={quote.shutterFinishId}
@@ -80,7 +80,7 @@ export function MaterialSpecificationSection({
           />
         </Field>
 
-        <Field label="Handle">
+        <Field label="Handle" required>
           <MaterialReferenceSelect
             category="handle-type"
             value={quote.handleTypeId}
@@ -88,7 +88,7 @@ export function MaterialSpecificationSection({
           />
         </Field>
 
-        <Field label="Hinges">
+        <Field label="Hinges" required>
           <MaterialReferenceSelect
             category="hinges-type"
             value={quote.hingesTypeId}
@@ -96,15 +96,7 @@ export function MaterialSpecificationSection({
           />
         </Field>
 
-        <Field label="Client Responsibility">
-          <MaterialReferenceSelect
-            category="client-responsibility"
-            value={quote.clientResponsibilityId}
-            onChange={(id) => confirmChange("Client Responsibility", { clientResponsibilityId: id })}
-          />
-        </Field>
-
-        <Field label="Tandem Drawer Type">
+        <Field label="Tandem Drawer Type" required>
           <MaterialReferenceSelect
             category="tandem-drawer-type"
             value={quote.tandemDrawerTypeId}

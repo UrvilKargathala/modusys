@@ -63,6 +63,23 @@ function CreateQuotePage() {
 
   const handleSave = () => {
     if (!quote) return;
+    const missing: string[] = [];
+    if (!quote.customerId) missing.push("Customer Name");
+    if (!quote.architectId) missing.push("Architect Name");
+    if (!quote.propertyTypeId) missing.push("Property Type");
+    if (!quote.salesExecutiveId) missing.push("Sales Executive");
+    if (!quote.designerId) missing.push("Designer");
+    if (!quote.siteEngineerId) missing.push("Site Engineer");
+    if (!quote.productTypeId) missing.push("Product Type");
+    if (!quote.materialDescriptionId) missing.push("Material Description");
+    if (!quote.shutterFinishId) missing.push("Shutter Finish");
+    if (!quote.handleTypeId) missing.push("Handle");
+    if (!quote.hingesTypeId) missing.push("Hinges");
+    if (!quote.tandemDrawerTypeId) missing.push("Tandem Drawer Type");
+    if (missing.length > 0) {
+      toastStore.show(`Required: ${missing.join(", ")}`, "error", { durationMs: 6000 });
+      return;
+    }
     quotesStore.saveQuote(quote);
     toastStore.show(`${quote.quoteNumber} saved`);
     router.push("/quotes");
@@ -115,6 +132,11 @@ function CreateQuotePage() {
                     Clear Draft
                   </Button>
                 )}
+                {editId && (
+                  <Button type="button" variant="outline" onClick={() => router.push("/quotes")}>
+                    Cancel
+                  </Button>
+                )}
                 <Button type="button" onClick={handleSave}>
                   {editId ? "Save Changes" : "Save Quote"}
                 </Button>
@@ -139,7 +161,6 @@ function CreateQuotePage() {
           units={quote.units}
           shutterFinishId={quote.shutterFinishId}
           onChange={(units) => patchQuote({ units })}
-          confirmChanges={!!editId}
         />
         <QuoteSummarySection quote={quote} onChange={patchQuote} />
 

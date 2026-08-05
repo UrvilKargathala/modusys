@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { HardwarePriceFormDialog } from "@/components/templates/hardware-price-form-dialog";
 import { useTableSort } from "@/components/templates/table-sort";
-import { DeletePriceItemDialog } from "@/components/templates/delete-price-item-dialog";
+import { DeletePriceItemDialog, type PriceUsageRef } from "@/components/templates/delete-price-item-dialog";
 import { BulkActionConfirmDialog } from "@/components/templates/bulk-action-confirm-dialog";
 import { useHardwarePriceItems, pricingListStore } from "@/lib/store/pricing-list-store";
+import { useUnitTypes } from "@/lib/store/unit-type-store";
+import { useQuotes } from "@/lib/store/quotes-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
@@ -21,6 +23,8 @@ export function HardwarePriceTable() {
   const canDelete = currentUser.role === "super-admin";
 
   const items = useHardwarePriceItems();
+  const unitTypes = useUnitTypes();
+  const quotes = useQuotes();
   // Filters/bulk-actions always list every Material Library entry — a newly
   // added Category/Brand is selectable immediately, even before any hardware
   // row references it yet.
@@ -40,6 +44,22 @@ export function HardwarePriceTable() {
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<HardwarePriceItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<HardwarePriceItem | null>(null);
+
+  const deleteUsedIn: PriceUsageRef[] = deleteTarget
+    ? [
+        ...unitTypes
+          .filter((ut) => ut.hardware.some((h) => h.hardwareItemId === deleteTarget.id))
+          .map((ut) => ({ id: ut.id, label: `${ut.name} — ${ut.shortCode}`, kind: "unit-type" as const })),
+        ...quotes
+          .filter((q) =>
+            q.units.some((u) =>
+              u.cabinets.some((c) => c.hardware.some((h) => h.hardwareItemId === deleteTarget.id))
+            )
+          )
+          .map((q) => ({ id: q.id, label: `${q.quoteNumber} — ${q.status}`, kind: "quote" as const })),
+      ]
+    : [];
+
   const [pendingAction, setPendingAction] = useState<{ description: string; apply: () => void } | null>(null);
 
   const filtered = useMemo(() => {
@@ -351,6 +371,7 @@ export function HardwarePriceTable() {
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title={deleteTarget?.articleNo ?? null}
         onConfirm={handleDelete}
+        usedIn={deleteUsedIn}
       />
 
       <BulkActionConfirmDialog

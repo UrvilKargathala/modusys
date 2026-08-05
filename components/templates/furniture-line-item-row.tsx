@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import type { FurnitureLineItem } from "@/lib/mock/unit-type";
 
 const materialFieldLabel: Record<string, string> = {
+  componentTypeId: "Component Name",
   thicknessId: "Thickness",
   rawMaterialTypeId: "Raw Material",
   internalColourId: "Internal Colour",
@@ -75,7 +76,14 @@ export function FurnitureLineItemRow({
   // Thickness/Raw Material/Internal/External Colour drive the price-list
   // lookup — changing any of them changes Rate/Amount, so confirm before
   // applying rather than silently reprice the row.
-  const requestMaterialChange = (field: string, id: string) => setPendingMaterialChange({ field, id });
+  const requestMaterialChange = (field: string, id: string) => {
+    const current = value[field as keyof FurnitureLineItem];
+    if (current) {
+      setPendingMaterialChange({ field, id });
+    } else {
+      handleFieldChange({ [field]: id });
+    }
+  };
 
   const match = useMemo(() => {
     if (!combinationComplete) return null;
@@ -149,7 +157,7 @@ export function FurnitureLineItemRow({
             <MaterialReferenceSelect
               category="furniture-component"
               value={value.componentTypeId ?? ""}
-              onChange={(id) => handleFieldChange({ componentTypeId: id })}
+              onChange={(id) => requestMaterialChange("componentTypeId", id)}
               triggerClassName="bg-[#F0E4E4]"
             />
           </div>

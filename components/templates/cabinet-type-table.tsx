@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CabinetTypeFormDialog } from "@/components/templates/cabinet-type-form-dialog";
 import { useTableSort } from "@/components/templates/table-sort";
-import { DeleteCabinetTypeDialog } from "@/components/templates/delete-cabinet-type-dialog";
+import { DeleteCabinetTypeDialog, type UsageRef } from "@/components/templates/delete-cabinet-type-dialog";
 import { useCabinetTypes, cabinetTypeStore } from "@/lib/store/cabinet-type-store";
+import { useUnitTypes } from "@/lib/store/unit-type-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
@@ -21,6 +22,7 @@ export function CabinetTypeTable() {
   const canDelete = currentUser.role === "super-admin";
 
   const items = useCabinetTypes();
+  const unitTypes = useUnitTypes();
   const brands = useMaterialItems("brand");
   const brandName = (id: string) => brands.find((b) => b.id === id)?.name ?? "—";
 
@@ -47,6 +49,12 @@ export function CabinetTypeTable() {
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<CabinetType | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CabinetType | null>(null);
+
+  const deleteUsedIn: UsageRef[] = deleteTarget
+    ? unitTypes
+        .filter((ut) => ut.cabinetTypeLinks.some((l) => l.cabinetTypeId === deleteTarget.id))
+        .map((ut) => ({ id: ut.id, label: `${ut.name} — ${ut.shortCode}` }))
+    : [];
 
   const handleDuplicate = (cabinetType: CabinetType) => {
     const created = cabinetTypeStore.duplicateCabinetType(cabinetType.id);
@@ -193,6 +201,8 @@ export function CabinetTypeTable() {
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title={deleteTarget?.name ?? null}
         onConfirm={handleDelete}
+        usedIn={deleteUsedIn}
+        usedInLabel="unit type"
       />
     </div>
   );

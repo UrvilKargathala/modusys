@@ -35,15 +35,10 @@ export function UnitsSection({
   units,
   shutterFinishId,
   onChange,
-  confirmChanges = false,
 }: {
   units: QuoteUnit[];
   shutterFinishId: string;
   onChange: (units: QuoteUnit[]) => void;
-  // Only Edit mode has existing data worth confirming before overwriting —
-  // a brand-new quote has nothing to lose, so Create mode applies changes
-  // immediately with no popup.
-  confirmChanges?: boolean;
 }) {
   const setAllCollapsed = (collapsed: boolean) => onChange(units.map((u) => ({ ...u, collapsed })));
   const [sectionCollapsed, setSectionCollapsed] = useState(true);
@@ -97,7 +92,7 @@ export function UnitsSection({
                     unit={unit}
                     index={index}
                     shutterFinishId={shutterFinishId}
-                    confirmChanges={confirmChanges}
+
                     onChange={(patch) => onChange(units.map((u) => (u.id === unit.id ? { ...u, ...patch } : u)))}
                     onRemove={() => onChange(units.filter((u) => u.id !== unit.id))}
                     onDuplicate={() => {

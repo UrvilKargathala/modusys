@@ -24,22 +24,19 @@ export function UnitTypeHardwareRow({
   onChange,
   onRemove,
   onCopy,
-  confirmChanges,
 }: {
   value: UnitTypeHardware;
   onChange: (patch: Partial<UnitTypeHardware>) => void;
   onRemove: () => void;
   onCopy?: () => void;
-  // Opt-in — confirm before Category/Brand/Description/Level Type changes
-  // reprice the row.
-  confirmChanges?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingChange, setPendingChange] = useState<{ label: string; patch: Partial<UnitTypeHardware> } | null>(null);
 
   const commit = (label: string, patch: Partial<UnitTypeHardware>) => {
-    if (confirmChanges) {
+    const hasExisting = Object.keys(patch).some((k) => value[k as keyof UnitTypeHardware]);
+    if (hasExisting) {
       setPendingChange({ label, patch });
     } else {
       onChange(patch);

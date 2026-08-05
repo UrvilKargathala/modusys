@@ -129,7 +129,6 @@ export function QuoteUnitCard({
   onChange,
   onRemove,
   onDuplicate,
-  confirmChanges = false,
 }: {
   unit: QuoteUnit;
   index: number;
@@ -137,7 +136,6 @@ export function QuoteUnitCard({
   onChange: (patch: Partial<QuoteUnit>) => void;
   onRemove: () => void;
   onDuplicate: () => void;
-  confirmChanges?: boolean;
 }) {
   const unitTypes = useUnitTypes();
   const cabinetTypes = useCabinetTypes();
@@ -331,7 +329,7 @@ export function QuoteUnitCard({
               onRemove={() => onChange({ cabinets: unit.cabinets.filter((c) => c.id !== cabinet.id) })}
               onDuplicate={() => duplicateCabinet(cabinet.id)}
               onAddCabinet={cabinetIndex === unit.cabinets.length - 1 ? addBlankCabinet : undefined}
-              confirmChanges={confirmChanges}
+
             />
           ))}
 

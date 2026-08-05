@@ -9,9 +9,18 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { FurniturePriceFormDialog } from "@/components/templates/furniture-price-form-dialog";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useFurniturePriceItems, pricingListStore } from "@/lib/store/pricing-list-store";
 import { cn } from "@/lib/utils";
 import type { CabinetComponent } from "@/lib/mock/cabinet-type";
+
+const materialFieldLabel: Record<string, string> = {
+  componentTypeId: "Component Name",
+  thicknessId: "Thickness",
+  rawMaterialTypeId: "Raw Material",
+  internalColourId: "Internal Colour",
+  externalColourId: "External Colour",
+};
 
 export function CabinetTypeComponentRow({
   value,
@@ -24,10 +33,20 @@ export function CabinetTypeComponentRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   const [addPriceOpen, setAddPriceOpen] = useState(false);
+  const [pendingMaterialChange, setPendingMaterialChange] = useState<{ field: string; id: string } | null>(null);
 
   const furnitureItems = useFurniturePriceItems();
   const combinationComplete =
     !!value.thicknessId && !!value.rawMaterialTypeId && !!value.internalColourId && !!value.externalColourId;
+
+  const requestMaterialChange = (field: string, id: string) => {
+    const current = value[field as keyof CabinetComponent];
+    if (current) {
+      setPendingMaterialChange({ field, id });
+    } else {
+      onChange({ [field]: id });
+    }
+  };
 
   const match = useMemo(() => {
     if (!combinationComplete) return null;
@@ -75,7 +94,7 @@ export function CabinetTypeComponentRow({
           <MaterialReferenceSelect
             category="furniture-component"
             value={value.componentTypeId}
-            onChange={(id) => onChange({ componentTypeId: id })}
+            onChange={(id) => requestMaterialChange("componentTypeId", id)}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -102,7 +121,7 @@ export function CabinetTypeComponentRow({
           <MaterialReferenceSelect
             category="thickness"
             value={value.thicknessId}
-            onChange={(id) => onChange({ thicknessId: id })}
+            onChange={(id) => requestMaterialChange("thicknessId", id)}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -110,7 +129,7 @@ export function CabinetTypeComponentRow({
           <MaterialReferenceSelect
             category="raw-material-type"
             value={value.rawMaterialTypeId}
-            onChange={(id) => onChange({ rawMaterialTypeId: id })}
+            onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -118,7 +137,7 @@ export function CabinetTypeComponentRow({
           <MaterialReferenceSelect
             category="internal-colour"
             value={value.internalColourId}
-            onChange={(id) => onChange({ internalColourId: id })}
+            onChange={(id) => requestMaterialChange("internalColourId", id)}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -126,7 +145,7 @@ export function CabinetTypeComponentRow({
           <MaterialReferenceSelect
             category="external-colour"
             value={value.externalColourId}
-            onChange={(id) => onChange({ externalColourId: id })}
+            onChange={(id) => requestMaterialChange("externalColourId", id)}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -187,6 +206,17 @@ export function CabinetTypeComponentRow({
         }}
         onSubmit={(values) => pricingListStore.createFurnitureItem(values)}
         onEditExisting={() => setAddPriceOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={pendingMaterialChange !== null}
+        onOpenChange={(open) => !open && setPendingMaterialChange(null)}
+        title={`Change ${pendingMaterialChange ? materialFieldLabel[pendingMaterialChange.field] : ""}?`}
+        description="This changes the price-list match for this component, which updates its Rate."
+        confirmLabel="Change"
+        onConfirm={() => {
+          if (pendingMaterialChange) onChange({ [pendingMaterialChange.field]: pendingMaterialChange.id });
+        }}
       />
     </div>
   );

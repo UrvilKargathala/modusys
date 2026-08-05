@@ -213,6 +213,7 @@ export function UnitTypeFormDialog({
                   onChange={(id) => setValues((v) => ({ ...v, brandId: id }))}
                 />
               </div>
+              {/* Description field — hidden for now, re-enable when needed
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="ut-description">Description</Label>
                 <select
@@ -231,6 +232,7 @@ export function UnitTypeFormDialog({
                     ))}
                 </select>
               </div>
+              */}
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -336,7 +338,6 @@ export function UnitTypeFormDialog({
                       <UnitTypeHardwareRow
                         key={h.id}
                         value={h}
-                        confirmChanges
                         onChange={(patch) => updateHardware(h.id, patch)}
                         onRemove={() => removeHardware(h.id)}
                         onCopy={() => {

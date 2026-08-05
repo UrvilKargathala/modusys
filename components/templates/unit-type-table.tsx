@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { UnitTypeFormDialog } from "@/components/templates/unit-type-form-dialog";
 import { useTableSort } from "@/components/templates/table-sort";
-import { DeleteCabinetTypeDialog } from "@/components/templates/delete-cabinet-type-dialog";
+import { DeleteCabinetTypeDialog, type UsageRef } from "@/components/templates/delete-cabinet-type-dialog";
 import { useUnitTypes, unitTypeStore } from "@/lib/store/unit-type-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
+import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,7 @@ export function UnitTypeTable() {
 
   const items = useUnitTypes();
   const cabinetTypes = useCabinetTypes();
+  const quotes = useQuotes();
   const cabinetTypeLabel = (links: { cabinetTypeId: string }[]) => {
     if (links.length === 0) return "—";
     const primary = cabinetTypes.find((c) => c.id === links[0].cabinetTypeId)?.name ?? "—";
@@ -56,6 +58,12 @@ export function UnitTypeTable() {
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<UnitType | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<UnitType | null>(null);
+
+  const deleteUsedIn: UsageRef[] = deleteTarget
+    ? quotes
+        .filter((q) => q.units.some((u) => u.unitTypeId === deleteTarget.id))
+        .map((q) => ({ id: q.id, label: `${q.quoteNumber} — ${q.status}` }))
+    : [];
 
   const handleDuplicate = (unitType: UnitType) => {
     const created = unitTypeStore.duplicateUnitType(unitType.id);
@@ -209,6 +217,7 @@ export function UnitTypeTable() {
         title={deleteTarget?.name ?? null}
         entityLabel="unit type"
         onConfirm={handleDelete}
+        usedIn={deleteUsedIn}
       />
     </div>
   );
