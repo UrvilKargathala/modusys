@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/server/prisma";
+import type { Prisma } from "@prisma/client";
 
 export type AuditAction =
   | "SIGN_IN_SUCCESS"
@@ -58,7 +59,7 @@ export async function logAudit(params: {
         targetType: params.target?.type ?? null,
         targetId: params.target?.id ?? null,
         targetLabel: params.target?.label ?? null,
-        details: params.details ?? undefined,
+        details: (params.details ?? undefined) as Prisma.InputJsonValue | undefined,
         ipAddress: ip,
         userAgent: ua,
         result: params.result ?? "SUCCESS",
