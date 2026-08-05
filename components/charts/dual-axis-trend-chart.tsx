@@ -24,7 +24,7 @@ export function DualAxisTrendChart({ data }: { data: TrendDatum[] }) {
         <YAxis yAxisId="right" orientation="right" stroke="var(--color-grey-400)" fontSize={12} tick={{ fontFamily: "var(--font-number)" }} />
         <Tooltip />
         <Legend />
-        <Bar yAxisId="left" dataKey="volume" name="Volume" fill="var(--color-secondary-300)" radius={[4, 4, 0, 0]} />
+        <Bar yAxisId="left" dataKey="volume" name="Volume" fill="var(--color-primary-300)" radius={[4, 4, 0, 0]} />
         <Line yAxisId="right" dataKey="value" name="Value" stroke="var(--color-primary)" strokeWidth={2} dot={false} />
       </ComposedChart>
     </ResponsiveContainer>

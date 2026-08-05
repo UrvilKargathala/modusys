@@ -8,7 +8,7 @@ import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
 
 export function QuoteSummarySection({ quote, onChange }: { quote: Quote; onChange: (patch: Partial<Quote>) => void }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   return (
     <section className="flex flex-col gap-4 rounded-xl border border-grey-100 bg-card p-6">

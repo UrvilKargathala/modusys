@@ -76,7 +76,7 @@ export function FurnitureGroup({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const subtotal = groupTotal(items, unit, furnitureItems);
   const isViewMode = useSearchParams().get("mode") === "view";
-  const [collapsed, setCollapsed] = useState(isViewMode);
+  const [collapsed, setCollapsed] = useState(true);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -164,7 +164,7 @@ function HardwareGroup({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const total = items.reduce((sum, h) => sum + hardwareLineTotal(h, unit, hardwareItems), 0);
   const isViewMode = useSearchParams().get("mode") === "view";
-  const [collapsed, setCollapsed] = useState(isViewMode);
+  const [collapsed, setCollapsed] = useState(true);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;

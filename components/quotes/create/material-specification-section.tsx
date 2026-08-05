@@ -29,7 +29,7 @@ export function MaterialSpecificationSection({
   // immediately with no popup.
   confirmChanges?: boolean;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [pending, setPending] = useState<{ label: string; patch: Partial<Quote> } | null>(null);
 
   const confirmChange = useCallback(

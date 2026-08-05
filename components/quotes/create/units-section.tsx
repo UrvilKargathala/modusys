@@ -46,7 +46,7 @@ export function UnitsSection({
   confirmChanges?: boolean;
 }) {
   const setAllCollapsed = (collapsed: boolean) => onChange(units.map((u) => ({ ...u, collapsed })));
-  const [sectionCollapsed, setSectionCollapsed] = useState(false);
+  const [sectionCollapsed, setSectionCollapsed] = useState(true);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const onDragEnd = (event: DragEndEvent) => {

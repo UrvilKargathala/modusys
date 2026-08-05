@@ -60,15 +60,15 @@ export function CategorySummary({ quote }: { quote: Quote }) {
       <h3 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-500">Category Summary</h3>
       <div className="overflow-x-auto rounded-lg border border-grey-100">
         <table className="w-full text-left">
-          <thead className="bg-light-600">
+          <thead className="bg-[#D9C8C9]">
             <tr>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
+              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
                 Category
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-medium uppercase tracking-wide text-grey-500">
+              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-bold uppercase tracking-wide text-grey-900">
                 Sq.ft
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-medium uppercase tracking-wide text-grey-500">
+              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-bold uppercase tracking-wide text-grey-900">
                 Amount
               </th>
             </tr>

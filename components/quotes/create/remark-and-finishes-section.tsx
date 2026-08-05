@@ -16,7 +16,7 @@ export function RemarkAndFinishesSection({
   onChange: (patch: Partial<Quote>) => void;
   onSaveRemark: () => void;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   return (
     <section className="flex flex-col gap-6 rounded-xl border border-grey-100 bg-card p-6">
