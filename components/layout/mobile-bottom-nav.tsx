@@ -7,10 +7,13 @@ import { MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mobileTabItems, mobileMoreItems, administrationItems } from "@/lib/nav";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useCurrentUser } from "@/lib/session";
 
 export function MobileBottomNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  const currentUser = useCurrentUser();
+  const visibleAdminItems = administrationItems.filter((item) => !item.superAdminOnly || currentUser.role === "super-admin");
 
   const isMoreActive = [...mobileMoreItems, ...administrationItems].some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -79,7 +82,7 @@ export function MobileBottomNav() {
             <span className="px-3 py-1 text-xs font-body font-medium uppercase tracking-wide text-grey-400">
               Admin
             </span>
-            {administrationItems.map((item) => {
+            {visibleAdminItems.map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               const Icon = item.icon;
               return (

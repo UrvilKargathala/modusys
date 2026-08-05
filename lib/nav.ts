@@ -8,6 +8,7 @@ import {
   UserCog,
   LayoutTemplate,
   Wallet,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -15,6 +16,7 @@ export type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
+  superAdminOnly?: boolean;
 };
 
 export const navigationItems: NavItem[] = [
@@ -30,6 +32,7 @@ export const navigationItems: NavItem[] = [
 export const administrationItems: NavItem[] = [
   { label: "User Management", href: "/users", icon: UserCog },
   { label: "Credits", href: "/credits", icon: Wallet },
+  { label: "Logs", href: "/admin/logs", icon: ScrollText, superAdminOnly: true },
 ];
 
 // Shown in the mobile bottom tab bar — a focused subset of the most-used

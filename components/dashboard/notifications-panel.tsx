@@ -1,17 +1,17 @@
 "use client";
 
-import { UserPlus, Clock3, CheckCircle2, AtSign, Bell } from "lucide-react";
+import { UserPlus, Clock3, CheckCircle2, AtSign, Bell, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useNotifications, notificationsStore, type NotificationType } from "@/lib/store/notifications-store";
 import { taskPanelStore } from "@/lib/store/task-panel-store";
 import { getCurrentUser } from "@/lib/session";
 
-const notificationIcon: Record<NotificationType, typeof UserPlus> = {
-  assigned: UserPlus,
-  "due-soon": Clock3,
-  completed: CheckCircle2,
-  mentioned: AtSign,
+const notificationConfig: Record<NotificationType, { icon: typeof UserPlus; iconClass: string; bgClass: string }> = {
+  completed: { icon: CheckCircle2, iconClass: "text-success", bgClass: "bg-success-transparent" },
+  assigned: { icon: UserPlus, iconClass: "text-secondary", bgClass: "bg-secondary-transparent" },
+  "due-soon": { icon: Clock3, iconClass: "text-orange", bgClass: "bg-orange-transparent" },
+  mentioned: { icon: AtSign, iconClass: "text-primary", bgClass: "bg-primary-transparent" },
 };
 
 function timeAgo(iso: string) {
@@ -23,8 +23,6 @@ function timeAgo(iso: string) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-// Surfaces the top 3 unread notifications right on the Dashboard, same data
-// source as the top-bar bell — not a separate query.
 export function NotificationsPanel() {
   const currentUser = getCurrentUser();
   const all = useNotifications();
@@ -35,34 +33,57 @@ export function NotificationsPanel() {
 
   return (
     <Card className="border-grey-100">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="font-heading text-base text-grey-900">Notifications</CardTitle>
+        {unread.length > 0 && (
+          <button
+            type="button"
+            onClick={() => notificationsStore.markAllRead(currentUser.id)}
+            className="text-xs font-body text-primary hover:underline"
+          >
+            View all
+          </button>
+        )}
       </CardHeader>
       <CardContent>
         {unread.length === 0 ? (
           <EmptyState icon={Bell} message="You're all caught up." />
         ) : (
-          <ul className="flex flex-col divide-y divide-grey-100">
+          <ul className="flex flex-col gap-2">
             {unread.map((n) => {
-              const Icon = notificationIcon[n.type];
+              const config = notificationConfig[n.type];
+              const Icon = config.icon;
               return (
                 <li key={n.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      notificationsStore.markRead(n.id);
-                      taskPanelStore.open(n.relatedTaskId);
-                    }}
-                    className="flex w-full items-start gap-2.5 py-3 text-left first:pt-0 last:pb-0"
-                  >
-                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-transparent text-primary">
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="flex flex-col gap-0.5">
-                      <span className="text-sm font-body text-grey-800">{n.message}</span>
-                      <span className="text-xs font-number text-grey-400">{timeAgo(n.createdAt)}</span>
-                    </span>
-                  </button>
+                  <div className="flex w-full items-center gap-3 py-4 first:pt-0 last:pb-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        notificationsStore.markRead(n.id);
+                        taskPanelStore.open(n.relatedTaskId);
+                      }}
+                      className="flex flex-1 items-center gap-3 text-left"
+                    >
+                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${config.bgClass} ${config.iconClass}`}>
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span className="flex flex-col gap-1">
+                        <span className="text-sm font-body text-grey-800">{n.message}</span>
+                        <span className="text-xs font-number text-grey-400">{timeAgo(n.createdAt)}</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        notificationsStore.markRead(n.id);
+                      }}
+                      className="shrink-0 rounded-md p-1.5 text-grey-400 transition-colors hover:bg-grey-100 hover:text-grey-600"
+                      aria-label="Dismiss notification"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </li>
               );
             })}

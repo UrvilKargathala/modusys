@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { requireUser } from "@/lib/server/require-user";
+import { logAudit } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,9 @@ export async function POST(req: Request) {
   const auth = await requireUser();
   if (auth.response) return auth.response;
   const b = await req.json();
+
+  const existing = b.id ? await prisma.quote.findUnique({ where: { id: b.id } }) : null;
+
   const data = {
     quoteNumber: b.quoteNumber, date: b.date ?? "", customerId: b.customerId ?? null,
     architectId: b.architectId ?? null, revision: b.revision ?? 0,
@@ -42,5 +46,16 @@ export async function POST(req: Request) {
   const quote = await prisma.quote.upsert({
     where: { id: b.id }, create: { id: b.id, ...data }, update: data,
   });
+
+  if (existing && existing.status !== quote.status) {
+    void logAudit({
+      action: "QUOTE_STATUS_CHANGED",
+      actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+      target: { type: "QUOTE", id: quote.id, label: quote.quoteNumber },
+      details: { field: "status", from: existing.status, to: quote.status },
+      req,
+    });
+  }
+
   return NextResponse.json(serialize(quote), { status: 201 });
 }

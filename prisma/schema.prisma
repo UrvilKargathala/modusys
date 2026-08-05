@@ -279,3 +279,26 @@ model SecurityAuditLog {
 
   @@index([createdAt])
 }
+
+// Full audit trail for Phase 1 security-sensitive and destructive actions.
+// Denormalized actor/target snapshots so the log stays readable after renames
+// or deletions. The details JSON holds field-level before/after for edits.
+model AuditLog {
+  id           String   @id @default(cuid())
+  action       String
+  actorUserId  String?
+  actorEmail   String   @default("")
+  actorName    String   @default("")
+  targetType   String?
+  targetId     String?
+  targetLabel  String?
+  details      Json?
+  ipAddress    String?
+  userAgent    String?
+  result       String   @default("SUCCESS")
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([actorUserId, createdAt])
+  @@index([targetType, targetId, createdAt])
+}

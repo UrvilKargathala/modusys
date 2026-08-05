@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { requireUser, requireRole } from "@/lib/server/require-user";
+import { logAudit } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +28,13 @@ export async function PUT(req: Request) {
   };
   const s = await prisma.quoteTemplateSettings.upsert({
     where: { id: "singleton" }, create: { id: "singleton", ...data }, update: data,
+  });
+  void logAudit({
+    action: "QUOTE_TEMPLATE_SETTING_UPDATED",
+    actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+    target: { type: "QUOTE_TEMPLATE_SETTING", id: "singleton", label: "Quote Template Settings" },
+    details: { fields: Object.keys(data) },
+    req,
   });
   return NextResponse.json(shape(s));
 }

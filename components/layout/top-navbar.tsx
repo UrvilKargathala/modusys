@@ -96,7 +96,9 @@ export function TopNavbar() {
             <ChevronDown className="h-3.5 w-3.5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center" className="min-w-52">
-            {administrationItems.map((item) => (
+            {administrationItems
+              .filter((item) => !item.superAdminOnly || currentUser.role === "super-admin")
+              .map((item) => (
               <DropdownMenuItem
                 key={item.href}
                 render={<Link href={item.href} />}

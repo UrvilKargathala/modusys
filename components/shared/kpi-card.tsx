@@ -18,7 +18,7 @@ export function KpiCard({ label, value, icon: Icon, trend, className, notTracked
     <Card className={cn("border-grey-100 bg-[#D9C8C9]", className)}>
       <CardContent className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <span className="text-sm font-body text-grey-500">{label}</span>
+          <span className="text-sm font-body font-bold text-grey-500">{label}</span>
           {notTracked ? (
             <span className="text-sm font-body italic text-grey-300">Not tracked yet</span>
           ) : (
@@ -36,7 +36,7 @@ export function KpiCard({ label, value, icon: Icon, trend, className, notTracked
           )}
         </div>
         {Icon && (
-          <div className="rounded-lg bg-teal-transparent p-2 text-grey-800">
+          <div className="rounded-lg bg-[#D9C8C9] p-2 text-grey-800">
             <Icon className="h-5 w-5" />
           </div>
         )}

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { serializeCustomer } from "@/lib/server/serialize";
 import { requireUser, requireRole } from "@/lib/server/require-user";
+import { logAudit } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,10 +44,17 @@ export async function PATCH(req: Request, { params }: Ctx) {
 }
 
 // Soft delete — matches the app's customer soft-delete + Undo pattern.
-export async function DELETE(_req: Request, { params }: Ctx) {
+export async function DELETE(req: Request, { params }: Ctx) {
   const auth = await requireRole(["super-admin"]);
   if (auth.response) return auth.response;
   const { id } = await params;
+  const c = await prisma.customer.findUnique({ where: { id } });
   await prisma.customer.update({ where: { id }, data: { deletedAt: new Date() } });
+  void logAudit({
+    action: "CUSTOMER_DELETED",
+    actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+    target: { type: "CUSTOMER", id, label: c ? `${c.name}${c.city ? ` — ${c.city}` : ""}` : id },
+    req,
+  });
   return NextResponse.json({ ok: true });
 }

@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/server/require-user";
 import { createSessionToken, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from "@/lib/server/session-token";
 import { passwordMeetsAllRequirements } from "@/components/auth/password-requirements";
 import { logSecurityAudit } from "@/lib/server/audit-log";
+import { logAudit } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +50,12 @@ export async function POST(req: Request) {
     actorUserId: updated.id,
     actorName: updated.name,
     action: "PASSWORD_CHANGED_SELF",
+  });
+  void logAudit({
+    action: "USER_PASSWORD_CHANGED_SELF",
+    actor: { id: updated.id, email: updated.email, name: updated.name },
+    target: { type: "USER", id: updated.id, label: updated.email },
+    req,
   });
 
   const res = NextResponse.json({

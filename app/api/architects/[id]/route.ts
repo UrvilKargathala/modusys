@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { serializeArchitect } from "@/lib/server/serialize";
 import { requireUser, requireRole } from "@/lib/server/require-user";
+import { logAudit } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,10 +39,18 @@ export async function PATCH(req: Request, { params }: Ctx) {
 }
 
 // Soft delete — matches the app's established soft-delete + Undo pattern.
-export async function DELETE(_req: Request, { params }: Ctx) {
+export async function DELETE(req: Request, { params }: Ctx) {
   const auth = await requireRole(["super-admin"]);
   if (auth.response) return auth.response;
   const { id } = await params;
+  const a = await prisma.architect.findUnique({ where: { id } });
   await prisma.architect.update({ where: { id }, data: { deletedAt: new Date() } });
+  const label = a ? `${[a.firstName, a.lastName].filter(Boolean).join(" ")}${a.company ? ` — ${a.company}` : ""}` : id;
+  void logAudit({
+    action: "ARCHITECT_DELETED",
+    actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+    target: { type: "ARCHITECT", id, label },
+    req,
+  });
   return NextResponse.json({ ok: true });
 }

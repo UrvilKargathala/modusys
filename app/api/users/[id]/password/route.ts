@@ -5,6 +5,7 @@ import { hashPassword } from "@/lib/server/password";
 import { requireRole } from "@/lib/server/require-user";
 import { passwordMeetsAllRequirements } from "@/components/auth/password-requirements";
 import { logSecurityAudit } from "@/lib/server/audit-log";
+import { logAudit } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,6 +46,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
     action: "PASSWORD_SET_BY_ADMIN",
     targetUserId: user.id,
     targetName: user.name,
+  });
+  void logAudit({
+    action: "USER_PASSWORD_SET_BY_ADMIN",
+    actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+    target: { type: "USER", id: user.id, label: `${user.name} (${user.email})` },
+    req,
   });
 
   return NextResponse.json(serializeUser(user));

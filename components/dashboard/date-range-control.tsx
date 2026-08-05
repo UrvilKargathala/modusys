@@ -10,7 +10,7 @@ export function DateRangeControl({
   onChange: (range: DateRange) => void;
 }) {
   return (
-    <div className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-grey-100 bg-card px-3 py-1.5 text-sm font-body sm:w-auto">
+    <div className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-[#D9C8C9] bg-[#D9C8C9] px-3 py-1.5 text-sm font-body sm:w-auto">
       <input
         type="date"
         value={value.from}

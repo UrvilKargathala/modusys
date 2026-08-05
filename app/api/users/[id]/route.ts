@@ -3,6 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { serializeUser } from "@/lib/server/serialize";
 import { requireUser } from "@/lib/server/require-user";
 import { logSecurityAudit } from "@/lib/server/audit-log";
+import { logAudit } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,18 +52,32 @@ export async function PATCH(req: Request, { params }: Ctx) {
       targetUserId: user.id,
       targetName: user.name,
     });
+    void logAudit({
+      action: "USER_ROLE_CHANGED",
+      actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+      target: { type: "USER", id: user.id, label: `${user.name} (${user.email})` },
+      details: { field: "role", from: before.role, to: user.role },
+      req,
+    });
   }
 
   return NextResponse.json(serializeUser(user));
 }
 
-export async function DELETE(_req: Request, { params }: Ctx) {
+export async function DELETE(req: Request, { params }: Ctx) {
   const auth = await requireUser();
   if (auth.response) return auth.response;
   if (auth.user.role !== "super-admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id } = await params;
+  const target = await prisma.user.findUnique({ where: { id } });
   await prisma.user.delete({ where: { id } });
+  void logAudit({
+    action: "USER_DELETED",
+    actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+    target: { type: "USER", id, label: target ? `${target.name} (${target.email})` : id },
+    req,
+  });
   return NextResponse.json({ ok: true });
 }

@@ -58,8 +58,8 @@ function CrmPageContent() {
 
       <Tabs value={tab} onValueChange={(value) => setTab(String(value))}>
         <TabsList>
-          <TabsTrigger value="tickets">Tickets</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="tickets" className="w-[100px] h-[25px]">Tickets</TabsTrigger>
+          <TabsTrigger value="tasks" className="w-[100px] h-[25px]">Tasks</TabsTrigger>
         </TabsList>
 
         <TabsContent value="tickets" className="pt-6">

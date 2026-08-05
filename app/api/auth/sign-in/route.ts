@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { verifyPassword } from "@/lib/server/password";
 import { createSessionToken, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from "@/lib/server/session-token";
+import { logAudit } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,9 +21,19 @@ export async function POST(req: Request) {
   if (!user || !user.passwordHash || user.status !== "active") return INVALID;
 
   const valid = await verifyPassword(password, user.passwordHash);
-  if (!valid) return INVALID;
+  if (!valid) {
+    void logAudit({ action: "SIGN_IN_FAILURE", actorEmail: email, target: { type: "SESSION" }, req, result: "FAILURE" });
+    return INVALID;
+  }
 
   await prisma.user.update({ where: { id: user.id }, data: { lastActive: new Date() } });
+
+  void logAudit({
+    action: "SIGN_IN_SUCCESS",
+    actor: { id: user.id, email: user.email, name: user.name },
+    target: { type: "SESSION" },
+    req,
+  });
 
   const res = NextResponse.json({
     user: {

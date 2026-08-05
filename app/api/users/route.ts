@@ -3,6 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { serializeUser } from "@/lib/server/serialize";
 import { requireUser, requireRole } from "@/lib/server/require-user";
 import { logSecurityAudit } from "@/lib/server/audit-log";
+import { logAudit } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +36,13 @@ export async function POST(req: Request) {
     action: "USER_INVITED",
     targetUserId: user.id,
     targetName: user.name,
+  });
+  void logAudit({
+    action: "USER_INVITED",
+    actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+    target: { type: "USER", id: user.id, label: `${user.name} (${user.email})` },
+    details: { role: user.role },
+    req,
   });
 
   return NextResponse.json(serializeUser(user), { status: 201 });
