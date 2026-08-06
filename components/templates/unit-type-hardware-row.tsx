@@ -281,8 +281,8 @@ export function UnitTypeHardwareRow({
             id={`hw-qty-${value.id}`}
             placeholder="e.g. 2 or H/450"
             value={value.qtyFormula}
-            onChange={(e) => onChange({ qtyFormula: e.target.value })}
-            className="bg-[#F0E4E4]"
+            onChange={(e) => onChange({ qtyFormula: e.target.value.toUpperCase() })}
+            className="font-number bg-[#F0E4E4]"
           />
         </div>
 

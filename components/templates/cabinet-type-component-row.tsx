@@ -103,7 +103,8 @@ export function CabinetTypeComponentRow({
             id={`w-${value.id}`}
             placeholder="e.g. (W-95)/2"
             value={value.widthFormula}
-            onChange={(e) => onChange({ widthFormula: e.target.value })}
+            onChange={(e) => onChange({ widthFormula: e.target.value.toUpperCase() })}
+            className="font-number"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -112,7 +113,8 @@ export function CabinetTypeComponentRow({
             id={`h-${value.id}`}
             placeholder="e.g. H-20"
             value={value.heightFormula}
-            onChange={(e) => onChange({ heightFormula: e.target.value })}
+            onChange={(e) => onChange({ heightFormula: e.target.value.toUpperCase() })}
+            className="font-number"
           />
         </div>
 
@@ -122,6 +124,7 @@ export function CabinetTypeComponentRow({
             category="thickness"
             value={value.thicknessId}
             onChange={(id) => requestMaterialChange("thicknessId", id)}
+            triggerClassName="font-number"
           />
         </div>
         <div className="flex flex-col gap-1.5">

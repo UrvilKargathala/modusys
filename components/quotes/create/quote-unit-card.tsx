@@ -20,7 +20,8 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { QuoteCabinetGroup } from "@/components/quotes/create/quote-cabinet-group";
-import { useUnitTypes } from "@/lib/store/unit-type-store";
+import { UnitTypeFormDialog } from "@/components/templates/unit-type-form-dialog";
+import { useUnitTypes, unitTypeStore } from "@/lib/store/unit-type-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { cabinetTotal, unitTotal, resolveLineItemDimensions, resolveHardwareForUnit } from "@/lib/quote-pricing";
@@ -75,50 +76,73 @@ function UnitTypeSelect({ value, onChange }: { value: string | null; onChange: (
   const unitTypes = useUnitTypes();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
   const selected = unitTypes.find((u) => u.id === value);
   const results = unitTypes.filter(
     (u) => u.name.toLowerCase().includes(query.toLowerCase()) || u.shortCode.toLowerCase().includes(query.toLowerCase())
   );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary">
-        {selected ? (
-          <span className="min-w-0 truncate">
-            {selected.shortCode} — {selected.name}
-          </span>
-        ) : (
-          <span className="min-w-0 truncate text-grey-400">Select Unit Type</span>
-        )}
-        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-80 p-2">
-        <Input autoFocus placeholder="Search unit types" value={query} onChange={(e) => setQuery(e.target.value)} className="mb-2" />
-        <div className="flex max-h-52 flex-col overflow-y-auto">
-          {results.map((u) => (
-            <button
-              key={u.id}
-              type="button"
-              onClick={() => {
-                onChange(u.id);
-                setOpen(false);
-                setQuery("");
-              }}
-              className={cn(
-                "flex w-full min-w-0 items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body hover:bg-light-600",
-                u.id === value ? "text-primary" : "text-grey-800"
-              )}
-            >
-              <span className="min-w-0 truncate">
-                {u.shortCode} — {u.name}
-              </span>
-              {u.id === value && <Check className="h-3.5 w-3.5 shrink-0" />}
-            </button>
-          ))}
-          {results.length === 0 && <span className="px-2 py-1.5 text-sm font-body text-grey-400">No matches</span>}
-        </div>
-      </PopoverContent>
-    </Popover>
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary">
+          {selected ? (
+            <span className="min-w-0 truncate">
+              {selected.shortCode} — {selected.name}
+            </span>
+          ) : (
+            <span className="min-w-0 truncate text-grey-400">Select Unit Type</span>
+          )}
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-80 p-2">
+          <Input autoFocus placeholder="Search unit types" value={query} onChange={(e) => setQuery(e.target.value)} className="mb-2" />
+          <div className="flex max-h-52 flex-col overflow-y-auto">
+            {results.map((u) => (
+              <button
+                key={u.id}
+                type="button"
+                onClick={() => {
+                  onChange(u.id);
+                  setOpen(false);
+                  setQuery("");
+                }}
+                className={cn(
+                  "flex w-full min-w-0 items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body hover:bg-light-600",
+                  u.id === value ? "text-primary" : "text-grey-800"
+                )}
+              >
+                <span className="min-w-0 truncate">
+                  {u.shortCode} — {u.name}
+                </span>
+                {u.id === value && <Check className="h-3.5 w-3.5 shrink-0" />}
+              </button>
+            ))}
+            {results.length === 0 && <span className="px-2 py-1.5 text-sm font-body text-grey-400">No matches</span>}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setAddOpen(true);
+            }}
+            className="mt-1 flex w-full items-center gap-1.5 border-t border-grey-100 px-2 py-2 text-left text-sm font-body font-medium text-primary hover:bg-light-600 rounded-md"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Unit Type
+          </button>
+        </PopoverContent>
+      </Popover>
+
+      <UnitTypeFormDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onSubmit={(values) => {
+          const created = unitTypeStore.createUnitType(values);
+          onChange(created.id);
+        }}
+      />
+    </>
   );
 }
 

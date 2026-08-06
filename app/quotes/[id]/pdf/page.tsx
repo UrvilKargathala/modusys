@@ -279,7 +279,6 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           <Field label="Tandem Runner" value={numFont(nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId))} />
           <Field label="Hinges" value={numFont(descOf(hingesTypes, quote.hingesTypeId))} />
           <Field label="Handle" value={numFont(descOf(handleTypes, quote.handleTypeId))} />
-          <Field label="Client Responsibilities" value={numFont(nameOf(clientResponsibilities, quote.clientResponsibilityId))} />
         </div>
 
         <SectionLabel>Unit Details</SectionLabel>
@@ -428,7 +427,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         {notes.length > 0 && (
           <div className="pdf-cream-body mt-5 text-[11px]">
-            <span className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">Note</span>
+            <span className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">Client Responsibilities</span>
             <ol className="mt-1 list-decimal pl-4">
               {notes.map((n) => (
                 <li key={n.id} className="marker-number">{numFont(n.text)}</li>

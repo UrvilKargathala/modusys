@@ -168,8 +168,8 @@ export function FurnitureLineItemRow({
             id={`w-${value.id}`}
             placeholder="e.g. (W-95)/2"
             value={value.widthFormula}
-            onChange={(e) => handleFieldChange({ widthFormula: e.target.value })}
-            className="bg-[#F0E4E4]"
+            onChange={(e) => handleFieldChange({ widthFormula: e.target.value.toUpperCase() })}
+            className="font-number bg-[#F0E4E4]"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -178,8 +178,8 @@ export function FurnitureLineItemRow({
             id={`h-${value.id}`}
             placeholder="e.g. H-20"
             value={value.heightFormula}
-            onChange={(e) => handleFieldChange({ heightFormula: e.target.value })}
-            className="bg-[#F0E4E4]"
+            onChange={(e) => handleFieldChange({ heightFormula: e.target.value.toUpperCase() })}
+            className="font-number bg-[#F0E4E4]"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -199,7 +199,7 @@ export function FurnitureLineItemRow({
             category="thickness"
             value={value.thicknessId}
             onChange={(id) => requestMaterialChange("thicknessId", id)}
-            triggerClassName="bg-[#F0E4E4]"
+            triggerClassName="font-number bg-[#F0E4E4]"
           />
         </div>
         {totalSqFt !== undefined && (

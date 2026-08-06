@@ -160,7 +160,10 @@ function CreateQuotePage() {
         <UnitsSection
           units={quote.units}
           shutterFinishId={quote.shutterFinishId}
-          onChange={(units) => patchQuote({ units })}
+          onChange={(units) => {
+            patchQuote({ units });
+            quotesStore.saveQuote({ ...quote, units });
+          }}
         />
         <QuoteSummarySection quote={quote} onChange={patchQuote} />
 
