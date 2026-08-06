@@ -44,7 +44,7 @@ export function MaterialReferenceSelect({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger className={cn("flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary", triggerClassName)}>
           {selected ? (
-            <span className={cn("min-w-0 truncate", bold && "font-semibold")}>
+            <span className={cn("min-w-0 truncate font-number", bold && "font-semibold")}>
               {selected.name}
               {!nameOnly && selected.description && <span className="text-grey-400"> — {selected.description}</span>}
             </span>
@@ -59,7 +59,7 @@ export function MaterialReferenceSelect({
             placeholder={`Search ${meta.label.toLowerCase()}`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="mb-2"
+            className="mb-2 font-number"
           />
           <div className="flex max-h-52 flex-col overflow-y-auto">
             {results.map((i) => (
@@ -76,7 +76,7 @@ export function MaterialReferenceSelect({
                   i.id === value ? "text-primary" : "text-grey-800"
                 )}
               >
-                <span className="min-w-0 truncate">
+                <span className="min-w-0 truncate font-number">
                   {i.name}
                   {!nameOnly && i.description && <span className="text-grey-400"> — {i.description}</span>}
                 </span>

@@ -87,7 +87,7 @@ function UnitTypeSelect({ value, onChange }: { value: string | null; onChange: (
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary">
           {selected ? (
-            <span className="min-w-0 truncate">
+            <span className="min-w-0 truncate font-number">
               {selected.shortCode} — {selected.name}
             </span>
           ) : (
@@ -96,7 +96,7 @@ function UnitTypeSelect({ value, onChange }: { value: string | null; onChange: (
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
         </PopoverTrigger>
         <PopoverContent align="start" className="w-80 p-2">
-          <Input autoFocus placeholder="Search unit types" value={query} onChange={(e) => setQuery(e.target.value)} className="mb-2" />
+          <Input autoFocus placeholder="Search unit types" value={query} onChange={(e) => setQuery(e.target.value)} className="mb-2 font-number" />
           <div className="flex max-h-52 flex-col overflow-y-auto">
             {results.map((u) => (
               <button
@@ -112,7 +112,7 @@ function UnitTypeSelect({ value, onChange }: { value: string | null; onChange: (
                   u.id === value ? "text-primary" : "text-grey-800"
                 )}
               >
-                <span className="min-w-0 truncate">
+                <span className="min-w-0 truncate font-number">
                   {u.shortCode} — {u.name}
                 </span>
                 {u.id === value && <Check className="h-3.5 w-3.5 shrink-0" />}
