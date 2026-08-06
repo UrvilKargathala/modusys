@@ -14,6 +14,7 @@ export function MobileBottomNav() {
   const [moreOpen, setMoreOpen] = useState(false);
   const currentUser = useCurrentUser();
   const visibleAdminItems = administrationItems.filter((item) => !item.superAdminOnly || currentUser.role === "super-admin");
+  const visibleMoreItems = mobileMoreItems.filter((item) => !item.superAdminOnly || currentUser.role === "super-admin");
 
   const isMoreActive = [...mobileMoreItems, ...administrationItems].some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -59,7 +60,7 @@ export function MobileBottomNav() {
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
         <SheetContent side="bottom" className="pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <div className="flex flex-col gap-1 p-2">
-            {mobileMoreItems.map((item) => {
+            {visibleMoreItems.map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               const Icon = item.icon;
               return (

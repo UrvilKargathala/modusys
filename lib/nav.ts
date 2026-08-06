@@ -28,7 +28,7 @@ export const navigationItems: NavItem[] = [
   { label: "Customers", href: "/customers", icon: Contact },
   { label: "Architects", href: "/architects", icon: Building2 },
   { label: "Templates", href: "/templates", icon: LayoutTemplate },
-  { label: "Attendance", href: "/attendance", icon: ScanLine },
+  { label: "Attendance", href: "/attendance", icon: ScanLine, superAdminOnly: true },
 ];
 
 export const administrationItems: NavItem[] = [

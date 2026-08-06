@@ -65,7 +65,9 @@ export function TopNavbar() {
       </Link>
 
       <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 overflow-x-auto rounded-full bg-primary/40 p-1 lg:flex">
-        {navigationItems.map((item) => {
+        {navigationItems
+          .filter((item) => !item.superAdminOnly || currentUser.role === "super-admin")
+          .map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link

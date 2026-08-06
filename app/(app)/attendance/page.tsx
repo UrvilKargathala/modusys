@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
+import { getSessionUser } from "@/lib/server/require-user";
 import { formatTime, getWorkingHours, formatDate } from "@/lib/attendance-utils";
 import { SyncButtons } from "@/components/attendance/sync-buttons";
 import { AutoRefresh } from "@/components/attendance/auto-refresh";
@@ -13,6 +15,9 @@ export default async function AttendancePage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser || sessionUser.role !== "super-admin") redirect("/dashboard");
+
   const { date: dateParam } = await searchParams;
   const date = dateParam ? new Date(dateParam) : new Date();
   date.setHours(0, 0, 0, 0);
