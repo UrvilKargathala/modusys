@@ -24,10 +24,10 @@ import { UnitTypeFormDialog } from "@/components/templates/unit-type-form-dialog
 import { useUnitTypes, unitTypeStore } from "@/lib/store/unit-type-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
-import { cabinetTotal, unitTotal, resolveLineItemDimensions, resolveHardwareForUnit } from "@/lib/quote-pricing";
+import { cabinetTotal, unitTotal, resolveLineItemDimensions, resolveHardwareForUnit, findFurnitureMatch } from "@/lib/quote-pricing";
 import type { QuoteUnit, QuoteCabinet } from "@/lib/mock/quote";
 import type { UnitType, FurnitureLineItem, UnitTypeHardware } from "@/lib/mock/unit-type";
-import type { HardwarePriceItem } from "@/lib/mock/pricing-list";
+import { rateAfterDiscount, type FurniturePriceItem, type HardwarePriceItem } from "@/lib/mock/pricing-list";
 import { cn } from "@/lib/utils";
 
 function cloneLineItem(item: FurnitureLineItem): FurnitureLineItem {
@@ -53,10 +53,25 @@ function buildCabinetsFromUnitType(
   unitType: UnitType,
   cabinetTypeName: (id: string) => string,
   unitDims: { width: number; depth: number; height: number; qty: number },
-  hardwareItems: HardwarePriceItem[]
+  hardwareItems: HardwarePriceItem[],
+  furnitureItems: FurniturePriceItem[]
 ): QuoteCabinet[] {
-  const resolve = (item: FurnitureLineItem) => resolveLineItemDimensions(cloneLineItem(item), unitDims);
-  const resolveHw = (item: UnitTypeHardware) => resolveHardwareForUnit(cloneHardware(item, hardwareItems), unitDims);
+  const resolve = (item: FurnitureLineItem) => {
+    const resolved = resolveLineItemDimensions(cloneLineItem(item), unitDims);
+    if (resolved.rateOverride === undefined) {
+      const match = findFurnitureMatch(item, furnitureItems);
+      if (match) resolved.rateOverride = match.rate;
+    }
+    return resolved;
+  };
+  const resolveHw = (item: UnitTypeHardware) => {
+    const resolved = resolveHardwareForUnit(cloneHardware(item, hardwareItems), unitDims);
+    if (resolved.rateOverride === undefined) {
+      const match = hardwareItems.find((h) => h.id === item.hardwareItemId);
+      if (match) resolved.rateOverride = rateAfterDiscount(match);
+    }
+    return resolved;
+  };
   return unitType.cabinetTypeLinks.map((link, index) => ({
     id: `qc-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
     cabinetTypeId: link.cabinetTypeId,
@@ -203,7 +218,7 @@ export function QuoteUnitCard({
   };
 
   const runAutoPopulate = (unitType: UnitType) => {
-    const cabinets = buildCabinetsFromUnitType(unitType, cabinetTypeName, unit, hardwareItems);
+    const cabinets = buildCabinetsFromUnitType(unitType, cabinetTypeName, unit, hardwareItems, furnitureItems);
     onChange({
       unitTypeId: unitType.id,
       // New Shutter rows start on the Material Specification's Shutter
