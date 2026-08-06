@@ -9,7 +9,8 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { EmptyState } from "@/components/shared/empty-state";
 import { FurnitureLineItemRow } from "@/components/templates/furniture-line-item-row";
 import { BulkActionConfirmDialog } from "@/components/templates/bulk-action-confirm-dialog";
-import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
+import { CabinetTypeFormDialog } from "@/components/templates/cabinet-type-form-dialog";
+import { useCabinetTypes, cabinetTypeStore } from "@/lib/store/cabinet-type-store";
 import { cn } from "@/lib/utils";
 import type { FurnitureLineItem, UnitTypeCabinetTypeLink } from "@/lib/mock/unit-type";
 
@@ -54,6 +55,7 @@ export function UnitTypeComponentsSection({
   // select's option list renders as OS-level browser chrome, and clicks on
   // it can get swallowed by the modal Dialog's focus trap.
   const [addOpen, setAddOpen] = useState(false);
+  const [addCabinetTypeOpen, setAddCabinetTypeOpen] = useState(false);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const additionalComponents = components.filter((c) => !c.sourceLinkId);
@@ -138,8 +140,7 @@ export function UnitTypeComponentsSection({
       <div className="flex items-center justify-end">
         <Popover open={addOpen} onOpenChange={setAddOpen}>
           <PopoverTrigger
-            disabled={cabinetTypes.length === 0}
-            className="flex items-center gap-1.5 rounded-lg border border-grey-100 bg-card px-3 py-1.5 text-sm font-body text-grey-900 outline-none focus:border-primary disabled:bg-light-600 disabled:text-grey-400"
+            className="flex items-center gap-1.5 rounded-lg border border-grey-100 bg-card px-3 py-1.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
           >
             <Plus className="h-3.5 w-3.5" />
             Add Cabinet Type
@@ -158,6 +159,16 @@ export function UnitTypeComponentsSection({
             {cabinetTypes.length === 0 && (
               <span className="block px-2 py-1.5 text-sm font-body text-grey-400">No cabinet types available</span>
             )}
+            <div className="mt-1 border-t border-grey-100 pt-1">
+              <button
+                type="button"
+                onClick={() => { setAddOpen(false); setAddCabinetTypeOpen(true); }}
+                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm font-body font-medium text-primary hover:bg-light-600"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Cabinet Type
+              </button>
+            </div>
           </PopoverContent>
         </Popover>
       </div>
@@ -282,6 +293,32 @@ export function UnitTypeComponentsSection({
         onConfirm={() => {
           if (removeTarget) removeCabinetType(removeTarget);
           setRemoveTarget(null);
+        }}
+      />
+
+      <CabinetTypeFormDialog
+        open={addCabinetTypeOpen}
+        onOpenChange={setAddCabinetTypeOpen}
+        onSubmit={(values) => {
+          const created = cabinetTypeStore.createCabinetType(values);
+          const linkId = `utl-new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          const snapshot: FurnitureLineItem[] = created.components.map((c) => {
+            seq += 1;
+            return {
+              id: `utc-new-${Date.now()}-${seq}`,
+              componentTypeId: c.componentTypeId,
+              sourceLinkId: linkId,
+              widthFormula: c.widthFormula,
+              heightFormula: c.heightFormula,
+              thicknessId: c.thicknessId,
+              rawMaterialTypeId: c.rawMaterialTypeId,
+              internalColourId: c.internalColourId,
+              externalColourId: c.externalColourId,
+              qty: c.qty,
+            };
+          });
+          onCabinetTypeLinksChange([...cabinetTypeLinks, { id: linkId, cabinetTypeId: created.id }]);
+          onComponentsChange([...components, ...snapshot]);
         }}
       />
     </div>

@@ -108,10 +108,6 @@ export function UnitTypeFormDialog({
   const complete = values.name.trim().length > 0 && values.shortCode.trim().length > 0;
 
   const submit = () => {
-    if (unitTypeStore.isShortCodeTaken(values.shortCode, item?.id)) {
-      setShortCodeError("Short Code already exists — must be unique.");
-      return;
-    }
     onSubmit(values);
     onOpenChange(false);
   };

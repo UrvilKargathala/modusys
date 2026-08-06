@@ -23,7 +23,7 @@ export function applyShutterFinishToUnits(units: QuoteUnit[], shutterFinishId: s
 // furniture-line-item-row.tsx placeholders: "(W-95)/2", "H-20") — never
 // arbitrary code, so a whitelist-filtered `Function` eval is safe.
 export function evaluateFormula(formula: string, vars: { W: number; D: number; H: number }): number {
-  const trimmed = formula.trim();
+  const trimmed = formula.trim().toUpperCase();
   if (!trimmed) return 0;
   if (!/^[\d\s+\-*/().WDH]+$/.test(trimmed)) return 0;
   try {

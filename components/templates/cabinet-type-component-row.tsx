@@ -103,7 +103,7 @@ export function CabinetTypeComponentRow({
             id={`w-${value.id}`}
             placeholder="e.g. (W-95)/2"
             value={value.widthFormula}
-            onChange={(e) => onChange({ widthFormula: e.target.value.toUpperCase() })}
+            onChange={(e) => onChange({ widthFormula: e.target.value })}
             className="font-number"
           />
         </div>
@@ -113,7 +113,7 @@ export function CabinetTypeComponentRow({
             id={`h-${value.id}`}
             placeholder="e.g. H-20"
             value={value.heightFormula}
-            onChange={(e) => onChange({ heightFormula: e.target.value.toUpperCase() })}
+            onChange={(e) => onChange({ heightFormula: e.target.value })}
             className="font-number"
           />
         </div>
