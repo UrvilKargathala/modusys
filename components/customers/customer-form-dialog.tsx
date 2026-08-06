@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -22,6 +22,10 @@ import type { Customer } from "@/lib/mock/pipeline";
 import type { CustomerProfile } from "@/lib/mock/customer-detail";
 import type { ProfileOverride } from "@/lib/store/customer-profile-overrides-store";
 import { useCustomers } from "@/lib/store/customers-store";
+import { useArchitects, architectsStore } from "@/lib/store/architects-store";
+import { fullName as architectFullName } from "@/lib/mock/architects";
+import { ArchitectFormDialog } from "@/components/architects/architect-form-dialog";
+import { CURRENT_USER_ID } from "@/lib/session";
 
 const currentYear = new Date().getFullYear();
 const birthYears = Array.from({ length: 70 }, (_, i) => String(currentYear - 18 - i));
@@ -55,6 +59,7 @@ const customerSchema = z.object({
   birthdayMonth: z.string(),
   birthdayDay: z.string(),
   birthdayYear: z.string(),
+  architectId: z.string(),
 });
 
 type CustomerFormValues = z.infer<typeof customerSchema>;
@@ -76,6 +81,7 @@ function emptyValues(): CustomerFormValues {
     birthdayMonth: "",
     birthdayDay: "",
     birthdayYear: "",
+    architectId: "",
   };
 }
 
@@ -95,6 +101,7 @@ function prefillValues(customer: Customer, profile: CustomerProfile, override: P
     birthdayMonth: merged.birthdayMonth,
     birthdayDay: merged.birthdayDay,
     birthdayYear: customer.birthdayYear ?? "",
+    architectId: merged.architectId ?? "",
   };
 }
 
@@ -116,11 +123,14 @@ export function CustomerFormDialog({
 }) {
   const isEdit = !!customer;
   const customers = useCustomers();
+  const architects = useArchitects();
+  const [addArchitectOpen, setAddArchitectOpen] = useState(false);
   const {
     register,
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors, isSubmitting, isValid },
   } = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
@@ -207,6 +217,31 @@ export function CustomerFormDialog({
               <Input id="c-email" placeholder="name@email.com" {...register("email")} />
               {errors.email && <span className="text-xs font-body text-error">{errors.email.message}</span>}
             </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="c-architect">Architect Name</Label>
+              <button
+                type="button"
+                onClick={() => setAddArchitectOpen(true)}
+                className="text-xs font-body font-medium text-primary hover:underline"
+              >
+                + Add Architect
+              </button>
+            </div>
+            <select
+              id="c-architect"
+              {...register("architectId")}
+              className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
+            >
+              <option value="">Select an architect</option>
+              {architects.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {architectFullName(a)}{a.company ? ` — ${a.company}` : ""}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -311,6 +346,15 @@ export function CustomerFormDialog({
           </SheetFooter>
         </form>
       </SheetContent>
+      <ArchitectFormDialog
+        variant="dialog"
+        open={addArchitectOpen}
+        onOpenChange={setAddArchitectOpen}
+        onSubmit={async (values) => {
+          const created = await architectsStore.createArchitect({ ...values, createdById: CURRENT_USER_ID });
+          if (created?.id) setValue("architectId", created.id, { shouldValidate: true, shouldDirty: true });
+        }}
+      />
     </Sheet>
   );
 }

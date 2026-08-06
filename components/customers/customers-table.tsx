@@ -225,8 +225,8 @@ export function CustomersTable() {
       <CustomerFormDialog
         open={addOpen}
         onOpenChange={setAddOpen}
-        onSubmit={(values) =>
-          customersStore.createCustomer({
+        onSubmit={async (values) => {
+          const created = await customersStore.createCustomer({
             prefix: values.prefix,
             firstName: values.firstName,
             lastName: values.lastName,
@@ -242,8 +242,11 @@ export function CustomersTable() {
             birthdayDay: values.birthdayDay,
             birthdayYear: values.birthdayYear,
             createdById: CURRENT_USER_ID,
-          })
-        }
+          });
+          if (created?.id && values.architectId) {
+            profileOverridesStore.setFields(created.id, { architectId: values.architectId });
+          }
+        }}
       />
 
       {editTarget && editProfile && (
@@ -276,6 +279,7 @@ export function CustomersTable() {
               postcode: values.postcode,
               birthdayMonth: values.birthdayMonth,
               birthdayDay: values.birthdayDay,
+              architectId: values.architectId,
               updatedAt: new Date().toISOString(),
               updatedById: CURRENT_USER_ID,
             });

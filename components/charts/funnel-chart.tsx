@@ -8,7 +8,7 @@ export function FunnelChart({ data, height = 280 }: { data: FunnelDatum[]; heigh
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ReFunnelChart>
-        <Tooltip />
+        <Tooltip contentStyle={{ fontFamily: "var(--font-number)" }} />
         <Funnel dataKey="value" data={data} isAnimationActive>
           {data.map((entry) => (
             <Cell key={entry.name} fill={entry.color} />

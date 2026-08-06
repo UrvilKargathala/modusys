@@ -13,7 +13,7 @@ export function DonutChart({ data }: { data: DonutDatum[] }) {
             <Cell key={entry.name} fill={entry.color} />
           ))}
         </Pie>
-        <Tooltip />
+        <Tooltip contentStyle={{ fontFamily: "var(--font-number)" }} />
         <Legend />
       </PieChart>
     </ResponsiveContainer>

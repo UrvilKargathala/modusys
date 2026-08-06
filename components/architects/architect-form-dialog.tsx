@@ -11,8 +11,14 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-  SheetFooter,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -106,12 +112,14 @@ export function ArchitectFormDialog({
   onOpenChange,
   architect,
   onSubmit,
+  variant = "sheet",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   // Absent = Add mode; present = Edit mode, pre-filled from this record.
   architect?: Architect;
   onSubmit: (values: ArchitectFormOutput) => void;
+  variant?: "sheet" | "dialog";
 }) {
   const isEdit = !!architect;
   const {
@@ -146,20 +154,12 @@ export function ArchitectFormDialog({
 
   const createdBy = architect ? mockUsers.find((u) => u.id === architect.createdById)?.name : undefined;
 
-  return (
-    <Sheet open={open} onOpenChange={(next) => { if (!next) reset(emptyValues()); onOpenChange(next); }}>
-      <SheetContent
-        side="right"
-        className="flex flex-col gap-4 overflow-y-auto p-6 data-[side=right]:w-screen sm:data-[side=right]:w-full sm:data-[side=right]:max-w-[460px]"
-      >
-        <SheetHeader className="p-0">
-          <SheetTitle>{isEdit ? "Edit Architect" : "Add Architect"}</SheetTitle>
-          <SheetDescription>
-            {isEdit ? "Update this architect's details." : "Add a new architect contact."}
-          </SheetDescription>
-        </SheetHeader>
+  const title = isEdit ? "Edit Architect" : "Add Architect";
+  const description = isEdit ? "Update this architect's details." : "Add a new architect contact.";
+  const handleOpenChange = (next: boolean) => { if (!next) reset(emptyValues()); onOpenChange(next); };
 
-        <form onSubmit={handleSubmit(submit)} noValidate className="flex flex-col gap-4">
+  const body = (
+    <form onSubmit={handleSubmit(submit)} noValidate className="flex flex-col gap-4">
           <div className="grid grid-cols-[6rem_1fr_1fr] gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="a-prefix">Prefix</Label>
@@ -348,15 +348,42 @@ export function ArchitectFormDialog({
             </p>
           )}
 
-          <SheetFooter className="sticky bottom-0 -mx-6 -mb-6 mt-2 flex-row justify-end gap-2 border-t border-grey-100 bg-popover px-6 py-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting || !isValid}>
-              {isEdit ? "Save Changes" : "Add"}
-            </Button>
-          </SheetFooter>
-        </form>
+      <div className="sticky bottom-0 -mx-6 -mb-6 mt-2 flex flex-row justify-end gap-2 border-t border-grey-100 bg-popover px-6 py-4">
+        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting || !isValid}>
+          {isEdit ? "Save Changes" : "Add"}
+        </Button>
+      </div>
+    </form>
+  );
+
+  if (variant === "dialog") {
+    return (
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="flex max-h-[90vh] flex-col gap-4 overflow-y-auto p-6 sm:max-w-[520px]">
+          <DialogHeader className="p-0">
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
+          </DialogHeader>
+          {body}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <SheetContent
+        side="right"
+        className="flex flex-col gap-4 overflow-y-auto p-6 data-[side=right]:w-screen sm:data-[side=right]:w-full sm:data-[side=right]:max-w-[460px]"
+      >
+        <SheetHeader className="p-0">
+          <SheetTitle>{title}</SheetTitle>
+          <SheetDescription>{description}</SheetDescription>
+        </SheetHeader>
+        {body}
       </SheetContent>
     </Sheet>
   );

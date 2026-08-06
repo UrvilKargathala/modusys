@@ -114,7 +114,7 @@ export function ListSection({
             style={{ backgroundColor: colors.light }}
           >
             <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: colors.solid }} />
-            <span className="truncate">{stage.label} · {customers.length}</span>
+            <span className="truncate">{stage.label} · <span className="font-number">{customers.length}</span></span>
           </span>
         </button>
 

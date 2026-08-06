@@ -9,6 +9,7 @@ import {
   LayoutTemplate,
   Wallet,
   ScrollText,
+  ScanLine,
   type LucideIcon,
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ export const navigationItems: NavItem[] = [
   { label: "Customers", href: "/customers", icon: Contact },
   { label: "Architects", href: "/architects", icon: Building2 },
   { label: "Templates", href: "/templates", icon: LayoutTemplate },
+  { label: "Attendance", href: "/attendance", icon: ScanLine },
 ];
 
 export const administrationItems: NavItem[] = [

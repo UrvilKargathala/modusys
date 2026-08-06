@@ -13,6 +13,7 @@ export type ProfileOverride = Partial<{
   gst: string;
   birthdayMonth: string;
   birthdayDay: string;
+  architectId: string;
   updatedAt: string;
   updatedById: string;
 }>;

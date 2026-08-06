@@ -20,7 +20,7 @@ export function BarChart({ data }: { data: BarDatum[] }) {
         <CartesianGrid strokeDasharray="3 3" stroke="var(--color-grey-100)" />
         <XAxis dataKey="label" stroke="var(--color-grey-400)" fontSize={12} tick={{ fontFamily: "var(--font-number)" }} />
         <YAxis stroke="var(--color-grey-400)" fontSize={12} tick={{ fontFamily: "var(--font-number)" }} />
-        <Tooltip />
+        <Tooltip contentStyle={{ fontFamily: "var(--font-number)" }} />
         <Bar dataKey="value" radius={[4, 4, 0, 0]}>
           {data.map((entry, i) => (
             <Cell key={i} fill={entry.color ?? "var(--color-primary)"} />
