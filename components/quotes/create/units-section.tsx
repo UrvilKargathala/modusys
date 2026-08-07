@@ -54,7 +54,7 @@ export function UnitsSection({
   };
 
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-grey-100 bg-card p-6">
+    <section className={cn("flex flex-col gap-4 rounded-xl border border-grey-100 bg-card", sectionCollapsed ? "p-4" : "p-6")}>
       <div className="flex items-center justify-between">
         <button
           type="button"

@@ -110,7 +110,7 @@ function UnitTypeSelect({ value, onChange }: { value: string | null; onChange: (
           )}
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-80 p-2">
+        <PopoverContent align="start" className="w-[28rem] p-2">
           <Input autoFocus placeholder="Search unit types" value={query} onChange={(e) => setQuery(e.target.value)} className="mb-2 font-number" />
           <div className="flex max-h-52 flex-col overflow-y-auto">
             {results.map((u) => (
@@ -123,11 +123,11 @@ function UnitTypeSelect({ value, onChange }: { value: string | null; onChange: (
                   setQuery("");
                 }}
                 className={cn(
-                  "flex w-full min-w-0 items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body hover:bg-light-600",
+                  "flex w-full min-w-0 items-start justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body hover:bg-light-600",
                   u.id === value ? "text-primary" : "text-grey-800"
                 )}
               >
-                <span className="min-w-0 truncate font-number">
+                <span className="min-w-0 font-number">
                   {u.shortCode} — {u.name}
                 </span>
                 {u.id === value && <Check className="h-3.5 w-3.5 shrink-0" />}

@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Mail, Lock, Loader2 } from "lucide-react";
+import { Mail, Lock, Loader2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { IconInput } from "@/components/auth/icon-input";
 import { ForgotPasswordDialog } from "@/components/auth/forgot-password-dialog";
 import { setSessionUser } from "@/lib/session";
@@ -48,9 +49,16 @@ export default function SignInPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1 text-center">
-        <h1 className="font-heading text-xl font-semibold text-grey-900">Welcome back</h1>
-        <p className="text-sm font-body text-grey-400">Sign in to access your dashboard</p>
+      <div className="flex flex-col items-center gap-3">
+        <Avatar className="h-16 w-16">
+          <AvatarFallback className="bg-primary-transparent text-primary">
+            <UserRound className="h-8 w-8" />
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex flex-col gap-1 text-center">
+          <h1 className="font-heading text-xl font-semibold text-grey-900">Welcome back</h1>
+          <p className="text-sm font-body text-grey-400">Sign in to access your dashboard</p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">

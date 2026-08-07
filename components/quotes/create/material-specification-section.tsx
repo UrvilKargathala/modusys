@@ -44,7 +44,7 @@ export function MaterialSpecificationSection({
   );
 
   return (
-    <section className="flex flex-col gap-6 rounded-xl border border-grey-100 bg-card p-6">
+    <section className={cn("flex flex-col gap-6 rounded-xl border border-grey-100 bg-card", collapsed ? "p-4" : "p-6")}>
       <button
         type="button"
         onClick={() => setCollapsed((c) => !c)}

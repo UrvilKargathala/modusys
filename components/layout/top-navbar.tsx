@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Bell, ChevronDown, LogOut, UserPlus, Clock3, CheckCircle2, AtSign, KeyRound } from "lucide-react";
+import { Bell, ChevronDown, LogOut, UserPlus, Clock3, CheckCircle2, AtSign, KeyRound, AlertTriangle, FileText, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { navigationItems, administrationItems } from "@/lib/nav";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { GlobalSearch } from "@/components/layout/global-search";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -19,12 +20,22 @@ import { useNotifications, notificationsStore, type NotificationType } from "@/l
 import { taskPanelStore } from "@/lib/store/task-panel-store";
 import { useCurrentUser, signOut } from "@/lib/session";
 import { getRole } from "@/lib/constants/roles";
+import { useQuotes } from "@/lib/store/quotes-store";
+import { useCustomers } from "@/lib/store/customers-store";
+import { customerPanelStore } from "@/lib/store/customer-panel-store";
+import { getVirtualNotifications, type VirtualNotification } from "@/lib/notifications-feed";
 
 const notificationIcon: Record<NotificationType, typeof UserPlus> = {
   assigned: UserPlus,
   "due-soon": Clock3,
   completed: CheckCircle2,
   mentioned: AtSign,
+};
+
+const virtualNotificationIcon: Record<VirtualNotification["kind"], typeof UserPlus> = {
+  "stale-quote": AlertTriangle,
+  "quote-status": FileText,
+  "new-lead": UserPlus,
 };
 
 function timeAgo(iso: string) {
@@ -51,7 +62,13 @@ export function TopNavbar() {
   const myNotifications = allNotifications
     .filter((n) => n.userId === currentUser.id)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const unreadCount = myNotifications.filter((n) => !n.read).length;
+
+  const quotes = useQuotes();
+  const customers = useCustomers();
+  const customerName = (id: string | null) => (id ? customers.find((c) => c.id === id)?.name ?? "" : "");
+  const virtualNotifications = getVirtualNotifications(quotes, customers, customerName);
+
+  const unreadCount = myNotifications.filter((n) => !n.read).length + virtualNotifications.length;
 
   return (
     <header className="flex h-16 items-center justify-between gap-4 border-b border-grey-100 bg-card px-4 md:px-6">
@@ -115,13 +132,7 @@ export function TopNavbar() {
       </nav>
 
       <div className="flex shrink-0 items-center gap-2">
-        <button
-          type="button"
-          aria-label="Search"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary-100"
-        >
-          <Search className="h-4 w-4" />
-        </button>
+        <GlobalSearch />
 
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -150,7 +161,7 @@ export function TopNavbar() {
             </div>
             <DropdownMenuSeparator />
             <div className="flex max-h-80 flex-col overflow-y-auto">
-              {myNotifications.length === 0 && (
+              {myNotifications.length === 0 && virtualNotifications.length === 0 && (
                 <span className="px-3 py-6 text-center text-sm font-body text-grey-400">
                   No notifications yet.
                 </span>
@@ -178,6 +189,26 @@ export function TopNavbar() {
                   </button>
                 );
               })}
+              {virtualNotifications.map((n) => {
+                const Icon = virtualNotificationIcon[n.kind];
+                return (
+                  <button
+                    key={n.id}
+                    type="button"
+                    onClick={() => {
+                      if (n.href) router.push(n.href);
+                      else if (n.customerId) customerPanelStore.open(n.customerId);
+                    }}
+                    className="flex items-start gap-2.5 bg-primary-transparent px-3 py-2.5 text-left transition-colors hover:bg-light-600"
+                  >
+                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span className="flex flex-col gap-0.5">
+                      <span className="text-sm font-body text-grey-800">{n.message}</span>
+                      <span className="text-xs font-number text-grey-400">{timeAgo(n.createdAt)}</span>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -185,8 +216,8 @@ export function TopNavbar() {
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-light-600">
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-primary-transparent text-xs text-primary">
-                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "?"}
+              <AvatarFallback className="bg-primary-transparent text-primary">
+                <UserRound className="h-4 w-4" />
               </AvatarFallback>
             </Avatar>
             <span className="hidden flex-col items-start leading-tight sm:flex">

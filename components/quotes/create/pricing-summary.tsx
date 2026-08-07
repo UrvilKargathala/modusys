@@ -23,9 +23,9 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
   );
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex h-full flex-col gap-3">
       <h3 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-500">Pricing Summary</h3>
-      <div className="overflow-x-auto rounded-lg border border-grey-100">
+      <div className="flex-1 overflow-x-auto rounded-lg border border-grey-100">
         <table className="w-full text-left">
           <thead className="bg-[#D9C8C9]">
             <tr>

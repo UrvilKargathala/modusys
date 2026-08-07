@@ -165,9 +165,9 @@ function CreateQuotePage() {
             quotesStore.saveQuote({ ...quote, units });
           }}
         />
-        <QuoteSummarySection quote={quote} onChange={patchQuote} />
+        <QuoteSummarySection quote={quote} onChange={patchQuote} onSaveRemark={handleSaveRemark} />
 
-        <RemarkAndFinishesSection quote={quote} onChange={patchQuote} onSaveRemark={handleSaveRemark} />
+        <RemarkAndFinishesSection quote={quote} onChange={patchQuote} />
       </div>
 
       <ConfirmDialog
