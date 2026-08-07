@@ -57,18 +57,18 @@ export function FinishOptionsTable({
 
       <div className="overflow-x-auto rounded-lg border border-grey-100">
         <table className="w-full text-left">
-          <thead className="bg-light-600">
+          <thead className="bg-[#DACCCB]">
             <tr>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
+              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
                 Option
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
+              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
                 External Finish + Tandem Drawer
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-medium uppercase tracking-wide text-grey-500">
+              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
                 Price
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-medium uppercase tracking-wide text-grey-500">
+              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-bold uppercase tracking-wide text-grey-900">
                 Actions
               </th>
             </tr>

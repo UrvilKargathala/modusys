@@ -37,6 +37,7 @@ export function FurnitureLineItemRow({
   showLevelType,
   totalSqFt,
   compact,
+  rateReadOnly,
 }: {
   value: FurnitureLineItem;
   onChange: (patch: Partial<FurnitureLineItem>) => void;
@@ -53,6 +54,9 @@ export function FurnitureLineItemRow({
   // omits it.
   totalSqFt?: number;
   compact?: boolean;
+  // Templates want Rate locked to the Price List — edits happen there, not
+  // here. Quotes keep it editable so users can override per line.
+  rateReadOnly?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   const [addPriceOpen, setAddPriceOpen] = useState(false);
@@ -227,15 +231,17 @@ export function FurnitureLineItemRow({
               min={0}
               placeholder="0.00"
               value={value.rateOverride ?? (match ? match.rate.toFixed(2) : "")}
+              readOnly={rateReadOnly}
               onChange={(e) => {
+                if (rateReadOnly) return;
                 const raw = e.target.value;
                 handleFieldChange({ rateOverride: raw === "" ? undefined : Number(raw) });
               }}
-              className="pr-14 font-number bg-[#F0E4E4]"
+              className={`pr-14 font-number bg-[#F0E4E4] ${rateReadOnly ? "cursor-not-allowed" : ""}`}
             />
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">/sq.ft</span>
           </div>
-          {value.rateOverride !== undefined && match && value.rateOverride !== match.rate && (
+          {!rateReadOnly && value.rateOverride !== undefined && match && value.rateOverride !== match.rate && (
             <button
               type="button"
               onClick={() => handleFieldChange({ rateOverride: undefined })}

@@ -274,6 +274,7 @@ export function UnitTypeFormDialog({
                         label="External Finish"
                         showComponentName
                         compact
+                        rateReadOnly
                         onChange={(patch) => externalFinishes.update(c.id, patch)}
                         onRemove={() => externalFinishes.remove(c.id)}
                         onCopy={() => externalFinishes.copy(c)}
@@ -306,6 +307,7 @@ export function UnitTypeFormDialog({
                         showComponentName
                         showLevelType
                         compact
+                        rateReadOnly
                         onChange={(patch) => otherPanels.update(c.id, patch)}
                         onRemove={() => otherPanels.remove(c.id)}
                         onCopy={() => otherPanels.copy(c)}
@@ -334,6 +336,7 @@ export function UnitTypeFormDialog({
                       <UnitTypeHardwareRow
                         key={h.id}
                         value={h}
+                        rateReadOnly
                         onChange={(patch) => updateHardware(h.id, patch)}
                         onRemove={() => removeHardware(h.id)}
                         onCopy={() => {

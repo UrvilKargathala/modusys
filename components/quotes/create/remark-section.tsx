@@ -29,7 +29,7 @@ export function RemarkSection({
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-500">Remark</h3>
+      <h3 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-500">Remark&apos;s</h3>
       <textarea
         id="q-remark"
         value={quote.remark ?? ""}

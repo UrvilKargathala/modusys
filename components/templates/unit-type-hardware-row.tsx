@@ -24,11 +24,13 @@ export function UnitTypeHardwareRow({
   onChange,
   onRemove,
   onCopy,
+  rateReadOnly,
 }: {
   value: UnitTypeHardware;
   onChange: (patch: Partial<UnitTypeHardware>) => void;
   onRemove: () => void;
   onCopy?: () => void;
+  rateReadOnly?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -303,14 +305,16 @@ export function UnitTypeHardwareRow({
               min={0}
               placeholder="0.00"
               value={value.rateOverride ?? (priceListRate !== undefined ? priceListRate.toFixed(2) : "")}
+              readOnly={rateReadOnly}
               onChange={(e) => {
+                if (rateReadOnly) return;
                 const raw = e.target.value;
                 onChange({ rateOverride: raw === "" ? undefined : Number(raw) });
               }}
-              className="pl-5 font-number bg-[#F0E4E4]"
+              className={`pl-5 font-number bg-[#F0E4E4] ${rateReadOnly ? "cursor-not-allowed" : ""}`}
             />
           </div>
-          {value.rateOverride !== undefined && priceListRate !== undefined && value.rateOverride !== priceListRate && (
+          {!rateReadOnly && value.rateOverride !== undefined && priceListRate !== undefined && value.rateOverride !== priceListRate && (
             <button
               type="button"
               onClick={() => onChange({ rateOverride: undefined })}

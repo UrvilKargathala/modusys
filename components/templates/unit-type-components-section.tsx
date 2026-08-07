@@ -222,6 +222,7 @@ export function UnitTypeComponentsSection({
                             label="Component"
                             showComponentName
                             compact
+                            rateReadOnly
                             onChange={(patch) => updateComponent(c.id, patch)}
                             onRemove={() => removeComponent(c.id)}
                             onCopy={() => copyComponent(c)}
@@ -265,6 +266,7 @@ export function UnitTypeComponentsSection({
                       label="Component"
                       showComponentName
                       compact
+                      rateReadOnly
                       onChange={(patch) => updateComponent(c.id, patch)}
                       onRemove={() => removeComponent(c.id)}
                     />

@@ -168,14 +168,14 @@ export default function QuotesPage() {
             <table className="w-full text-[13px] font-body">
               <thead>
                 <tr className="border-b border-grey-100 bg-[#DACCCC] text-left text-sm font-medium text-grey-900">
-                  <th className="whitespace-nowrap px-2 py-2">Quote No.</th>
-                  <th className="whitespace-nowrap px-2 py-2">Customer</th>
-                  <th className="whitespace-nowrap px-2 py-2">Date</th>
-                  <th className="whitespace-nowrap px-2 py-2">Product Type</th>
-                  <th className="whitespace-nowrap px-2 py-2">Final Amount</th>
-                  <th className="whitespace-nowrap px-2 py-2">Revision</th>
-                  <th className="whitespace-nowrap px-2 py-2">Status</th>
-                  <th className="whitespace-nowrap px-2 py-2 text-right">Actions</th>
+                  <th className="whitespace-nowrap px-2 py-1">Quote No.</th>
+                  <th className="whitespace-nowrap px-2 py-1">Customer</th>
+                  <th className="whitespace-nowrap px-2 py-1">Date</th>
+                  <th className="whitespace-nowrap px-2 py-1">Product Type</th>
+                  <th className="whitespace-nowrap px-2 py-1">Final Amount</th>
+                  <th className="whitespace-nowrap px-2 py-1">Revision</th>
+                  <th className="whitespace-nowrap px-2 py-1">Status</th>
+                  <th className="whitespace-nowrap px-2 py-1 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -191,18 +191,18 @@ export default function QuotesPage() {
                     const cfg = statusConfig[status] ?? statusConfig.draft;
                     return (
                       <tr key={quote.id} className="border-b border-grey-100 last:border-0 hover:bg-light-600/60">
-                        <td className="whitespace-nowrap px-2 py-2 font-number font-medium text-grey-800">{quote.quoteNumber}</td>
-                        <td className="whitespace-nowrap px-2 py-2 text-grey-700">{customerName(quote.customerId)}</td>
-                        <td className="whitespace-nowrap px-2 py-2 font-number text-grey-500">{formatDate(quote.date)}</td>
-                        <td className="whitespace-nowrap px-2 py-2 text-grey-700">{productTypeName(quote.productTypeId)}</td>
-                        <td className="whitespace-nowrap px-2 py-2 font-number font-medium text-grey-800">{formatInr(finalAmount(quote))}</td>
-                        <td className="whitespace-nowrap px-2 py-2 font-number text-grey-500">{quote.revision}</td>
-                        <td className="whitespace-nowrap px-2 py-2">
+                        <td className="whitespace-nowrap px-2 py-1 font-number font-medium text-grey-800">{quote.quoteNumber}</td>
+                        <td className="whitespace-nowrap px-2 py-1 text-grey-700">{customerName(quote.customerId)}</td>
+                        <td className="whitespace-nowrap px-2 py-1 font-number text-grey-500">{formatDate(quote.date)}</td>
+                        <td className="whitespace-nowrap px-2 py-1 text-grey-700">{productTypeName(quote.productTypeId)}</td>
+                        <td className="whitespace-nowrap px-2 py-1 font-number font-medium text-grey-800">{formatInr(finalAmount(quote))}</td>
+                        <td className="whitespace-nowrap px-2 py-1 font-number text-grey-500">{quote.revision}</td>
+                        <td className="whitespace-nowrap px-2 py-1">
                           <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium", cfg.bg, cfg.color)}>
                             {cfg.label}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-2 py-2">
+                        <td className="whitespace-nowrap px-2 py-1">
                           <div className="flex items-center justify-end gap-1">
                             <Tooltip>
                               <TooltipTrigger

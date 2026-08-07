@@ -100,7 +100,10 @@ function UnitTypeSelect({ value, onChange }: { value: string | null; onChange: (
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary">
+        <PopoverTrigger
+          title={selected ? `${selected.shortCode} — ${selected.name}` : "Select Unit Type"}
+          className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+        >
           {selected ? (
             <span className="min-w-0 truncate font-number">
               {selected.shortCode} — {selected.name}
@@ -295,7 +298,7 @@ export function QuoteUnitCard({
           </div>
         </div>
 
-        <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-40">
+        <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-24">
           <Label>Space</Label>
           <MaterialReferenceSelect
             category="space"
@@ -310,48 +313,49 @@ export function QuoteUnitCard({
         </div>
 
         <div className="grid grid-cols-4 gap-2 sm:contents">
-          <div className="flex flex-col gap-1.5 sm:w-24">
+          <div className="flex flex-col gap-1.5 sm:w-16">
             <Label htmlFor={`w-${unit.id}`}>W</Label>
-            <Input className="bg-card font-number" id={`w-${unit.id}`} type="number" value={unit.width || ""} onChange={(e) => onChange({ width: Number(e.target.value) })} />
+            <Input className="bg-card font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" id={`w-${unit.id}`} type="number" value={unit.width || ""} onChange={(e) => onChange({ width: Number(e.target.value) })} />
           </div>
-          <div className="flex flex-col gap-1.5 sm:w-24">
+          <div className="flex flex-col gap-1.5 sm:w-16">
             <Label htmlFor={`d-${unit.id}`}>D</Label>
-            <Input className="bg-card font-number" id={`d-${unit.id}`} type="number" value={unit.depth || ""} onChange={(e) => onChange({ depth: Number(e.target.value) })} />
+            <Input className="bg-card font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" id={`d-${unit.id}`} type="number" value={unit.depth || ""} onChange={(e) => onChange({ depth: Number(e.target.value) })} />
           </div>
-          <div className="flex flex-col gap-1.5 sm:w-24">
+          <div className="flex flex-col gap-1.5 sm:w-16">
             <Label htmlFor={`h-${unit.id}`}>H</Label>
-            <Input className="bg-card font-number" id={`h-${unit.id}`} type="number" value={unit.height || ""} onChange={(e) => onChange({ height: Number(e.target.value) })} />
+            <Input className="bg-card font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" id={`h-${unit.id}`} type="number" value={unit.height || ""} onChange={(e) => onChange({ height: Number(e.target.value) })} />
           </div>
-          <div className="flex flex-col gap-1.5 sm:w-20">
+          <div className="flex flex-col gap-1.5 sm:w-14">
             <Label htmlFor={`qty-${unit.id}`}>Qty</Label>
-            <Input className="bg-card font-number" id={`qty-${unit.id}`} type="number" min={1} value={unit.qty || ""} onChange={(e) => onChange({ qty: Number(e.target.value) })} />
+            <Input className="bg-card font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" id={`qty-${unit.id}`} type="number" min={1} value={unit.qty || ""} onChange={(e) => onChange({ qty: Number(e.target.value) })} />
           </div>
         </div>
 
-        <Button type="button" disabled={!selectedUnitType} onClick={() => selectedUnitType && runAutoPopulate(selectedUnitType)} className="w-full sm:w-auto">
-          <Sparkles className="h-4 w-4" />
-          Auto Populate
-        </Button>
-
-        <div className="flex items-center justify-end gap-3 sm:ml-auto">
-          <span className="text-sm font-body font-semibold text-grey-900">Unit Total: <span className="font-number">₹{total.toFixed(2)}</span></span>
-          <button
-            type="button"
-            aria-label="Duplicate unit"
-            title="Duplicate this unit"
-            onClick={onDuplicate}
-            className="hidden rounded-md p-1.5 text-grey-400 hover:bg-primary-transparent hover:text-primary sm:inline-flex"
-          >
-            <Copy className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="Remove unit"
-            onClick={() => setDeleteOpen(true)}
-            className="hidden rounded-md p-1.5 text-grey-400 hover:bg-error-transparent hover:text-error sm:inline-flex"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
+          <div className="flex items-center justify-end gap-3">
+            <span className="text-sm font-body font-semibold text-grey-900">Amount: <span className="font-number">₹{total.toFixed(2)}</span></span>
+            <button
+              type="button"
+              aria-label="Duplicate unit"
+              title="Duplicate this unit"
+              onClick={onDuplicate}
+              className="hidden rounded-md p-1.5 text-grey-400 hover:bg-primary-transparent hover:text-primary sm:inline-flex"
+            >
+              <Copy className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Remove unit"
+              onClick={() => setDeleteOpen(true)}
+              className="hidden rounded-md p-1.5 text-grey-400 hover:bg-error-transparent hover:text-error sm:inline-flex"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+          <Button type="button" disabled={!selectedUnitType} onClick={() => selectedUnitType && runAutoPopulate(selectedUnitType)} className="w-full sm:w-auto">
+            <Sparkles className="h-4 w-4" />
+            Auto Populate
+          </Button>
         </div>
       </div>
 
