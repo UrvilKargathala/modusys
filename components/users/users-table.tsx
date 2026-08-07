@@ -21,6 +21,7 @@ import { EditUserDialog } from "@/components/users/edit-user-dialog";
 import { getCurrentUser } from "@/lib/session";
 import type { OrgUser } from "@/lib/mock/users";
 import { cn } from "@/lib/utils";
+import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 function formatLastActive(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
@@ -154,6 +155,9 @@ export function UsersTable({ users }: { users: OrgUser[] }) {
     getSortedRowModel: getSortedRowModel(),
   });
 
+  const allRows = table.getRowModel().rows;
+  const { page, setPage, pageCount, paged: pagedRows, totalItems, pageSize } = usePagination(allRows);
+
   return (
     <div className="flex flex-col gap-3">
       <div className="relative w-full max-w-xs">
@@ -185,14 +189,14 @@ export function UsersTable({ users }: { users: OrgUser[] }) {
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.length === 0 ? (
+            {pagedRows.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-8 text-center text-grey-400">
                   No users match your search.
                 </td>
               </tr>
             ) : (
-              table.getRowModel().rows.map((row) => (
+              pagedRows.map((row) => (
                 <tr key={row.id} className="border-b border-grey-100 last:border-0 hover:bg-light-600/60">
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="whitespace-nowrap px-4 py-3 text-grey-700">
@@ -205,6 +209,8 @@ export function UsersTable({ users }: { users: OrgUser[] }) {
           </tbody>
         </table>
       </div>
+
+      <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
 
       <SetPasswordDialog
         open={!!passwordTarget}

@@ -21,6 +21,7 @@ import { architectPanelStore } from "@/lib/store/architect-panel-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser, CURRENT_USER_ID } from "@/lib/session";
 import { fullName, type Architect } from "@/lib/mock/architects";
+import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 function NameCell({ architect, isDuplicate }: { architect: Architect; isDuplicate: boolean }) {
   return (
@@ -148,6 +149,9 @@ export function ArchitectsTable() {
     getSortedRowModel: getSortedRowModel(),
   });
 
+  const allRows = table.getRowModel().rows;
+  const { page, setPage, pageCount, paged: pagedRows, totalItems, pageSize } = usePagination(allRows);
+
   const handleDelete = () => {
     if (!deleteTarget) return;
     const deleted = deleteTarget;
@@ -222,7 +226,7 @@ export function ArchitectsTable() {
               ))}
             </thead>
             <tbody>
-              {table.getRowModel().rows.map((row) => (
+              {pagedRows.map((row) => (
                 <tr key={row.id} className="border-t border-grey-100">
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-4 py-3">
@@ -235,6 +239,8 @@ export function ArchitectsTable() {
           </table>
         </div>
       )}
+
+      <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
 
       <ArchitectFormDialog
         open={addOpen}

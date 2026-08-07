@@ -21,6 +21,7 @@ import {
 import { sortCustomers, type Customer, type CustomerSortOption } from "@/lib/mock/pipeline";
 import { stageColorTokens, type PipelineStage } from "@/lib/constants/pipelineStages";
 import { customerPanelStore } from "@/lib/store/customer-panel-store";
+import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 const columns: ColumnDef<Customer>[] = [
   { accessorKey: "name", header: "Client Name" },
@@ -90,6 +91,9 @@ export function ListSection({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
+
+  const allRows = table.getRowModel().rows;
+  const { page, setPage, pageCount, paged: pagedRows, totalItems, pageSize } = usePagination(allRows);
 
   const colors = stageColorTokens[stage.color];
 
@@ -170,7 +174,7 @@ export function ListSection({
                   ))}
                 </thead>
                 <tbody>
-                  {table.getRowModel().rows.map((row) => (
+                  {pagedRows.map((row) => (
                     <tr
                       key={row.id}
                       onClick={() => customerPanelStore.open(row.original.id)}
@@ -187,6 +191,8 @@ export function ListSection({
               </table>
             </div>
           )}
+
+          <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
 
           <button
             type="button"

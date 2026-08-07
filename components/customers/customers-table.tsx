@@ -25,6 +25,7 @@ import { getCurrentUser, CURRENT_USER_ID } from "@/lib/session";
 import { pipelineStages, stageColorTokens } from "@/lib/constants/pipelineStages";
 import type { Customer } from "@/lib/mock/pipeline";
 import { Plus, Users } from "lucide-react";
+import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 function StageBadge({ stage }: { stage: Customer["stage"] }) {
   const meta = pipelineStages.find((s) => s.key === stage);
@@ -52,7 +53,7 @@ export function CustomersTable() {
 
   const customers = useCustomers();
   const [search, setSearch] = useState("");
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }]);
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Customer | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
@@ -132,6 +133,9 @@ export function CustomersTable() {
     getSortedRowModel: getSortedRowModel(),
   });
 
+  const allRows = table.getRowModel().rows;
+  const { page, setPage, pageCount, paged: pagedRows, totalItems, pageSize } = usePagination(allRows);
+
   const editProfile = editTarget ? getCustomerProfile(editTarget) : undefined;
 
   const handleDelete = () => {
@@ -208,7 +212,7 @@ export function CustomersTable() {
               ))}
             </thead>
             <tbody>
-              {table.getRowModel().rows.map((row) => (
+              {pagedRows.map((row) => (
                 <tr key={row.id} className="border-t border-grey-100">
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-4 py-3">
@@ -221,6 +225,8 @@ export function CustomersTable() {
           </table>
         </div>
       )}
+
+      <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
 
       <CustomerFormDialog
         open={addOpen}

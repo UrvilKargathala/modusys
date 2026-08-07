@@ -16,6 +16,7 @@ import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
 import { rateAfterDiscount, type HardwarePriceItem } from "@/lib/mock/pricing-list";
+import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 export function HardwarePriceTable() {
   const currentUser = getCurrentUser();
@@ -92,6 +93,8 @@ export function HardwarePriceTable() {
     : key === "discount" ? i.discountPct
     : rateAfterDiscount(i)
   );
+
+  const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(sorted);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -272,7 +275,7 @@ export function HardwarePriceTable() {
               </tr>
             </thead>
             <tbody>
-              {sorted.map((i, idx) => (
+              {paged.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
                   {canEdit && (
                     <td className="px-4 py-3">
@@ -284,7 +287,7 @@ export function HardwarePriceTable() {
                       />
                     </td>
                   )}
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body font-medium text-grey-900">{i.articleNo}</td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <span className="whitespace-nowrap rounded-full bg-grey-transparent px-2 py-0.5 text-xs font-body text-grey-600">
@@ -350,6 +353,8 @@ export function HardwarePriceTable() {
           </table>
         </div>
       )}
+
+      <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
 
       <HardwarePriceFormDialog
         open={addOpen}

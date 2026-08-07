@@ -13,6 +13,7 @@ import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
 import type { FurniturePriceItem } from "@/lib/mock/pricing-list";
+import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 const dimensionKeys = ["thicknessId", "rawMaterialTypeId", "internalColourId", "externalColourId"] as const;
 
@@ -62,6 +63,8 @@ export function FurniturePriceTable() {
     : key === "external" ? materialName(i.externalColourId)
     : i.rate
   );
+
+  const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(sorted);
 
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -147,9 +150,9 @@ export function FurniturePriceTable() {
               </tr>
             </thead>
             <tbody>
-              {sorted.map((i, idx) => (
+              {paged.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body font-medium text-grey-900">{materialName(i.thicknessId)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-900">{materialName(i.rawMaterialTypeId)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{materialName(i.internalColourId)}</td>
@@ -205,6 +208,8 @@ export function FurniturePriceTable() {
           </table>
         </div>
       )}
+
+      <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
 
       <FurniturePriceFormDialog
         open={addOpen}

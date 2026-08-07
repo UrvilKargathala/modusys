@@ -12,6 +12,7 @@ import { useMaterialDependencies } from "@/lib/hooks/use-material-dependencies";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
 import type { MaterialCategory, MaterialItem } from "@/lib/mock/material-spec";
+import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 export function MaterialCategoryList({ category }: { category: MaterialCategory }) {
   const currentUser = getCurrentUser();
@@ -49,6 +50,8 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
     if (!sort.asc) list.reverse();
     return list;
   }, [items, search, sort]);
+
+  const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(filtered);
 
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -129,10 +132,10 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
               </tr>
             </thead>
             <tbody>
-              {filtered.map((i, idx) => (
+              {paged.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
                   {category.group === "library" && (
-                    <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
                   )}
                   <td className="px-4 py-3 text-[13px] font-body text-grey-900">
                     {i.name}
@@ -177,6 +180,8 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
           </table>
         </div>
       )}
+
+      <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
 
       <MaterialItemFormDialog
         open={addOpen}

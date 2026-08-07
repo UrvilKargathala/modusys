@@ -19,6 +19,7 @@ import { toastStore } from "@/lib/store/toast-store";
 import { statusConfig, type StatusKey } from "@/lib/status";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
+import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 function ExcelIcon({ className }: { className?: string }) {
   return (
@@ -132,6 +133,8 @@ export default function QuotesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quotes, customers, search]);
 
+  const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(filtered);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
@@ -183,7 +186,7 @@ export default function QuotesPage() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((quote) => {
+                  paged.map((quote) => {
                     const status = quote.status as StatusKey;
                     const cfg = statusConfig[status] ?? statusConfig.draft;
                     return (
@@ -284,6 +287,8 @@ export default function QuotesPage() {
               </tbody>
             </table>
           </div>
+
+          <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
         </div>
       )}
 

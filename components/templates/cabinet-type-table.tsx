@@ -15,6 +15,7 @@ import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import type { CabinetType } from "@/lib/mock/cabinet-type";
+import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 export function CabinetTypeTable() {
   const currentUser = getCurrentUser();
@@ -45,6 +46,8 @@ export function CabinetTypeTable() {
     : key === "components" ? i.components.length
     : i.active ? "Active" : "Inactive"
   );
+
+  const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(sorted);
 
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<CabinetType | null>(null);
@@ -117,9 +120,9 @@ export function CabinetTypeTable() {
               </tr>
             </thead>
             <tbody>
-              {sorted.map((i, idx) => (
+              {paged.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body font-medium text-grey-900">{i.name}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{i.shortCode}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{brandName(i.brandId)}</td>
@@ -180,6 +183,8 @@ export function CabinetTypeTable() {
           </table>
         </div>
       )}
+
+      <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
 
       <CabinetTypeFormDialog
         open={addOpen}

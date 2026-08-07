@@ -15,6 +15,7 @@ import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import type { UnitType } from "@/lib/mock/unit-type";
+import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 export function UnitTypeTable() {
   const currentUser = getCurrentUser();
@@ -54,6 +55,8 @@ export function UnitTypeTable() {
     : key === "otherPanel" ? i.otherPanels.length
     : i.active ? "Active" : "Inactive"
   );
+
+  const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(sorted);
 
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<UnitType | null>(null);
@@ -129,9 +132,9 @@ export function UnitTypeTable() {
               </tr>
             </thead>
             <tbody>
-              {sorted.map((i, idx) => (
+              {paged.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
-                  <td className="whitespace-nowrap px-3 py-3 text-[13px] font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
                   <td className="max-w-xs px-3 py-3 text-[13px] font-body font-medium text-grey-900"><div className="line-clamp-2">{i.name}</div></td>
                   <td className="whitespace-nowrap px-3 py-3 text-[13px] font-body text-grey-700">{i.shortCode}</td>
                   <td className="whitespace-nowrap px-3 py-3 text-[13px] font-body text-grey-700">{cabinetTypeLabel(i.cabinetTypeLinks)}</td>
@@ -195,6 +198,8 @@ export function UnitTypeTable() {
           </table>
         </div>
       )}
+
+      <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
 
       <UnitTypeFormDialog
         open={addOpen}
