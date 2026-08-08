@@ -181,10 +181,13 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
     };
   }
 
-  let runningIndex = 0;
-  const cabinetGroups = quote.units.flatMap((unit) =>
-    unit.cabinets.map((cabinet) => {
-      runningIndex += 1;
+  // Numbering follows the edit-page scheme: unit N is "N"; a unit with more
+  // than one cabinet numbers them "N.1", "N.2", … so "1.2" is not a separate
+  // unit in the client's eyes.
+  const cabinetGroups = quote.units.flatMap((unit, unitIdx) =>
+    unit.cabinets.map((cabinet, cabinetIdx) => {
+      const index =
+        unit.cabinets.length > 1 ? `${unitIdx + 1}.${cabinetIdx + 1}` : String(unitIdx + 1);
       const unitType = unitTypes.find((t) => t.id === unit.unitTypeId);
       const cabinetType = cabinetTypes.find((c) => c.id === cabinet.cabinetTypeId);
       const carcassUnit = carcassUnitFor(cabinet, unit);
@@ -217,7 +220,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         ...cabinet.panels.filter((i) => !isSecondary(i.levelTypeId)).map((i) => furnitureRow(i, unit)),
         ...cabinet.hardware.filter((i) => !isSecondary(i.levelTypeId)).map((i) => hardwareRow(i, unit)),
       ];
-      return { index: runningIndex, headerRow, rows, cost: unitTotal({ ...unit, cabinets: [cabinet] }, furnitureItems, hardwareItems) };
+      return { index, headerRow, rows, cost: unitTotal({ ...unit, cabinets: [cabinet] }, furnitureItems, hardwareItems) };
     })
   );
 

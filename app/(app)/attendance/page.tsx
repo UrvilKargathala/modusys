@@ -6,24 +6,39 @@ import { SyncButtons } from "@/components/attendance/sync-buttons";
 import { AutoRefresh } from "@/components/attendance/auto-refresh";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, MapPin } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function AttendancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; source?: string }>;
 }) {
   const sessionUser = await getSessionUser();
   if (!sessionUser || sessionUser.role !== "super-admin") redirect("/dashboard");
 
-  const { date: dateParam } = await searchParams;
+  const { date: dateParam, source: sourceParam } = await searchParams;
   const date = dateParam ? new Date(dateParam) : new Date();
   date.setHours(0, 0, 0, 0);
 
+  const sourceFilter = sourceParam === "gps" || sourceParam === "unifi" ? sourceParam : null;
+
+  const approvedLeaves = await prisma.leaveRequest.findMany({
+    where: {
+      status: "APPROVED",
+      fromDate: { lte: date },
+      toDate: { gte: date },
+    },
+    select: { employeeId: true, leaveType: true },
+  });
+  const onLeaveByEmployee = new Map(approvedLeaves.map((l) => [l.employeeId, l.leaveType]));
+
   const records = await prisma.attendanceRecord.findMany({
-    where: { date },
+    where: {
+      date,
+      ...(sourceFilter ? { checkInSource: sourceFilter } : {}),
+    },
     include: {
       employee: {
         select: { id: true, name: true, department: true, designation: true },
@@ -34,7 +49,11 @@ export default async function AttendancePage({
 
   const totalEmployees = await prisma.employee.count({ where: { isActive: true } });
   const present = records.length;
-  const absent = totalEmployees - present;
+  const presentEmployeeIds = new Set(records.map((r) => r.employeeId));
+  const onLeaveCount = Array.from(onLeaveByEmployee.keys()).filter(
+    (id) => !presentEmployeeIds.has(id)
+  ).length;
+  const absent = Math.max(0, totalEmployees - present - onLeaveCount);
   const checkedOut = records.filter((r) => r.checkOut).length;
   const stillIn = present - checkedOut;
 
@@ -93,7 +112,7 @@ export default async function AttendancePage({
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="p-5">
           <p className="text-sm font-body text-grey-500">Total Employees</p>
           <p className="font-number text-3xl font-bold text-grey-900 mt-1">{totalEmployees}</p>
@@ -101,6 +120,10 @@ export default async function AttendancePage({
         <Card className="p-5">
           <p className="text-sm font-body text-grey-500">Present</p>
           <p className="font-number text-3xl font-bold text-emerald-600 mt-1">{present}</p>
+        </Card>
+        <Card className="p-5">
+          <p className="text-sm font-body text-grey-500">On Leave</p>
+          <p className="font-number text-3xl font-bold text-amber-600 mt-1">{onLeaveCount}</p>
         </Card>
         <Card className="p-5">
           <p className="text-sm font-body text-grey-500">Absent</p>
@@ -114,15 +137,33 @@ export default async function AttendancePage({
 
       {/* Attendance Table */}
       <Card className="overflow-hidden">
-        <div className="px-6 py-4 border-b border-grey-200 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-grey-200 flex items-center justify-between gap-4">
           <h2 className="font-heading text-base font-semibold text-grey-900">Attendance Log</h2>
-          <a
-            href={`/api/attendance/export?from=${dateStr}&to=${dateStr}`}
-            className="inline-flex items-center gap-1.5 text-sm font-body font-medium text-primary hover:underline"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Export CSV
-          </a>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center rounded-md border border-grey-200 text-xs font-body">
+              {(["all", "unifi", "gps"] as const).map((s) => {
+                const active = (sourceFilter ?? "all") === s;
+                const label = s === "all" ? "All" : s === "unifi" ? "Face Scan" : "GPS";
+                const href = `/attendance?date=${dateStr}${s === "all" ? "" : `&source=${s}`}`;
+                return (
+                  <a
+                    key={s}
+                    href={href}
+                    className={`px-3 py-1.5 ${active ? "bg-primary text-white" : "text-grey-600 hover:bg-grey-50"}`}
+                  >
+                    {label}
+                  </a>
+                );
+              })}
+            </div>
+            <a
+              href={`/api/attendance/export?from=${dateStr}&to=${dateStr}`}
+              className="inline-flex items-center gap-1.5 text-sm font-body font-medium text-primary hover:underline"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export CSV
+            </a>
+          </div>
         </div>
 
         {records.length === 0 ? (
@@ -138,13 +179,17 @@ export default async function AttendancePage({
                   <th className="px-6 py-3">Check In</th>
                   <th className="px-6 py-3">Check Out</th>
                   <th className="px-6 py-3">Working Hours</th>
-                  <th className="px-6 py-3">Door</th>
+                  <th className="px-6 py-3">Source</th>
+                  <th className="px-6 py-3">Door / Location</th>
                   <th className="px-6 py-3">Credential</th>
                   <th className="px-6 py-3">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-grey-100">
-                {records.map((record) => (
+                {records.map((record) => {
+                  const isGps = record.checkInSource === "gps";
+                  const note = record.checkInNote || record.checkOutNote;
+                  return (
                   <tr key={record.id} className="hover:bg-light-600/50">
                     <td className="px-6 py-4">
                       <p className="text-sm font-body font-medium text-grey-900">
@@ -165,8 +210,38 @@ export default async function AttendancePage({
                     <td className="px-6 py-4 text-sm font-number text-grey-700">
                       {getWorkingHours(record.checkIn, record.checkOut)}
                     </td>
-                    <td className="px-6 py-4 text-sm font-number text-grey-500">
-                      {record.doorName || "-"}
+                    <td className="px-6 py-4">
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${isGps ? "bg-primary-transparent text-primary border-primary/30" : "bg-grey-50 text-grey-700"}`}
+                      >
+                        {isGps ? "GPS" : "Face Scan"}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-body text-grey-600">
+                      {isGps && record.checkInLat != null && record.checkInLng != null ? (
+                        <div className="flex flex-col gap-1">
+                          <a
+                            href={`https://www.google.com/maps?q=${record.checkInLat},${record.checkInLng}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                            title={record.checkInAddress || undefined}
+                          >
+                            <MapPin className="h-3.5 w-3.5" />
+                            {record.checkInAddress
+                              ? record.checkInAddress.split(",").slice(0, 2).join(",")
+                              : `${record.checkInLat.toFixed(4)}, ${record.checkInLng.toFixed(4)}`}
+                          </a>
+                          {note && (
+                            <span className="text-xs italic text-grey-500" title={note}>
+                              "{note.length > 40 ? note.slice(0, 40) + "…" : note}"
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="font-number text-grey-500">{record.doorName || "-"}</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <Badge variant="outline" className="text-xs">
@@ -185,7 +260,8 @@ export default async function AttendancePage({
                       )}
                     </td>
                   </tr>
-                ))}
+                );
+                })}
               </tbody>
             </table>
           </div>

@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get("X-Webhook-Secret");
-  if (secret !== process.env.UNIFI_WEBHOOK_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
+    if (req.headers.get("X-Webhook-Secret") !== process.env.UNIFI_WEBHOOK_SECRET) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const payload = await req.json();
     const src = payload._source;
 
@@ -60,12 +59,32 @@ export async function POST(req: NextRequest) {
           doorId,
           credentialType,
           source: "unifi",
+          checkInSource: "unifi",
+        },
+      });
+    } else if (existing.checkInSource === "gps" && !existing.checkOut) {
+      // Face scan arrived after a remote GPS check-in — face wins. Overwrite
+      // checkIn time + flip source, but keep the GPS lat/lng/address as
+      // additional context on the row (the admin table shows both).
+      await prisma.attendanceRecord.update({
+        where: { id: existing.id },
+        data: {
+          checkIn: timestamp,
+          checkInSource: "unifi",
+          doorName,
+          doorId,
+          credentialType,
+          source: "unifi",
         },
       });
     } else {
       await prisma.attendanceRecord.update({
         where: { id: existing.id },
-        data: { checkOut: timestamp, checkOutDoorName: doorName },
+        data: {
+          checkOut: timestamp,
+          checkOutDoorName: doorName,
+          checkOutSource: "unifi",
+        },
       });
     }
 

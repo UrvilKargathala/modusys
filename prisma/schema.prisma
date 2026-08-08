@@ -321,6 +321,7 @@ model Employee {
   updatedAt      DateTime @updatedAt
 
   attendanceRecords AttendanceRecord[]
+  leaveRequests     LeaveRequest[]
 }
 
 model AttendanceRecord {
@@ -335,6 +336,24 @@ model AttendanceRecord {
   credentialType   String?
   source           String    @default("manual")
   notes            String?
+  // Remote (GPS) check-in/out fields — coexist with UniFi face-scan data on
+  // the same row. Face scan takes priority on checkIn: the webhook overwrites
+  // checkIn time + flips checkInSource to "unifi" but leaves the GPS lat/lng
+  // in place as additional context.
+  checkInLat       Float?
+  checkInLng       Float?
+  checkOutLat      Float?
+  checkOutLng      Float?
+  checkInAddress   String?
+  checkOutAddress  String?
+  checkInNote      String?
+  checkOutNote     String?
+  checkInSource    String    @default("unifi")
+  checkOutSource   String?
+  // IANA timezone the record was captured in — Modusys is India, so this is
+  // "Asia/Kolkata" today. Stored per-row so future international expansion
+  // renders each row in the correct local time.
+  timezone         String    @default("Asia/Kolkata")
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -343,6 +362,30 @@ model AttendanceRecord {
   @@unique([employeeId, date])
   @@index([date])
   @@index([employeeId])
+}
+
+model LeaveRequest {
+  id            String    @id @default(cuid())
+  employeeId    String
+  leaveType     String
+  fromDate      DateTime  @db.Date
+  toDate        DateTime  @db.Date
+  totalDays     Float
+  isHalfDay     Boolean   @default(false)
+  halfDayType   String?
+  reason        String
+  status        String    @default("PENDING")
+  appliedAt     DateTime  @default(now())
+  reviewedAt    DateTime?
+  reviewedBy    String?
+  reviewNote    String?
+  attachmentUrl String?
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([fromDate, toDate])
 }
 
 model UnifiSyncLog {

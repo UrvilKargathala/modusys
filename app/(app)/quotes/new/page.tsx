@@ -18,7 +18,7 @@ import { MaterialSpecificationSection } from "@/components/quotes/create/materia
 import { UnitsSection } from "@/components/quotes/create/units-section";
 import { QuoteSummarySection } from "@/components/quotes/create/quote-summary-section";
 import { RemarkAndFinishesSection } from "@/components/quotes/create/remark-and-finishes-section";
-import { blankQuote, type Quote } from "@/lib/mock/quote";
+import { blankQuote, type Quote, type QuoteUnit } from "@/lib/mock/quote";
 import { applyShutterFinishToUnits } from "@/lib/quote-pricing";
 import { quotesStore, useQuotes } from "@/lib/store/quotes-store";
 import { quoteTemplateStore } from "@/lib/store/quote-template-store";
@@ -27,6 +27,29 @@ import { toastStore } from "@/lib/store/toast-store";
 function initialQuote() {
   const defaultMarkup = quoteTemplateStore.getSnapshot().branding.defaultMarkupMultiplier;
   return blankQuote(quotesStore.nextQuoteNumber(), defaultMarkup);
+}
+
+// Returns true if any field other than the numeric dimensions (width/depth/
+// height/qty) changed — i.e. structural edits like picking a Space or Unit
+// Type, adding/removing units, or editing cabinets. Pure dimension keystrokes
+// return false so autosave doesn't fire on every digit.
+function isStructuralUnitsChange(prev: QuoteUnit[], next: QuoteUnit[]): boolean {
+  if (prev.length !== next.length) return true;
+  const byId = new Map(prev.map((u) => [u.id, u]));
+  for (const n of next) {
+    const p = byId.get(n.id);
+    if (!p) return true;
+    if (
+      p.spaceId !== n.spaceId ||
+      p.unitTypeId !== n.unitTypeId ||
+      p.autoPopulated !== n.autoPopulated ||
+      p.collapsed !== n.collapsed ||
+      p.cabinets !== n.cabinets
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function CreateQuotePage() {
@@ -162,7 +185,12 @@ function CreateQuotePage() {
           shutterFinishId={quote.shutterFinishId}
           onChange={(units) => {
             patchQuote({ units });
-            quotesStore.saveQuote({ ...quote, units });
+            // Autosave on structural edits only (space, unit type, add/remove/cabinets).
+            // W/D/H/Qty keystrokes just update memory — they persist on the next
+            // structural change or a manual Save Changes.
+            if (isStructuralUnitsChange(quote.units, units)) {
+              quotesStore.saveQuote({ ...quote, units });
+            }
           }}
         />
         <QuoteSummarySection quote={quote} onChange={patchQuote} onSaveRemark={handleSaveRemark} />

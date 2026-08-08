@@ -10,6 +10,10 @@ import {
   Wallet,
   ScrollText,
   ScanLine,
+  Clock,
+  CalendarOff,
+  BarChart3,
+  CheckSquare,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,7 +32,17 @@ export const navigationItems: NavItem[] = [
   { label: "Customers", href: "/customers", icon: Contact },
   { label: "Architects", href: "/architects", icon: Building2 },
   { label: "Templates", href: "/templates", icon: LayoutTemplate },
+];
+
+// Rendered as an "Attendance" dropdown in the top nav (same pattern as
+// administrationItems). "My Attendance" is for everyone, "Attendance" (admin
+// log) stays super-admin only.
+export const attendanceItems: NavItem[] = [
+  { label: "My Attendance", href: "/my-attendance", icon: Clock },
+  { label: "My Leaves", href: "/leaves", icon: CalendarOff },
   { label: "Attendance", href: "/attendance", icon: ScanLine, superAdminOnly: true },
+  { label: "Reports", href: "/attendance/reports", icon: BarChart3, superAdminOnly: true },
+  { label: "Leave Approvals", href: "/admin/leaves", icon: CheckSquare, superAdminOnly: true },
 ];
 
 export const administrationItems: NavItem[] = [
@@ -48,4 +62,4 @@ export const mobileTabItems: NavItem[] = [
   navigationItems[2], // Quotes
 ];
 
-export const mobileMoreItems: NavItem[] = navigationItems.slice(3);
+export const mobileMoreItems: NavItem[] = [...navigationItems.slice(3), ...attendanceItems];

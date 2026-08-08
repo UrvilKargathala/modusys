@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, ChevronDown, LogOut, UserPlus, Clock3, CheckCircle2, AtSign, KeyRound, AlertTriangle, FileText, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { navigationItems, administrationItems } from "@/lib/nav";
+import { navigationItems, administrationItems, attendanceItems } from "@/lib/nav";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { GlobalSearch } from "@/components/layout/global-search";
 import {
@@ -99,6 +99,36 @@ export function TopNavbar() {
             </Link>
           );
         })}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className={cn(
+              "flex items-center gap-1 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-body font-bold transition-colors",
+              attendanceItems.some(
+                (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
+              )
+                ? "bg-primary text-white shadow-sm"
+                : "text-grey-700 hover:text-grey-900"
+            )}
+          >
+            Attendance
+            <ChevronDown className="h-3.5 w-3.5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" className="min-w-52">
+            {attendanceItems
+              .filter((item) => !item.superAdminOnly || currentUser.role === "super-admin")
+              .map((item) => (
+              <DropdownMenuItem
+                key={item.href}
+                render={<Link href={item.href} />}
+                className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm font-semibold"
+              >
+                <item.icon className="h-4 w-4 shrink-0 text-grey-400" />
+                {item.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger
