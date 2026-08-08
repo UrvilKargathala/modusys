@@ -1,5 +1,6 @@
 import type { Quote } from "@/lib/mock/quote";
 import type { Customer } from "@/lib/mock/pipeline";
+import type { Task } from "@/lib/store/tasks-store";
 import { statusConfig, type StatusKey } from "@/lib/status";
 
 // Notifications computed live from current data rather than persisted rows —
@@ -7,11 +8,12 @@ import { statusConfig, type StatusKey } from "@/lib/status";
 // the underlying condition (quote goes stale, status changes) resolves.
 export type VirtualNotification = {
   id: string;
-  kind: "stale-quote" | "quote-status" | "new-lead";
+  kind: "stale-quote" | "quote-status" | "new-lead" | "task-assigned" | "task-completed";
   message: string;
   createdAt: string;
   href?: string;
   customerId?: string;
+  taskId?: string;
 };
 
 const STALE_STATUSES: StatusKey[] = ["draft", "approved"];
@@ -25,7 +27,10 @@ function daysSince(iso: string) {
 export function getVirtualNotifications(
   quotes: Quote[],
   customers: Customer[],
-  customerName: (id: string | null) => string
+  customerName: (id: string | null) => string,
+  tasks: Task[] = [],
+  currentUserId: string = "",
+  userName: (id: string) => string = () => ""
 ): VirtualNotification[] {
   const staleQuotes: VirtualNotification[] = quotes
     .filter((q) => STALE_STATUSES.includes(q.status) && daysSince(q.updatedAt) >= STALE_DAYS)
@@ -60,7 +65,51 @@ export function getVirtualNotifications(
       customerId: c.id,
     }));
 
-  return [...staleQuotes, ...statusChanges, ...newLeads].sort(
+  // "Assigned to you" — task where someone else assigned you and it's still
+  // open. Reappears until you complete it (matches the "live truth" pattern).
+  const taskAssigned: VirtualNotification[] = currentUserId
+    ? tasks
+        .filter(
+          (t) =>
+            t.assigneeId === currentUserId &&
+            t.createdById !== currentUserId &&
+            !t.completed &&
+            !!t.createdAt &&
+            daysSince(t.createdAt) <= RECENT_DAYS
+        )
+        .map((t) => ({
+          id: `task-assigned-${t.id}`,
+          kind: "task-assigned" as const,
+          message: `${userName(t.createdById)} assigned you: ${t.title}`,
+          createdAt: t.createdAt as string,
+          href: "/crm",
+          taskId: t.id,
+        }))
+    : [];
+
+  // "Task you assigned is done" — task you created for someone else that they
+  // just completed. Auto-clears when it drops out of the recent window.
+  const taskCompleted: VirtualNotification[] = currentUserId
+    ? tasks
+        .filter(
+          (t) =>
+            t.createdById === currentUserId &&
+            t.assigneeId !== currentUserId &&
+            t.completed &&
+            t.completedAt &&
+            daysSince(t.completedAt) <= RECENT_DAYS
+        )
+        .map((t) => ({
+          id: `task-completed-${t.id}`,
+          kind: "task-completed",
+          message: `${userName(t.assigneeId)} completed: ${t.title}`,
+          createdAt: t.completedAt as string,
+          href: "/crm",
+          taskId: t.id,
+        }))
+    : [];
+
+  return [...staleQuotes, ...statusChanges, ...newLeads, ...taskAssigned, ...taskCompleted].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 }

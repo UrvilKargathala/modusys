@@ -41,9 +41,9 @@ export function TasksTab() {
   const allTasks = useTasks();
   const users = useOrgUsers();
   const [scope, setScope] = useState<TaskScope>(canSeeAll ? "all" : "mine");
-  const [status, setStatus] = useState<StatusFilter>("pending");
+  const [status, setStatus] = useState<StatusFilter>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all"); // "all" | userId — admin-only
-  const [groupByAssignee, setGroupByAssignee] = useState(false);
+  const [groupByAssignee, setGroupByAssignee] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
 
   const scoped = useMemo(

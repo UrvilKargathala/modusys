@@ -3,6 +3,7 @@ import { Footer } from "@/components/layout/footer";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { ToastViewport } from "@/components/shared/toast-viewport";
 import { TaskPanel } from "@/components/crm/tasks/task-panel";
+import { AssignmentGreeter } from "@/components/crm/tasks/assignment-greeter";
 import { CustomerPanel } from "@/components/crm/pipeline/customer-panel/customer-panel";
 import { ArchitectPanel } from "@/components/architects/architect-panel";
 import { AuthGuard } from "@/components/layout/auth-guard";
@@ -19,6 +20,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <TaskPanel />
         <CustomerPanel />
         <ArchitectPanel />
+        <AssignmentGreeter />
       </div>
     </AuthGuard>
   );

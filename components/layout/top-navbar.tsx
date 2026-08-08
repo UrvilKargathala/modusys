@@ -22,6 +22,8 @@ import { useCurrentUser, signOut } from "@/lib/session";
 import { getRole } from "@/lib/constants/roles";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { useCustomers } from "@/lib/store/customers-store";
+import { useTasks } from "@/lib/store/tasks-store";
+import { useOrgUsers } from "@/lib/store/users-store";
 import { customerPanelStore } from "@/lib/store/customer-panel-store";
 import { getVirtualNotifications, type VirtualNotification } from "@/lib/notifications-feed";
 
@@ -36,6 +38,8 @@ const virtualNotificationIcon: Record<VirtualNotification["kind"], typeof UserPl
   "stale-quote": AlertTriangle,
   "quote-status": FileText,
   "new-lead": UserPlus,
+  "task-assigned": UserPlus,
+  "task-completed": CheckCircle2,
 };
 
 function timeAgo(iso: string) {
@@ -65,8 +69,18 @@ export function TopNavbar() {
 
   const quotes = useQuotes();
   const customers = useCustomers();
+  const tasks = useTasks();
+  const users = useOrgUsers();
   const customerName = (id: string | null) => (id ? customers.find((c) => c.id === id)?.name ?? "" : "");
-  const virtualNotifications = getVirtualNotifications(quotes, customers, customerName);
+  const userName = (id: string) => users.find((u) => u.id === id)?.name ?? "Someone";
+  const virtualNotifications = getVirtualNotifications(
+    quotes,
+    customers,
+    customerName,
+    tasks,
+    currentUser.id,
+    userName
+  );
 
   const unreadCount = myNotifications.filter((n) => !n.read).length + virtualNotifications.length;
 
