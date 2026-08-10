@@ -3,7 +3,7 @@ import localFont from "next/font/local";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
-import { Analytics } from "@vercel/analytics/react";
+import { Analytics } from "@vercel/analytics/next";
 
 const raleway = localFont({
   variable: "--font-heading",
