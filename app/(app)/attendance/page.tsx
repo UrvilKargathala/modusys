@@ -5,6 +5,7 @@ import { formatTime, getWorkingHours, formatDate } from "@/lib/attendance-utils"
 import { istMidnight } from "@/lib/attendance-config";
 import { SyncButtons } from "@/components/attendance/sync-buttons";
 import { AutoRefresh } from "@/components/attendance/auto-refresh";
+import { AttendanceHealthBanner } from "@/components/attendance/health-banner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Download, MapPin } from "lucide-react";
@@ -67,6 +68,7 @@ export default async function AttendancePage({
   return (
     <div className="flex flex-col gap-6">
       <AutoRefresh />
+      <AttendanceHealthBanner />
 
       {/* Header */}
       <div className="flex items-center justify-between">
