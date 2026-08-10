@@ -60,11 +60,23 @@ export function MessageInput({ customerId }: { customerId: string }) {
 
   const handleAttach = (files: FileList | null) => {
     if (!files) return;
+    const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
     for (const file of Array.from(files)) {
       customerMediaStore.addFile(customerId, file);
-      // Keeps chat and gallery in sync per spec — a lightweight text
-      // reference rather than a dedicated attachment-bubble type.
-      customerMessagesStore.sendMessage(customerId, `📎 Shared a file: ${file.name}`, CURRENT_USER_ID, []);
+      // Images render inline as a preview bubble. Reader converts to a data
+      // URL so it survives reload (blob: URLs don't). Anything larger than
+      // 3MB falls through to the generic "Shared a file" text.
+      if (file.type.startsWith("image/") && file.size <= MAX_IMAGE_BYTES) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const url = typeof reader.result === "string" ? reader.result : null;
+          if (url) customerMessagesStore.addImageMessage(customerId, CURRENT_USER_ID, url, file.name);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Non-image (or oversize) — same lightweight text reference as before.
+        customerMessagesStore.sendMessage(customerId, `📎 Shared a file: ${file.name}`, CURRENT_USER_ID, []);
+      }
     }
   };
 

@@ -1,10 +1,12 @@
 "use client";
 
 import { useDraggable } from "@dnd-kit/core";
-import { GripVertical, MapPin } from "lucide-react";
+import { GripVertical, MapPin, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { stageColorTokens, type PipelineStageColor } from "@/lib/constants/pipelineStages";
 import { customerPanelStore } from "@/lib/store/customer-panel-store";
+import { stageCompletionStore, useIsStageDone } from "@/lib/store/stage-completion-store";
+import { toastStore } from "@/lib/store/toast-store";
 import type { Customer } from "@/lib/mock/pipeline";
 
 export function CustomerCard({
@@ -27,6 +29,7 @@ export function CustomerCard({
     disabled: overlay,
   });
   const colors = stageColorTokens[stageColor];
+  const done = useIsStageDone(customer.id, customer.stage);
 
   return (
     <div
@@ -50,9 +53,32 @@ export function CustomerCard({
         style={{ backgroundColor: colors.solid }}
       />
 
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start gap-2">
+        {/* Stop propagation so the click doesn't open the customer panel or
+            steal the drag intent. Neutralises dnd-kit's pointerdown too. */}
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={done}
+          aria-label={done ? "Mark stage pending" : "Mark stage complete"}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            stageCompletionStore.toggle(customer.id, customer.stage);
+            toastStore.show(done ? "Marked pending" : "Marked complete", "success");
+          }}
+          className={cn(
+            "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
+            done ? "border-emerald-600 bg-emerald-600 text-white" : "border-grey-300 bg-card hover:border-primary"
+          )}
+        >
+          {done && <Check className="h-3 w-3" strokeWidth={3} />}
+        </button>
         <span
-          className={cn("text-sm font-body font-medium", muted && "text-grey-400")}
+          className={cn(
+            "flex-1 text-sm font-body font-medium",
+            muted && "text-grey-400"
+          )}
           style={{ color: muted ? undefined : colors.solid }}
         >
           {customer.name}

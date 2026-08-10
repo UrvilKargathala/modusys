@@ -6,12 +6,18 @@ import { SEEDED_CUSTOMER_IDS } from "@/lib/mock/customer-detail";
 export type CustomerMessage = {
   id: string;
   customerId: string;
-  kind: "chat" | "system" | "voice";
+  kind: "chat" | "system" | "voice" | "image";
   senderId: string | null; // null for system events
   text?: string;
   mentionedUserIds?: string[];
   audioUrl?: string;
   durationSec?: number;
+  // image messages: data URL is used (not blob:) so previews survive reload,
+  // capped at 3MB in message-input to keep localStorage happy.
+  imageUrl?: string;
+  imageName?: string;
+  editedAt?: string;
+  deletedAt?: string;
   createdAt: string;
   status: "sent" | "pending" | "error";
 };
@@ -164,6 +170,38 @@ export const customerMessagesStore = {
         status: "sent",
       },
     ];
+    persist();
+    emit();
+  },
+  addImageMessage(customerId: string, senderId: string, dataUrl: string, name: string) {
+    ensureHydrated();
+    messages = [
+      ...messages,
+      {
+        id: `img-${Date.now()}`,
+        customerId,
+        kind: "image",
+        senderId,
+        imageUrl: dataUrl,
+        imageName: name,
+        createdAt: new Date().toISOString(),
+        status: "sent",
+      },
+    ];
+    persist();
+    emit();
+  },
+  editMessage(id: string, newText: string) {
+    ensureHydrated();
+    messages = messages.map((m) =>
+      m.id === id ? { ...m, text: newText, editedAt: new Date().toISOString() } : m
+    );
+    persist();
+    emit();
+  },
+  deleteMessage(id: string) {
+    ensureHydrated();
+    messages = messages.filter((m) => m.id !== id);
     persist();
     emit();
   },
