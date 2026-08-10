@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
+import { istMidnight } from "@/lib/attendance-config";
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,12 +39,12 @@ export async function POST(req: NextRequest) {
         if (!published) continue;
 
         const timestamp = new Date(published);
-        const today = new Date(timestamp);
-        today.setHours(0, 0, 0, 0);
+        // Bucket by the IST calendar date of the event — same key the
+        // webhook/check-in/check-out routes use.
+        const today = istMidnight(timestamp);
 
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - days);
-        cutoff.setHours(0, 0, 0, 0);
+        const cutoff = istMidnight();
+        cutoff.setUTCDate(cutoff.getUTCDate() - days);
         if (timestamp < cutoff) continue;
 
         const credentialType = source.authentication?.credential_provider || "UNKNOWN";

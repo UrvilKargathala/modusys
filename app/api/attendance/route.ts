@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
+import { istMidnight } from "@/lib/attendance-config";
 
 export async function GET(req: NextRequest) {
   const dateParam = req.nextUrl.searchParams.get("date");
-  const date = dateParam ? new Date(dateParam) : new Date();
-  date.setHours(0, 0, 0, 0);
+  const date = istMidnight(dateParam ?? new Date());
 
   const records = await prisma.attendanceRecord.findMany({
     where: { date },

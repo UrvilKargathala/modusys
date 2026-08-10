@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
+import { istMidnight } from "@/lib/attendance-config";
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,8 +41,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, skipped: "unmapped_user" });
     }
 
-    const today = new Date(timestamp);
-    today.setHours(0, 0, 0, 0);
+    const today = istMidnight(timestamp);
 
     const existing = await prisma.attendanceRecord.findUnique({
       where: {

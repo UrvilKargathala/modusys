@@ -6,6 +6,7 @@ import {
   isEarlyExit,
   workingMinutes,
   weekdaysBetween,
+  istMidnight,
 } from "@/lib/attendance-config";
 
 export const dynamic = "force-dynamic";
@@ -24,12 +25,11 @@ export async function GET(req: NextRequest) {
   const departmentParam = sp.get("department") || undefined;
   const format = sp.get("format");
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const fromDate = fromStr ? new Date(fromStr) : new Date(today.getFullYear(), today.getMonth(), 1);
-  const toDate = toStr ? new Date(toStr) : today;
-  fromDate.setHours(0, 0, 0, 0);
-  toDate.setHours(0, 0, 0, 0);
+  const today = istMidnight();
+  const fromDate = fromStr
+    ? istMidnight(fromStr)
+    : istMidnight(`${today.toISOString().slice(0, 7)}-01`);
+  const toDate = toStr ? istMidnight(toStr) : today;
 
   const workingDays = weekdaysBetween(fromDate, toDate);
 

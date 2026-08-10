@@ -6,6 +6,8 @@ import {
   isEarlyExit,
   workingMinutes,
   weekdaysBetween,
+  istMidnight,
+  istDateString,
 } from "@/lib/attendance-config";
 import { Card } from "@/components/ui/card";
 import { Download } from "lucide-react";
@@ -26,28 +28,33 @@ export default async function ReportsPage({
 
   const sp = await searchParams;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // All ranges expressed in the IST calendar so a Vercel (UTC) request lands
+  // on the same day the user sees at their desk.
+  const today = istMidnight();
+  const todayYmd = istDateString();
+  const [y, m, d] = todayYmd.split("-").map(Number);
   let fromDate: Date;
   let toDate: Date;
   if (sp.preset === "week") {
-    const day = today.getDay();
-    const mondayOffset = day === 0 ? -6 : 1 - day;
+    // Monday-of-this-week in the IST calendar.
+    const dayOfWeek = new Date(`${todayYmd}T00:00:00Z`).getUTCDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     fromDate = new Date(today);
-    fromDate.setDate(today.getDate() + mondayOffset);
+    fromDate.setUTCDate(fromDate.getUTCDate() + mondayOffset);
     toDate = today;
   } else if (sp.preset === "last-month") {
-    fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    toDate = new Date(today.getFullYear(), today.getMonth(), 0);
+    const prev = new Date(Date.UTC(y, m - 2, 1));
+    const lastOfPrev = new Date(Date.UTC(y, m - 1, 0));
+    fromDate = istMidnight(prev.toISOString().slice(0, 10));
+    toDate = istMidnight(lastOfPrev.toISOString().slice(0, 10));
   } else if (sp.from && sp.to) {
-    fromDate = new Date(sp.from);
-    toDate = new Date(sp.to);
+    fromDate = istMidnight(sp.from);
+    toDate = istMidnight(sp.to);
   } else {
-    fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    fromDate = istMidnight(`${y}-${String(m).padStart(2, "0")}-01`);
     toDate = today;
   }
-  fromDate.setHours(0, 0, 0, 0);
-  toDate.setHours(0, 0, 0, 0);
+  void d;
 
   const workingDays = weekdaysBetween(fromDate, toDate);
 

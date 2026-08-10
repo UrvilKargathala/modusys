@@ -43,6 +43,31 @@ export function istParts(d: Date): { hour: number; minute: number; day: number; 
   };
 }
 
+// The IST calendar date (YYYY-MM-DD) of a given instant. Uses Intl so DST
+// and offset are handled by the platform.
+export function istDateString(d: Date | string = new Date()): string {
+  const date = typeof d === "string" ? new Date(d) : d;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const map: Record<string, string> = {};
+  for (const p of parts) map[p.type] = p.value;
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
+// Canonical "day bucket" for AttendanceRecord.date and LeaveRequest.from/toDate.
+// Returns a Date whose UTC value is 00:00 UTC of the IST calendar date, so
+// Postgres @db.Date always stores the IST day regardless of where the code
+// runs (UTC on Vercel, IST on a local dev Mac). Fixes the split-brain where
+// setHours(0,0,0,0) captured the server's local midnight and stored two
+// different dates for what humans think of as the same working day.
+export function istMidnight(from: Date | string = new Date()): Date {
+  return new Date(`${istDateString(from)}T00:00:00Z`);
+}
+
 export function isLate(checkIn: Date | null | undefined): boolean {
   if (!checkIn) return false;
   const { hour, minute } = istParts(checkIn);
@@ -73,17 +98,17 @@ export function isWeekend(d: Date): boolean {
 }
 
 // Weekday count between two dates inclusive. Half-day handled by the caller
-// (leave form multiplies by 0.5).
+// (leave form multiplies by 0.5). Walks in UTC on istMidnight-normalised
+// dates so the loop is TZ-independent.
 export function weekdaysBetween(from: Date, to: Date): number {
-  if (from > to) return 0;
+  const start = istMidnight(from);
+  const end = istMidnight(to);
+  if (start > end) return 0;
   let count = 0;
-  const cur = new Date(from);
-  cur.setHours(0, 0, 0, 0);
-  const end = new Date(to);
-  end.setHours(0, 0, 0, 0);
+  const cur = new Date(start);
   while (cur <= end) {
     if (!isWeekend(cur)) count++;
-    cur.setDate(cur.getDate() + 1);
+    cur.setUTCDate(cur.getUTCDate() + 1);
   }
   return count;
 }

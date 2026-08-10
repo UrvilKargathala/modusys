@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getCurrentEmployee } from "@/lib/server/current-employee";
+import { istMidnight } from "@/lib/attendance-config";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +12,7 @@ export async function GET() {
     return NextResponse.json({ employee: null, today: null }, { status: 200 });
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = istMidnight();
 
   const record = await prisma.attendanceRecord.findUnique({
     where: { employeeId_date: { employeeId: employee.id, date: today } },

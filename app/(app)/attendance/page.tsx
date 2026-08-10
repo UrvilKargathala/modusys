@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/require-user";
 import { formatTime, getWorkingHours, formatDate } from "@/lib/attendance-utils";
+import { istMidnight } from "@/lib/attendance-config";
 import { SyncButtons } from "@/components/attendance/sync-buttons";
 import { AutoRefresh } from "@/components/attendance/auto-refresh";
 import { Card } from "@/components/ui/card";
@@ -19,8 +20,7 @@ export default async function AttendancePage({
   if (!sessionUser || sessionUser.role !== "super-admin") redirect("/dashboard");
 
   const { date: dateParam, source: sourceParam } = await searchParams;
-  const date = dateParam ? new Date(dateParam) : new Date();
-  date.setHours(0, 0, 0, 0);
+  const date = istMidnight(dateParam ?? new Date());
 
   const sourceFilter = sourceParam === "gps" || sourceParam === "unifi" ? sourceParam : null;
 

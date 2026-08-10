@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { formatTime, getWorkingHours } from "@/lib/attendance-utils";
+import { istMidnight } from "@/lib/attendance-config";
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
   const from = searchParams.get("from");
   const to = searchParams.get("to");
 
-  const fromDate = from ? new Date(from) : new Date();
-  const toDate = to ? new Date(to) : new Date();
-  fromDate.setHours(0, 0, 0, 0);
-  toDate.setHours(23, 59, 59, 999);
+  const fromDate = istMidnight(from ?? new Date());
+  // toDate is inclusive: bump to the *next* IST midnight so records dated on
+  // `to` still match `lte`. Whole rows are @db.Date so 24h is one IST bucket.
+  const toEndInclusive = istMidnight(to ?? new Date());
+  toEndInclusive.setUTCDate(toEndInclusive.getUTCDate() + 1);
 
   const records = await prisma.attendanceRecord.findMany({
-    where: { date: { gte: fromDate, lte: toDate } },
+    where: { date: { gte: fromDate, lt: toEndInclusive } },
     include: {
       employee: {
         select: { name: true, email: true, department: true, employeeNumber: true },
@@ -47,7 +49,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(csvRows.join("\n"), {
     headers: {
       "Content-Type": "text/csv",
-      "Content-Disposition": `attachment; filename=attendance-${fromDate.toISOString().split("T")[0]}-to-${toDate.toISOString().split("T")[0]}.csv`,
+      "Content-Disposition": `attachment; filename=attendance-${fromDate.toISOString().split("T")[0]}-to-${(to ?? new Date().toISOString().slice(0, 10))}.csv`,
     },
   });
 }

@@ -5,6 +5,7 @@ import { getCurrentEmployee } from "@/lib/server/current-employee";
 import {
   LEAVE_TYPE_VALUES,
   weekdaysBetween,
+  istMidnight,
   type LeaveTypeValue,
 } from "@/lib/attendance-config";
 
@@ -76,13 +77,13 @@ export async function POST(req: NextRequest) {
   if (!fromStr || !toStr) {
     return NextResponse.json({ error: "fromDate and toDate are required" }, { status: 400 });
   }
-  const fromDate = new Date(fromStr);
-  const toDate = new Date(toStr);
-  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+  const rawFrom = new Date(fromStr);
+  const rawTo = new Date(toStr);
+  if (Number.isNaN(rawFrom.getTime()) || Number.isNaN(rawTo.getTime())) {
     return NextResponse.json({ error: "Invalid dates" }, { status: 400 });
   }
-  fromDate.setHours(0, 0, 0, 0);
-  toDate.setHours(0, 0, 0, 0);
+  const fromDate = istMidnight(fromStr);
+  const toDate = istMidnight(toStr);
   if (fromDate > toDate) {
     return NextResponse.json({ error: "From date must be before or equal to to date" }, { status: 400 });
   }
