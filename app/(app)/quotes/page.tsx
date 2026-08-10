@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, Printer } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, Printer, ArrowUpDown, ArrowUp, ArrowDown, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -69,6 +69,10 @@ export default function QuotesPage() {
   const hardwareItems = useHardwarePriceItems();
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Quote | null>(null);
+  type SortKey = "quoteNumber" | "customer" | "date" | "productType" | "finalAmount" | "revision" | "status";
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
+  const toggleSort = (key: SortKey) =>
+    setSort((s) => (s?.key !== key ? { key, dir: "asc" } : s.dir === "asc" ? { key, dir: "desc" } : null));
 
   const customerName = (id: string | null) => (id ? customers.find((c) => c.id === id)?.name ?? "—" : "—");
   const productTypeName = (id: string) => productTypes.find((p) => p.id === id)?.name ?? "—";
@@ -115,6 +119,38 @@ export default function QuotesPage() {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  const importRef = useRef<HTMLInputElement>(null);
+  const exportAll = () => {
+    const rows = filtered.length > 0 ? filtered : quotes;
+    const stamp = new Date().toISOString().split("T")[0];
+    const json = JSON.stringify({ exportedAt: new Date().toISOString(), count: rows.length, quotes: rows }, null, 2);
+    const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `modusys-quotes-${stamp}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toastStore.show(`Exported ${rows.length} quote${rows.length === 1 ? "" : "s"}`);
+  };
+  const onImportFile = async (file: File) => {
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const list: Quote[] = Array.isArray(parsed) ? parsed : parsed?.quotes;
+      if (!Array.isArray(list)) throw new Error("Expected a JSON array of quotes or { quotes: [...] }");
+      let added = 0;
+      for (const q of list) {
+        if (!q || typeof q !== "object" || !q.id || !q.quoteNumber) continue;
+        // ponytail: id collisions overwrite in the store — this is a restore/merge, not a diff-import.
+        quotesStore.saveQuote(q);
+        added++;
+      }
+      toastStore.show(`Imported ${added} quote${added === 1 ? "" : "s"}`);
+    } catch (e) {
+      toastStore.show(e instanceof Error ? e.message : "Import failed", "error");
+    }
+  };
+
   const deleteQuote = (q: Quote) => {
     quotesStore.deleteQuote(q.id);
     toastStore.show(`${q.quoteNumber} deleted`, "success", {
@@ -125,15 +161,57 @@ export default function QuotesPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return quotes;
-    return quotes.filter(
-      (quote) =>
-        quote.quoteNumber.toLowerCase().includes(q) || customerName(quote.customerId).toLowerCase().includes(q)
-    );
+    const base = !q
+      ? quotes
+      : quotes.filter(
+          (quote) =>
+            quote.quoteNumber.toLowerCase().includes(q) ||
+            customerName(quote.customerId).toLowerCase().includes(q)
+        );
+    if (!sort) return base;
+    const dir = sort.dir === "asc" ? 1 : -1;
+    const val = (q: Quote): string | number => {
+      switch (sort.key) {
+        case "quoteNumber": return q.quoteNumber.toLowerCase();
+        case "customer": return customerName(q.customerId).toLowerCase();
+        case "date": return q.date ? new Date(q.date).getTime() : 0;
+        case "productType": return productTypeName(q.productTypeId).toLowerCase();
+        case "finalAmount": return finalAmount(q);
+        case "revision": return q.revision;
+        case "status": return (statusConfig[q.status as StatusKey]?.label ?? q.status).toLowerCase();
+      }
+    };
+    return [...base].sort((a, b) => {
+      const av = val(a); const bv = val(b);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quotes, customers, search]);
+  }, [quotes, customers, search, sort, productTypes, furnitureItems, hardwareItems]);
 
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(filtered);
+
+  const SortHeader = ({ label, k, align = "left" }: { label: string; k: SortKey; align?: "left" | "right" }) => {
+    const active = sort?.key === k;
+    const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
+    return (
+      <th className={cn("whitespace-nowrap px-2 py-1", align === "right" && "text-right")}>
+        <button
+          type="button"
+          onClick={() => toggleSort(k)}
+          className={cn(
+            "inline-flex items-center gap-1 hover:text-primary",
+            align === "right" && "ml-auto",
+            active && "text-primary"
+          )}
+        >
+          {label}
+          <Icon className={cn("h-3.5 w-3.5", !active && "text-grey-400")} />
+        </button>
+      </th>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -142,12 +220,33 @@ export default function QuotesPage() {
           <h1 className="font-heading text-2xl font-semibold text-grey-900">Quotes</h1>
           <p className="text-sm font-body text-grey-400">Every priced quotation across your customers</p>
         </div>
-        <Link href="/quotes/new">
-          <Button type="button">
-            <Plus className="h-4 w-4" />
-            Create New Quote
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" onClick={exportAll}>
+            <Download className="h-4 w-4" />
+            Export
           </Button>
-        </Link>
+          <Button type="button" variant="outline" onClick={() => importRef.current?.click()}>
+            <Upload className="h-4 w-4" />
+            Import
+          </Button>
+          <input
+            ref={importRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onImportFile(f);
+              e.target.value = "";
+            }}
+          />
+          <Link href="/quotes/new">
+            <Button type="button">
+              <Plus className="h-4 w-4" />
+              Create New Quote
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {quotes.length === 0 ? (
@@ -168,13 +267,13 @@ export default function QuotesPage() {
             <table className="w-full text-[13px] font-body">
               <thead>
                 <tr className="border-b border-grey-100 bg-[#DACCCC] text-left text-sm font-medium text-grey-900">
-                  <th className="whitespace-nowrap px-2 py-1">Quote No.</th>
-                  <th className="whitespace-nowrap px-2 py-1">Customer</th>
-                  <th className="whitespace-nowrap px-2 py-1">Date</th>
-                  <th className="whitespace-nowrap px-2 py-1">Product Type</th>
-                  <th className="whitespace-nowrap px-2 py-1">Final Amount</th>
-                  <th className="whitespace-nowrap px-2 py-1">Revision</th>
-                  <th className="whitespace-nowrap px-2 py-1">Status</th>
+                  <SortHeader label="Quote No." k="quoteNumber" />
+                  <SortHeader label="Customer" k="customer" />
+                  <SortHeader label="Date" k="date" />
+                  <SortHeader label="Product Type" k="productType" />
+                  <SortHeader label="Final Amount" k="finalAmount" />
+                  <SortHeader label="Revision" k="revision" />
+                  <SortHeader label="Status" k="status" />
                   <th className="whitespace-nowrap px-2 py-1 text-right">Actions</th>
                 </tr>
               </thead>

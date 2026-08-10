@@ -29,28 +29,7 @@ function initialQuote() {
   return blankQuote(quotesStore.nextQuoteNumber(), defaultMarkup);
 }
 
-// Returns true if any field other than the numeric dimensions (width/depth/
-// height/qty) changed — i.e. structural edits like picking a Space or Unit
-// Type, adding/removing units, or editing cabinets. Pure dimension keystrokes
-// return false so autosave doesn't fire on every digit.
-function isStructuralUnitsChange(prev: QuoteUnit[], next: QuoteUnit[]): boolean {
-  if (prev.length !== next.length) return true;
-  const byId = new Map(prev.map((u) => [u.id, u]));
-  for (const n of next) {
-    const p = byId.get(n.id);
-    if (!p) return true;
-    if (
-      p.spaceId !== n.spaceId ||
-      p.unitTypeId !== n.unitTypeId ||
-      p.autoPopulated !== n.autoPopulated ||
-      p.collapsed !== n.collapsed ||
-      p.cabinets !== n.cabinets
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
+const UNDO_LIMIT = 20;
 
 function CreateQuotePage() {
   const router = useRouter();
@@ -64,6 +43,35 @@ function CreateQuotePage() {
   const [quote, setQuote] = useState<Quote | null>(() => (editId ? null : initialQuote()));
   const [clearOpen, setClearOpen] = useState(false);
   const loaded = useRef(false);
+  // Undo stack for the Units section only (Cmd/Ctrl+Z). Every units change
+  // pushes the previous snapshot; the shortcut pops the most recent and
+  // re-saves so the persisted state matches what the user sees.
+  const unitsHistory = useRef<QuoteUnit[][]>([]);
+
+  useEffect(() => {
+    if (readonly) return;
+    function onKey(e: KeyboardEvent) {
+      const isUndo = (e.metaKey || e.ctrlKey) && !e.shiftKey && (e.key === "z" || e.key === "Z");
+      if (!isUndo) return;
+      // Let native undo win inside text/number inputs — that's the finer-grain
+      // per-character stack the browser maintains on the focused field.
+      const el = document.activeElement as HTMLElement | null;
+      const tag = el?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el?.isContentEditable) return;
+      const prev = unitsHistory.current.pop();
+      if (!prev) return;
+      e.preventDefault();
+      setQuote((q) => {
+        if (!q) return q;
+        const next = { ...q, units: prev };
+        quotesStore.saveQuote(next);
+        return next;
+      });
+      toastStore.show("Reverted last unit change");
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [readonly]);
 
   useEffect(() => {
     if (!editId || loaded.current) return;
@@ -184,13 +192,11 @@ function CreateQuotePage() {
           units={quote.units}
           shutterFinishId={quote.shutterFinishId}
           onChange={(units) => {
+            // Snapshot the outgoing state before overwrite so Cmd/Ctrl+Z can pop it.
+            unitsHistory.current.push(quote.units);
+            if (unitsHistory.current.length > UNDO_LIMIT) unitsHistory.current.shift();
             patchQuote({ units });
-            // Autosave on structural edits only (space, unit type, add/remove/cabinets).
-            // W/D/H/Qty keystrokes just update memory — they persist on the next
-            // structural change or a manual Save Changes.
-            if (isStructuralUnitsChange(quote.units, units)) {
-              quotesStore.saveQuote({ ...quote, units });
-            }
+            quotesStore.saveQuote({ ...quote, units });
           }}
         />
         <QuoteSummarySection quote={quote} onChange={patchQuote} onSaveRemark={handleSaveRemark} />

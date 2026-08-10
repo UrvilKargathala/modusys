@@ -181,13 +181,21 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
     };
   }
 
-  // Numbering follows the edit-page scheme: unit N is "N"; a unit with more
-  // than one cabinet numbers them "N.1", "N.2", … so "1.2" is not a separate
-  // unit in the client's eyes.
-  const cabinetGroups = quote.units.flatMap((unit, unitIdx) =>
-    unit.cabinets.map((cabinet, cabinetIdx) => {
+  // Numbering: unit N is "N". A unit with multiple cabinets numbers them
+  // "N.1", "N.2", … EXCEPT when every cabinet is a Standard Cabinet — then
+  // they all share the plain unit number, since the client thinks of them as
+  // one entry ("added a second Standard Cabinet to the same unit").
+  const isStandardCabinetType = (id: string) => {
+    const t = cabinetTypes.find((c) => c.id === id);
+    return !!t && t.name.trim().toLowerCase() === "standard cabinet";
+  };
+  const cabinetGroups = quote.units.flatMap((unit, unitIdx) => {
+    const allStandard = unit.cabinets.length > 0 && unit.cabinets.every((c) => isStandardCabinetType(c.cabinetTypeId));
+    return unit.cabinets.map((cabinet, cabinetIdx) => {
       const index =
-        unit.cabinets.length > 1 ? `${unitIdx + 1}.${cabinetIdx + 1}` : String(unitIdx + 1);
+        !allStandard && unit.cabinets.length > 1
+          ? `${unitIdx + 1}.${cabinetIdx + 1}`
+          : String(unitIdx + 1);
       const unitType = unitTypes.find((t) => t.id === unit.unitTypeId);
       const cabinetType = cabinetTypes.find((c) => c.id === cabinet.cabinetTypeId);
       const carcassUnit = carcassUnitFor(cabinet, unit);
@@ -221,8 +229,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         ...cabinet.hardware.filter((i) => !isSecondary(i.levelTypeId)).map((i) => hardwareRow(i, unit)),
       ];
       return { index, headerRow, rows, cost: unitTotal({ ...unit, cabinets: [cabinet] }, furnitureItems, hardwareItems) };
-    })
-  );
+    });
+  });
 
   return (
     <div className="flex min-h-screen flex-col items-center gap-4 bg-grey-100 p-6 print:bg-white print:p-0">
