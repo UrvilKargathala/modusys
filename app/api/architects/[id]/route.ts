@@ -35,6 +35,14 @@ export async function PATCH(req: Request, { params }: Ctx) {
     data.partners = { create: b.partners.map((name: string) => ({ name })) };
   }
   const a = await prisma.architect.update({ where: { id }, data, include: { partners: true } });
+  const label = `${[a.firstName, a.lastName].filter(Boolean).join(" ")}${a.company ? ` — ${a.company}` : ""}`;
+  void logAudit({
+    action: "ARCHITECT_UPDATED",
+    actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+    target: { type: "ARCHITECT", id: a.id, label },
+    details: { fields: Object.keys(data) },
+    req,
+  });
   return NextResponse.json(serializeArchitect(a));
 }
 

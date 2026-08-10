@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { requireUser } from "@/lib/server/require-user";
+import { logAudit } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -93,10 +94,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     });
   }
 
+  void logAudit({
+    action: "TASK_UPDATED",
+    actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+    target: { type: "TASK", id: row.id, label: row.title },
+    details: nextStatus && nextStatus !== existing.status
+      ? { field: "status", from: existing.status, to: nextStatus }
+      : { fields: Object.keys(data) },
+    req,
+  });
+
   return NextResponse.json(serialize(row));
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireUser();
   if (auth.response) return auth.response;
   const role = effectiveRole(auth.user.role);
@@ -110,5 +121,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   }
 
   await prisma.task.delete({ where: { id } });
+  void logAudit({
+    action: "TASK_DELETED",
+    actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+    target: { type: "TASK", id, label: existing.title },
+    req,
+  });
   return NextResponse.json({ ok: true });
 }

@@ -40,6 +40,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (b.deletedAt !== undefined) data.deletedAt = b.deletedAt === null ? null : new Date(b.deletedAt);
   if (b.stage !== undefined || b.touch) data.lastActivity = new Date();
   const c = await prisma.customer.update({ where: { id }, data });
+  void logAudit({
+    action: "CUSTOMER_UPDATED",
+    actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+    target: { type: "CUSTOMER", id: c.id, label: `${c.name}${c.city ? ` — ${c.city}` : ""}` },
+    details: { fields: Object.keys(data) },
+    req,
+  });
   return NextResponse.json(serializeCustomer(c));
 }
 

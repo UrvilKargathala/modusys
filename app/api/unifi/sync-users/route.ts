@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { fetchUnifiUsers } from "@/lib/unifi";
+import { getSessionUser } from "@/lib/server/require-user";
+import { logAudit } from "@/lib/server/audit";
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const unifiUsers = await fetchUnifiUsers();
     let created = 0;
@@ -62,6 +64,15 @@ export async function POST() {
         details: `Created: ${created}, Updated: ${updated}, Skipped: ${skipped}`,
         recordsProcessed: created + updated,
       },
+    });
+
+    const actor = await getSessionUser();
+    void logAudit({
+      action: "UNIFI_SYNC_USERS",
+      actor: actor ? { id: actor.id, email: actor.email, name: actor.name } : null,
+      target: { type: "INTEGRATION", id: "unifi", label: "UniFi Access — Users" },
+      details: { total: unifiUsers.length, created, updated, skipped },
+      req,
     });
 
     return NextResponse.json({ success: true, total: unifiUsers.length, created, updated, skipped });

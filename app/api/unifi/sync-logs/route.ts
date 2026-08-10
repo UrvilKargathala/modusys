@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { istMidnight } from "@/lib/attendance-config";
+import { getSessionUser } from "@/lib/server/require-user";
+import { logAudit } from "@/lib/server/audit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -107,6 +109,15 @@ export async function POST(req: NextRequest) {
         details: `Days: ${days}, Created: ${totalCreated}, Updated: ${totalUpdated}`,
         recordsProcessed: totalProcessed,
       },
+    });
+
+    const actor = await getSessionUser();
+    void logAudit({
+      action: "UNIFI_SYNC_LOGS",
+      actor: actor ? { id: actor.id, email: actor.email, name: actor.name } : null,
+      target: { type: "INTEGRATION", id: "unifi", label: "UniFi Access — Door Logs" },
+      details: { processed: totalProcessed, created: totalCreated, updated: totalUpdated },
+      req,
     });
 
     return NextResponse.json({

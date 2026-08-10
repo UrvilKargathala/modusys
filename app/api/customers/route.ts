@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { serializeCustomer } from "@/lib/server/serialize";
 import { requireUser } from "@/lib/server/require-user";
+import { logAudit } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,6 +63,12 @@ export async function POST(req: Request) {
       assignee: b.assignee ?? "",
       createdById: b.createdById ?? null,
     },
+  });
+  void logAudit({
+    action: "CUSTOMER_CREATED",
+    actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+    target: { type: "CUSTOMER", id: customer.id, label: `${customer.name}${customer.city ? ` — ${customer.city}` : ""}` },
+    req,
   });
   return NextResponse.json(serializeCustomer(customer), { status: 201 });
 }

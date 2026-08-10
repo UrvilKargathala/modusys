@@ -14,6 +14,7 @@ import {
   CalendarOff,
   BarChart3,
   CheckSquare,
+  Link2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -57,6 +58,7 @@ export const attendanceItems: NavItem[] = [
 
 export const administrationItems: NavItem[] = [
   { label: "User Management", href: "/users", icon: UserCog, roles: SUPER },
+  { label: "Users ↔ Employees", href: "/admin/users-employees", icon: Link2, roles: SUPER },
   { label: "Credits", href: "/credits", icon: Wallet, roles: SUPER },
   { label: "Logs", href: "/admin/logs", icon: ScrollText, roles: SUPER },
 ];

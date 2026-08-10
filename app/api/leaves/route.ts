@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/require-user";
 import { getCurrentEmployee } from "@/lib/server/current-employee";
+import { logAudit } from "@/lib/server/audit";
 import {
   LEAVE_TYPE_VALUES,
   weekdaysBetween,
@@ -129,6 +130,18 @@ export async function POST(req: NextRequest) {
       halfDayType,
       reason,
     },
+  });
+
+  void logAudit({
+    action: "LEAVE_REQUESTED",
+    actor: { id: user.id, email: user.email, name: user.name },
+    target: {
+      type: "LEAVE",
+      id: leave.id,
+      label: `${employee.name} — ${leaveType} (${leave.fromDate.toISOString().slice(0, 10)} to ${leave.toDate.toISOString().slice(0, 10)})`,
+    },
+    details: { totalDays, isHalfDay, halfDayType },
+    req,
   });
 
   return NextResponse.json({ ok: true, leave });

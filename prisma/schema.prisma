@@ -101,6 +101,13 @@ model User {
   lastActive         DateTime  @default(now())
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+
+  // Explicit link to the Employee record this login belongs to. Unique
+  // so an Employee is tied to at most one User account. Nullable because
+  // not every User has an Employee row yet (external contacts, admins who
+  // don't check in, etc.). Falls back to email-match when null.
+  employeeId String?   @unique
+  employee   Employee? @relation(fields: [employeeId], references: [id])
 }
 
 // ---------------------------------------------------------------------------
@@ -322,6 +329,7 @@ model Employee {
 
   attendanceRecords AttendanceRecord[]
   leaveRequests     LeaveRequest[]
+  linkedUser        User?
 }
 
 model AttendanceRecord {

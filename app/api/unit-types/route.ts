@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { replaceCollection, toDate } from "@/lib/server/bulk";
 import { requireUser, requireRole } from "@/lib/server/require-user";
+import { logAudit } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,5 +31,12 @@ export async function PUT(req: Request) {
     externalFinishes: (r.externalFinishes ?? []) as object[], otherPanels: (r.otherPanels ?? []) as object[],
     hardware: (r.hardware ?? []) as object[], deleted: Boolean(r.deleted), createdAt: toDate(r.createdAt),
   })));
+  void logAudit({
+    action: "UNIT_TYPE_UPDATED",
+    actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+    target: { type: "UNIT_TYPE", id: "collection", label: `${rows.length} unit type(s)` },
+    details: { count: rows.length },
+    req,
+  });
   return NextResponse.json({ ok: true });
 }

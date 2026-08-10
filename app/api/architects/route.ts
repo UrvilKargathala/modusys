@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { serializeArchitect } from "@/lib/server/serialize";
 import { requireUser } from "@/lib/server/require-user";
+import { logAudit } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +43,13 @@ export async function POST(req: Request) {
       partners: { create: (b.partners ?? []).map((name: string) => ({ name })) },
     },
     include: { partners: true },
+  });
+  const label = `${[architect.firstName, architect.lastName].filter(Boolean).join(" ")}${architect.company ? ` — ${architect.company}` : ""}`;
+  void logAudit({
+    action: "ARCHITECT_CREATED",
+    actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+    target: { type: "ARCHITECT", id: architect.id, label },
+    req,
   });
   return NextResponse.json(serializeArchitect(architect), { status: 201 });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/require-user";
 import { getCurrentEmployee } from "@/lib/server/current-employee";
+import { logAudit } from "@/lib/server/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -50,21 +51,44 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const updated = await prisma.leaveRequest.update({
     where: { id },
     data: { status, reviewNote, reviewedAt: new Date(), reviewedBy: user.id },
+    include: { employee: { select: { name: true } } },
+  });
+  void logAudit({
+    action: status === "APPROVED" ? "LEAVE_APPROVED" : "LEAVE_REJECTED",
+    actor: { id: user.id, email: user.email, name: user.name },
+    target: {
+      type: "LEAVE",
+      id: updated.id,
+      label: `${updated.employee.name} — ${updated.leaveType} (${updated.fromDate.toISOString().slice(0, 10)} to ${updated.toDate.toISOString().slice(0, 10)})`,
+    },
+    details: { reviewNote },
+    req,
   });
   return NextResponse.json({ ok: true, leave: updated });
 }
 
 // Employee cancels their own PENDING leave.
-export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const { leave, error } = await assertOwnOrAdmin(id);
+  const { user, leave, error } = await assertOwnOrAdmin(id);
   if (error) return error;
   if (leave!.status !== "PENDING") {
     return NextResponse.json({ error: "Only pending leaves can be cancelled" }, { status: 409 });
   }
-  await prisma.leaveRequest.update({
+  const cancelled = await prisma.leaveRequest.update({
     where: { id },
     data: { status: "CANCELLED", reviewedAt: new Date() },
+    include: { employee: { select: { name: true } } },
+  });
+  void logAudit({
+    action: "LEAVE_CANCELLED",
+    actor: user ? { id: user.id, email: user.email, name: user.name } : null,
+    target: {
+      type: "LEAVE",
+      id: cancelled.id,
+      label: `${cancelled.employee.name} — ${cancelled.leaveType} (${cancelled.fromDate.toISOString().slice(0, 10)} to ${cancelled.toDate.toISOString().slice(0, 10)})`,
+    },
+    req,
   });
   return NextResponse.json({ ok: true });
 }

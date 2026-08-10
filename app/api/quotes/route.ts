@@ -47,12 +47,27 @@ export async function POST(req: Request) {
     where: { id: b.id }, create: { id: b.id, ...data }, update: data,
   });
 
-  if (existing && existing.status !== quote.status) {
+  const actor = { id: auth.user.id, email: auth.user.email, name: auth.user.name };
+  if (!existing) {
+    void logAudit({
+      action: "QUOTE_CREATED",
+      actor,
+      target: { type: "QUOTE", id: quote.id, label: quote.quoteNumber },
+      req,
+    });
+  } else if (existing.status !== quote.status) {
     void logAudit({
       action: "QUOTE_STATUS_CHANGED",
-      actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+      actor,
       target: { type: "QUOTE", id: quote.id, label: quote.quoteNumber },
       details: { field: "status", from: existing.status, to: quote.status },
+      req,
+    });
+  } else {
+    void logAudit({
+      action: "QUOTE_UPDATED",
+      actor,
+      target: { type: "QUOTE", id: quote.id, label: quote.quoteNumber },
       req,
     });
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { requireUser } from "@/lib/server/require-user";
+import { logAudit } from "@/lib/server/audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -120,6 +121,14 @@ export async function POST(req: Request) {
       },
     });
   }
+
+  void logAudit({
+    action: "TASK_CREATED",
+    actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+    target: { type: "TASK", id: row.id, label: row.title },
+    details: { assigneeId, priority: row.priority },
+    req,
+  });
 
   return NextResponse.json(serialize(row), { status: 201 });
 }
