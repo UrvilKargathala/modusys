@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { formatTime, getWorkingHours } from "@/lib/attendance-utils";
-import { istMidnight } from "@/lib/attendance-config";
+import { istMidnight, istDateString } from "@/lib/attendance-config";
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   for (const r of records) {
     csvRows.push(
       [
-        r.date.toISOString().split("T")[0],
+        istDateString(r.date),
         r.employee.name,
         r.employee.email || "",
         r.employee.department || "",

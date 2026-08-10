@@ -1,9 +1,14 @@
+// All attendance times are IST wall-clock, regardless of where the code runs
+// (Vercel = UTC, local Mac = IST). Timestamps live in UTC in the DB — we
+// render them in Asia/Kolkata via Intl so the display never depends on the
+// runtime's local zone.
 export function formatTime(date: Date | string | null): string {
   if (!date) return "--:--";
   return new Date(date).toLocaleTimeString("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
+    timeZone: "Asia/Kolkata",
   });
 }
 
@@ -13,6 +18,7 @@ export function formatDate(date: Date | string): string {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "Asia/Kolkata",
   });
 }
 
