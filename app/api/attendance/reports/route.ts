@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/require-user";
+import { getCurrentEmployee } from "@/lib/server/current-employee";
 import {
   isLate,
   isEarlyExit,
@@ -14,15 +15,23 @@ export const dynamic = "force-dynamic";
 // GET /api/attendance/reports?from=YYYY-MM-DD&to=YYYY-MM-DD&employeeId=&department=&format=csv
 export async function GET(req: NextRequest) {
   const user = await getSessionUser();
-  if (!user || user.role !== "super-admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const isSuper = user.role === "super-admin";
+  // Non-super-admins get pinned to their own Employee. Any employeeId/
+  // department query is ignored — this is the same rule the /attendance/
+  // reports page enforces on the read side.
+  let selfEmployeeId: string | undefined;
+  if (!isSuper) {
+    const { employee } = await getCurrentEmployee();
+    if (!employee) return NextResponse.json({ error: "No linked employee record" }, { status: 403 });
+    selfEmployeeId = employee.id;
   }
 
   const sp = req.nextUrl.searchParams;
   const fromStr = sp.get("from");
   const toStr = sp.get("to");
-  const employeeIdParam = sp.get("employeeId") || undefined;
-  const departmentParam = sp.get("department") || undefined;
+  const employeeIdParam = isSuper ? sp.get("employeeId") || undefined : selfEmployeeId;
+  const departmentParam = isSuper ? sp.get("department") || undefined : undefined;
   const format = sp.get("format");
 
   const today = istMidnight();

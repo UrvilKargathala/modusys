@@ -25,7 +25,8 @@ export default async function AdminLeavesPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const user = await getSessionUser();
-  if (!user || user.role !== "super-admin") redirect("/dashboard");
+  if (!user) redirect("/sign-in");
+  if (user.role !== "super-admin") redirect("/leaves");
 
   const { tab } = await searchParams;
   const activeTab = tab === "all" ? "all" : "pending";

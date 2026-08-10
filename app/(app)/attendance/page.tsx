@@ -18,7 +18,8 @@ export default async function AttendancePage({
   searchParams: Promise<{ date?: string; source?: string }>;
 }) {
   const sessionUser = await getSessionUser();
-  if (!sessionUser || sessionUser.role !== "super-admin") redirect("/dashboard");
+  if (!sessionUser) redirect("/sign-in");
+  if (sessionUser.role !== "super-admin") redirect("/my-attendance");
 
   const { date: dateParam, source: sourceParam } = await searchParams;
   const date = istMidnight(dateParam ?? new Date());

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, ChevronDown, LogOut, UserPlus, Clock3, CheckCircle2, AtSign, KeyRound, AlertTriangle, FileText, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { navigationItems, administrationItems, attendanceItems } from "@/lib/nav";
+import { navigationItems, administrationItems, attendanceItems, canSeeNav } from "@/lib/nav";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { GlobalSearch } from "@/components/layout/global-search";
 import {
@@ -97,7 +97,7 @@ export function TopNavbar() {
 
       <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 overflow-x-auto rounded-full bg-primary/40 p-1 lg:flex">
         {navigationItems
-          .filter((item) => !item.superAdminOnly || currentUser.role === "super-admin")
+          .filter((item) => canSeeNav(item, currentUser.role))
           .map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
@@ -130,7 +130,7 @@ export function TopNavbar() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center" className="min-w-52">
             {attendanceItems
-              .filter((item) => !item.superAdminOnly || currentUser.role === "super-admin")
+              .filter((item) => canSeeNav(item, currentUser.role))
               .map((item) => (
               <DropdownMenuItem
                 key={item.href}
@@ -160,7 +160,7 @@ export function TopNavbar() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center" className="min-w-52">
             {administrationItems
-              .filter((item) => !item.superAdminOnly || currentUser.role === "super-admin")
+              .filter((item) => canSeeNav(item, currentUser.role))
               .map((item) => (
               <DropdownMenuItem
                 key={item.href}

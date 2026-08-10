@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/require-user";
+import { getCurrentEmployee } from "@/lib/server/current-employee";
 import {
   isLate,
   isEarlyExit,
@@ -24,7 +25,11 @@ export default async function ReportsPage({
   searchParams: Promise<{ from?: string; to?: string; employeeId?: string; department?: string; preset?: string }>;
 }) {
   const user = await getSessionUser();
-  if (!user || user.role !== "super-admin") redirect("/dashboard");
+  if (!user) redirect("/sign-in");
+  const isSuper = user.role === "super-admin";
+  // Non-super-admins see only their own row. Resolve their Employee once and
+  // pin every filter to that id — the dept/employee dropdowns won't render.
+  const selfEmployee = isSuper ? null : (await getCurrentEmployee()).employee;
 
   const sp = await searchParams;
 
@@ -59,25 +64,29 @@ export default async function ReportsPage({
   const workingDays = weekdaysBetween(fromDate, toDate);
 
   const employees = await prisma.employee.findMany({
-    where: {
-      isActive: true,
-      ...(sp.employeeId ? { id: sp.employeeId } : {}),
-      ...(sp.department ? { department: sp.department } : {}),
-    },
+    where: isSuper
+      ? {
+          isActive: true,
+          ...(sp.employeeId ? { id: sp.employeeId } : {}),
+          ...(sp.department ? { department: sp.department } : {}),
+        }
+      : { id: selfEmployee?.id ?? "__none__" },
     select: { id: true, name: true, department: true, employeeNumber: true },
     orderBy: { name: "asc" },
   });
   const employeeIds = employees.map((e) => e.id);
-  const departments = Array.from(
-    new Set(
-      (await prisma.employee.findMany({
-        where: { isActive: true },
-        select: { department: true },
-      }))
-        .map((e) => e.department)
-        .filter((d): d is string => !!d)
-    )
-  ).sort();
+  const departments = isSuper
+    ? Array.from(
+        new Set(
+          (await prisma.employee.findMany({
+            where: { isActive: true },
+            select: { department: true },
+          }))
+            .map((e) => e.department)
+            .filter((d): d is string => !!d)
+        )
+      ).sort()
+    : [];
 
   const [records, leaves] = await Promise.all([
     prisma.attendanceRecord.findMany({
@@ -163,7 +172,7 @@ export default async function ReportsPage({
 
       {/* Filters */}
       <Card className="p-4">
-        <form className="grid grid-cols-1 gap-3 md:grid-cols-5">
+        <form className={`grid grid-cols-1 gap-3 ${isSuper ? "md:grid-cols-5" : "md:grid-cols-3"}`}>
           <input type="hidden" name="preset" value="custom" />
           <label className="flex flex-col gap-1 text-xs font-body font-medium text-grey-500">
             From
@@ -183,32 +192,36 @@ export default async function ReportsPage({
               className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs font-body font-medium text-grey-500">
-            Department
-            <select
-              name="department"
-              defaultValue={sp.department || ""}
-              className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900"
-            >
-              <option value="">All</option>
-              {departments.map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-body font-medium text-grey-500">
-            Employee
-            <select
-              name="employeeId"
-              defaultValue={sp.employeeId || ""}
-              className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900"
-            >
-              <option value="">All</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>{e.name}</option>
-              ))}
-            </select>
-          </label>
+          {isSuper && (
+            <>
+              <label className="flex flex-col gap-1 text-xs font-body font-medium text-grey-500">
+                Department
+                <select
+                  name="department"
+                  defaultValue={sp.department || ""}
+                  className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900"
+                >
+                  <option value="">All</option>
+                  {departments.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-body font-medium text-grey-500">
+                Employee
+                <select
+                  name="employeeId"
+                  defaultValue={sp.employeeId || ""}
+                  className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900"
+                >
+                  <option value="">All</option>
+                  {employees.map((e) => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
           <div className="flex items-end">
             <button
               type="submit"

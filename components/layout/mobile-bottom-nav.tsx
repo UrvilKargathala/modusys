@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mobileTabItems, mobileMoreItems, administrationItems } from "@/lib/nav";
+import { mobileTabItems, mobileMoreItems, administrationItems, canSeeNav } from "@/lib/nav";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useCurrentUser } from "@/lib/session";
 
@@ -13,8 +13,8 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const currentUser = useCurrentUser();
-  const visibleAdminItems = administrationItems.filter((item) => !item.superAdminOnly || currentUser.role === "super-admin");
-  const visibleMoreItems = mobileMoreItems.filter((item) => !item.superAdminOnly || currentUser.role === "super-admin");
+  const visibleAdminItems = administrationItems.filter((item) => canSeeNav(item, currentUser.role));
+  const visibleMoreItems = mobileMoreItems.filter((item) => canSeeNav(item, currentUser.role));
 
   const isMoreActive = [...mobileMoreItems, ...administrationItems].some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -23,7 +23,7 @@ export function MobileBottomNav() {
   return (
     <>
       <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-stretch border-t border-grey-100 bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
-        {mobileTabItems.map((item) => {
+        {mobileTabItems.filter((item) => canSeeNav(item, currentUser.role)).map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
 
