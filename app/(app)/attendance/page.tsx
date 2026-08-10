@@ -12,19 +12,22 @@ import { ChevronLeft, ChevronRight, Download, MapPin } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
+const PAGE_SIZE = 20;
+
 export default async function AttendancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; source?: string }>;
+  searchParams: Promise<{ date?: string; source?: string; page?: string }>;
 }) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) redirect("/sign-in");
   if (sessionUser.role !== "super-admin") redirect("/my-attendance");
 
-  const { date: dateParam, source: sourceParam } = await searchParams;
+  const { date: dateParam, source: sourceParam, page: pageParam } = await searchParams;
   const date = istMidnight(dateParam ?? new Date());
 
   const sourceFilter = sourceParam === "gps" || sourceParam === "unifi" ? sourceParam : null;
+  const pageIdx = Math.max(0, Number(pageParam) - 1 || 0);
 
   const approvedLeaves = await prisma.leaveRequest.findMany({
     where: {
@@ -51,6 +54,9 @@ export default async function AttendancePage({
 
   const totalEmployees = await prisma.employee.count({ where: { isActive: true } });
   const present = records.length;
+  const pageCount = Math.max(1, Math.ceil(present / PAGE_SIZE));
+  const safePageIdx = Math.min(pageIdx, pageCount - 1);
+  const pagedRecords = records.slice(safePageIdx * PAGE_SIZE, (safePageIdx + 1) * PAGE_SIZE);
   const presentEmployeeIds = new Set(records.map((r) => r.employeeId));
   const onLeaveCount = Array.from(onLeaveByEmployee.keys()).filter(
     (id) => !presentEmployeeIds.has(id)
@@ -189,7 +195,7 @@ export default async function AttendancePage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-grey-100">
-                {records.map((record) => {
+                {pagedRecords.map((record) => {
                   const isGps = record.checkInSource === "gps";
                   const note = record.checkInNote || record.checkOutNote;
                   return (
@@ -267,6 +273,35 @@ export default async function AttendancePage({
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+        {pageCount > 1 && (
+          <div className="flex items-center justify-between gap-3 border-t border-grey-100 px-6 py-3">
+            <span className="text-xs font-number text-grey-500">
+              {safePageIdx * PAGE_SIZE + 1}–{Math.min((safePageIdx + 1) * PAGE_SIZE, present)} of {present}
+            </span>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: pageCount }, (_, i) => {
+                const active = i === safePageIdx;
+                const params = new URLSearchParams();
+                if (dateParam) params.set("date", dateParam);
+                if (sourceFilter) params.set("source", sourceFilter);
+                if (i > 0) params.set("page", String(i + 1));
+                const qs = params.toString();
+                const href = qs ? `/attendance?${qs}` : "/attendance";
+                return (
+                  <a
+                    key={i}
+                    href={href}
+                    className={`flex h-7 min-w-[1.75rem] items-center justify-center rounded-md px-2 text-xs font-number ${
+                      active ? "bg-primary text-white" : "text-grey-600 hover:bg-light-600"
+                    }`}
+                  >
+                    {i + 1}
+                  </a>
+                );
+              })}
+            </div>
           </div>
         )}
       </Card>

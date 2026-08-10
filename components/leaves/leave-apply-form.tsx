@@ -29,6 +29,7 @@ function weekdaysBetweenClient(from: string, to: string): number {
 export function LeaveApplyForm({ onDone }: { onDone?: () => void } = {}) {
   const router = useRouter();
   const [leaveType, setLeaveType] = useState("CASUAL");
+  const [customLeaveType, setCustomLeaveType] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [isHalfDay, setIsHalfDay] = useState(false);
@@ -52,6 +53,7 @@ export function LeaveApplyForm({ onDone }: { onDone?: () => void } = {}) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           leaveType,
+          customLeaveType: leaveType === "OTHER" ? customLeaveType.trim() : undefined,
           fromDate,
           toDate: isHalfDay ? fromDate : toDate,
           isHalfDay,
@@ -90,6 +92,20 @@ export function LeaveApplyForm({ onDone }: { onDone?: () => void } = {}) {
             ))}
           </select>
         </div>
+
+        {leaveType === "OTHER" && (
+          <div className="flex flex-col gap-1.5">
+            <Label>Specify type</Label>
+            <Input
+              type="text"
+              value={customLeaveType}
+              onChange={(e) => setCustomLeaveType(e.target.value)}
+              placeholder="e.g. Bereavement, Study leave"
+              required
+              maxLength={60}
+            />
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
@@ -172,7 +188,7 @@ export function LeaveApplyForm({ onDone }: { onDone?: () => void } = {}) {
               Cancel
             </Link>
           )}
-          <Button type="submit" disabled={busy || totalDays === 0}>
+          <Button type="submit" disabled={busy || totalDays === 0 || (leaveType === "OTHER" && !customLeaveType.trim())}>
             {busy ? "Submitting…" : "Submit for Approval"}
           </Button>
         </div>

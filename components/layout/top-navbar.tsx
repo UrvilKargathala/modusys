@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Bell, ChevronDown, LogOut, UserPlus, Clock3, CheckCircle2, AtSign, KeyRound, AlertTriangle, FileText, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { navigationItems, administrationItems, attendanceItems, canSeeNav } from "@/lib/nav";
+import { AttendanceHealthDot } from "@/components/attendance/health-dot";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { GlobalSearch } from "@/components/layout/global-search";
 import {
@@ -126,6 +127,7 @@ export function TopNavbar() {
             )}
           >
             Attendance
+            {currentUser.role === "super-admin" && <AttendanceHealthDot />}
             <ChevronDown className="h-3.5 w-3.5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center" className="min-w-52">

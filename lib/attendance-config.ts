@@ -14,6 +14,7 @@ export const LEAVE_TYPES = [
   { value: "MATERNITY", label: "Maternity" },
   { value: "PATERNITY", label: "Paternity" },
   { value: "UNPAID", label: "Unpaid" },
+  { value: "OTHER", label: "Other" },
 ] as const;
 
 export type LeaveTypeValue = (typeof LEAVE_TYPES)[number]["value"];

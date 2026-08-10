@@ -71,6 +71,7 @@ const ACTION_LABELS: Record<string, string> = {
   UNIT_TYPE_UPDATED: "Updated unit types",
   UNIFI_SYNC_LOGS: "Synced UniFi door logs",
   UNIFI_SYNC_USERS: "Synced UniFi users",
+  UNIFI_WEBHOOK_RESET: "Reset UniFi webhook",
   MATERIAL_LIBRARY_ENTRY_CREATED: "Added material library entry",
   MATERIAL_LIBRARY_ENTRY_UPDATED: "Updated material library entry",
   MATERIAL_LIBRARY_ENTRY_DELETED: "Removed material library entry",
@@ -89,7 +90,7 @@ const ACTION_GROUPS = [
   { label: "Tasks", actions: ["TASK_CREATED", "TASK_UPDATED", "TASK_DELETED"] },
   { label: "Leaves", actions: ["LEAVE_REQUESTED", "LEAVE_APPROVED", "LEAVE_REJECTED", "LEAVE_CANCELLED"] },
   { label: "Templates / Pricing", actions: ["CABINET_TYPE_UPDATED", "UNIT_TYPE_UPDATED", "MATERIAL_LIBRARY_ENTRY_CREATED", "MATERIAL_LIBRARY_ENTRY_UPDATED", "MATERIAL_LIBRARY_ENTRY_DELETED", "PRICE_LIST_ENTRY_CREATED", "PRICE_LIST_ENTRY_UPDATED", "PRICE_LIST_ENTRY_DELETED", "QUOTE_TEMPLATE_SETTING_UPDATED"] },
-  { label: "Integrations", actions: ["UNIFI_SYNC_LOGS", "UNIFI_SYNC_USERS"] },
+  { label: "Integrations", actions: ["UNIFI_SYNC_LOGS", "UNIFI_SYNC_USERS", "UNIFI_WEBHOOK_RESET"] },
 ];
 
 const TARGET_ICONS: Record<string, typeof User> = {

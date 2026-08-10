@@ -71,9 +71,14 @@ export async function POST(req: NextRequest) {
     ? body.halfDayType
     : null;
   const reason = String(body?.reason || "").trim();
+  const customLeaveTypeRaw = typeof body?.customLeaveType === "string" ? body.customLeaveType.trim() : "";
+  const customLeaveType = leaveType === "OTHER" ? customLeaveTypeRaw || null : null;
 
   if (!LEAVE_TYPE_VALUES.includes(leaveType as LeaveTypeValue)) {
     return NextResponse.json({ error: "Invalid leave type" }, { status: 400 });
+  }
+  if (leaveType === "OTHER" && !customLeaveType) {
+    return NextResponse.json({ error: "Custom leave type label is required" }, { status: 400 });
   }
   if (!fromStr || !toStr) {
     return NextResponse.json({ error: "fromDate and toDate are required" }, { status: 400 });
@@ -123,6 +128,7 @@ export async function POST(req: NextRequest) {
     data: {
       employeeId: employee.id,
       leaveType,
+      customLeaveType,
       fromDate,
       toDate,
       totalDays,

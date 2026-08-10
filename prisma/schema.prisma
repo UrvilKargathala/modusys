@@ -376,6 +376,9 @@ model LeaveRequest {
   id            String    @id @default(cuid())
   employeeId    String
   leaveType     String
+  // Free-text label shown in the UI when leaveType is "OTHER". Null for the
+  // built-in categories.
+  customLeaveType String?
   fromDate      DateTime  @db.Date
   toDate        DateTime  @db.Date
   totalDays     Float

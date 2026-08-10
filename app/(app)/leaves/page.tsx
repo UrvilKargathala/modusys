@@ -102,7 +102,9 @@ export default async function LeavesPage({
                     {leaves.map((l) => (
                       <tr key={l.id} className="hover:bg-light-600/50">
                         <td className="px-6 py-3 text-sm font-body text-grey-800">
-                          {l.leaveType.charAt(0) + l.leaveType.slice(1).toLowerCase().replace("_", " ")}
+                          {l.leaveType === "OTHER" && l.customLeaveType
+                            ? l.customLeaveType
+                            : l.leaveType.charAt(0) + l.leaveType.slice(1).toLowerCase().replace("_", " ")}
                         </td>
                         <td className="px-6 py-3 text-sm font-number text-grey-700">{fmt(l.fromDate)}</td>
                         <td className="px-6 py-3 text-sm font-number text-grey-700">{fmt(l.toDate)}</td>
