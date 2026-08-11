@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useCurrentUser, useSessionResolved } from "@/lib/session";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,6 +27,11 @@ type SignUpValues = z.infer<typeof signUpSchema>;
 
 export default function SignUpPage() {
   const router = useRouter();
+  const currentUser = useCurrentUser();
+  const sessionResolved = useSessionResolved();
+  useEffect(() => {
+    if (sessionResolved && currentUser.id) router.replace("/dashboard");
+  }, [sessionResolved, currentUser.id, router]);
   const {
     register,
     handleSubmit,
@@ -42,7 +49,8 @@ export default function SignUpPage() {
 
   const onSubmit = async () => {
     await mockSignUp();
-    router.push("/dashboard");
+    // replace, not push — so Back doesn't return to the sign-up page.
+    router.replace("/dashboard");
   };
 
   return (

@@ -391,3 +391,14 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+/* iOS Safari zooms into any focused input whose computed font-size is
+   < 16px. Enforcing a 16px floor on the touch breakpoint kills the
+   zoom-on-focus without shrinking the text on desktop, where we still
+   want the compact sizes the design system uses. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

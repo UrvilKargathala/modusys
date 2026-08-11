@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCurrentUser, useSessionResolved } from "@/lib/session";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -22,6 +23,14 @@ type SignInValues = z.infer<typeof signInSchema>;
 export default function SignInPage() {
   const router = useRouter();
   const [forgotOpen, setForgotOpen] = useState(false);
+  // If a session already exists (e.g. the user hit /sign-in from a bookmark
+  // or via Back), skip straight to the app — matches the "already
+  // authenticated" guard the auth-flow spec calls for.
+  const currentUser = useCurrentUser();
+  const sessionResolved = useSessionResolved();
+  useEffect(() => {
+    if (sessionResolved && currentUser.id) router.replace("/dashboard");
+  }, [sessionResolved, currentUser.id, router]);
   const {
     register,
     handleSubmit,
@@ -44,7 +53,8 @@ export default function SignInPage() {
     }
     const { user } = await res.json();
     setSessionUser(user);
-    router.push("/dashboard");
+    // replace, not push — so Back doesn't return to the sign-in page.
+    router.replace("/dashboard");
   };
 
   return (
