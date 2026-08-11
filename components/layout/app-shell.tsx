@@ -13,7 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <AuthGuard>
       <div className="flex h-screen w-full flex-col bg-background">
         <TopNavbar />
-        <main className="flex-1 overflow-y-auto p-4 pb-20 lg:p-6 lg:pb-6">{children}</main>
+        <main className="flex-1 overflow-auto p-4 pb-20 lg:p-6 lg:pb-6">{children}</main>
         <Footer />
         <MobileBottomNav />
         <ToastViewport />

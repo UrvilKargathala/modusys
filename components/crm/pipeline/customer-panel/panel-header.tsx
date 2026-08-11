@@ -9,11 +9,11 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import {
-  pipelineStages,
   stageColorTokens,
   type PipelineStage,
   type PipelineStageKey,
 } from "@/lib/constants/pipelineStages";
+import { useEffectivePipelineStages } from "@/lib/store/custom-pipeline-stages-store";
 import { customersStore } from "@/lib/store/customers-store";
 import { customerMessagesStore } from "@/lib/store/customer-messages-store";
 import { toastStore } from "@/lib/store/toast-store";
@@ -39,12 +39,13 @@ export function PanelHeader({
   onDelete: () => void;
 }) {
   const colors = stageColorTokens[stage.color];
+  const effectiveStages = useEffectivePipelineStages();
 
   const changeStage = async (next: PipelineStageKey) => {
     if (next === stage.key) return;
     try {
       await customersStore.updateStage(customer.id, next);
-      const nextLabel = pipelineStages.find((s) => s.key === next)?.label ?? next;
+      const nextLabel = effectiveStages.find((s) => s.key === next)?.label ?? next;
       customerMessagesStore.addSystemEvent(customer.id, `Stage changed to ${nextLabel}`);
       toastStore.show(`Moved to ${nextLabel}`, "success");
     } catch {
@@ -74,7 +75,7 @@ export function PanelHeader({
               <ChevronDown className="h-3 w-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-52">
-              {pipelineStages.map((s) => {
+              {effectiveStages.map((s) => {
                 const dot = stageColorTokens[s.color].solid;
                 const active = s.key === stage.key;
                 return (

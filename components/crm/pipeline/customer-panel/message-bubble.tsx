@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, AlertCircle, RotateCcw, Play, Pause, MoreVertical, Copy, Pencil, Trash2, Check, X as XIcon } from "lucide-react";
+import { Clock, AlertCircle, RotateCcw, Play, Pause, MoreVertical, Copy, Pencil, Trash2, Check, X as XIcon, FileText } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { MessageText } from "@/components/crm/pipeline/customer-panel/message-text";
 import { customerMessagesStore, type CustomerMessage } from "@/lib/store/customer-messages-store";
@@ -189,6 +189,20 @@ export function MessageBubble({ message }: { message: CustomerMessage }) {
               {message.imageName && (
                 <span className="px-1 pb-1 text-[11px] font-body text-grey-500">{message.imageName}</span>
               )}
+            </div>
+          ) : message.kind === "pdf" ? (
+            <div className="flex items-center gap-2 rounded-md bg-white/40 px-2.5 py-1.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-error text-white">
+                <FileText className="h-4 w-4" />
+              </span>
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-sm font-body font-medium">{message.pdfName ?? "Document.pdf"}</span>
+                {typeof message.pdfSize === "number" && (
+                  <span className="text-[11px] font-body text-grey-500">
+                    PDF · {(message.pdfSize / 1024 / 1024).toFixed(2)} MB
+                  </span>
+                )}
+              </span>
             </div>
           ) : editing ? (
             <div className="flex items-center gap-1">

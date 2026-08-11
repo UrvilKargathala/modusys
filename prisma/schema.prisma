@@ -407,3 +407,19 @@ model UnifiSyncLog {
   recordsProcessed Int      @default(0)
   createdAt        DateTime @default(now())
 }
+
+// Super-admin-added pipeline stages. Baseline stages live in
+// lib/constants/pipelineStages.ts; rows in this table extend that list
+// with custom stages that appear as new Kanban columns and become
+// selectable in the customer stage picker. Baseline stages are NOT
+// mirrored here — the effective list is baseline + custom, ordered by
+// sortOrder within each half.
+model CustomPipelineStage {
+  key       String   @id
+  label     String
+  color     String   // key from stageColorTokens (grey, info, purple, primary, cyan, teal, orange, indigo, secondary, pink, warning, success, error)
+  sortOrder Int
+  retired   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

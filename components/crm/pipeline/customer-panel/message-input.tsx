@@ -58,23 +58,54 @@ export function MessageInput({ customerId }: { customerId: string }) {
     setMentionedIds([]);
   };
 
-  const handleAttach = (files: FileList | null) => {
+  // Canvas-downscale an image to max 1200px on the long edge, JPEG q=0.75.
+  // Keeps localStorage happy regardless of raw camera size (5-15MB → ~100KB).
+  const downscaleImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const MAX = 1200;
+          const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("canvas 2d unavailable"));
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.75));
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("image decode failed"));
+      };
+      img.src = url;
+    });
+  };
+
+  const handleAttach = async (files: FileList | null) => {
     if (!files) return;
-    const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
     for (const file of Array.from(files)) {
       customerMediaStore.addFile(customerId, file);
-      // Images render inline as a preview bubble. Reader converts to a data
-      // URL so it survives reload (blob: URLs don't). Anything larger than
-      // 3MB falls through to the generic "Shared a file" text.
-      if (file.type.startsWith("image/") && file.size <= MAX_IMAGE_BYTES) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const url = typeof reader.result === "string" ? reader.result : null;
-          if (url) customerMessagesStore.addImageMessage(customerId, CURRENT_USER_ID, url, file.name);
-        };
-        reader.readAsDataURL(file);
+      if (file.type.startsWith("image/")) {
+        // Inline preview bubble. Downscale first so persistence stays sane.
+        try {
+          const dataUrl = await downscaleImage(file);
+          customerMessagesStore.addImageMessage(customerId, CURRENT_USER_ID, dataUrl, file.name);
+        } catch {
+          customerMessagesStore.sendMessage(customerId, `📎 Shared a file: ${file.name}`, CURRENT_USER_ID, []);
+        }
+      } else if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
+        // PDF card — icon + name + size. Bytes stay in the gallery only
+        // (persisting the full PDF would blow localStorage).
+        customerMessagesStore.addPdfMessage(customerId, CURRENT_USER_ID, file.name, file.size);
       } else {
-        // Non-image (or oversize) — same lightweight text reference as before.
         customerMessagesStore.sendMessage(customerId, `📎 Shared a file: ${file.name}`, CURRENT_USER_ID, []);
       }
     }

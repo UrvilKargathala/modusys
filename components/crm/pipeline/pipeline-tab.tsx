@@ -14,6 +14,7 @@ import { formatPercent } from "@/lib/format";
 import { getCrmKpis } from "@/lib/mock/crm";
 import { type Customer } from "@/lib/mock/pipeline";
 import { pipelineStages, type PipelineStageKey } from "@/lib/constants/pipelineStages";
+import { useEffectivePipelineStages } from "@/lib/store/custom-pipeline-stages-store";
 import { customerMessagesStore } from "@/lib/store/customer-messages-store";
 import { useCustomers, customersStore } from "@/lib/store/customers-store";
 
@@ -31,6 +32,7 @@ function defaultRange() {
 }
 
 export function PipelineTab() {
+  const effectiveStages = useEffectivePipelineStages();
   const storeCustomers = useCustomers();
   const [customers, setCustomers] = useState<Customer[]>(storeCustomers);
   // Local state carries optimistic drag-move edits; resync whenever the

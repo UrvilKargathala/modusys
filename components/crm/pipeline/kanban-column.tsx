@@ -35,7 +35,16 @@ export function KanbanColumn({
         className
       )}
     >
-      <div className="flex items-center justify-between gap-2">
+      {/* Sticky header — pinned to <main>'s scroll while the column has
+          cards below it, detaches naturally once the column's own bottom
+          scrolls past. Negative margins + matching padding recreate the
+          column padding so the sticky bg fills edge-to-edge. */}
+      <div
+        className={cn(
+          "sticky top-0 z-10 -mx-3 -mt-3 flex items-center justify-between gap-2 px-3 pt-3 pb-2",
+          muted ? "bg-grey-transparent/60" : "bg-light-600"
+        )}
+      >
         <span
           className={cn(
             "flex min-w-0 items-center gap-1.5 truncate text-sm font-body font-semibold",
@@ -59,7 +68,7 @@ export function KanbanColumn({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto rounded-md p-1 transition-colors",
+          "flex min-h-24 flex-1 flex-col gap-2 rounded-md p-1 transition-colors",
           isOver && "bg-primary-transparent ring-2 ring-primary/40"
         )}
       >

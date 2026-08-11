@@ -16,10 +16,9 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { columnGroups } from "@/lib/constants/pipelineGroups";
-import { pipelineStages, type PipelineStageKey } from "@/lib/constants/pipelineStages";
+import { pipelineStages, type PipelineStage, type PipelineStageKey } from "@/lib/constants/pipelineStages";
+import { useCustomPipelineStages } from "@/lib/store/custom-pipeline-stages-store";
 import type { Customer } from "@/lib/mock/pipeline";
-
-const CLOSED_STAGES = new Set<PipelineStageKey>(["site-completed", "cancel-order"]);
 
 export function KanbanBoard({
   customers,
@@ -31,7 +30,6 @@ export function KanbanBoard({
   stageFilter: PipelineStageKey | "all";
 }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
-  const [showClosed, setShowClosed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingMove, setPendingMove] = useState<{
     customerId: string;
@@ -49,17 +47,35 @@ export function KanbanBoard({
     return map;
   }, [customers]);
 
+  // Super-admin-added custom stages appear as their own trailing column
+  // group. Baseline stages keep their existing clustered layout.
+  const customStages = useCustomPipelineStages();
+  const customGroup = useMemo<PipelineStage[]>(
+    () =>
+      customStages
+        .filter((s) => !s.retired)
+        // Custom stage keys are runtime strings; cast to satisfy the
+        // hardcoded-union PipelineStage type until v2 widens it.
+        .map((s) => ({ key: s.key as PipelineStageKey, label: s.label, color: s.color as PipelineStage["color"] })),
+    [customStages]
+  );
+
   // A stage filter overrides clustering entirely — the user asked to see
   // only that one stage, not the cluster it happens to belong to.
   const filteredStage =
-    stageFilter !== "all" ? pipelineStages.find((s) => s.key === stageFilter) : null;
+    stageFilter !== "all"
+      ? pipelineStages.find((s) => s.key === stageFilter)
+        ?? customGroup.find((s) => s.key === stageFilter)
+      : null;
 
+  // All stages always visible — the "Show closed stages" checkbox used to
+  // hide Site Completed / Cancel Order, but the team wants the full board
+  // by default so no lead ever disappears.
   const visibleGroups = filteredStage
     ? []
-    : columnGroups.filter((group) => {
-        if (showClosed) return true;
-        return !group.stages.every((s) => CLOSED_STAGES.has(s.key));
-      });
+    : customGroup.length > 0
+      ? [...columnGroups, { key: "custom", stages: customGroup }]
+      : columnGroups;
 
   const handleDragStart = (event: DragStartEvent) => {
     const customer = customers.find((c) => c.id === String(event.active.id));
@@ -99,27 +115,20 @@ export function KanbanBoard({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2 text-sm font-body text-grey-500">
-          <input
-            type="checkbox"
-            checked={showClosed}
-            onChange={(e) => setShowClosed(e.target.checked)}
-            className="h-3.5 w-3.5 accent-primary"
-          />
-          Show closed stages
-        </label>
-
-        {error && (
+      {error && (
+        <div className="flex justify-end">
           <span className="flex items-center gap-1.5 rounded-md bg-error-transparent px-2.5 py-1 text-xs font-body text-error">
             <AlertCircle className="h-3.5 w-3.5" />
             {error}
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       <DndContext id="pipeline-kanban" sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        {/* Single flow — no wrapper overflow. Horizontal + vertical scroll
+            both live on <main>, so sticky column headers bind to main and
+            stay pinned as the whole page scrolls. */}
+        <div className="flex gap-3 pb-2">
           {filteredStage && (
             <KanbanColumn
               stage={filteredStage}

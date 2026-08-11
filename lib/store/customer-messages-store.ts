@@ -6,16 +6,22 @@ import { SEEDED_CUSTOMER_IDS } from "@/lib/mock/customer-detail";
 export type CustomerMessage = {
   id: string;
   customerId: string;
-  kind: "chat" | "system" | "voice" | "image";
+  kind: "chat" | "system" | "voice" | "image" | "pdf";
   senderId: string | null; // null for system events
   text?: string;
   mentionedUserIds?: string[];
   audioUrl?: string;
   durationSec?: number;
-  // image messages: data URL is used (not blob:) so previews survive reload,
-  // capped at 3MB in message-input to keep localStorage happy.
+  // image messages: canvas-downscaled to max 1200px + JPEG 0.75 before
+  // being stored as a data URL, so persistence survives reload without
+  // blowing the localStorage quota.
   imageUrl?: string;
   imageName?: string;
+  // pdf messages: only the metadata is persisted (bytes would exceed the
+  // localStorage quota on any real PDF). The gallery keeps the actual blob
+  // for that session.
+  pdfName?: string;
+  pdfSize?: number;
   editedAt?: string;
   deletedAt?: string;
   createdAt: string;
@@ -184,6 +190,24 @@ export const customerMessagesStore = {
         senderId,
         imageUrl: dataUrl,
         imageName: name,
+        createdAt: new Date().toISOString(),
+        status: "sent",
+      },
+    ];
+    persist();
+    emit();
+  },
+  addPdfMessage(customerId: string, senderId: string, name: string, size: number) {
+    ensureHydrated();
+    messages = [
+      ...messages,
+      {
+        id: `pdf-${Date.now()}`,
+        customerId,
+        kind: "pdf",
+        senderId,
+        pdfName: name,
+        pdfSize: size,
         createdAt: new Date().toISOString(),
         status: "sent",
       },

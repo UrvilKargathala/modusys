@@ -12,7 +12,7 @@ import { useOpenCustomerId, usePanelShowActivity, customerPanelStore } from "@/l
 import { useCustomers, customersStore } from "@/lib/store/customers-store";
 import { profileOverridesStore, useProfileOverride } from "@/lib/store/customer-profile-overrides-store";
 import { getCustomerProfile } from "@/lib/mock/customer-detail";
-import { pipelineStages } from "@/lib/constants/pipelineStages";
+import { useEffectivePipelineStages } from "@/lib/store/custom-pipeline-stages-store";
 import { getCurrentUser, CURRENT_USER_ID } from "@/lib/session";
 import { toastStore } from "@/lib/store/toast-store";
 
@@ -38,7 +38,11 @@ export function CustomerPanel() {
 
   const currentUser = getCurrentUser();
   const canEdit = currentUser.role === "super-admin" || currentUser.role === "admin";
-  const canDelete = currentUser.role === "super-admin";
+  // Delete icon shows for everyone — the actual delete is gated inside
+  // openDelete(). Non-super-admin taps get a toast telling them they
+  // can't delete.
+  const canDelete = true;
+  const deleteAllowed = currentUser.role === "super-admin";
 
   // Brief simulated fetch so the skeleton state is real, not just designed —
   // real data is synchronous mock today but this is where a real API call
@@ -55,8 +59,9 @@ export function CustomerPanel() {
   }, [customerId]);
 
   const customers = useCustomers();
+  const effectiveStages = useEffectivePipelineStages();
   const customer = customerId ? customers.find((c) => c.id === customerId) : undefined;
-  const stage = customer ? pipelineStages.find((s) => s.key === customer.stage) : undefined;
+  const stage = customer ? effectiveStages.find((s) => s.key === customer.stage) : undefined;
   const override = useProfileOverride(customerId ?? "");
   const profile = customer ? getCustomerProfile(customer) : undefined;
 
@@ -96,7 +101,13 @@ export function CustomerPanel() {
                 canEdit={canEdit}
                 canDelete={canDelete}
                 onEdit={() => setEditOpen(true)}
-                onDelete={() => setDeleteOpen(true)}
+                onDelete={() => {
+                  if (!deleteAllowed) {
+                    toastStore.show("Only Super Admin can delete customers", "error");
+                    return;
+                  }
+                  setDeleteOpen(true);
+                }}
               />
               <DetailsMediaSection
                 customer={customer}

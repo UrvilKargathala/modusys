@@ -1,12 +1,18 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Settings, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PipelineTab } from "@/components/crm/pipeline/pipeline-tab";
 import { TasksTab } from "@/components/crm/tasks/tasks-tab";
+import { CustomerFormDialog } from "@/components/customers/customer-form-dialog";
+import { customersStore } from "@/lib/store/customers-store";
+import { profileOverridesStore } from "@/lib/store/customer-profile-overrides-store";
+import { CURRENT_USER_ID } from "@/lib/session";
+import { toastStore } from "@/lib/store/toast-store";
 
 const tabLabels: Record<string, string> = {
   tickets: "Tickets",
@@ -18,6 +24,7 @@ function CrmPageContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab") ?? "tickets";
+  const [addOpen, setAddOpen] = useState(false);
 
   const setTab = (value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -45,11 +52,11 @@ function CrmPageContent() {
         </div>
         {/* Notification bell already lives in the Topbar — not rebuilt here. */}
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Link href="/admin/pipeline-stages" className={buttonVariants({ variant: "outline", size: "sm" })}>
             <Settings className="h-4 w-4" />
             Settings
-          </Button>
-          <Button size="sm">
+          </Link>
+          <Button size="sm" onClick={() => setAddOpen(true)}>
             <Plus className="h-4 w-4" />
             New Customer
           </Button>
@@ -70,6 +77,34 @@ function CrmPageContent() {
           <TasksTab />
         </TabsContent>
       </Tabs>
+
+      <CustomerFormDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onSubmit={async (values) => {
+          const created = await customersStore.createCustomer({
+            prefix: values.prefix,
+            firstName: values.firstName,
+            lastName: values.lastName,
+            customerCode: values.customerCode,
+            mobile: values.mobile,
+            email: values.email,
+            gst: values.gst,
+            address: values.address,
+            city: values.city,
+            state: values.state,
+            postcode: values.postcode,
+            birthdayMonth: values.birthdayMonth,
+            birthdayDay: values.birthdayDay,
+            birthdayYear: values.birthdayYear,
+            createdById: CURRENT_USER_ID,
+          });
+          if (created?.id && values.architectId) {
+            profileOverridesStore.setFields(created.id, { architectId: values.architectId });
+          }
+          toastStore.show(`${values.firstName} ${values.lastName} added`, "success");
+        }}
+      />
     </div>
   );
 }

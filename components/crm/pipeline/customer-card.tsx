@@ -9,6 +9,16 @@ import { stageCompletionStore, useIsStageDone } from "@/lib/store/stage-completi
 import { toastStore } from "@/lib/store/toast-store";
 import type { Customer } from "@/lib/mock/pipeline";
 
+// Split any string so runs of digits (with optional commas, dots, slashes,
+// hyphens between them) get rendered in .font-number (Outfit), while
+// alphabetic runs stay in the parent's font (Raleway). Handles the "45,
+// mahtma gandhi society" case where numbers are inline with letters.
+function withNumberFont(text: string) {
+  return text.split(/(\d[\d,./\-:]*)/g).map((chunk, i) =>
+    /\d/.test(chunk) ? <span key={i} className="font-number">{chunk}</span> : chunk
+  );
+}
+
 export function CustomerCard({
   customer,
   stageColor,
@@ -42,7 +52,10 @@ export function CustomerCard({
         transform: !overlay && transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
       }}
       className={cn(
-        "group relative flex cursor-grab touch-none flex-col gap-1.5 rounded-lg border border-grey-100 bg-card py-2.5 pl-3 pr-2 text-left shadow-sm transition-shadow active:cursor-grabbing",
+        // Kanban card renders numbers in Outfit Regular (400) — the app's
+        // global --font-number token is Outfit Light (300), so we bump the
+        // weight per-descendant with an arbitrary variant.
+        "group relative flex cursor-grab touch-none flex-col gap-1.5 rounded-lg border border-grey-100 bg-card py-2.5 pl-3 pr-2 text-left shadow-sm transition-shadow active:cursor-grabbing [&_.font-number]:font-normal",
         isDragging && !overlay && "z-10 opacity-60 shadow-lg",
         overlay && "w-72 rotate-2 cursor-grabbing shadow-xl",
         muted && "opacity-60"
@@ -61,7 +74,7 @@ export function CustomerCard({
           )}
           style={{ color: muted ? undefined : colors.solid }}
         >
-          {customer.name}
+          {withNumberFont(customer.name)}
         </span>
         <GripVertical
           aria-hidden="true"
@@ -91,7 +104,7 @@ export function CustomerCard({
 
       <span className="flex items-center gap-1 text-xs font-body text-grey-400">
         <MapPin className="h-3 w-3 shrink-0" />
-        {customer.address}
+        <span>{withNumberFont(customer.address)}</span>
       </span>
 
       {customer.finalOfferLakh !== null && (

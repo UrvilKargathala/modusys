@@ -17,7 +17,7 @@ const ralewayLight = localFont({
 
 const outfitLight = Outfit({
   variable: "--font-number",
-  weight: "300",
+  weight: ["300", "400"],
   subsets: ["latin"],
 });
 
