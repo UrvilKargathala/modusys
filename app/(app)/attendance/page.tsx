@@ -6,9 +6,32 @@ import { istMidnight } from "@/lib/attendance-config";
 import { SyncButtons } from "@/components/attendance/sync-buttons";
 import { AutoRefresh } from "@/components/attendance/auto-refresh";
 import { AttendanceHealthBanner } from "@/components/attendance/health-banner";
+import { AdminPhotoThumb } from "@/components/attendance/admin-photo-thumb";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Download, MapPin } from "lucide-react";
+
+// Unified row across both AttendanceRecord (unifi/gps) and
+// PhotoAttendanceRecord (photo). Only one row per record — a photo check-in
+// and a gps/unifi check-in on the same day render as two rows because they
+// are two independent systems.
+type Row = {
+  id: string;
+  source: "unifi" | "gps" | "photo";
+  employee: { id: string; name: string; department: string | null };
+  checkIn: Date;
+  checkOut: Date | null;
+  doorName: string | null;
+  checkInLat: number | null;
+  checkInLng: number | null;
+  checkInAddress: string | null;
+  credentialType: string | null;
+  note: string | null;
+  // Only set on photo rows — used to render thumbnails via the broker.
+  photoRecordId: string | null;
+  checkInPhotoUrl: string | null;
+  checkOutPhotoUrl: string | null;
+};
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +49,10 @@ export default async function AttendancePage({
   const { date: dateParam, source: sourceParam, page: pageParam } = await searchParams;
   const date = istMidnight(dateParam ?? new Date());
 
-  const sourceFilter = sourceParam === "gps" || sourceParam === "unifi" ? sourceParam : null;
+  const sourceFilter =
+    sourceParam === "gps" || sourceParam === "unifi" || sourceParam === "photo"
+      ? sourceParam
+      : null;
   const pageIdx = Math.max(0, Number(pageParam) - 1 || 0);
 
   const approvedLeaves = await prisma.leaveRequest.findMany({
@@ -39,31 +65,88 @@ export default async function AttendancePage({
   });
   const onLeaveByEmployee = new Map(approvedLeaves.map((l) => [l.employeeId, l.leaveType]));
 
-  const records = await prisma.attendanceRecord.findMany({
-    where: {
-      date,
-      ...(sourceFilter ? { checkInSource: sourceFilter } : {}),
-    },
-    include: {
-      employee: {
-        select: { id: true, name: true, department: true, designation: true },
+  // Fetch both tables in parallel — filter by source at merge time.
+  const [attRecords, photoRecords] = await Promise.all([
+    prisma.attendanceRecord.findMany({
+      where: { date },
+      include: {
+        employee: {
+          select: { id: true, name: true, department: true, designation: true },
+        },
       },
-    },
-    orderBy: { checkIn: "desc" },
-  });
+      orderBy: { checkIn: "desc" },
+    }),
+    prisma.photoAttendanceRecord.findMany({
+      where: { date },
+      orderBy: { checkIn: "desc" },
+    }),
+  ]);
+
+  // PhotoAttendanceRecord has no schema-level Employee relation — hydrate
+  // employee data with one extra query keyed on the ids we saw.
+  const photoEmployeeIds = Array.from(new Set(photoRecords.map((r) => r.employeeId)));
+  const photoEmployees = photoEmployeeIds.length
+    ? await prisma.employee.findMany({
+        where: { id: { in: photoEmployeeIds } },
+        select: { id: true, name: true, department: true },
+      })
+    : [];
+  const photoEmpById = new Map(photoEmployees.map((e) => [e.id, e]));
+
+  const allRows: Row[] = [
+    ...attRecords.map((r): Row => ({
+      id: r.id,
+      source: r.checkInSource === "gps" ? "gps" : "unifi",
+      employee: r.employee,
+      checkIn: r.checkIn,
+      checkOut: r.checkOut,
+      doorName: r.doorName,
+      checkInLat: r.checkInLat,
+      checkInLng: r.checkInLng,
+      checkInAddress: r.checkInAddress,
+      credentialType: r.credentialType,
+      note: r.checkInNote || r.checkOutNote,
+      photoRecordId: null,
+      checkInPhotoUrl: null,
+      checkOutPhotoUrl: null,
+    })),
+    ...photoRecords.map((r): Row => ({
+      id: `photo:${r.id}`,
+      source: "photo",
+      employee: photoEmpById.get(r.employeeId) ?? { id: r.employeeId, name: "Unknown", department: null },
+      checkIn: r.checkIn,
+      checkOut: r.checkOut,
+      doorName: null,
+      checkInLat: null,
+      checkInLng: null,
+      checkInAddress: null,
+      credentialType: null,
+      note: r.checkInNote || r.checkOutNote,
+      photoRecordId: r.id,
+      checkInPhotoUrl: r.checkInPhotoUrl,
+      checkOutPhotoUrl: r.checkOutPhotoUrl,
+    })),
+  ].sort((a, b) => b.checkIn.getTime() - a.checkIn.getTime());
+
+  // Filter for the displayed rows, but keep allRows for the Present count so
+  // the KPI reflects everyone present regardless of the active filter.
+  const rows = sourceFilter ? allRows.filter((r) => r.source === sourceFilter) : allRows;
 
   const totalEmployees = await prisma.employee.count({ where: { isActive: true } });
-  const present = records.length;
-  const pageCount = Math.max(1, Math.ceil(present / PAGE_SIZE));
+  // Present = distinct employees with ANY attendance today (unifi/gps/photo).
+  const presentEmployeeIds = new Set(allRows.map((r) => r.employee.id));
+  const present = presentEmployeeIds.size;
+  const totalRows = rows.length;
+  const pageCount = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
   const safePageIdx = Math.min(pageIdx, pageCount - 1);
-  const pagedRecords = records.slice(safePageIdx * PAGE_SIZE, (safePageIdx + 1) * PAGE_SIZE);
-  const presentEmployeeIds = new Set(records.map((r) => r.employeeId));
+  const pagedRecords = rows.slice(safePageIdx * PAGE_SIZE, (safePageIdx + 1) * PAGE_SIZE);
   const onLeaveCount = Array.from(onLeaveByEmployee.keys()).filter(
     (id) => !presentEmployeeIds.has(id)
   ).length;
   const absent = Math.max(0, totalEmployees - present - onLeaveCount);
-  const checkedOut = records.filter((r) => r.checkOut).length;
-  const stillIn = present - checkedOut;
+  // Still-in per row (a photo check-in with no check-out is still counted).
+  const checkedOutRows = allRows.filter((r) => r.checkOut).length;
+  const stillIn = allRows.length - checkedOutRows;
 
   const prevDate = new Date(date);
   prevDate.setDate(prevDate.getDate() - 1);
@@ -81,7 +164,7 @@ export default async function AttendancePage({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-grey-900">Attendance</h1>
-          <p className="text-sm font-body text-grey-500">UniFi Access door-based attendance tracking</p>
+          <p className="text-sm font-body text-grey-500">Face scan · GPS · Selfie — all attendance sources</p>
         </div>
         <SyncButtons />
       </div>
@@ -150,9 +233,10 @@ export default async function AttendancePage({
           <h2 className="font-heading text-base font-semibold text-grey-900">Attendance Log</h2>
           <div className="flex items-center gap-3">
             <div className="flex items-center rounded-md border border-grey-200 text-xs font-body">
-              {(["all", "unifi", "gps"] as const).map((s) => {
+              {(["all", "unifi", "gps", "photo"] as const).map((s) => {
                 const active = (sourceFilter ?? "all") === s;
-                const label = s === "all" ? "All" : s === "unifi" ? "Face Scan" : "GPS";
+                const label =
+                  s === "all" ? "All" : s === "unifi" ? "Face Scan" : s === "gps" ? "GPS" : "Selfie";
                 const href = `/attendance?date=${dateStr}${s === "all" ? "" : `&source=${s}`}`;
                 return (
                   <a
@@ -175,7 +259,7 @@ export default async function AttendancePage({
           </div>
         </div>
 
-        {records.length === 0 ? (
+        {totalRows === 0 ? (
           <div className="px-6 py-12 text-center font-body text-grey-400">
             No attendance records for this day
           </div>
@@ -189,6 +273,7 @@ export default async function AttendancePage({
                   <th className="px-6 py-3">Check Out</th>
                   <th className="px-6 py-3">Working Hours</th>
                   <th className="px-6 py-3">Source</th>
+                  <th className="px-6 py-3">Photo</th>
                   <th className="px-6 py-3">Door / Location</th>
                   <th className="px-6 py-3">Credential</th>
                   <th className="px-6 py-3">Status</th>
@@ -196,8 +281,18 @@ export default async function AttendancePage({
               </thead>
               <tbody className="divide-y divide-grey-100">
                 {pagedRecords.map((record) => {
-                  const isGps = record.checkInSource === "gps";
-                  const note = record.checkInNote || record.checkOutNote;
+                  const sourceLabel =
+                    record.source === "gps"
+                      ? "GPS"
+                      : record.source === "photo"
+                      ? "Selfie"
+                      : "Face Scan";
+                  const sourceClass =
+                    record.source === "gps"
+                      ? "bg-primary-transparent text-primary border-primary/30"
+                      : record.source === "photo"
+                      ? "bg-info-transparent text-info border-info/30"
+                      : "bg-grey-50 text-grey-700";
                   return (
                   <tr key={record.id} className="hover:bg-light-600/50">
                     <td className="px-6 py-4">
@@ -220,15 +315,36 @@ export default async function AttendancePage({
                       {getWorkingHours(record.checkIn, record.checkOut)}
                     </td>
                     <td className="px-6 py-4">
-                      <Badge
-                        variant="outline"
-                        className={`text-xs ${isGps ? "bg-primary-transparent text-primary border-primary/30" : "bg-grey-50 text-grey-700"}`}
-                      >
-                        {isGps ? "GPS" : "Face Scan"}
+                      <Badge variant="outline" className={`text-xs ${sourceClass}`}>
+                        {sourceLabel}
                       </Badge>
                     </td>
+                    <td className="px-6 py-4">
+                      {record.photoRecordId ? (
+                        <div className="flex items-center gap-2">
+                          {record.checkInPhotoUrl && (
+                            <AdminPhotoThumb
+                              recordId={record.photoRecordId}
+                              side="checkIn"
+                              title="Check in"
+                            />
+                          )}
+                          {record.checkOutPhotoUrl && (
+                            <AdminPhotoThumb
+                              recordId={record.photoRecordId}
+                              side="checkOut"
+                              title="Check out"
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs font-body text-grey-300">-</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-sm font-body text-grey-600">
-                      {isGps && record.checkInLat != null && record.checkInLng != null ? (
+                      {record.source === "photo" ? (
+                        <span className="text-xs font-body text-grey-300">-</span>
+                      ) : record.source === "gps" && record.checkInLat != null && record.checkInLng != null ? (
                         <div className="flex flex-col gap-1">
                           <a
                             href={`https://www.google.com/maps?q=${record.checkInLat},${record.checkInLng}`}
@@ -242,9 +358,9 @@ export default async function AttendancePage({
                               ? record.checkInAddress.split(",").slice(0, 2).join(",")
                               : `${record.checkInLat.toFixed(4)}, ${record.checkInLng.toFixed(4)}`}
                           </a>
-                          {note && (
-                            <span className="text-xs italic text-grey-500" title={note}>
-                              "{note.length > 40 ? note.slice(0, 40) + "…" : note}"
+                          {record.note && (
+                            <span className="text-xs italic text-grey-500" title={record.note}>
+                              "{record.note.length > 40 ? record.note.slice(0, 40) + "…" : record.note}"
                             </span>
                           )}
                         </div>
@@ -278,7 +394,7 @@ export default async function AttendancePage({
         {pageCount > 1 && (
           <div className="flex items-center justify-between gap-3 border-t border-grey-100 px-6 py-3">
             <span className="text-xs font-number text-grey-500">
-              {safePageIdx * PAGE_SIZE + 1}–{Math.min((safePageIdx + 1) * PAGE_SIZE, present)} of {present}
+              {safePageIdx * PAGE_SIZE + 1}–{Math.min((safePageIdx + 1) * PAGE_SIZE, totalRows)} of {totalRows}
             </span>
             <div className="flex items-center gap-1">
               {Array.from({ length: pageCount }, (_, i) => {
