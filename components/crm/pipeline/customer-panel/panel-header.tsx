@@ -1,8 +1,22 @@
 "use client";
 
-import { Phone, Mail, Pencil, Trash2, X } from "lucide-react";
+import { Phone, Mail, Pencil, Trash2, X, ChevronDown } from "lucide-react";
 import { SheetClose } from "@/components/ui/sheet";
-import { stageColorTokens, type PipelineStage } from "@/lib/constants/pipelineStages";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import {
+  pipelineStages,
+  stageColorTokens,
+  type PipelineStage,
+  type PipelineStageKey,
+} from "@/lib/constants/pipelineStages";
+import { customersStore } from "@/lib/store/customers-store";
+import { customerMessagesStore } from "@/lib/store/customer-messages-store";
+import { toastStore } from "@/lib/store/toast-store";
 import type { Customer } from "@/lib/mock/pipeline";
 
 export function PanelHeader({
@@ -26,6 +40,18 @@ export function PanelHeader({
 }) {
   const colors = stageColorTokens[stage.color];
 
+  const changeStage = async (next: PipelineStageKey) => {
+    if (next === stage.key) return;
+    try {
+      await customersStore.updateStage(customer.id, next);
+      const nextLabel = pipelineStages.find((s) => s.key === next)?.label ?? next;
+      customerMessagesStore.addSystemEvent(customer.id, `Stage changed to ${nextLabel}`);
+      toastStore.show(`Moved to ${nextLabel}`, "success");
+    } catch {
+      toastStore.show("Could not change stage", "error");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3 border-b border-grey-100 px-5 py-4">
       <div className="flex items-start justify-between gap-3">
@@ -37,13 +63,36 @@ export function PanelHeader({
           >
             {displayName ?? customer.name}
           </button>
-          <span
-            className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-body font-semibold"
-            style={{ backgroundColor: colors.light, color: colors.solid }}
-          >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: colors.solid }} />
-            {stage.label}
-          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Change stage"
+              className="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-body font-semibold hover:opacity-90"
+              style={{ backgroundColor: colors.light, color: colors.solid }}
+            >
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: colors.solid }} />
+              {stage.label}
+              <ChevronDown className="h-3 w-3" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-52">
+              {pipelineStages.map((s) => {
+                const dot = stageColorTokens[s.color].solid;
+                const active = s.key === stage.key;
+                return (
+                  <DropdownMenuItem
+                    key={s.key}
+                    onClick={() => changeStage(s.key)}
+                    className="flex items-center gap-2 px-2.5 py-2 text-sm"
+                  >
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dot }} />
+                    <span className={active ? "font-semibold text-grey-900" : "text-grey-700"}>
+                      {s.label}
+                    </span>
+                    {active && <span className="ml-auto text-xs text-grey-400">Current</span>}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="flex items-center gap-1">

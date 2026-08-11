@@ -54,26 +54,6 @@ export function CustomerCard({
       />
 
       <div className="flex items-start gap-2">
-        {/* Stop propagation so the click doesn't open the customer panel or
-            steal the drag intent. Neutralises dnd-kit's pointerdown too. */}
-        <button
-          type="button"
-          role="checkbox"
-          aria-checked={done}
-          aria-label={done ? "Mark stage pending" : "Mark stage complete"}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            stageCompletionStore.toggle(customer.id, customer.stage);
-            toastStore.show(done ? "Marked pending" : "Marked complete", "success");
-          }}
-          className={cn(
-            "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
-            done ? "border-emerald-600 bg-emerald-600 text-white" : "border-grey-300 bg-card hover:border-primary"
-          )}
-        >
-          {done && <Check className="h-3 w-3" strokeWidth={3} />}
-        </button>
         <span
           className={cn(
             "flex-1 text-sm font-body font-medium",
@@ -87,6 +67,26 @@ export function CustomerCard({
           aria-hidden="true"
           className="h-3.5 w-3.5 shrink-0 text-grey-300 opacity-0 transition-opacity group-hover:opacity-100"
         />
+        {/* Right-side stage-completion tick. Stop propagation so the click
+            doesn't open the panel or trigger dnd-kit's drag intent. */}
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={done}
+          aria-label={done ? "Mark stage pending" : "Mark stage complete"}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            stageCompletionStore.toggle(customer.id, customer.stage);
+            toastStore.show(done ? "Marked pending" : "Marked complete", "success");
+          }}
+          className={cn(
+            "mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border transition-colors",
+            done ? "border-emerald-600 bg-emerald-600 text-white" : "border-grey-300 bg-card hover:border-primary"
+          )}
+        >
+          {done && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
+        </button>
       </div>
 
       <span className="flex items-center gap-1 text-xs font-body text-grey-400">
