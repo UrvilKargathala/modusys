@@ -356,8 +356,17 @@ model AttendanceRecord {
   checkOutAddress  String?
   checkInNote      String?
   checkOutNote     String?
+  // source values: "unifi" (face scan) | "gps"
   checkInSource    String    @default("unifi")
   checkOutSource   String?
+  // (Photo columns still present from earlier migration but no longer used —
+  // Photo Attendance now lives in its own PhotoAttendanceRecord table so the
+  // two systems don't share state or unique constraints. Safe to drop in a
+  // later cleanup migration.)
+  checkInPhotoUrl      String?
+  checkOutPhotoUrl     String?
+  checkInPhotoConsent  Boolean  @default(false)
+  checkOutPhotoConsent Boolean  @default(false)
   // IANA timezone the record was captured in — Modusys is India, so this is
   // "Asia/Kolkata" today. Stored per-row so future international expansion
   // renders each row in the correct local time.
@@ -422,4 +431,29 @@ model CustomPipelineStage {
   retired   Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Photo Attendance — independent from AttendanceRecord (which handles
+// UniFi face scan + remote GPS). Same "one row per employee per IST day"
+// key, but its own table so both systems can coexist for the same day
+// without stepping on the shared @@unique constraint.
+model PhotoAttendanceRecord {
+  id                   String    @id @default(cuid())
+  employeeId           String
+  date                 DateTime  @db.Date
+  checkIn              DateTime
+  checkOut             DateTime?
+  checkInPhotoUrl      String
+  checkOutPhotoUrl     String?
+  checkInPhotoConsent  Boolean   @default(true)
+  checkOutPhotoConsent Boolean   @default(false)
+  checkInNote          String?
+  checkOutNote         String?
+  timezone             String    @default("Asia/Kolkata")
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@unique([employeeId, date])
+  @@index([date])
+  @@index([employeeId])
 }

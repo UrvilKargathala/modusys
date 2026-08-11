@@ -15,6 +15,7 @@ import {
   BarChart3,
   CheckSquare,
   Link2,
+  Camera,
   type LucideIcon,
 } from "lucide-react";
 
@@ -50,6 +51,7 @@ export const navigationItems: NavItem[] = [
 // pages stay super-admin only.
 export const attendanceItems: NavItem[] = [
   { label: "My Attendance", href: "/my-attendance", icon: Clock },
+  { label: "Photo Attendance", href: "/photo-attendance", icon: Camera },
   { label: "My Leaves", href: "/leaves", icon: CalendarOff },
   { label: "Attendance", href: "/attendance", icon: ScanLine, roles: SUPER },
   { label: "Reports", href: "/attendance/reports", icon: BarChart3 },
