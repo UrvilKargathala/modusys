@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ChevronDown, LogOut, UserPlus, Clock3, CheckCircle2, AtSign, KeyRound, AlertTriangle, FileText, UserRound } from "lucide-react";
+import { Bell, ChevronDown, LogOut, UserPlus, Clock3, CheckCircle2, AtSign, KeyRound, AlertTriangle, FileText, UserRound, Download } from "lucide-react";
+import { pwaInstallStore, usePwaInstall, isStandalone } from "@/lib/store/pwa-install-store";
 import { cn } from "@/lib/utils";
 import { navigationItems, administrationItems, attendanceItems, canSeeNav } from "@/lib/nav";
 import { AttendanceHealthDot } from "@/components/attendance/health-dot";
@@ -58,6 +59,7 @@ export function TopNavbar() {
   const router = useRouter();
   const currentUser = useCurrentUser();
   const roleLabel = currentUser.role === "no-role" ? "" : getRole(currentUser.role)?.label ?? currentUser.role;
+  const { variant: pwaVariant } = usePwaInstall();
 
   const handleSignOut = async () => {
     await signOut();
@@ -280,6 +282,15 @@ export function TopNavbar() {
                 {currentUser.name || "Not signed in"}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {pwaVariant && !isStandalone() && (
+                <DropdownMenuItem
+                  onClick={() => pwaInstallStore.show()}
+                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                >
+                  <Download className="h-4 w-4 shrink-0 text-grey-400" />
+                  Install App
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 render={<Link href="/account/change-password" />}
                 className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
