@@ -55,7 +55,13 @@ export function CustomerCard({
         // Kanban card renders numbers in Outfit Regular (400) — the app's
         // global --font-number token is Outfit Light (300), so we bump the
         // weight per-descendant with an arbitrary variant.
-        "group relative flex cursor-grab touch-none flex-col gap-1.5 rounded-lg border border-grey-100 bg-card py-2.5 pl-3 pr-2 text-left shadow-sm transition-shadow active:cursor-grabbing [&_.font-number]:font-normal",
+        // touch-pan-y (not touch-none) — a card only ever moves to a
+        // DIFFERENT column (horizontal/diagonal gesture), never reordered
+        // vertically within its own column, so letting the browser's native
+        // vertical pan win by default is exactly right — touch-none blocked
+        // ALL touch gestures the instant a finger touched a card, including
+        // the vertical swipe needed to scroll the column's card list.
+        "group relative flex cursor-grab touch-pan-y flex-col gap-1.5 rounded-lg border border-grey-100 bg-card py-2.5 pl-3 pr-2 text-left shadow-sm transition-shadow active:cursor-grabbing [&_.font-number]:font-normal",
         isDragging && !overlay && "z-10 opacity-60 shadow-lg",
         overlay && "w-72 rotate-2 cursor-grabbing shadow-xl",
         muted && "opacity-60"
