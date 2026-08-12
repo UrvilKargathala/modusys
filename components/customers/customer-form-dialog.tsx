@@ -85,23 +85,27 @@ function emptyValues(): CustomerFormValues {
   };
 }
 
+// `profile` already carries the real DB-backed fields (see
+// getCustomerProfile) — override only still supplies architectId, which has
+// no Customer column yet. Spreading override wholesale here used to let a
+// stale pre-migration localStorage entry shadow the real, correct profile
+// value indefinitely.
 function prefillValues(customer: Customer, profile: CustomerProfile, override: ProfileOverride): CustomerFormValues {
-  const merged = { ...profile, ...override };
   return {
     prefix: customer.prefix ?? "",
     firstName: customer.firstName || customer.name,
     lastName: customer.lastName ?? "",
-    mobile: merged.phone,
-    email: merged.email,
-    gst: merged.gst,
-    address: merged.area,
-    city: merged.city,
-    state: merged.state,
-    postcode: merged.postcode,
-    birthdayMonth: merged.birthdayMonth,
-    birthdayDay: merged.birthdayDay,
+    mobile: profile.phone,
+    email: profile.email,
+    gst: profile.gst,
+    address: profile.area,
+    city: profile.city,
+    state: profile.state,
+    postcode: profile.postcode,
+    birthdayMonth: profile.birthdayMonth,
+    birthdayDay: profile.birthdayDay,
     birthdayYear: customer.birthdayYear ?? "",
-    architectId: merged.architectId ?? "",
+    architectId: override.architectId ?? "",
   };
 }
 

@@ -51,30 +51,32 @@ function slug(name: string) {
   return name.toLowerCase().replace(/[^a-z]+/g, ".");
 }
 
-// Derived deterministically from the existing pipeline Customer record
-// rather than a second hand-authored dataset — profile fields are a
-// plausible expansion of the same mock customer, not new "real" data.
+// Real fields (email/mobile/gst/address/city/state/postcode/birthday) live
+// on the DB-backed Customer record now and take priority. The mock/seeded
+// fallback only fires for a field a customer has never had set (legacy rows,
+// or the lightweight pipeline mock) — architectName/createdAt/createdById
+// have no DB column yet, so those stay fully derived.
 export function getCustomerProfile(customer: Customer): CustomerProfile {
-  const [area, city] = customer.address.split(", ");
-  const state = cityStateMap[city] ?? "—";
+  const [mockArea, mockCity] = customer.address.split(", ");
   const seed = customer.id.charCodeAt(customer.id.length - 1) + customer.id.length;
   const localRand = mulberry32(seed)();
 
   const createdDaysAgo = 5 + Math.floor(localRand * 180);
   const createdAt = new Date(Date.now() - createdDaysAgo * 24 * 60 * 60 * 1000).toISOString();
 
+  const city = customer.city || mockCity;
   return {
     customerId: customer.id,
-    email: `${slug(customer.name)}@gmail.com`,
-    phone: `+91 ${9000000000 + (seed * 137) % 999999999}`.slice(0, 13),
-    area,
+    email: customer.email || `${slug(customer.name)}@gmail.com`,
+    phone: customer.mobile || `+91 ${9000000000 + (seed * 137) % 999999999}`.slice(0, 13),
+    area: customer.address || mockArea,
     city,
-    state,
-    postcode: String(400000 + Math.floor(localRand * 99999)),
+    state: customer.state || cityStateMap[city] || "—",
+    postcode: customer.postcode || String(400000 + Math.floor(localRand * 99999)),
     architectName: architectNamePool[seed % architectNamePool.length],
-    gst: `27ABCDE${1000 + (seed * 31) % 9000}F1Z${seed % 10}`,
-    birthdayMonth: months[seed % 12],
-    birthdayDay: String(1 + (seed % 28)),
+    gst: customer.gst || `27ABCDE${1000 + (seed * 31) % 9000}F1Z${seed % 10}`,
+    birthdayMonth: customer.birthdayMonth || months[seed % 12],
+    birthdayDay: customer.birthdayDay || String(1 + (seed % 28)),
     createdAt,
     createdById: mockUsers[seed % mockUsers.length].id,
   };

@@ -42,8 +42,7 @@ function StageBadge({ stage }: { stage: Customer["stage"] }) {
 }
 
 function NameCell({ customer }: { customer: Customer }) {
-  const override = useProfileOverride(customer.id);
-  return <span className="font-body text-sm text-grey-900">{override.name ?? customer.name}</span>;
+  return <span className="font-body text-sm text-grey-900">{customer.name}</span>;
 }
 
 export function CustomersTable() {
@@ -263,28 +262,25 @@ export function CustomersTable() {
           profile={editProfile}
           override={editOverride}
           onSubmit={(values) => {
-            // Persist the identity fields (and recomposed name) to the DB…
+            // All of these are real Customer columns — persist directly.
             customersStore.updateCustomer(editTarget.id, {
               prefix: values.prefix,
               firstName: values.firstName,
               lastName: values.lastName,
               customerCode: values.customerCode,
-              birthdayMonth: values.birthdayMonth,
-              birthdayDay: values.birthdayDay,
-              birthdayYear: values.birthdayYear,
-            });
-            // …and keep the local overlay in sync for the detail panel.
-            profileOverridesStore.setFields(editTarget.id, {
-              name: `${values.firstName} ${values.lastName}`.trim(),
-              phone: values.mobile,
+              mobile: values.mobile,
               email: values.email,
               gst: values.gst,
-              area: values.address,
+              address: values.address,
               city: values.city,
               state: values.state,
               postcode: values.postcode,
               birthdayMonth: values.birthdayMonth,
               birthdayDay: values.birthdayDay,
+              birthdayYear: values.birthdayYear,
+            });
+            // architectId has no Customer column yet — stays client-only.
+            profileOverridesStore.setFields(editTarget.id, {
               architectId: values.architectId,
               updatedAt: new Date().toISOString(),
               updatedById: CURRENT_USER_ID,

@@ -1,15 +1,13 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { mockCustomers, type Customer } from "@/lib/mock/pipeline";
-import { profileOverridesStore } from "@/lib/store/customer-profile-overrides-store";
 
 // Backed by the shared PostgreSQL database via /api/customers. The merged
 // Customer table holds both the pipeline fields and the profile fields
-// (email/phone/gst/city…). The customer *detail panel* still reads those
-// extra fields through the local profileOverridesStore overlay, so createCustomer
-// keeps a dual-write to it — migrating that overlay (and customer messages/
-// media) to the DB is a flagged follow-up.
+// (email/phone/gst/city…) — POST/PATCH persist all of it directly. The one
+// remaining exception is architectId, which has no Customer column yet and
+// still lives in the client-only profileOverridesStore.
 
 let all: Customer[] = mockCustomers;
 let hydrated = false;
@@ -76,21 +74,6 @@ export const customersStore = {
     const created = (await res.json()) as Customer;
     all = [created, ...all];
     emit();
-    // Dual-write to the local profile overlay so the detail panel shows the
-    // entered profile fields for this customer (overlay migration pending).
-    profileOverridesStore.setFields(created.id, {
-      email: input.email,
-      phone: input.mobile,
-      gst: input.gst,
-      area: input.address,
-      city: input.city,
-      state: input.state,
-      postcode: input.postcode,
-      birthdayMonth: input.birthdayMonth,
-      birthdayDay: input.birthdayDay,
-      updatedAt: new Date().toISOString(),
-      updatedById: input.createdById,
-    });
     return created;
   },
   updateStage(id: string, stage: string) {
@@ -133,10 +116,20 @@ export const customersStore = {
   },
 };
 
+// Polls every 6s so an edit made in another tab/by another user shows up
+// without a manual page reload — the single fetch-on-mount only ever pulled
+// the list once, so a second viewer had to hard-refresh to see anything new.
+const POLL_MS = 6000;
+
 export function useCustomers() {
-  return useSyncExternalStore(
+  const customers = useSyncExternalStore(
     customersStore.subscribe,
     customersStore.getSnapshot,
     customersStore.getServerSnapshot
   );
+  useEffect(() => {
+    const id = setInterval(() => void refetch(), POLL_MS);
+    return () => clearInterval(id);
+  }, []);
+  return customers;
 }

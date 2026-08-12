@@ -95,7 +95,6 @@ export function CustomerPanel() {
             <>
               <PanelHeader
                 customer={customer}
-                displayName={override.name}
                 stage={stage}
                 onNameClick={() => setDetailsExpanded((e) => !e)}
                 canEdit={canEdit}
@@ -134,21 +133,20 @@ export function CustomerPanel() {
               firstName: values.firstName,
               lastName: values.lastName,
               customerCode: values.customerCode,
-              birthdayMonth: values.birthdayMonth,
-              birthdayDay: values.birthdayDay,
-              birthdayYear: values.birthdayYear,
-            });
-            profileOverridesStore.setFields(customer.id, {
-              name: `${values.firstName} ${values.lastName}`.trim(),
-              phone: values.mobile,
+              mobile: values.mobile,
               email: values.email,
               gst: values.gst,
-              area: values.address,
+              address: values.address,
               city: values.city,
               state: values.state,
               postcode: values.postcode,
               birthdayMonth: values.birthdayMonth,
               birthdayDay: values.birthdayDay,
+              birthdayYear: values.birthdayYear,
+            });
+            // architectId has no Customer column yet — stays client-only.
+            profileOverridesStore.setFields(customer.id, {
+              architectId: values.architectId,
               updatedAt: new Date().toISOString(),
               updatedById: CURRENT_USER_ID,
             });

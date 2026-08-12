@@ -5,32 +5,43 @@ import { ExternalLink } from "lucide-react";
 import { EditableField } from "@/components/crm/pipeline/customer-panel/editable-field";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { getCustomerProfile, getCustomerQuotes } from "@/lib/mock/customer-detail";
-import { profileOverridesStore, useProfileOverride } from "@/lib/store/customer-profile-overrides-store";
+import { customersStore } from "@/lib/store/customers-store";
 import type { Customer } from "@/lib/mock/pipeline";
+
+// Profile-field keys (used by the editor UI) → the real Customer column
+// they persist to. "area"/"phone" are legacy overlay names kept for the
+// EditableField labels; everything else already matches 1:1.
+const FIELD_MAP = {
+  area: "address",
+  city: "city",
+  state: "state",
+  postcode: "postcode",
+  email: "email",
+  phone: "mobile",
+  gst: "gst",
+} as const;
 
 export function DetailsSection({ customer }: { customer: Customer }) {
   const profile = getCustomerProfile(customer);
-  const overrides = useProfileOverride(customer.id);
-  const merged = { ...profile, ...overrides };
   const quotes = getCustomerQuotes(customer);
 
-  const save = (field: Parameters<typeof profileOverridesStore.setField>[1]) => (value: string) =>
-    profileOverridesStore.setField(customer.id, field, value);
+  const save = (field: keyof typeof FIELD_MAP) => (value: string) =>
+    customersStore.updateCustomer(customer.id, { [FIELD_MAP[field]]: value });
 
   return (
     <div className="flex flex-col gap-5 p-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <EditableField label="Address" value={merged.area} onSave={save("area")} />
-        <EditableField label="City" value={merged.city} onSave={save("city")} />
-        <EditableField label="State" value={merged.state} onSave={save("state")} />
-        <EditableField label="Postcode" value={merged.postcode} onSave={save("postcode")} numeric />
-        <EditableField label="Email" value={merged.email} onSave={save("email")} />
-        <EditableField label="Phone" value={merged.phone} onSave={save("phone")} numeric />
-        <EditableField label="GST No" value={merged.gst} onSave={save("gst")} numeric />
+        <EditableField label="Address" value={profile.area} onSave={save("area")} />
+        <EditableField label="City" value={profile.city} onSave={save("city")} />
+        <EditableField label="State" value={profile.state} onSave={save("state")} />
+        <EditableField label="Postcode" value={profile.postcode} onSave={save("postcode")} numeric />
+        <EditableField label="Email" value={profile.email} onSave={save("email")} />
+        <EditableField label="Phone" value={profile.phone} onSave={save("phone")} numeric />
+        <EditableField label="GST No" value={profile.gst} onSave={save("gst")} numeric />
         <div className="flex min-w-0 flex-col gap-1">
           <span className="text-xs font-body text-grey-500">Birthday</span>
           <span className="text-sm font-body text-grey-900">
-            {merged.birthdayMonth} <span className="font-number">{merged.birthdayDay}</span>
+            {profile.birthdayMonth} <span className="font-number">{profile.birthdayDay}</span>
           </span>
         </div>
       </div>

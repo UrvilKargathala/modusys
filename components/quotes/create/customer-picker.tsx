@@ -6,7 +6,6 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { CustomerFormDialog } from "@/components/customers/customer-form-dialog";
 import { useCustomers, customersStore } from "@/lib/store/customers-store";
-import { useProfileOverride } from "@/lib/store/customer-profile-overrides-store";
 import { getCurrentUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
@@ -85,20 +84,18 @@ export function CustomerPicker({ value, onChange }: { value: string; onChange: (
 
 export function CustomerReadOnlyDetails({ customerId }: { customerId: string }) {
   const customers = useCustomers();
-  const override = useProfileOverride(customerId);
   const customer = customers.find((c) => c.id === customerId);
   if (!customer) return null;
 
   // Compact one-line summary — skip empty fields, join what's populated with
   // dot separators so the block collapses to whatever detail actually exists.
-  const address = override.area ?? customer.address;
-  const cityLine = [override.city, override.state, override.postcode].filter(Boolean).join(", ");
+  const cityLine = [customer.city, customer.state, customer.postcode].filter(Boolean).join(", ");
   const bits = [
     customer.srNo && `Code ${String(customer.srNo).padStart(4, "0")}${customer.customerCode ? `-${customer.customerCode}` : ""}`,
-    address,
+    customer.address,
     cityLine,
-    override.email,
-    override.gst && `GST ${override.gst}`,
+    customer.email,
+    customer.gst && `GST ${customer.gst}`,
   ].filter(Boolean);
   if (bits.length === 0) return null;
 
