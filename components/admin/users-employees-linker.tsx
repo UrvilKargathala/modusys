@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Link2, Unlink } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, Link2, Unlink, UserPlus } from "lucide-react";
 
 type User = { id: string; name: string; email: string; role: string; status: string; employeeId: string | null };
 type Employee = { id: string; name: string; email: string | null; department: string | null; employeeNumber: string | null };
@@ -15,6 +17,10 @@ export function UsersEmployeesLinker() {
   const [error, setError] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [pickerEmpId, setPickerEmpId] = useState<string>("");
+  const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
+  const [newEmployee, setNewEmployee] = useState({ name: "", email: "", phone: "", department: "", designation: "", employeeNumber: "" });
+  const [addBusy, setAddBusy] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   async function load() {
     const r = await fetch("/api/admin/users-employees", { cache: "no-store" });
@@ -43,6 +49,33 @@ export function UsersEmployeesLinker() {
       (e) => !linkedEmpIds.has(e.id) || e.id === selected?.employeeId
     );
   }, [data, linkedEmpIds, selectedUserId]);
+
+  async function createEmployee() {
+    const name = newEmployee.name.trim();
+    if (!name) {
+      setAddError("Name is required");
+      return;
+    }
+    setAddBusy(true);
+    setAddError(null);
+    try {
+      const r = await fetch("/api/admin/users-employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newEmployee),
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        setAddError(j.error || "Failed to create employee");
+        return;
+      }
+      await load();
+      setAddEmployeeOpen(false);
+      setNewEmployee({ name: "", email: "", phone: "", department: "", designation: "", employeeNumber: "" });
+    } finally {
+      setAddBusy(false);
+    }
+  }
 
   async function link(userId: string, employeeId: string | null) {
     setBusyId(userId);
@@ -208,11 +241,83 @@ export function UsersEmployeesLinker() {
             </div>
             {error && <p className="text-xs text-error">{error}</p>}
           </>
+        ) : addEmployeeOpen ? (
+          <>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-body font-medium uppercase tracking-wide text-grey-500">New Employee</p>
+              <button
+                type="button"
+                onClick={() => { setAddEmployeeOpen(false); setAddError(null); }}
+                className="text-xs text-grey-500 hover:text-grey-700"
+              >
+                Cancel
+              </button>
+            </div>
+            <p className="text-xs text-grey-500">
+              For people who will not appear via UniFi sync (remote/non-office roles) — creates a
+              standalone employee record you can then link to their user account.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="ne-name" className="text-xs">Name *</Label>
+              <Input
+                id="ne-name"
+                value={newEmployee.name}
+                onChange={(e) => setNewEmployee((v) => ({ ...v, name: e.target.value }))}
+                placeholder="Full name"
+              />
+              <Label htmlFor="ne-email" className="text-xs">Email</Label>
+              <Input
+                id="ne-email"
+                type="email"
+                value={newEmployee.email}
+                onChange={(e) => setNewEmployee((v) => ({ ...v, email: e.target.value }))}
+                placeholder="name@example.com"
+              />
+              <Label htmlFor="ne-phone" className="text-xs">Phone</Label>
+              <Input
+                id="ne-phone"
+                value={newEmployee.phone}
+                onChange={(e) => setNewEmployee((v) => ({ ...v, phone: e.target.value }))}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="ne-dept" className="text-xs">Department</Label>
+                  <Input
+                    id="ne-dept"
+                    value={newEmployee.department}
+                    onChange={(e) => setNewEmployee((v) => ({ ...v, department: e.target.value }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="ne-desig" className="text-xs">Designation</Label>
+                  <Input
+                    id="ne-desig"
+                    value={newEmployee.designation}
+                    onChange={(e) => setNewEmployee((v) => ({ ...v, designation: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <Label htmlFor="ne-empno" className="text-xs">Employee Number</Label>
+              <Input
+                id="ne-empno"
+                value={newEmployee.employeeNumber}
+                onChange={(e) => setNewEmployee((v) => ({ ...v, employeeNumber: e.target.value }))}
+              />
+            </div>
+            {addError && <p className="text-xs text-error">{addError}</p>}
+            <Button type="button" onClick={createEmployee} disabled={addBusy || !newEmployee.name.trim()}>
+              {addBusy ? "Creating…" : "Create Employee"}
+            </Button>
+          </>
         ) : (
           <div className="flex flex-col gap-2">
             <p className="text-sm font-body text-grey-500">
               Pick a user on the left to link, or click a Suggested match to link it directly.
             </p>
+            <Button type="button" variant="outline" size="sm" onClick={() => setAddEmployeeOpen(true)} className="self-start">
+              <UserPlus className="h-3.5 w-3.5" />
+              Add Employee
+            </Button>
             <div className="mt-2">
               <p className="text-xs font-body font-medium uppercase tracking-wide text-grey-500">Active employees ({data.employees.length})</p>
               <ul className="mt-2 max-h-96 space-y-1 overflow-y-auto text-sm">
