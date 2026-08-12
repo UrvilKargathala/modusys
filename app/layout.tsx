@@ -1,9 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Analytics } from "@vercel/analytics/react";
+import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt";
+import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
+
+const BRAND = "#9e7676";
 
 const raleway = localFont({
   variable: "--font-heading",
@@ -22,8 +26,32 @@ const outfitLight = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Modusys",
+  title: {
+    default: "Modusys",
+    template: "%s | Modusys",
+  },
   description: "The Furn Enterprise — B2B modular kitchen & furniture platform",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Modusys",
+  },
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/icon-192.png",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: BRAND,
 };
 
 export default function RootLayout({
@@ -38,6 +66,8 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col font-body">
         <Providers>{children}</Providers>
+        <PWAInstallPrompt />
+        <ServiceWorkerRegister />
         <Analytics />
       </body>
     </html>
