@@ -50,7 +50,7 @@ export function DeleteCabinetTypeDialog({
         {usedIn && usedIn.length > 0 && (
           <div className="flex flex-col gap-2 rounded-lg bg-warning-transparent px-3 py-2.5">
             <span className="text-sm font-body font-medium text-grey-800">
-              Used in {usedIn.length} {refLabel}{usedIn.length > 1 ? "s" : ""}:
+              Used in <span className="font-number">{usedIn.length}</span> {refLabel}{usedIn.length > 1 ? "s" : ""}:
             </span>
             <ul className="flex flex-col gap-1 max-h-32 overflow-y-auto">
               {usedIn.map((ref) => (

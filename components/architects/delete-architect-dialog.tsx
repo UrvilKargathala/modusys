@@ -33,10 +33,15 @@ export function DeleteArchitectDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {fullName(architect)}?</AlertDialogTitle>
           <AlertDialogDescription>
-            {quotes.length === 0
-              ? "This architect isn't referenced on any quotes yet."
-              : `This architect is referenced on ${quotes.length} quote${quotes.length === 1 ? "" : "s"}.`}{" "}
-            Deleting will remove this architect's record but will not delete those quotes — the
+            {quotes.length === 0 ? (
+              "This architect isn't referenced on any quotes yet."
+            ) : (
+              <>
+                This architect is referenced on <span className="font-number">{quotes.length}</span> quote
+                {quotes.length === 1 ? "" : "s"}.
+              </>
+            )}{" "}
+            Deleting will remove this architect&apos;s record but will not delete those quotes — the
             architect field on them will show as Unassigned.
           </AlertDialogDescription>
         </AlertDialogHeader>

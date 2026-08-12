@@ -48,7 +48,7 @@ export function DeletePriceItemDialog({
         {unitTypeRefs.length > 0 && (
           <div className="flex flex-col gap-2 rounded-lg bg-warning-transparent px-3 py-2.5">
             <span className="text-sm font-body font-medium text-grey-800">
-              Used in {unitTypeRefs.length} unit type{unitTypeRefs.length > 1 ? "s" : ""}:
+              Used in <span className="font-number">{unitTypeRefs.length}</span> unit type{unitTypeRefs.length > 1 ? "s" : ""}:
             </span>
             <ul className="flex flex-col gap-1 max-h-32 overflow-y-auto">
               {unitTypeRefs.map((ref) => (
@@ -64,7 +64,7 @@ export function DeletePriceItemDialog({
         {quoteRefs.length > 0 && (
           <div className="flex flex-col gap-2 rounded-lg bg-warning-transparent px-3 py-2.5">
             <span className="text-sm font-body font-medium text-grey-800">
-              Used in {quoteRefs.length} quote{quoteRefs.length > 1 ? "s" : ""}:
+              Used in <span className="font-number">{quoteRefs.length}</span> quote{quoteRefs.length > 1 ? "s" : ""}:
             </span>
             <ul className="flex flex-col gap-1 max-h-32 overflow-y-auto">
               {quoteRefs.map((ref) => (

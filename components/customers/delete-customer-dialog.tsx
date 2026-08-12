@@ -37,7 +37,8 @@ export function DeleteCustomerDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {customer.name}?</AlertDialogTitle>
           <AlertDialogDescription>
-            This removes the customer from your active list. It has {quotes.length} linked quote
+            This removes the customer from your active list. It has{" "}
+            <span className="font-number">{quotes.length}</span> linked quote
             {quotes.length === 1 ? "" : "s"}, uploaded files, and activity history — these are kept
             on record, not deleted, but will no longer be linked to an active customer.
           </AlertDialogDescription>

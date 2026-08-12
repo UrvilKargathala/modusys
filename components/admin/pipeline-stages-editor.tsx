@@ -166,7 +166,9 @@ export function PipelineStagesEditor() {
       <Card className="overflow-hidden p-0">
         <div className="flex items-center justify-between border-b border-grey-100 px-4 py-3">
           <h2 className="font-heading text-sm font-semibold text-grey-900">Custom stages</h2>
-          <span className="text-xs font-body text-grey-500">{rows.length} total</span>
+          <span className="text-xs font-body text-grey-500">
+            <span className="font-number">{rows.length}</span> total
+          </span>
         </div>
         {loading ? (
           <div className="flex items-center justify-center p-8">

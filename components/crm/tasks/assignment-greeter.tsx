@@ -89,9 +89,13 @@ export function AssignmentGreeter() {
         <DialogHeader>
           <DialogTitle>New task{pending.length > 1 ? "s" : ""} for you</DialogTitle>
           <DialogDescription>
-            {pending.length === 1
-              ? "You have one open task assigned by admin."
-              : `You have ${pending.length} open tasks assigned by admin.`}
+            {pending.length === 1 ? (
+              "You have one open task assigned by admin."
+            ) : (
+              <>
+                You have <span className="font-number">{pending.length}</span> open tasks assigned by admin.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
         <ul className="flex flex-col gap-2">

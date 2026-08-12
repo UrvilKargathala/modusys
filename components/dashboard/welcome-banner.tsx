@@ -1,3 +1,5 @@
+import { LiveClock } from "@/components/dashboard/live-clock";
+
 type Stat = { label: string; value: string };
 
 export function WelcomeBanner({ name, stats }: { name: string; stats: Stat[] }) {
@@ -5,11 +7,12 @@ export function WelcomeBanner({ name, stats }: { name: string; stats: Stat[] }) 
     <div className="flex flex-col items-start justify-between gap-6 rounded-xl bg-gradient-to-br from-light to-primary-100 p-6 md:flex-row md:items-center">
       <div className="flex flex-col gap-1">
         <h2 className="font-heading text-xl font-semibold text-grey-900">
-          Welcome back, {name} 👋
+          Welcome back, {name}
         </h2>
         <p className="text-sm font-body text-grey-500">
           Here&apos;s what&apos;s happening with your business today.
         </p>
+        <LiveClock />
       </div>
 
       <div className="flex gap-8">

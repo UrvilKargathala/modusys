@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { CalendarClock, ListTodo } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -19,7 +20,7 @@ export function UpcomingTasksPanel({
 }: {
   tasks: Task[];
   onAddTask: () => void;
-  title?: string;
+  title?: ReactNode;
 }) {
   const users = useOrgUsers();
   const userName = (id: string) => users.find((u) => u.id === id)?.name ?? "Unknown";

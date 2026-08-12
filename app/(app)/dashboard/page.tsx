@@ -135,7 +135,15 @@ export default function DashboardPage() {
         <UpcomingTasksPanel
           tasks={pendingTasks}
           onAddTask={() => setTaskFormOpen(true)}
-          title={canSeeAll ? `${pendingTasks.length} tasks due this week across the team` : "Upcoming Tasks"}
+          title={
+            canSeeAll ? (
+              <>
+                <span className="font-number">{pendingTasks.length}</span> tasks due this week across the team
+              </>
+            ) : (
+              "Upcoming Tasks"
+            )
+          }
         />
         <NotificationsPanel />
         <UpcomingBirthdaysPanel />

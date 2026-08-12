@@ -319,7 +319,9 @@ export function UsersEmployeesLinker() {
               Add Employee
             </Button>
             <div className="mt-2">
-              <p className="text-xs font-body font-medium uppercase tracking-wide text-grey-500">Active employees ({data.employees.length})</p>
+              <p className="text-xs font-body font-medium uppercase tracking-wide text-grey-500">
+                Active employees (<span className="font-number">{data.employees.length}</span>)
+              </p>
               <ul className="mt-2 max-h-96 space-y-1 overflow-y-auto text-sm">
                 {data.employees.map((e) => (
                   <li key={e.id} className="rounded border border-grey-100 px-2 py-1.5">
