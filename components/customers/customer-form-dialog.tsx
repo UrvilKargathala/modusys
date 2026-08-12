@@ -142,10 +142,16 @@ export function CustomerFormDialog({
     defaultValues: emptyValues(),
   });
 
+  // Deliberately keyed on `open` + the customer's id (stable primitives),
+  // not the `customer`/`profile`/`override` objects themselves — those are
+  // recreated with a new reference on every parent re-render (e.g. the 6s
+  // customers poll), which used to re-fire this effect and wipe out
+  // whatever the user was actively typing back to the prefilled values.
   useEffect(() => {
     if (!open) return;
     reset(customer && profile ? prefillValues(customer, profile, override ?? {}) : emptyValues());
-  }, [open, customer, profile, override, reset]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, customer?.id]);
 
   // SR No: the existing one in Edit mode, else a preview of the next serial
   // (the server assigns the authoritative value on save).
