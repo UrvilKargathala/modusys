@@ -10,7 +10,7 @@ import {
   Wallet,
   ScrollText,
   ScanLine,
-  Clock,
+  MapPin,
   CalendarOff,
   BarChart3,
   CheckSquare,
@@ -50,7 +50,7 @@ export const navigationItems: NavItem[] = [
 // administrationItems). Personal items are visible to everyone; admin-log
 // pages stay super-admin only.
 export const attendanceItems: NavItem[] = [
-  { label: "My Attendance", href: "/my-attendance", icon: Clock },
+  { label: "GPS Attendance", href: "/my-attendance", icon: MapPin },
   { label: "Photo Attendance", href: "/photo-attendance", icon: Camera },
   { label: "My Leaves", href: "/leaves", icon: CalendarOff },
   { label: "Attendance", href: "/attendance", icon: ScanLine, roles: SUPER },

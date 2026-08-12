@@ -11,7 +11,7 @@ export default async function MyAttendancePage() {
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 pb-8 pt-4">
       <div>
-        <h1 className="font-heading text-2xl font-semibold text-grey-900">My Attendance</h1>
+        <h1 className="font-heading text-2xl font-semibold text-grey-900">GPS Attendance</h1>
         <p className="text-sm font-body text-grey-500">
           Check in and out from wherever you are. Face scan at the office overrides remote check-in.
         </p>
