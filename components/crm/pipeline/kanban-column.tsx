@@ -31,17 +31,20 @@ export function KanbanColumn({
     <div
       className={cn(
         "flex w-72 shrink-0 flex-col gap-3 rounded-lg border border-grey-100 bg-light-600 p-3",
+        "max-h-[calc(100vh-260px)]",
         muted && "bg-grey-transparent/60",
         className
       )}
     >
-      {/* Sticky header — pinned to <main>'s scroll while the column has
-          cards below it, detaches naturally once the column's own bottom
-          scrolls past. Negative margins + matching padding recreate the
-          column padding so the sticky bg fills edge-to-edge. */}
+      {/* Header sits outside the scrollable card list below (not inside
+          it), so it stays visible the whole time you're scrolling through
+          this column's cards — only detaches once you scroll past the last
+          card and the column itself scrolls out of view. Negative margins +
+          matching padding recreate the column padding so the header bg
+          fills edge-to-edge. */}
       <div
         className={cn(
-          "sticky top-0 z-10 -mx-3 -mt-3 flex items-center justify-between gap-2 px-3 pt-3 pb-2",
+          "-mx-3 -mt-3 flex shrink-0 items-center justify-between gap-2 px-3 pt-3 pb-2",
           muted ? "bg-grey-transparent/60" : "bg-light-600"
         )}
       >
@@ -68,7 +71,7 @@ export function KanbanColumn({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex min-h-24 flex-1 flex-col gap-2 rounded-md p-1 transition-colors",
+          "flex flex-1 min-h-0 flex-col gap-2 overflow-y-auto scrollbar-hide rounded-md p-1 transition-colors",
           isOver && "bg-primary-transparent ring-2 ring-primary/40"
         )}
       >

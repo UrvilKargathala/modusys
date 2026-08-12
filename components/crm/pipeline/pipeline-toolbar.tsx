@@ -38,8 +38,8 @@ export function PipelineToolbar({
     stageFilter === "all" ? "All Stages" : pipelineStages.find((s) => s.key === stageFilter)?.label;
 
   return (
-    <div className="flex items-center gap-3 overflow-x-auto sm:flex-wrap sm:justify-between">
-      <div className="flex shrink-0 items-center gap-2">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="flex flex-wrap items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-grey-100 bg-card px-3 py-1.5 text-sm font-body text-grey-700 transition-colors hover:bg-light-600">
             {activeStageLabel}
@@ -61,13 +61,13 @@ export function PipelineToolbar({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className="relative shrink-0">
+        <div className="relative order-first w-full sm:order-none sm:w-auto sm:shrink-0">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-grey-300" />
           <input
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search tickets"
-            className="w-40 rounded-lg border border-grey-100 bg-card py-1.5 pl-8 pr-2 text-sm font-body text-grey-700 outline-none placeholder:text-grey-300 focus:border-primary sm:w-56"
+            className="w-full rounded-lg border border-grey-100 bg-card py-1.5 pl-8 pr-2 text-sm font-body text-grey-700 outline-none placeholder:text-grey-300 focus:border-primary sm:w-40 md:w-56"
           />
         </div>
 
@@ -77,7 +77,7 @@ export function PipelineToolbar({
         </Button>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {view === "list" && (
           <>
             <Button variant="ghost" size="sm" onClick={onExpandAll} className="shrink-0 whitespace-nowrap">

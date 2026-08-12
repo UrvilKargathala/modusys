@@ -125,10 +125,17 @@ export function KanbanBoard({
       )}
 
       <DndContext id="pipeline-kanban" sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        {/* Single flow — no wrapper overflow. Horizontal + vertical scroll
-            both live on <main>, so sticky column headers bind to main and
-            stay pinned as the whole page scrolls. */}
-        <div className="flex gap-3 pb-2">
+        {/* Horizontal scroll is scoped to this row, not <main> — letting it
+            live on <main> (as before) stretched the page's shared flex-col
+            wrapper to the board's full width, dragging the KPI cards/toolbar/
+            page header off-screen (and out of view entirely) the moment you
+            scrolled right to reach a later column. Each column's sticky
+            header now pins relative to this row instead of the whole page;
+            since the row's height auto-fits its tallest column (never
+            actually scrolls vertically), that's a no-op rather than a
+            regression — it simply never had vertical overflow to stick
+            against in the first place. */}
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
           {filteredStage && (
             <KanbanColumn
               stage={filteredStage}
