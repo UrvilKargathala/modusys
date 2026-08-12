@@ -36,7 +36,7 @@ const architectSchema = z.object({
   prefix: z.string(),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  partners: z.array(z.object({ value: z.string() })),
+  partners: z.array(z.object({ prefix: z.string(), firstName: z.string(), lastName: z.string() })),
   siteEngineers: z.array(z.object({ value: z.string() })),
   mobile: z.string().refine((v) => v === "" || phonePattern.test(v.replace(/\s/g, "")), {
     message: "Enter a valid 10-digit Indian mobile number",
@@ -85,7 +85,7 @@ function prefillValues(architect: Architect): ArchitectFormValues {
     prefix: architect.prefix,
     firstName: architect.firstName,
     lastName: architect.lastName,
-    partners: architect.partners.map((value) => ({ value })),
+    partners: architect.partners.map((p) => ({ prefix: p.prefix, firstName: p.firstName, lastName: p.lastName })),
     siteEngineers: architect.siteEngineers.map((value) => ({ value })),
     mobile: architect.mobile,
     office: architect.office,
@@ -102,7 +102,7 @@ function prefillValues(architect: Architect): ArchitectFormValues {
 }
 
 export type ArchitectFormOutput = Omit<ArchitectFormValues, "partners" | "siteEngineers" | "instagram"> & {
-  partners: string[];
+  partners: { prefix: string; firstName: string; lastName: string }[];
   siteEngineers: string[];
   instagram: string;
 };
@@ -145,7 +145,7 @@ export function ArchitectFormDialog({
   const submit = (values: ArchitectFormValues) => {
     onSubmit({
       ...values,
-      partners: values.partners.map((p) => p.value).filter(Boolean),
+      partners: values.partners.filter((p) => p.firstName || p.lastName),
       siteEngineers: values.siteEngineers.map((s) => s.value).filter(Boolean),
       instagram: values.instagram && !values.instagram.startsWith("@") ? `@${values.instagram}` : values.instagram,
     });
@@ -180,19 +180,29 @@ export function ArchitectFormDialog({
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <Label>Partner Name</Label>
-              <Button type="button" variant="outline" size="sm" onClick={() => append({ value: "" })}>
+              <Button type="button" variant="outline" size="sm" onClick={() => append({ prefix: "", firstName: "", lastName: "" })}>
                 <Plus className="h-3.5 w-3.5" />
                 Add Partner
               </Button>
             </div>
             {fields.length > 0 && (
-              <div className="flex max-h-40 flex-col gap-2 overflow-y-auto">
+              <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
                 {fields.map((field, index) => (
                   <div key={field.id} className="flex items-center gap-2">
-                    <Input
-                      placeholder={`Partner ${index + 1}`}
-                      {...register(`partners.${index}.value` as const)}
-                    />
+                    <div className="grid flex-1 grid-cols-[4.5rem_1fr_1fr] gap-2">
+                      <Input
+                        placeholder="Prefix"
+                        {...register(`partners.${index}.prefix` as const)}
+                      />
+                      <Input
+                        placeholder="First Name"
+                        {...register(`partners.${index}.firstName` as const)}
+                      />
+                      <Input
+                        placeholder="Last Name"
+                        {...register(`partners.${index}.lastName` as const)}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => remove(index)}

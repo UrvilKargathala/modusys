@@ -7,7 +7,17 @@ import { toastStore } from "@/lib/store/toast-store";
 import { parseCsv, downloadCsv } from "@/lib/csv";
 import { architectsStore, type NewArchitectInput } from "@/lib/store/architects-store";
 import { CURRENT_USER_ID } from "@/lib/session";
-import { fullName, type Architect } from "@/lib/mock/architects";
+import { fullName, partnerFullName, type Architect, type ArchitectPartner } from "@/lib/mock/architects";
+
+// CSV partners column is one free-text name per "; "-separated entry (no
+// structured prefix/first/last in the file) — split the last word off as
+// lastName, same best-effort heuristic used to backfill existing data when
+// partners gained structured fields.
+function parsePartnerName(text: string): ArchitectPartner {
+  const parts = text.trim().split(/\s+/);
+  const lastName = parts.length > 1 ? (parts.pop() as string) : "";
+  return { prefix: "", firstName: parts.join(" "), lastName };
+}
 
 type ImportMode = "upsert" | "insert-only" | "update-only";
 
@@ -51,7 +61,7 @@ export function ArchitectsCsvPanel() {
         a.birthdayMonth ?? "",
         a.birthdayDay ?? "",
         a.birthdayYear ?? "",
-        (a.partners ?? []).join("; "),
+        (a.partners ?? []).map(partnerFullName).join("; "),
         (a.siteEngineers ?? []).join("; "),
       ]),
     ];
@@ -81,7 +91,9 @@ export function ArchitectsCsvPanel() {
         birthdayMonth: birthdayMonth ?? "",
         birthdayDay: birthdayDay ?? "",
         birthdayYear: birthdayYear ?? "",
-        partners: partners ? partners.split(";").map((p) => p.trim()).filter(Boolean) : [],
+        partners: partners
+          ? partners.split(";").map((p) => p.trim()).filter(Boolean).map(parsePartnerName)
+          : [],
         siteEngineers: siteEngineers ? siteEngineers.split(";").map((s) => s.trim()).filter(Boolean) : [],
         createdById: CURRENT_USER_ID,
       };

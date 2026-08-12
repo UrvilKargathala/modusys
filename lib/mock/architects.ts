@@ -1,9 +1,16 @@
+export type ArchitectPartner = {
+  id?: string;
+  prefix: string;
+  firstName: string;
+  lastName: string;
+};
+
 export type Architect = {
   id: string;
   prefix: string; // "", "Mr", "Mrs", "Ms", "Dr"
   firstName: string;
   lastName: string;
-  partners: string[];
+  partners: ArchitectPartner[];
   siteEngineers: string[];
   mobile: string;
   office: string;
@@ -23,6 +30,10 @@ export type Architect = {
 
 export function fullName(a: Pick<Architect, "firstName" | "lastName"> & { prefix?: string }) {
   return `${a.prefix ? `${a.prefix} ` : ""}${a.firstName} ${a.lastName}`.trim();
+}
+
+export function partnerFullName(p: ArchitectPartner) {
+  return `${p.prefix ? `${p.prefix} ` : ""}${p.firstName} ${p.lastName}`.trim();
 }
 
 // Seed data — intentionally includes a near-duplicate pair ("Ar Swapnil"
@@ -56,7 +67,7 @@ export const mockArchitects: Architect[] = [
     prefix: "Mr",
     firstName: "Ar Swapnil",
     lastName: "Deshmukh",
-    partners: ["Ar. Priya Kulkarni"],
+    partners: [{ prefix: "Ar.", firstName: "Priya", lastName: "Kulkarni" }],
     siteEngineers: [],
     mobile: "+91 9820011224",
     office: "",
@@ -98,7 +109,10 @@ export const mockArchitects: Architect[] = [
     prefix: "Mr",
     firstName: "Suresh",
     lastName: "Iyer",
-    partners: ["Ar. Meena Pillai", "Ar. Ravi Nair"],
+    partners: [
+      { prefix: "Ar.", firstName: "Meena", lastName: "Pillai" },
+      { prefix: "Ar.", firstName: "Ravi", lastName: "Nair" },
+    ],
     siteEngineers: [],
     mobile: "+91 9884455667",
     office: "",

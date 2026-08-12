@@ -40,7 +40,13 @@ export async function POST(req: Request) {
       birthdayYear: b.birthdayYear ?? "",
       siteEngineers: b.siteEngineers ?? [],
       createdById: b.createdById ?? null,
-      partners: { create: (b.partners ?? []).map((name: string) => ({ name })) },
+      partners: {
+        create: (b.partners ?? []).map((p: { prefix?: string; firstName?: string; lastName?: string }) => ({
+          prefix: p.prefix ?? "",
+          firstName: p.firstName ?? "",
+          lastName: p.lastName ?? "",
+        })),
+      },
     },
     include: { partners: true },
   });

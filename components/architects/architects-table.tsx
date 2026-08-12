@@ -20,7 +20,7 @@ import { useArchitects, architectsStore } from "@/lib/store/architects-store";
 import { architectPanelStore } from "@/lib/store/architect-panel-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser, CURRENT_USER_ID } from "@/lib/session";
-import { fullName, type Architect } from "@/lib/mock/architects";
+import { fullName, partnerFullName, type Architect } from "@/lib/mock/architects";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 function NameCell({ architect, isDuplicate }: { architect: Architect; isDuplicate: boolean }) {
@@ -68,7 +68,7 @@ export function ArchitectsTable() {
       (a) =>
         fullName(a).toLowerCase().includes(q) ||
         a.company.toLowerCase().includes(q) ||
-        a.partners.some((p) => p.toLowerCase().includes(q))
+        a.partners.some((p) => partnerFullName(p).toLowerCase().includes(q))
     );
   }, [architects, search]);
 

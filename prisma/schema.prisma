@@ -107,7 +107,9 @@ model Architect {
 
 model ArchitectPartner {
   id          String    @id @default(cuid())
-  name        String
+  prefix      String    @default("")
+  firstName   String    @default("")
+  lastName    String    @default("")
   architectId String
   architect   Architect @relation(fields: [architectId], references: [id], onDelete: Cascade)
 

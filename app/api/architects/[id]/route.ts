@@ -32,7 +32,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
   // Partners are replace-all when provided (matches the form's edit semantics).
   if (Array.isArray(b.partners)) {
     await prisma.architectPartner.deleteMany({ where: { architectId: id } });
-    data.partners = { create: b.partners.map((name: string) => ({ name })) };
+    data.partners = {
+      create: b.partners.map((p: { prefix?: string; firstName?: string; lastName?: string }) => ({
+        prefix: p.prefix ?? "",
+        firstName: p.firstName ?? "",
+        lastName: p.lastName ?? "",
+      })),
+    };
   }
   const a = await prisma.architect.update({ where: { id }, data, include: { partners: true } });
   const label = `${[a.firstName, a.lastName].filter(Boolean).join(" ")}${a.company ? ` — ${a.company}` : ""}`;

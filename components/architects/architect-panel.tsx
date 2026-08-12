@@ -10,7 +10,7 @@ import { DeleteArchitectDialog } from "@/components/architects/delete-architect-
 import { useOpenArchitectId, architectPanelStore } from "@/lib/store/architect-panel-store";
 import { useArchitects, architectsStore } from "@/lib/store/architects-store";
 import { getArchitectLinkedQuotes } from "@/lib/mock/customer-detail";
-import { fullName } from "@/lib/mock/architects";
+import { fullName, partnerFullName } from "@/lib/mock/architects";
 import { getCurrentUser } from "@/lib/session";
 import { toastStore } from "@/lib/store/toast-store";
 
@@ -109,7 +109,9 @@ export function ArchitectPanel() {
                 {architect.partners.length > 0 && (
                   <div className="flex flex-col gap-1">
                     <span className="text-xs font-body text-grey-500">Partners</span>
-                    <span className="text-sm font-body text-grey-900">{architect.partners.join(", ")}</span>
+                    <span className="text-sm font-body text-grey-900">
+                      {architect.partners.map(partnerFullName).join(", ")}
+                    </span>
                   </div>
                 )}
 
