@@ -50,7 +50,8 @@ export function PWAInstallPrompt() {
             <>
               <p className="text-sm font-body font-medium text-grey-900">
                 Install Modusys: tap{" "}
-                <Share className="inline h-3.5 w-3.5 -translate-y-0.5" aria-label="Share" /> then
+                <Share className="inline h-3.5 w-3.5 -translate-y-0.5" aria-label="Share" /> Share
+                (or &quot;•••&quot; if you don&apos;t see it) in Safari&apos;s toolbar, then find
                 &quot;Add to Home Screen&quot;.
               </p>
               <button
