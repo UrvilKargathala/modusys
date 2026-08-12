@@ -5,7 +5,8 @@ import { Paperclip, Mic, Square, Send, AlertCircle } from "lucide-react";
 import { MentionDropdown } from "@/components/crm/pipeline/customer-panel/mention-dropdown";
 import { customerMessagesStore } from "@/lib/store/customer-messages-store";
 import { customerMediaStore } from "@/lib/store/customer-media-store";
-import { mockUsers, type OrgUser } from "@/lib/mock/users";
+import { useOrgUsers } from "@/lib/store/users-store";
+import type { OrgUser } from "@/lib/mock/users";
 import { CURRENT_USER_ID } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
@@ -23,10 +24,11 @@ export function MessageInput({ customerId }: { customerId: string }) {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const orgUsers = useOrgUsers();
   const mentionUsers: OrgUser[] =
     mentionQuery === null
       ? []
-      : mockUsers.filter((u) => u.name.toLowerCase().includes(mentionQuery.toLowerCase()));
+      : orgUsers.filter((u) => u.name.toLowerCase().includes(mentionQuery.toLowerCase()));
 
   const handleTextChange = (value: string) => {
     setText(value);
@@ -58,53 +60,14 @@ export function MessageInput({ customerId }: { customerId: string }) {
     setMentionedIds([]);
   };
 
-  // Canvas-downscale an image to max 1200px on the long edge, JPEG q=0.75.
-  // Keeps localStorage happy regardless of raw camera size (5-15MB → ~100KB).
-  const downscaleImage = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        try {
-          const MAX = 1200;
-          const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-          const w = Math.round(img.width * scale);
-          const h = Math.round(img.height * scale);
-          const canvas = document.createElement("canvas");
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) return reject(new Error("canvas 2d unavailable"));
-          ctx.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL("image/jpeg", 0.75));
-        } finally {
-          URL.revokeObjectURL(url);
-        }
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error("image decode failed"));
-      };
-      img.src = url;
-    });
-  };
-
   const handleAttach = async (files: FileList | null) => {
     if (!files) return;
     for (const file of Array.from(files)) {
       customerMediaStore.addFile(customerId, file);
       if (file.type.startsWith("image/")) {
-        // Inline preview bubble. Downscale first so persistence stays sane.
-        try {
-          const dataUrl = await downscaleImage(file);
-          customerMessagesStore.addImageMessage(customerId, CURRENT_USER_ID, dataUrl, file.name);
-        } catch {
-          customerMessagesStore.sendMessage(customerId, `📎 Shared a file: ${file.name}`, CURRENT_USER_ID, []);
-        }
+        customerMessagesStore.addImageMessage(customerId, CURRENT_USER_ID, file);
       } else if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
-        // PDF card — icon + name + size. Bytes stay in the gallery only
-        // (persisting the full PDF would blow localStorage).
-        customerMessagesStore.addPdfMessage(customerId, CURRENT_USER_ID, file.name, file.size);
+        customerMessagesStore.addPdfMessage(customerId, CURRENT_USER_ID, file);
       } else {
         customerMessagesStore.sendMessage(customerId, `📎 Shared a file: ${file.name}`, CURRENT_USER_ID, []);
       }
@@ -120,8 +83,7 @@ export function MessageInput({ customerId }: { customerId: string }) {
       recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const url = URL.createObjectURL(blob);
-        customerMessagesStore.addVoiceMessage(customerId, CURRENT_USER_ID, url, recordSeconds);
+        customerMessagesStore.addVoiceMessage(customerId, CURRENT_USER_ID, blob, recordSeconds);
         stream.getTracks().forEach((t) => t.stop());
       };
       recorder.start();

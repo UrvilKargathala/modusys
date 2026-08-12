@@ -1,7 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { SEEDED_CUSTOMER_IDS } from "@/lib/mock/customer-detail";
+import { useEffect, useSyncExternalStore } from "react";
 
 export type CustomerMessage = {
   id: string;
@@ -12,99 +11,103 @@ export type CustomerMessage = {
   mentionedUserIds?: string[];
   audioUrl?: string;
   durationSec?: number;
-  // image messages: canvas-downscaled to max 1200px + JPEG 0.75 before
-  // being stored as a data URL, so persistence survives reload without
-  // blowing the localStorage quota.
   imageUrl?: string;
   imageName?: string;
-  // pdf messages: only the metadata is persisted (bytes would exceed the
-  // localStorage quota on any real PDF). The gallery keeps the actual blob
-  // for that session.
+  pdfUrl?: string;
   pdfName?: string;
   pdfSize?: number;
   editedAt?: string;
-  deletedAt?: string;
   createdAt: string;
   status: "sent" | "pending" | "error";
 };
 
-const STORAGE_KEY = "modusys.customerMessages.v1";
+// Backed by the shared PostgreSQL database via /api/customers/[id]/messages
+// — previously this store persisted only to the sending browser's
+// localStorage, so a message never reached any other user. Kept per-customer
+// in memory here (not one global array) so switching customers doesn't
+// re-fetch a thread that's already loaded.
+const byCustomer = new Map<string, CustomerMessage[]>();
+const loadedCustomers = new Set<string>();
 const EMPTY: CustomerMessage[] = [];
-
-function seedMessages(): CustomerMessage[] {
-  const [c1, c2] = SEEDED_CUSTOMER_IDS;
-  const now = Date.now();
-  return [
-    {
-      id: "m1",
-      customerId: c1,
-      kind: "system",
-      senderId: null,
-      text: "Stage changed to Quotation",
-      createdAt: new Date(now - 1000 * 60 * 60 * 24 * 6).toISOString(),
-      status: "sent",
-    },
-    {
-      id: "m2",
-      customerId: c1,
-      kind: "chat",
-      senderId: "u1",
-      text: "Sent the revised quote — waiting to hear back.",
-      createdAt: new Date(now - 1000 * 60 * 60 * 24 * 3).toISOString(),
-      status: "sent",
-    },
-    {
-      id: "m3",
-      customerId: c1,
-      kind: "chat",
-      senderId: "u5",
-      text: "Thanks! I'll follow up tomorrow.",
-      createdAt: new Date(now - 1000 * 60 * 60 * 5).toISOString(),
-      status: "sent",
-    },
-    {
-      id: "m4",
-      customerId: c2,
-      kind: "system",
-      senderId: null,
-      text: "Final offer updated to ₹8.7L",
-      createdAt: new Date(now - 1000 * 60 * 30).toISOString(),
-      status: "sent",
-    },
-  ];
-}
-
-// Previously in-memory only, so any reload wiped every message — persisted
-// now the same way tasks/customers/architects already are. Note: voice
-// message audioUrl values are blob: URLs (from MediaRecorder) which die on
-// reload regardless of persistence — the message row survives, but old
-// recordings won't play back after a refresh. Fixing that needs real audio
-// storage, out of scope here.
-let messages: CustomerMessage[] = seedMessages();
-let hydrated = false;
 const listeners = new Set<() => void>();
-
-function persist() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-  } catch {
-    // ignore write failures
-  }
-}
 
 function emit() {
   for (const listener of listeners) listener();
 }
 
-function ensureHydrated() {
-  if (hydrated || typeof window === "undefined") return;
-  hydrated = true;
+async function fetchMessages(customerId: string) {
   try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) messages = JSON.parse(stored) as CustomerMessage[];
+    const res = await fetch(`/api/customers/${customerId}/messages`, { cache: "no-store" });
+    if (!res.ok) return;
+    byCustomer.set(customerId, (await res.json()) as CustomerMessage[]);
+    emit();
   } catch {
-    // ignore parse failures, keep seed
+    // transient — keep whatever's cached, next poll retries
   }
+}
+
+function ensureHydrated(customerId: string) {
+  if (loadedCustomers.has(customerId) || typeof window === "undefined") return;
+  loadedCustomers.add(customerId);
+  void fetchMessages(customerId);
+}
+
+async function uploadFile(customerId: string, file: File | Blob): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`/api/customers/${customerId}/messages/upload`, {
+    method: "POST",
+    body: form,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || "Upload failed");
+  return json.url as string;
+}
+
+function insertOptimistic(customerId: string, optimistic: CustomerMessage) {
+  const list = byCustomer.get(customerId) ?? [];
+  byCustomer.set(customerId, [...list, optimistic]);
+  emit();
+}
+
+function markError(customerId: string, tempId: string) {
+  byCustomer.set(
+    customerId,
+    (byCustomer.get(customerId) ?? []).map((m) =>
+      m.id === tempId ? { ...m, status: "error" as const } : m
+    )
+  );
+  emit();
+}
+
+// POSTs the message and swaps the optimistic row for the server's saved
+// version (correct id/timestamps) on success, or flags it as failed.
+async function postAndReplace(customerId: string, tempId: string, body: Record<string, unknown>) {
+  try {
+    const res = await fetch(`/api/customers/${customerId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error("send failed");
+    const saved = (await res.json()) as CustomerMessage;
+    byCustomer.set(
+      customerId,
+      (byCustomer.get(customerId) ?? []).map((m) => (m.id === tempId ? saved : m))
+    );
+    emit();
+  } catch {
+    markError(customerId, tempId);
+  }
+}
+
+async function createMessage(
+  customerId: string,
+  body: Record<string, unknown>,
+  optimistic: CustomerMessage
+) {
+  insertOptimistic(customerId, optimistic);
+  await postAndReplace(customerId, optimistic.id, body);
 }
 
 export const customerMessagesStore = {
@@ -112,147 +115,150 @@ export const customerMessagesStore = {
     listeners.add(listener);
     return () => listeners.delete(listener);
   },
-  getSnapshot() {
-    ensureHydrated();
-    return messages;
+  getSnapshot(customerId: string) {
+    ensureHydrated(customerId);
+    return byCustomer.get(customerId) ?? EMPTY;
   },
-  getServerSnapshot() {
-    return EMPTY;
-  },
-  // TODO: real POST /customers/:id/messages call (Phase B2). Simulates
-  // latency + an occasional failure so the retry-on-failure UI is real.
+  refetch: fetchMessages,
   async sendMessage(customerId: string, text: string, senderId: string, mentionedUserIds: string[]) {
-    ensureHydrated();
-    const id = `msg-${Date.now()}`;
-    messages = [
-      ...messages,
-      {
-        id,
-        customerId,
-        kind: "chat",
-        senderId,
-        text,
-        mentionedUserIds,
-        createdAt: new Date().toISOString(),
-        status: "pending",
-      },
-    ];
-    persist();
-    emit();
-
-    // TODO: real notification hook — POST /notifications per mentioned user.
-    if (mentionedUserIds.length) {
-      // no-op placeholder call site for the backend hook described in spec
-    }
-
-    await new Promise((r) => setTimeout(r, 500));
-    const failed = Math.random() < 0.12;
-    messages = messages.map((m) => (m.id === id ? { ...m, status: failed ? "error" : "sent" } : m));
-    persist();
-    emit();
+    const optimistic: CustomerMessage = {
+      id: `pending-${Date.now()}`,
+      customerId,
+      kind: "chat",
+      senderId,
+      text,
+      mentionedUserIds,
+      createdAt: new Date().toISOString(),
+      status: "pending",
+    };
+    await createMessage(customerId, { kind: "chat", text, mentionedUserIds }, optimistic);
   },
-  async retryMessage(id: string) {
-    ensureHydrated();
-    messages = messages.map((m) => (m.id === id ? { ...m, status: "pending" } : m));
-    persist();
-    emit();
-    await new Promise((r) => setTimeout(r, 500));
-    messages = messages.map((m) => (m.id === id ? { ...m, status: "sent" } : m));
-    persist();
-    emit();
-  },
-  addVoiceMessage(customerId: string, senderId: string, audioUrl: string, durationSec: number) {
-    ensureHydrated();
-    messages = [
-      ...messages,
-      {
-        id: `voice-${Date.now()}`,
-        customerId,
-        kind: "voice",
-        senderId,
-        audioUrl,
-        durationSec,
-        createdAt: new Date().toISOString(),
-        status: "sent",
-      },
-    ];
-    persist();
-    emit();
-  },
-  addImageMessage(customerId: string, senderId: string, dataUrl: string, name: string) {
-    ensureHydrated();
-    messages = [
-      ...messages,
-      {
-        id: `img-${Date.now()}`,
-        customerId,
-        kind: "image",
-        senderId,
-        imageUrl: dataUrl,
-        imageName: name,
-        createdAt: new Date().toISOString(),
-        status: "sent",
-      },
-    ];
-    persist();
-    emit();
-  },
-  addPdfMessage(customerId: string, senderId: string, name: string, size: number) {
-    ensureHydrated();
-    messages = [
-      ...messages,
-      {
-        id: `pdf-${Date.now()}`,
-        customerId,
-        kind: "pdf",
-        senderId,
-        pdfName: name,
-        pdfSize: size,
-        createdAt: new Date().toISOString(),
-        status: "sent",
-      },
-    ];
-    persist();
-    emit();
-  },
-  editMessage(id: string, newText: string) {
-    ensureHydrated();
-    messages = messages.map((m) =>
-      m.id === id ? { ...m, text: newText, editedAt: new Date().toISOString() } : m
+  async retryMessage(customerId: string, id: string) {
+    const msg = (byCustomer.get(customerId) ?? []).find((m) => m.id === id);
+    if (!msg) return;
+    byCustomer.set(
+      customerId,
+      (byCustomer.get(customerId) ?? []).filter((m) => m.id !== id)
     );
-    persist();
     emit();
+    await customerMessagesStore.sendMessage(customerId, msg.text ?? "", msg.senderId ?? "", msg.mentionedUserIds ?? []);
   },
-  deleteMessage(id: string) {
-    ensureHydrated();
-    messages = messages.filter((m) => m.id !== id);
-    persist();
-    emit();
+  async addVoiceMessage(customerId: string, senderId: string, blob: Blob, durationSec: number) {
+    const tempId = `pending-${Date.now()}`;
+    insertOptimistic(customerId, {
+      id: tempId,
+      customerId,
+      kind: "voice",
+      senderId,
+      audioUrl: URL.createObjectURL(blob),
+      durationSec,
+      createdAt: new Date().toISOString(),
+      status: "pending",
+    });
+    try {
+      const audioUrl = await uploadFile(customerId, blob);
+      await postAndReplace(customerId, tempId, { kind: "voice", audioUrl, durationSec });
+    } catch {
+      markError(customerId, tempId);
+    }
   },
-  addSystemEvent(customerId: string, text: string) {
-    ensureHydrated();
-    messages = [
-      ...messages,
-      {
-        id: `sys-${Date.now()}`,
-        customerId,
-        kind: "system",
-        senderId: null,
-        text,
-        createdAt: new Date().toISOString(),
-        status: "sent",
-      },
-    ];
-    persist();
+  async addImageMessage(customerId: string, senderId: string, file: File) {
+    const tempId = `pending-${Date.now()}`;
+    insertOptimistic(customerId, {
+      id: tempId,
+      customerId,
+      kind: "image",
+      senderId,
+      imageUrl: URL.createObjectURL(file),
+      imageName: file.name,
+      createdAt: new Date().toISOString(),
+      status: "pending",
+    });
+    try {
+      const imageUrl = await uploadFile(customerId, file);
+      await postAndReplace(customerId, tempId, { kind: "image", imageUrl, imageName: file.name });
+    } catch {
+      markError(customerId, tempId);
+    }
+  },
+  async addPdfMessage(customerId: string, senderId: string, file: File) {
+    const tempId = `pending-${Date.now()}`;
+    insertOptimistic(customerId, {
+      id: tempId,
+      customerId,
+      kind: "pdf",
+      senderId,
+      pdfName: file.name,
+      pdfSize: file.size,
+      createdAt: new Date().toISOString(),
+      status: "pending",
+    });
+    try {
+      const pdfUrl = await uploadFile(customerId, file);
+      await postAndReplace(customerId, tempId, { kind: "pdf", pdfUrl, pdfName: file.name, pdfSize: file.size });
+    } catch {
+      markError(customerId, tempId);
+    }
+  },
+  async editMessage(customerId: string, id: string, newText: string) {
+    const prev = byCustomer.get(customerId) ?? [];
+    byCustomer.set(
+      customerId,
+      prev.map((m) => (m.id === id ? { ...m, text: newText, editedAt: new Date().toISOString() } : m))
+    );
     emit();
+    try {
+      const res = await fetch(`/api/customers/${customerId}/messages/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: newText }),
+      });
+      if (!res.ok) throw new Error("edit failed");
+    } catch {
+      void fetchMessages(customerId);
+    }
+  },
+  async deleteMessage(customerId: string, id: string) {
+    const prev = byCustomer.get(customerId) ?? [];
+    byCustomer.set(customerId, prev.filter((m) => m.id !== id));
+    emit();
+    try {
+      const res = await fetch(`/api/customers/${customerId}/messages/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("delete failed");
+    } catch {
+      void fetchMessages(customerId);
+    }
+  },
+  async addSystemEvent(customerId: string, text: string) {
+    const optimistic: CustomerMessage = {
+      id: `pending-${Date.now()}`,
+      customerId,
+      kind: "system",
+      senderId: null,
+      text,
+      createdAt: new Date().toISOString(),
+      status: "pending",
+    };
+    await createMessage(customerId, { kind: "system", text }, optimistic);
   },
 };
 
+// Polls every 4s while a thread is open — the simplest way to surface other
+// users' messages without a websocket. Swap for a subscription if latency
+// ever matters enough to justify the added infra.
+const POLL_MS = 4000;
+
 export function useCustomerMessages(customerId: string) {
-  const all = useSyncExternalStore(
+  const messages = useSyncExternalStore(
     customerMessagesStore.subscribe,
-    customerMessagesStore.getSnapshot,
-    customerMessagesStore.getServerSnapshot
+    () => customerMessagesStore.getSnapshot(customerId),
+    () => EMPTY
   );
-  return all.filter((m) => m.customerId === customerId);
+
+  useEffect(() => {
+    const id = setInterval(() => void fetchMessages(customerId), POLL_MS);
+    return () => clearInterval(id);
+  }, [customerId]);
+
+  return messages;
 }

@@ -4,7 +4,7 @@ import { Clock, AlertCircle, RotateCcw, Play, Pause, MoreVertical, Copy, Pencil,
 import { useEffect, useRef, useState } from "react";
 import { MessageText } from "@/components/crm/pipeline/customer-panel/message-text";
 import { customerMessagesStore, type CustomerMessage } from "@/lib/store/customer-messages-store";
-import { mockUsers } from "@/lib/mock/users";
+import { useOrgUsers } from "@/lib/store/users-store";
 import { CURRENT_USER_ID } from "@/lib/session";
 import { toastStore } from "@/lib/store/toast-store";
 import { cn } from "@/lib/utils";
@@ -85,7 +85,7 @@ function MessageActions({ message, isSelf, onEdit }: { message: CustomerMessage;
       setOpen(false);
       return;
     }
-    customerMessagesStore.deleteMessage(message.id);
+    customerMessagesStore.deleteMessage(message.customerId, message.id);
     setOpen(false);
   };
 
@@ -143,12 +143,13 @@ export function MessageBubble({ message }: { message: CustomerMessage }) {
     );
   }
 
-  const sender = mockUsers.find((u) => u.id === message.senderId);
+  const orgUsers = useOrgUsers();
+  const sender = orgUsers.find((u) => u.id === message.senderId);
   const isSelf = message.senderId === CURRENT_USER_ID;
 
   const saveEdit = () => {
     const next = draft.trim();
-    if (next && next !== message.text) customerMessagesStore.editMessage(message.id, next);
+    if (next && next !== message.text) customerMessagesStore.editMessage(message.customerId, message.id, next);
     setEditing(false);
   };
 
@@ -191,7 +192,12 @@ export function MessageBubble({ message }: { message: CustomerMessage }) {
               )}
             </div>
           ) : message.kind === "pdf" ? (
-            <div className="flex items-center gap-2 rounded-md bg-white/40 px-2.5 py-1.5">
+            <a
+              href={message.pdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 rounded-md bg-white/40 px-2.5 py-1.5 hover:bg-white/60"
+            >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-error text-white">
                 <FileText className="h-4 w-4" />
               </span>
@@ -203,7 +209,7 @@ export function MessageBubble({ message }: { message: CustomerMessage }) {
                   </span>
                 )}
               </span>
-            </div>
+            </a>
           ) : editing ? (
             <div className="flex items-center gap-1">
               <textarea
@@ -240,7 +246,7 @@ export function MessageBubble({ message }: { message: CustomerMessage }) {
           {message.status === "error" && (
             <button
               type="button"
-              onClick={() => customerMessagesStore.retryMessage(message.id)}
+              onClick={() => customerMessagesStore.retryMessage(message.customerId, message.id)}
               className="flex items-center gap-1 text-error hover:underline"
             >
               <AlertCircle className="h-3 w-3" /> Failed — tap to retry <RotateCcw className="h-3 w-3" />

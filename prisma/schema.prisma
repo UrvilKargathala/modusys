@@ -42,8 +42,41 @@ model Customer {
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
+  messages Message[]
+
   @@index([stage])
   @@index([deletedAt])
+}
+
+// CRM chat thread for a customer — was previously client-only (localStorage),
+// so messages never left the sending user's browser. Real table now, so
+// everyone viewing the same customer sees the same thread.
+model Message {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  kind     String  @default("chat") // chat | system | voice | image | pdf
+  senderId String? // null for system events
+  text     String?
+
+  mentionedUserIds String[] @default([])
+
+  audioUrl    String?
+  durationSec Int?
+
+  imageUrl  String?
+  imageName String?
+
+  pdfUrl  String?
+  pdfName String?
+  pdfSize Int?
+
+  editedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([customerId, createdAt])
 }
 
 model Architect {

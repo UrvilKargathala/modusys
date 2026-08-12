@@ -1,5 +1,5 @@
 import "server-only";
-import type { Customer, Architect, User, ArchitectPartner } from "@prisma/client";
+import type { Customer, Architect, User, ArchitectPartner, Message } from "@prisma/client";
 
 // DB rows carry Date objects and a merged/relational shape; the existing app
 // types expect ISO strings, partners as string[], and soft-delete as a bool.
@@ -70,5 +70,26 @@ export function serializeCustomer(c: Customer) {
     birthdayDay: c.birthdayDay,
     createdById: c.createdById ?? "",
     createdAt: c.createdAt.toISOString(),
+  };
+}
+
+export function serializeMessage(m: Message) {
+  return {
+    id: m.id,
+    customerId: m.customerId,
+    kind: m.kind,
+    senderId: m.senderId,
+    text: m.text ?? undefined,
+    mentionedUserIds: m.mentionedUserIds,
+    audioUrl: m.audioUrl ?? undefined,
+    durationSec: m.durationSec ?? undefined,
+    imageUrl: m.imageUrl ?? undefined,
+    imageName: m.imageName ?? undefined,
+    pdfUrl: m.pdfUrl ?? undefined,
+    pdfName: m.pdfName ?? undefined,
+    pdfSize: m.pdfSize ?? undefined,
+    editedAt: m.editedAt?.toISOString(),
+    createdAt: m.createdAt.toISOString(),
+    status: "sent" as const,
   };
 }
