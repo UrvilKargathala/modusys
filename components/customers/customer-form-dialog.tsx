@@ -85,25 +85,28 @@ function emptyValues(): CustomerFormValues {
   };
 }
 
-// `profile` already carries the real DB-backed fields (see
-// getCustomerProfile) — override only still supplies architectId, which has
-// no Customer column yet. Spreading override wholesale here used to let a
-// stale pre-migration localStorage entry shadow the real, correct profile
-// value indefinitely.
-function prefillValues(customer: Customer, profile: CustomerProfile, override: ProfileOverride): CustomerFormValues {
+// Deliberately reads straight from `customer` (the raw DB record), NOT
+// `profile` (getCustomerProfile) — profile fabricates a plausible-looking
+// mock value (fake email/GST/state/etc.) for any field that's genuinely
+// blank in the DB, which is fine for read-only display polish but corrupts
+// real data here: the edit form round-trips whatever it's prefilled with
+// back to the server on save, so a blank field must stay blank, not get
+// silently replaced with fabricated data the user never typed.
+// override only still supplies architectId, which has no Customer column yet.
+function prefillValues(customer: Customer, override: ProfileOverride): CustomerFormValues {
   return {
     prefix: customer.prefix ?? "",
     firstName: customer.firstName || customer.name,
     lastName: customer.lastName ?? "",
-    mobile: profile.phone,
-    email: profile.email,
-    gst: profile.gst,
-    address: profile.area,
-    city: profile.city,
-    state: profile.state,
-    postcode: profile.postcode,
-    birthdayMonth: profile.birthdayMonth,
-    birthdayDay: profile.birthdayDay,
+    mobile: customer.mobile ?? "",
+    email: customer.email ?? "",
+    gst: customer.gst ?? "",
+    address: customer.address ?? "",
+    city: customer.city ?? "",
+    state: customer.state ?? "",
+    postcode: customer.postcode ?? "",
+    birthdayMonth: customer.birthdayMonth ?? "",
+    birthdayDay: customer.birthdayDay ?? "",
     birthdayYear: customer.birthdayYear ?? "",
     architectId: override.architectId ?? "",
   };
@@ -149,7 +152,7 @@ export function CustomerFormDialog({
   // whatever the user was actively typing back to the prefilled values.
   useEffect(() => {
     if (!open) return;
-    reset(customer && profile ? prefillValues(customer, profile, override ?? {}) : emptyValues());
+    reset(customer ? prefillValues(customer, override ?? {}) : emptyValues());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, customer?.id]);
 
