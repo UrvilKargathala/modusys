@@ -358,26 +358,29 @@ export function ArchitectFormDialog({
             </div>
           </div>
 
-          {isEdit && (
-            <p className="text-xs font-body text-grey-400">
-              Added{" "}
-              <span className="font-number">{architect &&
-                new Date(architect.createdAt).toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })}</span>
-              {createdBy && ` by ${createdBy}`}
-            </p>
-          )}
-
-      <div className="sticky bottom-0 -mx-6 -mb-6 mt-2 flex flex-row justify-end gap-2 border-t border-grey-100 bg-popover px-6 py-4">
-        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={isSubmitting || !isValid}>
-          {isEdit ? "Save Changes" : "Add"}
-        </Button>
+      <div className="sticky bottom-0 -mx-6 -mb-6 mt-2 flex flex-row items-center justify-between gap-2 border-t border-grey-100 bg-popover px-6 py-4">
+        {isEdit ? (
+          <p className="text-xs font-body text-grey-400">
+            Added{" "}
+            <span className="font-number">{architect &&
+              new Date(architect.createdAt).toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })}</span>
+            {createdBy && ` by ${createdBy}`}
+          </p>
+        ) : (
+          <span />
+        )}
+        <div className="flex flex-row gap-2">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting || !isValid}>
+            {isEdit ? "Save Changes" : "Add"}
+          </Button>
+        </div>
       </div>
     </form>
   );
