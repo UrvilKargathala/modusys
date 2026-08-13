@@ -11,13 +11,18 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Download, MapPin } from "lucide-react";
 
-// Unified row across both AttendanceRecord (unifi/gps) and
-// PhotoAttendanceRecord (photo). Only one row per record — a photo check-in
-// and a gps/unifi check-in on the same day render as two rows because they
-// are two independent systems.
+// Unified row across AttendanceRecord (unifi face-scan + new remote gps+photo
+// check-ins) and legacy PhotoAttendanceRecord (selfie-only records from
+// before the merge). Legacy "gps"-only and "photo"-only rows still render as
+// "Remote Check-in" for a consistent UI, even though the underlying data is
+// partial.
 type Row = {
   id: string;
-  source: "unifi" | "gps" | "photo";
+  // "unifi" = face scan at door, "remote" = anything staff-initiated (gps,
+  // photo, or the new combined gps+photo). Keeping the internal distinction
+  // in checkInSource means historical inspection is still possible in the DB,
+  // but the UI only exposes two categories.
+  source: "unifi" | "remote";
   employee: { id: string; name: string; department: string | null };
   checkIn: Date;
   checkOut: Date | null;
@@ -27,7 +32,10 @@ type Row = {
   checkInAddress: string | null;
   credentialType: string | null;
   note: string | null;
-  // Only set on photo rows — used to render thumbnails via the broker.
+  // The id used by the photo broker (/api/attendance/photo/[id]/[type]).
+  // For AttendanceRecord rows it's the record's own id; for legacy
+  // PhotoAttendanceRecord rows it's that record's id — the broker tries both
+  // tables in order so either resolves correctly.
   photoRecordId: string | null;
   checkInPhotoUrl: string | null;
   checkOutPhotoUrl: string | null;
@@ -50,9 +58,7 @@ export default async function AttendancePage({
   const date = istMidnight(dateParam ?? new Date());
 
   const sourceFilter =
-    sourceParam === "gps" || sourceParam === "unifi" || sourceParam === "photo"
-      ? sourceParam
-      : null;
+    sourceParam === "unifi" || sourceParam === "remote" ? sourceParam : null;
   const pageIdx = Math.max(0, Number(pageParam) - 1 || 0);
 
   const approvedLeaves = await prisma.leaveRequest.findMany({
@@ -96,7 +102,10 @@ export default async function AttendancePage({
   const allRows: Row[] = [
     ...attRecords.map((r): Row => ({
       id: r.id,
-      source: r.checkInSource === "gps" ? "gps" : "unifi",
+      // Only true face-scan door taps count as "unifi" — everything else
+      // (legacy "gps", legacy "manual", new "gps+photo") is a staff-initiated
+      // remote check-in.
+      source: r.checkInSource === "unifi" ? "unifi" : "remote",
       employee: r.employee,
       checkIn: r.checkIn,
       checkOut: r.checkOut,
@@ -106,13 +115,13 @@ export default async function AttendancePage({
       checkInAddress: r.checkInAddress,
       credentialType: r.credentialType,
       note: r.checkInNote || r.checkOutNote,
-      photoRecordId: null,
-      checkInPhotoUrl: null,
-      checkOutPhotoUrl: null,
+      photoRecordId: r.checkInPhotoUrl || r.checkOutPhotoUrl ? r.id : null,
+      checkInPhotoUrl: r.checkInPhotoUrl,
+      checkOutPhotoUrl: r.checkOutPhotoUrl,
     })),
     ...photoRecords.map((r): Row => ({
       id: `photo:${r.id}`,
-      source: "photo",
+      source: "remote",
       employee: photoEmpById.get(r.employeeId) ?? { id: r.employeeId, name: "Unknown", department: null },
       checkIn: r.checkIn,
       checkOut: r.checkOut,
@@ -164,7 +173,7 @@ export default async function AttendancePage({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-grey-900">Attendance</h1>
-          <p className="text-sm font-body text-grey-500">Face scan · GPS · Selfie — all attendance sources</p>
+          <p className="text-sm font-body text-grey-500">Face scan at office door · Remote check-in with GPS + selfie</p>
         </div>
         <SyncButtons />
       </div>
@@ -233,10 +242,9 @@ export default async function AttendancePage({
           <h2 className="font-heading text-base font-semibold text-grey-900">Attendance Log</h2>
           <div className="flex items-center gap-3">
             <div className="flex items-center rounded-md border border-grey-200 text-xs font-body">
-              {(["all", "unifi", "gps", "photo"] as const).map((s) => {
+              {(["all", "unifi", "remote"] as const).map((s) => {
                 const active = (sourceFilter ?? "all") === s;
-                const label =
-                  s === "all" ? "All" : s === "unifi" ? "Face Scan" : s === "gps" ? "GPS" : "Selfie";
+                const label = s === "all" ? "All" : s === "unifi" ? "Face Scan" : "Remote";
                 const href = `/attendance?date=${dateStr}${s === "all" ? "" : `&source=${s}`}`;
                 return (
                   <a
@@ -281,18 +289,11 @@ export default async function AttendancePage({
               </thead>
               <tbody className="divide-y divide-grey-100">
                 {pagedRecords.map((record) => {
-                  const sourceLabel =
-                    record.source === "gps"
-                      ? "GPS"
-                      : record.source === "photo"
-                      ? "Selfie"
-                      : "Face Scan";
+                  const sourceLabel = record.source === "unifi" ? "Face Scan" : "Remote Check-in";
                   const sourceClass =
-                    record.source === "gps"
-                      ? "bg-primary-transparent text-primary border-primary/30"
-                      : record.source === "photo"
-                      ? "bg-info-transparent text-info border-info/30"
-                      : "bg-grey-50 text-grey-700";
+                    record.source === "unifi"
+                      ? "bg-grey-50 text-grey-700"
+                      : "bg-primary-transparent text-primary border-primary/30";
                   return (
                   <tr key={record.id} className="hover:bg-light-600/50">
                     <td className="px-6 py-4">
@@ -342,9 +343,9 @@ export default async function AttendancePage({
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm font-body text-grey-600">
-                      {record.source === "photo" ? (
-                        <span className="text-xs font-body text-grey-300">-</span>
-                      ) : record.source === "gps" && record.checkInLat != null && record.checkInLng != null ? (
+                      {record.source === "unifi" ? (
+                        <span className="font-number text-grey-500">{record.doorName || "-"}</span>
+                      ) : record.checkInLat != null && record.checkInLng != null ? (
                         <div className="flex flex-col gap-1">
                           <a
                             href={`https://www.google.com/maps?q=${record.checkInLat},${record.checkInLng}`}
@@ -365,7 +366,7 @@ export default async function AttendancePage({
                           )}
                         </div>
                       ) : (
-                        <span className="font-number text-grey-500">{record.doorName || "-"}</span>
+                        <span className="text-xs font-body text-grey-300">-</span>
                       )}
                     </td>
                     <td className="px-6 py-4">

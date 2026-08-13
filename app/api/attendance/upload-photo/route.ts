@@ -10,8 +10,9 @@ const MAX_BYTES = 500 * 1024;
 const ACCEPT = new Set(["image/jpeg", "image/png"]);
 
 // POST multipart/form-data with a `photo` blob + `side` ("checkIn" | "checkOut").
-// Returns { url, key } once the blob is uploaded. The photo-attendance
-// check-in/out endpoints hand this URL back to the server.
+// Returns { url, key } once the blob is uploaded. The unified check-in/out
+// endpoints (/api/attendance/check-in, /api/attendance/check-out) hand this
+// URL back to the server as the selfie proof.
 export async function POST(req: NextRequest) {
   const { user, employee } = await getCurrentEmployee();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -7,7 +7,9 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 // GET /api/attendance/photo/[recordId]/[type]
-// recordId is a PhotoAttendanceRecord.id, type = "checkIn" | "checkOut".
+// recordId matches AttendanceRecord.id (unified check-in flow) OR
+// PhotoAttendanceRecord.id (legacy selfie-only records). Try the unified
+// table first, fall back to the legacy one so historical rows still resolve.
 // Redirects to the blob URL if the caller is super-admin OR owns the record.
 export async function GET(_req: Request, ctx: { params: Promise<{ recordId: string; type: string }> }) {
   const user = await getSessionUser();
@@ -16,10 +18,18 @@ export async function GET(_req: Request, ctx: { params: Promise<{ recordId: stri
   const { recordId, type } = await ctx.params;
   const side: "checkIn" | "checkOut" = type === "checkOut" ? "checkOut" : "checkIn";
 
-  const record = await prisma.photoAttendanceRecord.findUnique({
+  const attRecord = await prisma.attendanceRecord.findUnique({
     where: { id: recordId },
     select: { employeeId: true, checkInPhotoUrl: true, checkOutPhotoUrl: true },
   });
+
+  const record =
+    attRecord ??
+    (await prisma.photoAttendanceRecord.findUnique({
+      where: { id: recordId },
+      select: { employeeId: true, checkInPhotoUrl: true, checkOutPhotoUrl: true },
+    }));
+
   if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   if (user.role !== "super-admin") {

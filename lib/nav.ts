@@ -15,7 +15,6 @@ import {
   BarChart3,
   CheckSquare,
   Link2,
-  Camera,
   type LucideIcon,
 } from "lucide-react";
 
@@ -50,8 +49,7 @@ export const navigationItems: NavItem[] = [
 // administrationItems). Personal items are visible to everyone; admin-log
 // pages stay super-admin only.
 export const attendanceItems: NavItem[] = [
-  { label: "GPS Attendance", href: "/my-attendance", icon: MapPin },
-  { label: "Photo Attendance", href: "/photo-attendance", icon: Camera },
+  { label: "My Attendance", href: "/my-attendance", icon: MapPin },
   { label: "My Leaves", href: "/leaves", icon: CalendarOff },
   { label: "Attendance", href: "/attendance", icon: ScanLine, roles: SUPER },
   { label: "Reports", href: "/attendance/reports", icon: BarChart3 },

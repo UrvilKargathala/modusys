@@ -27,11 +27,23 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const latitude = Number(body?.latitude);
     const longitude = Number(body?.longitude);
+    const photoUrl = typeof body?.photoUrl === "string" ? body.photoUrl.trim() : "";
+    const photoConsent = body?.photoConsent === true;
     const note = typeof body?.note === "string" ? body.note.trim() || null : null;
     const timezone =
       typeof body?.timezone === "string" && body.timezone.trim() ? body.timezone.trim() : "Asia/Kolkata";
+
     if (!validCoords(latitude, longitude)) {
       return NextResponse.json({ error: "Invalid location. Try again with GPS on." }, { status: 400 });
+    }
+    if (!photoUrl) {
+      return NextResponse.json({ error: "Selfie is required." }, { status: 400 });
+    }
+    if (!photoUrl.includes(".public.blob.vercel-storage.com")) {
+      return NextResponse.json({ error: "Invalid photo URL." }, { status: 400 });
+    }
+    if (!photoConsent) {
+      return NextResponse.json({ error: "Photo consent is required." }, { status: 400 });
     }
 
     const now = new Date();
@@ -55,8 +67,10 @@ export async function POST(req: NextRequest) {
         checkInLng: longitude,
         checkInAddress: address,
         checkInNote: note,
-        checkInSource: "gps",
-        source: "gps",
+        checkInPhotoUrl: photoUrl,
+        checkInPhotoConsent: photoConsent,
+        checkInSource: "gps+photo",
+        source: "gps+photo",
         timezone,
       },
     });
