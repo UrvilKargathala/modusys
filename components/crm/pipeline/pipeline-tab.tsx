@@ -2,34 +2,26 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { Users, Wallet, TrendingUp, Star } from "lucide-react";
-import { KpiCard } from "@/components/shared/kpi-card";
+import { AlertTriangle, Clock, ListTodo } from "lucide-react";
 import { PipelineToolbar, type PipelineView } from "@/components/crm/pipeline/pipeline-toolbar";
 import { FiltersSheet, type PipelineFilters } from "@/components/crm/pipeline/filters-sheet";
 import { KanbanBoard } from "@/components/crm/pipeline/kanban-board";
 import { ListView } from "@/components/crm/pipeline/list-view";
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
-import { formatPercent } from "@/lib/format";
-import { getCrmKpis } from "@/lib/mock/crm";
 import { type Customer } from "@/lib/mock/pipeline";
 import { pipelineStages, type PipelineStageKey } from "@/lib/constants/pipelineStages";
 import { useEffectivePipelineStages } from "@/lib/store/custom-pipeline-stages-store";
 import { customerMessagesStore } from "@/lib/store/customer-messages-store";
 import { useCustomers, customersStore } from "@/lib/store/customers-store";
+import { useTasks, visibleTasks, type Task } from "@/lib/store/tasks-store";
+import { getCurrentUser } from "@/lib/session";
+import { useOrgUsers } from "@/lib/store/users-store";
+import { getPriority } from "@/lib/constants/priority";
 
 const CLOSED_STAGES = new Set<PipelineStageKey>(["site-completed", "cancel-order"]);
 const ZERO_COUNT_DEFAULT_COLLAPSED = new Set<PipelineStageKey>(["ready-to-dispatch", "services"]);
 
 const defaultFilters: PipelineFilters = { search: "", minOffer: "", maxOffer: "" };
-
-function defaultRange() {
-  const to = new Date();
-  const from = new Date();
-  from.setMonth(from.getMonth() - 5);
-  const iso = (d: Date) => d.toISOString().slice(0, 10);
-  return { from: iso(from), to: iso(to) };
-}
 
 export function PipelineTab() {
   const effectiveStages = useEffectivePipelineStages();
@@ -61,10 +53,44 @@ export function PipelineTab() {
     )
   );
 
-  const { data: kpis } = useQuery({
-    queryKey: ["crm-kpis", "pipeline"],
-    queryFn: () => getCrmKpis(defaultRange()),
-  });
+  // --- Smart pending-tasks widget data ---
+  const currentUser = getCurrentUser();
+  const canSeeAll = currentUser.role === "super-admin" || currentUser.role === "admin";
+  const allTasks = useTasks();
+  const orgUsers = useOrgUsers();
+  const userMap = useMemo(() => new Map(orgUsers.map((u) => [u.id, u.name])), [orgUsers]);
+
+  const pendingTasks = useMemo(() => {
+    const visible = visibleTasks(
+      allTasks,
+      currentUser.id,
+      currentUser.role === "no-role" ? "staff" : currentUser.role,
+      canSeeAll ? "all" : "mine"
+    );
+    return visible.filter((t) => !t.completed);
+  }, [allTasks, currentUser.id, currentUser.role, canSeeAll]);
+
+  const taskSummary = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const overdue: (Task & { daysLate: number })[] = [];
+    const dueSoon: Task[] = [];
+    const highPriority: Task[] = [];
+
+    for (const t of pendingTasks) {
+      if (t.dueDate) {
+        const due = new Date(t.dueDate + "T00:00:00");
+        const diffDays = Math.floor((due.getTime() - today.getTime()) / 86_400_000);
+        if (diffDays < 0) overdue.push({ ...t, daysLate: -diffDays });
+        else if (diffDays <= 2) dueSoon.push(t);
+      }
+      if (t.priority === "urgent" || t.priority === "high") highPriority.push(t);
+    }
+    overdue.sort((a, b) => b.daysLate - a.daysLate);
+
+    const spotlight = overdue[0] ?? dueSoon[0] ?? highPriority[0] ?? pendingTasks[0];
+    return { total: pendingTasks.length, overdue, dueSoon, highPriority, spotlight };
+  }, [pendingTasks]);
 
   const filteredCustomers = useMemo(() => {
     const min = filters.minOffer ? Number(filters.minOffer) : null;
@@ -107,25 +133,60 @@ export function PipelineTab() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard
-          label="Total Customers"
-          value={kpis ? String(kpis.totalCustomers) : "—"}
-          icon={Users}
-          trend={
-            kpis
-              ? { value: `${formatPercent(kpis.totalCustomersDeltaPct)} vs last month`, positive: kpis.totalCustomersDeltaPct >= 0 }
-              : undefined
-          }
-        />
-        <KpiCard label="Pipeline Value" value="" icon={Wallet} notTracked />
-        <KpiCard
-          label="Conversion Rate"
-          value={kpis ? `${kpis.conversionRate.toFixed(1)}%` : "—"}
-          icon={TrendingUp}
-        />
-        <KpiCard label="Avg Lead Score" value="" icon={Star} notTracked />
-      </div>
+      {taskSummary.total > 0 && (
+        <div className="rounded-xl border border-grey-100 bg-[#D9C8C9] p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/60">
+              {taskSummary.overdue.length > 0 ? (
+                <AlertTriangle className="h-4 w-4 text-error" />
+              ) : (
+                <ListTodo className="h-4 w-4 text-grey-700" />
+              )}
+            </div>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-body font-medium text-grey-900">
+                <span className="font-number">{taskSummary.total}</span> pending task{taskSummary.total !== 1 ? "s" : ""}
+                {taskSummary.overdue.length > 0 && (
+                  <span className="text-error">
+                    {" "}&mdash; <span className="font-number">{taskSummary.overdue.length}</span> overdue
+                  </span>
+                )}
+                {taskSummary.dueSoon.length > 0 && (
+                  <span className="text-warning">
+                    {" "}&mdash; <span className="font-number">{taskSummary.dueSoon.length}</span> due soon
+                  </span>
+                )}
+              </p>
+              {taskSummary.spotlight && (
+                <p className="text-xs font-body text-grey-600">
+                  {taskSummary.overdue.length > 0 && taskSummary.spotlight === taskSummary.overdue[0] ? (
+                    <>
+                      <Clock className="mr-1 inline-block h-3 w-3 text-error" />
+                      <span className="font-medium">"{taskSummary.spotlight.title}"</span>
+                      {" "}<span className="font-number text-error">({(taskSummary.spotlight as Task & { daysLate: number }).daysLate}d late)</span>
+                      {userMap.get(taskSummary.spotlight.assigneeId) && (
+                        <>, assigned to {userMap.get(taskSummary.spotlight.assigneeId)}</>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-medium">Next up: "{taskSummary.spotlight.title}"</span>
+                      {taskSummary.spotlight.dueDate && (
+                        <span className="font-number text-grey-400">
+                          {" "}(due {new Date(taskSummary.spotlight.dueDate + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short" })})
+                        </span>
+                      )}
+                      {userMap.get(taskSummary.spotlight.assigneeId) && (
+                        <>, assigned to {userMap.get(taskSummary.spotlight.assigneeId)}</>
+                      )}
+                    </>
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <PipelineToolbar
         stageFilter={stageFilter}

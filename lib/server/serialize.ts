@@ -1,5 +1,6 @@
 import "server-only";
 import type { Customer, Architect, User, ArchitectPartner, Message } from "@prisma/client";
+import type { ArchitectSiteEngineer } from "@/lib/mock/architects";
 
 // DB rows carry Date objects and a merged/relational shape; the existing app
 // types expect ISO strings, partners as string[], and soft-delete as a bool.
@@ -24,8 +25,8 @@ export function serializeArchitect(a: Architect & { partners: ArchitectPartner[]
     prefix: a.prefix,
     firstName: a.firstName,
     lastName: a.lastName,
-    partners: a.partners.map((p) => ({ id: p.id, prefix: p.prefix, firstName: p.firstName, lastName: p.lastName })),
-    siteEngineers: (a.siteEngineers as string[] | null) ?? [],
+    partners: a.partners.map((p) => ({ id: p.id, prefix: p.prefix, firstName: p.firstName, lastName: p.lastName, mobile: p.mobile })),
+    siteEngineers: (a.siteEngineers as ArchitectSiteEngineer[] | null) ?? [],
     mobile: a.mobile,
     office: a.office,
     company: a.company,

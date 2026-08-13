@@ -7,16 +7,17 @@ import { toastStore } from "@/lib/store/toast-store";
 import { parseCsv, downloadCsv } from "@/lib/csv";
 import { architectsStore, type NewArchitectInput } from "@/lib/store/architects-store";
 import { CURRENT_USER_ID } from "@/lib/session";
-import { fullName, partnerFullName, type Architect, type ArchitectPartner } from "@/lib/mock/architects";
+import { fullName, partnerFullName, type Architect, type ArchitectPartner, type ArchitectSiteEngineer } from "@/lib/mock/architects";
 
-// CSV partners column is one free-text name per "; "-separated entry (no
-// structured prefix/first/last in the file) — split the last word off as
-// lastName, same best-effort heuristic used to backfill existing data when
-// partners gained structured fields.
-function parsePartnerName(text: string): ArchitectPartner {
+// CSV partners/site-engineers column is one free-text name per "; "-separated
+// entry (no structured prefix/first/last/mobile in the file) — split the
+// last word off as lastName, same best-effort heuristic used to backfill
+// existing data when partners gained structured fields. Mobile always comes
+// back blank from CSV; edit it via the form afterward if needed.
+function parsePersonName(text: string): ArchitectPartner & ArchitectSiteEngineer {
   const parts = text.trim().split(/\s+/);
   const lastName = parts.length > 1 ? (parts.pop() as string) : "";
-  return { prefix: "", firstName: parts.join(" "), lastName };
+  return { prefix: "", firstName: parts.join(" "), lastName, mobile: "" };
 }
 
 type ImportMode = "upsert" | "insert-only" | "update-only";
@@ -62,7 +63,7 @@ export function ArchitectsCsvPanel() {
         a.birthdayDay ?? "",
         a.birthdayYear ?? "",
         (a.partners ?? []).map(partnerFullName).join("; "),
-        (a.siteEngineers ?? []).join("; "),
+        (a.siteEngineers ?? []).map(partnerFullName).join("; "),
       ]),
     ];
     downloadCsv("architects.csv", rows);
@@ -92,9 +93,11 @@ export function ArchitectsCsvPanel() {
         birthdayDay: birthdayDay ?? "",
         birthdayYear: birthdayYear ?? "",
         partners: partners
-          ? partners.split(";").map((p) => p.trim()).filter(Boolean).map(parsePartnerName)
+          ? partners.split(";").map((p) => p.trim()).filter(Boolean).map(parsePersonName)
           : [],
-        siteEngineers: siteEngineers ? siteEngineers.split(";").map((s) => s.trim()).filter(Boolean) : [],
+        siteEngineers: siteEngineers
+          ? siteEngineers.split(";").map((s) => s.trim()).filter(Boolean).map(parsePersonName)
+          : [],
         createdById: CURRENT_USER_ID,
       };
 

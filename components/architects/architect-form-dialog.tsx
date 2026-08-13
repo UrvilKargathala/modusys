@@ -32,15 +32,26 @@ const phonePattern = /^(\+91[\s-]?)?[6-9]\d{9}$/;
 const currentYear = new Date().getFullYear();
 const birthYears = Array.from({ length: 70 }, (_, i) => String(currentYear - 18 - i));
 
+// Same shape used for the architect's own mobile, each partner, and each
+// site engineer — kept as a standalone schema so all three validate
+// identically instead of drifting.
+const optionalMobile = z.string().refine((v) => v === "" || phonePattern.test(v.replace(/\s/g, "")), {
+  message: "Enter a valid 10-digit Indian mobile number",
+});
+const personSchema = z.object({
+  prefix: z.string(),
+  firstName: z.string(),
+  lastName: z.string(),
+  mobile: optionalMobile,
+});
+
 const architectSchema = z.object({
   prefix: z.string(),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  partners: z.array(z.object({ prefix: z.string(), firstName: z.string(), lastName: z.string() })),
-  siteEngineers: z.array(z.object({ value: z.string() })),
-  mobile: z.string().refine((v) => v === "" || phonePattern.test(v.replace(/\s/g, "")), {
-    message: "Enter a valid 10-digit Indian mobile number",
-  }),
+  partners: z.array(personSchema),
+  siteEngineers: z.array(personSchema),
+  mobile: optionalMobile,
   office: z.string().refine((v) => v === "" || phonePattern.test(v.replace(/\s/g, "")), {
     message: "Enter a valid 10-digit Indian office number",
   }),
@@ -85,8 +96,8 @@ function prefillValues(architect: Architect): ArchitectFormValues {
     prefix: architect.prefix,
     firstName: architect.firstName,
     lastName: architect.lastName,
-    partners: architect.partners.map((p) => ({ prefix: p.prefix, firstName: p.firstName, lastName: p.lastName })),
-    siteEngineers: architect.siteEngineers.map((value) => ({ value })),
+    partners: architect.partners.map((p) => ({ prefix: p.prefix, firstName: p.firstName, lastName: p.lastName, mobile: p.mobile })),
+    siteEngineers: architect.siteEngineers.map((s) => ({ prefix: s.prefix, firstName: s.firstName, lastName: s.lastName, mobile: s.mobile })),
     mobile: architect.mobile,
     office: architect.office,
     company: architect.company,
@@ -101,9 +112,11 @@ function prefillValues(architect: Architect): ArchitectFormValues {
   };
 }
 
+type PersonInput = { prefix: string; firstName: string; lastName: string; mobile: string };
+
 export type ArchitectFormOutput = Omit<ArchitectFormValues, "partners" | "siteEngineers" | "instagram"> & {
-  partners: { prefix: string; firstName: string; lastName: string }[];
-  siteEngineers: string[];
+  partners: PersonInput[];
+  siteEngineers: PersonInput[];
   instagram: string;
 };
 
@@ -146,7 +159,7 @@ export function ArchitectFormDialog({
     onSubmit({
       ...values,
       partners: values.partners.filter((p) => p.firstName || p.lastName),
-      siteEngineers: values.siteEngineers.map((s) => s.value).filter(Boolean),
+      siteEngineers: values.siteEngineers.filter((s) => s.firstName || s.lastName),
       instagram: values.instagram && !values.instagram.startsWith("@") ? `@${values.instagram}` : values.instagram,
     });
     onOpenChange(false);
@@ -160,7 +173,7 @@ export function ArchitectFormDialog({
 
   const body = (
     <form onSubmit={handleSubmit(submit)} noValidate className="flex flex-col gap-4">
-          <div className="grid grid-cols-[6rem_1fr_1fr] gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="a-prefix">Prefix</Label>
               <Input id="a-prefix" placeholder="e.g. Mr" {...register("prefix")} />
@@ -175,32 +188,33 @@ export function ArchitectFormDialog({
               <Input id="a-last" placeholder="e.g. Rao" {...register("lastName")} />
               {errors.lastName && <span className="text-xs font-body text-error">{errors.lastName.message}</span>}
             </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="a-mobile">Mobile Number</Label>
+              <Input id="a-mobile" placeholder="+91 98765 43210" className="font-number" {...register("mobile")} />
+              {errors.mobile && <span className="text-xs font-body text-error">{errors.mobile.message}</span>}
+            </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <Label>Partner Name</Label>
-              <Button type="button" variant="outline" size="sm" onClick={() => append({ prefix: "", firstName: "", lastName: "" })}>
+              <Button type="button" variant="outline" size="sm" onClick={() => append({ prefix: "", firstName: "", lastName: "", mobile: "" })}>
                 <Plus className="h-3.5 w-3.5" />
                 Add Partner
               </Button>
             </div>
             {fields.length > 0 && (
-              <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
+              <div className="flex max-h-80 flex-col gap-3 overflow-y-auto">
                 {fields.map((field, index) => (
-                  <div key={field.id} className="flex items-center gap-2">
-                    <div className="grid flex-1 grid-cols-[4.5rem_1fr_1fr] gap-2">
+                  <div key={field.id} className="flex items-start gap-2 rounded-lg border border-grey-100 p-2.5">
+                    <div className="grid flex-1 grid-cols-2 gap-2">
+                      <Input placeholder="Prefix" {...register(`partners.${index}.prefix` as const)} />
+                      <Input placeholder="First Name" {...register(`partners.${index}.firstName` as const)} />
+                      <Input placeholder="Last Name" {...register(`partners.${index}.lastName` as const)} />
                       <Input
-                        placeholder="Prefix"
-                        {...register(`partners.${index}.prefix` as const)}
-                      />
-                      <Input
-                        placeholder="First Name"
-                        {...register(`partners.${index}.firstName` as const)}
-                      />
-                      <Input
-                        placeholder="Last Name"
-                        {...register(`partners.${index}.lastName` as const)}
+                        placeholder="Mobile Number"
+                        className="font-number"
+                        {...register(`partners.${index}.mobile` as const)}
                       />
                     </div>
                     <button
@@ -220,19 +234,25 @@ export function ArchitectFormDialog({
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <Label>Site Engineer Name</Label>
-              <Button type="button" variant="outline" size="sm" onClick={() => engineers.append({ value: "" })}>
+              <Button type="button" variant="outline" size="sm" onClick={() => engineers.append({ prefix: "", firstName: "", lastName: "", mobile: "" })}>
                 <Plus className="h-3.5 w-3.5" />
                 Add Site Engineer
               </Button>
             </div>
             {engineers.fields.length > 0 && (
-              <div className="flex max-h-40 flex-col gap-2 overflow-y-auto">
+              <div className="flex max-h-80 flex-col gap-3 overflow-y-auto">
                 {engineers.fields.map((field, index) => (
-                  <div key={field.id} className="flex items-center gap-2">
-                    <Input
-                      placeholder={`Site Engineer ${index + 1}`}
-                      {...register(`siteEngineers.${index}.value` as const)}
-                    />
+                  <div key={field.id} className="flex items-start gap-2 rounded-lg border border-grey-100 p-2.5">
+                    <div className="grid flex-1 grid-cols-2 gap-2">
+                      <Input placeholder="Prefix" {...register(`siteEngineers.${index}.prefix` as const)} />
+                      <Input placeholder="First Name" {...register(`siteEngineers.${index}.firstName` as const)} />
+                      <Input placeholder="Last Name" {...register(`siteEngineers.${index}.lastName` as const)} />
+                      <Input
+                        placeholder="Mobile Number"
+                        className="font-number"
+                        {...register(`siteEngineers.${index}.mobile` as const)}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => engineers.remove(index)}
@@ -249,34 +269,27 @@ export function ArchitectFormDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="a-mobile">Mobile Number</Label>
-              <Input id="a-mobile" placeholder="+91 98765 43210" className="font-number" {...register("mobile")} />
-              {errors.mobile && <span className="text-xs font-body text-error">{errors.mobile.message}</span>}
-            </div>
-            <div className="flex flex-col gap-1.5">
               <Label htmlFor="a-office">Office Number</Label>
               <Input id="a-office" placeholder="+91 22 2650 1122" className="font-number" {...register("office")} />
               {errors.office && <span className="text-xs font-body text-error">{errors.office.message}</span>}
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="a-company">Company Name</Label>
               <Input id="a-company" {...register("company")} />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="a-instagram">Instagram ID</Label>
-              <Input
-                id="a-instagram"
-                placeholder="@handle"
-                {...register("instagram")}
-                onBlur={(e) => {
-                  const v = e.target.value;
-                  if (v && !v.startsWith("@")) setValue("instagram", `@${v}`);
-                }}
-              />
-            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="a-instagram">Instagram ID</Label>
+            <Input
+              id="a-instagram"
+              placeholder="@handle"
+              {...register("instagram")}
+              onBlur={(e) => {
+                const v = e.target.value;
+                if (v && !v.startsWith("@")) setValue("instagram", `@${v}`);
+              }}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">

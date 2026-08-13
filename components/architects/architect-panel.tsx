@@ -115,6 +115,15 @@ export function ArchitectPanel() {
                   </div>
                 )}
 
+                {architect.siteEngineers.length > 0 && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs font-body text-grey-500">Site Engineers</span>
+                    <span className="text-sm font-body text-grey-900">
+                      {architect.siteEngineers.map(partnerFullName).join(", ")}
+                    </span>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1">
                     <span className="text-xs font-body text-grey-500">Mobile</span>

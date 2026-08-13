@@ -38,13 +38,19 @@ export async function POST(req: Request) {
       birthdayMonth: b.birthdayMonth ?? "",
       birthdayDay: b.birthdayDay ?? "",
       birthdayYear: b.birthdayYear ?? "",
-      siteEngineers: b.siteEngineers ?? [],
+      siteEngineers: (b.siteEngineers ?? []).map((s: { prefix?: string; firstName?: string; lastName?: string; mobile?: string }) => ({
+        prefix: s.prefix ?? "",
+        firstName: s.firstName ?? "",
+        lastName: s.lastName ?? "",
+        mobile: s.mobile ?? "",
+      })),
       createdById: b.createdById ?? null,
       partners: {
-        create: (b.partners ?? []).map((p: { prefix?: string; firstName?: string; lastName?: string }) => ({
+        create: (b.partners ?? []).map((p: { prefix?: string; firstName?: string; lastName?: string; mobile?: string }) => ({
           prefix: p.prefix ?? "",
           firstName: p.firstName ?? "",
           lastName: p.lastName ?? "",
+          mobile: p.mobile ?? "",
         })),
       },
     },

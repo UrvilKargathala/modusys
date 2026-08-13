@@ -28,15 +28,23 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (b[k] !== undefined) data[k] = b[k];
   }
   if (b.deletedAt !== undefined) data.deletedAt = b.deletedAt === null ? null : new Date(b.deletedAt);
-  if (Array.isArray(b.siteEngineers)) data.siteEngineers = b.siteEngineers;
+  if (Array.isArray(b.siteEngineers)) {
+    data.siteEngineers = b.siteEngineers.map((s: { prefix?: string; firstName?: string; lastName?: string; mobile?: string }) => ({
+      prefix: s.prefix ?? "",
+      firstName: s.firstName ?? "",
+      lastName: s.lastName ?? "",
+      mobile: s.mobile ?? "",
+    }));
+  }
   // Partners are replace-all when provided (matches the form's edit semantics).
   if (Array.isArray(b.partners)) {
     await prisma.architectPartner.deleteMany({ where: { architectId: id } });
     data.partners = {
-      create: b.partners.map((p: { prefix?: string; firstName?: string; lastName?: string }) => ({
+      create: b.partners.map((p: { prefix?: string; firstName?: string; lastName?: string; mobile?: string }) => ({
         prefix: p.prefix ?? "",
         firstName: p.firstName ?? "",
         lastName: p.lastName ?? "",
+        mobile: p.mobile ?? "",
       })),
     };
   }

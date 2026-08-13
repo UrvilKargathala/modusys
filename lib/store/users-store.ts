@@ -107,6 +107,15 @@ export const usersStore = {
       body: JSON.stringify(fields),
     }).catch(refetch);
   },
+  deleteUser(userId: string) {
+    ensureHydrated();
+    users = users.filter((u) => u.id !== userId);
+    emit();
+    fetch(`/api/users/${userId}`, { method: "DELETE" }).catch(refetch);
+  },
+  restoreUser(userId: string) {
+    refetch();
+  },
 };
 
 export function useOrgUsers() {

@@ -110,6 +110,7 @@ model ArchitectPartner {
   prefix      String    @default("")
   firstName   String    @default("")
   lastName    String    @default("")
+  mobile      String    @default("")
   architectId String
   architect   Architect @relation(fields: [architectId], references: [id], onDelete: Cascade)
 

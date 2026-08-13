@@ -3,6 +3,17 @@ export type ArchitectPartner = {
   prefix: string;
   firstName: string;
   lastName: string;
+  mobile: string;
+};
+
+// Structurally identical to ArchitectPartner, but stored as a plain Json
+// column (Architect.siteEngineers) rather than a related table — there was
+// no existing data volume to justify the extra table.
+export type ArchitectSiteEngineer = {
+  prefix: string;
+  firstName: string;
+  lastName: string;
+  mobile: string;
 };
 
 export type Architect = {
@@ -11,7 +22,7 @@ export type Architect = {
   firstName: string;
   lastName: string;
   partners: ArchitectPartner[];
-  siteEngineers: string[];
+  siteEngineers: ArchitectSiteEngineer[];
   mobile: string;
   office: string;
   company: string;
@@ -32,7 +43,9 @@ export function fullName(a: Pick<Architect, "firstName" | "lastName"> & { prefix
   return `${a.prefix ? `${a.prefix} ` : ""}${a.firstName} ${a.lastName}`.trim();
 }
 
-export function partnerFullName(p: ArchitectPartner) {
+// Shared by partners and site engineers — both are the same
+// {prefix, firstName, lastName} shape.
+export function partnerFullName(p: { prefix: string; firstName: string; lastName: string }) {
   return `${p.prefix ? `${p.prefix} ` : ""}${p.firstName} ${p.lastName}`.trim();
 }
 
@@ -67,7 +80,7 @@ export const mockArchitects: Architect[] = [
     prefix: "Mr",
     firstName: "Ar Swapnil",
     lastName: "Deshmukh",
-    partners: [{ prefix: "Ar.", firstName: "Priya", lastName: "Kulkarni" }],
+    partners: [{ prefix: "Ar.", firstName: "Priya", lastName: "Kulkarni", mobile: "" }],
     siteEngineers: [],
     mobile: "+91 9820011224",
     office: "",
@@ -110,8 +123,8 @@ export const mockArchitects: Architect[] = [
     firstName: "Suresh",
     lastName: "Iyer",
     partners: [
-      { prefix: "Ar.", firstName: "Meena", lastName: "Pillai" },
-      { prefix: "Ar.", firstName: "Ravi", lastName: "Nair" },
+      { prefix: "Ar.", firstName: "Meena", lastName: "Pillai", mobile: "" },
+      { prefix: "Ar.", firstName: "Ravi", lastName: "Nair", mobile: "" },
     ],
     siteEngineers: [],
     mobile: "+91 9884455667",

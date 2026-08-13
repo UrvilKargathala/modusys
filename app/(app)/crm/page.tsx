@@ -11,8 +11,9 @@ import { TasksTab } from "@/components/crm/tasks/tasks-tab";
 import { CustomerFormDialog } from "@/components/customers/customer-form-dialog";
 import { customersStore } from "@/lib/store/customers-store";
 import { profileOverridesStore } from "@/lib/store/customer-profile-overrides-store";
-import { CURRENT_USER_ID } from "@/lib/session";
+import { CURRENT_USER_ID, getCurrentUser } from "@/lib/session";
 import { toastStore } from "@/lib/store/toast-store";
+import { useTasks, visibleTasks } from "@/lib/store/tasks-store";
 
 const tabLabels: Record<string, string> = {
   tickets: "Tickets",
@@ -25,6 +26,18 @@ function CrmPageContent() {
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab") ?? "tickets";
   const [addOpen, setAddOpen] = useState(false);
+
+  // Same scoping as PipelineTab's Pending Tasks KPI — mine, or all for
+  // admin/super-admin.
+  const currentUser = getCurrentUser();
+  const canSeeAllTasks = currentUser.role === "super-admin" || currentUser.role === "admin";
+  const allTasks = useTasks();
+  const pendingTaskCount = visibleTasks(
+    allTasks,
+    currentUser.id,
+    currentUser.role === "no-role" ? "staff" : currentUser.role,
+    canSeeAllTasks ? "all" : "mine"
+  ).filter((t) => !t.completed).length;
 
   const setTab = (value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -66,7 +79,14 @@ function CrmPageContent() {
       <Tabs value={tab} onValueChange={(value) => setTab(String(value))}>
         <TabsList>
           <TabsTrigger value="tickets" className="w-[100px] h-[25px]">Tickets</TabsTrigger>
-          <TabsTrigger value="tasks" className="w-[100px] h-[25px]">Tasks</TabsTrigger>
+          <TabsTrigger value="tasks" className="w-[100px] h-[25px]">
+            Tasks
+            {pendingTaskCount > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[10px] font-number font-medium text-white">
+                {pendingTaskCount > 9 ? "9+" : pendingTaskCount}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="tickets" className="pt-6">

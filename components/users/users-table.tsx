@@ -9,7 +9,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { Search, Copy, KeyRound, Pencil } from "lucide-react";
+import { Search, Copy, KeyRound, Pencil, Trash2 } from "lucide-react";
 import {
   Tooltip,
   TooltipTrigger,
@@ -18,7 +18,19 @@ import {
 import { RoleCell } from "@/components/users/role-cell";
 import { SetPasswordDialog } from "@/components/users/set-password-dialog";
 import { EditUserDialog } from "@/components/users/edit-user-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { getCurrentUser } from "@/lib/session";
+import { usersStore } from "@/lib/store/users-store";
+import { toastStore } from "@/lib/store/toast-store";
 import type { OrgUser } from "@/lib/mock/users";
 import { cn } from "@/lib/utils";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
@@ -34,6 +46,8 @@ export function UsersTable({ users }: { users: OrgUser[] }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [passwordTarget, setPasswordTarget] = useState<OrgUser | null>(null);
   const [editTarget, setEditTarget] = useState<OrgUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<OrgUser | null>(null);
+  const canDeleteUser = getCurrentUser().role === "super-admin";
 
   // Names that appear more than once — flagged inline so an admin notices a
   // possible duplicate account without opening every row.
@@ -137,6 +151,18 @@ export function UsersTable({ users }: { users: OrgUser[] }) {
                       <TooltipContent>Set Password</TooltipContent>
                     </Tooltip>
                   )}
+                  {canDeleteUser && row.original.id !== getCurrentUser().id && (
+                    <Tooltip>
+                      <TooltipTrigger
+                        aria-label="Delete"
+                        onClick={() => setDeleteTarget(row.original)}
+                        className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </TooltipTrigger>
+                      <TooltipContent>Delete</TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
               ),
             } as ColumnDef<OrgUser>,
@@ -223,6 +249,31 @@ export function UsersTable({ users }: { users: OrgUser[] }) {
         onOpenChange={(open) => !open && setEditTarget(null)}
         user={editTarget}
       />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <span className="font-medium text-grey-900">{deleteTarget?.name}</span> ({deleteTarget?.email})? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-error text-white hover:bg-error/90"
+              onClick={() => {
+                if (!deleteTarget) return;
+                usersStore.deleteUser(deleteTarget.id);
+                toastStore.show(`${deleteTarget.name} deleted`, "success");
+                setDeleteTarget(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

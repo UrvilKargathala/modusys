@@ -26,7 +26,7 @@ export async function POST(req: Request) {
       name: body.name,
       email: body.email,
       role: body.role ?? "no-role",
-      status: body.status ?? "invited",
+      status: body.status ?? "active",
     },
   });
 
