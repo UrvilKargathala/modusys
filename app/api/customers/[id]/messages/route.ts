@@ -45,5 +45,65 @@ export async function POST(req: Request, { params }: Ctx) {
       pdfSize: b.pdfSize ?? undefined,
     },
   });
+
+  // @-mentions in a real chat message auto-create a follow-up task for each
+  // mentioned user, plus a bell notification so they see it immediately.
+  // Self-mentions and system messages are skipped.
+  if (
+    message.kind !== "system" &&
+    message.mentionedUserIds.length > 0
+  ) {
+    const uniqueMentions = Array.from(new Set(message.mentionedUserIds)).filter(
+      (id) => id !== auth.user.id
+    );
+    if (uniqueMentions.length > 0) {
+      const customer = await prisma.customer.findUnique({
+        where: { id: customerId },
+        select: { name: true },
+      });
+      const rawTitle = (message.text ?? "").trim();
+      const title = rawTitle
+        ? rawTitle.slice(0, 120)
+        : message.kind === "image"
+        ? "Follow up on shared image"
+        : message.kind === "pdf"
+        ? "Follow up on shared PDF"
+        : message.kind === "voice"
+        ? "Follow up on voice note"
+        : "Follow up from chat";
+      const preview = rawTitle ? rawTitle.slice(0, 60) : title;
+      const customerLabel = customer?.name ? ` in ${customer.name}` : "";
+
+      // Sequential inside a Promise.all — each mention gets its own task +
+      // notification pair; failures don't roll back the message itself since
+      // it's already been sent to the customer.
+      await Promise.all(
+        uniqueMentions.map(async (mentionedId) => {
+          const task = await prisma.task.create({
+            data: {
+              title,
+              description: "",
+              dueDate: "",
+              priority: "normal",
+              status: "pending",
+              assigneeId: mentionedId,
+              createdById: auth.user.id,
+              linkedCustomerId: customerId,
+            },
+          });
+          await prisma.notification.create({
+            data: {
+              userId: mentionedId,
+              type: "mentioned",
+              relatedTaskId: task.id,
+              message: `${auth.user.name} mentioned you${customerLabel}: "${preview}"`,
+              read: false,
+            },
+          });
+        })
+      );
+    }
+  }
+
   return NextResponse.json(serializeMessage(message), { status: 201 });
 }

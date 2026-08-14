@@ -1,6 +1,7 @@
 "use client";
 
-import { Clock, AlertCircle, RotateCcw, Play, Pause, MoreVertical, Copy, Pencil, Trash2, Check, X as XIcon, FileText } from "lucide-react";
+import { Clock, AlertCircle, RotateCcw, Play, Pause, MoreVertical, Copy, Pencil, Trash2, Check, X as XIcon, FileText, ListTodo } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { MessageText } from "@/components/crm/pipeline/customer-panel/message-text";
 import { customerMessagesStore, type CustomerMessage } from "@/lib/store/customer-messages-store";
@@ -237,6 +238,27 @@ export function MessageBubble({ message }: { message: CustomerMessage }) {
             <MessageText text={message.text ?? ""} inverted={isSelf} />
           )}
         </div>
+        {message.status === "sent" && message.mentionedUserIds && message.mentionedUserIds.length > 0 && (
+          <div className={cn("flex flex-wrap gap-1 pt-1", isSelf && "justify-end")}>
+            {message.mentionedUserIds
+              .filter((id) => id !== message.senderId)
+              .map((mentionedId) => {
+                const u = orgUsers.find((x) => x.id === mentionedId);
+                if (!u) return null;
+                return (
+                  <Link
+                    key={mentionedId}
+                    href="/crm?tab=tasks"
+                    className="inline-flex items-center gap-1 rounded-full bg-primary-transparent px-2 py-0.5 text-[10px] font-body font-medium text-primary hover:bg-primary/20"
+                    title={`A task was assigned to ${u.name}`}
+                  >
+                    <ListTodo className="h-3 w-3" />
+                    Task → {u.name}
+                  </Link>
+                );
+              })}
+          </div>
+        )}
         <div className="flex items-center gap-1.5 text-[11px] font-number text-grey-300">
           {message.status === "pending" && (
             <>
