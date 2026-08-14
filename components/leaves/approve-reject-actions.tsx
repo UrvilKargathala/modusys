@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toastStore } from "@/lib/store/toast-store";
 
 export function ApproveRejectActions({ id }: { id: string }) {
   const router = useRouter();
@@ -24,9 +25,10 @@ export function ApproveRejectActions({ id }: { id: string }) {
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        alert(json.error || "Failed");
+        toastStore.show(json.error || "Failed", "error");
         return;
       }
+      toastStore.show(status === "APPROVED" ? "Leave approved" : "Leave rejected", "success");
       router.refresh();
     } finally {
       setBusy(null);

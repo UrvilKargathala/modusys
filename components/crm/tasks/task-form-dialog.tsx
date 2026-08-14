@@ -77,6 +77,7 @@ export function TaskFormDialog({
       });
       reset();
       onOpenChange(false);
+      toastStore.show("Task created", "success");
     } catch (err) {
       toastStore.show(err instanceof Error ? err.message : "Failed to create task", "error");
     }

@@ -6,6 +6,7 @@ import { EditableField } from "@/components/crm/pipeline/customer-panel/editable
 import { StatusBadge } from "@/components/shared/status-badge";
 import { getCustomerProfile, getCustomerQuotes } from "@/lib/mock/customer-detail";
 import { customersStore } from "@/lib/store/customers-store";
+import { toastStore } from "@/lib/store/toast-store";
 import type { Customer } from "@/lib/mock/pipeline";
 
 // Profile-field keys (used by the editor UI) → the real Customer column
@@ -25,8 +26,10 @@ export function DetailsSection({ customer }: { customer: Customer }) {
   const profile = getCustomerProfile(customer);
   const quotes = getCustomerQuotes(customer);
 
-  const save = (field: keyof typeof FIELD_MAP) => (value: string) =>
+  const save = (field: keyof typeof FIELD_MAP) => (value: string) => {
     customersStore.updateCustomer(customer.id, { [FIELD_MAP[field]]: value });
+    toastStore.show("Saved", "success");
+  };
 
   return (
     <div className="flex flex-col gap-5 p-5">

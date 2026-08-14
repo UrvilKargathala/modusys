@@ -150,6 +150,7 @@ export function CustomerPanel() {
               updatedAt: new Date().toISOString(),
               updatedById: CURRENT_USER_ID,
             });
+            toastStore.show("Customer updated", "success");
           }}
         />
       )}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toastStore } from "@/lib/store/toast-store";
 
 export function CancelLeaveButton({ id }: { id: string }) {
   const router = useRouter();
@@ -14,9 +15,10 @@ export function CancelLeaveButton({ id }: { id: string }) {
       const res = await fetch(`/api/leaves/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        alert(json.error || "Failed to cancel");
+        toastStore.show(json.error || "Failed to cancel", "error");
         return;
       }
+      toastStore.show("Leave request cancelled", "success");
       router.refresh();
     } finally {
       setBusy(false);

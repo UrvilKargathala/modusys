@@ -98,7 +98,7 @@ export function TopNavbar() {
         </span>
       </Link>
 
-      <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 overflow-x-auto rounded-full bg-primary/40 p-1 lg:flex">
+      <nav className="hidden min-w-0 flex-1 items-center justify-start gap-0.5 overflow-x-auto rounded-full bg-primary/40 p-1 lg:flex xl:justify-center xl:gap-1">
         {navigationItems
           .filter((item) => canSeeNav(item, currentUser.role))
           .map((item) => {
@@ -108,7 +108,7 @@ export function TopNavbar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-body font-bold transition-colors",
+                "whitespace-nowrap rounded-full px-2.5 py-1.5 text-sm font-body font-bold transition-colors xl:px-4",
                 active ? "bg-primary text-white shadow-sm" : "text-grey-700 hover:text-grey-900"
               )}
             >
@@ -120,7 +120,7 @@ export function TopNavbar() {
         <DropdownMenu>
           <DropdownMenuTrigger
             className={cn(
-              "flex items-center gap-1 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-body font-bold transition-colors",
+              "flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1.5 text-sm font-body font-bold transition-colors xl:px-4",
               attendanceItems.some(
                 (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
               )
@@ -151,7 +151,7 @@ export function TopNavbar() {
         <DropdownMenu>
           <DropdownMenuTrigger
             className={cn(
-              "flex items-center gap-1 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-body font-bold transition-colors",
+              "flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1.5 text-sm font-body font-bold transition-colors xl:px-4",
               administrationItems.some(
                 (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
               )

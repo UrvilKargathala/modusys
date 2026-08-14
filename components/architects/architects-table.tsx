@@ -245,7 +245,10 @@ export function ArchitectsTable() {
       <ArchitectFormDialog
         open={addOpen}
         onOpenChange={setAddOpen}
-        onSubmit={(values) => architectsStore.createArchitect({ ...values, createdById: CURRENT_USER_ID })}
+        onSubmit={(values) => {
+          architectsStore.createArchitect({ ...values, createdById: CURRENT_USER_ID });
+          toastStore.show(`${values.firstName} ${values.lastName} added`, "success");
+        }}
       />
 
       {editTarget && (
@@ -253,7 +256,10 @@ export function ArchitectsTable() {
           open={!!editTarget}
           onOpenChange={(open) => !open && setEditTarget(null)}
           architect={editTarget}
-          onSubmit={(values) => architectsStore.updateArchitect(editTarget.id, values)}
+          onSubmit={(values) => {
+            architectsStore.updateArchitect(editTarget.id, values);
+            toastStore.show("Architect updated", "success");
+          }}
         />
       )}
 

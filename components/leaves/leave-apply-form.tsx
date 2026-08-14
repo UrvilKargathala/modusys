@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LEAVE_TYPES } from "@/lib/attendance-config";
+import { toastStore } from "@/lib/store/toast-store";
 
 function weekdaysBetweenClient(from: string, to: string): number {
   if (!from || !to) return 0;
@@ -64,8 +65,10 @@ export function LeaveApplyForm({ onDone }: { onDone?: () => void } = {}) {
       const json = await res.json();
       if (!res.ok) {
         setError(json.error || "Failed to submit");
+        toastStore.show(json.error || "Failed to submit leave request", "error");
         return;
       }
+      toastStore.show("Leave request submitted for approval", "success");
       router.refresh();
       if (onDone) onDone();
       else router.push("/leaves");

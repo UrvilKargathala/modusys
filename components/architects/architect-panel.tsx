@@ -206,7 +206,10 @@ export function ArchitectPanel() {
           open={editOpen}
           onOpenChange={setEditOpen}
           architect={architect}
-          onSubmit={(values) => architectsStore.updateArchitect(architect.id, values)}
+          onSubmit={(values) => {
+            architectsStore.updateArchitect(architect.id, values);
+            toastStore.show("Architect updated", "success");
+          }}
         />
       )}
 

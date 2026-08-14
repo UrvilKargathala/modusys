@@ -251,6 +251,7 @@ export function CustomersTable() {
           if (created?.id && values.architectId) {
             profileOverridesStore.setFields(created.id, { architectId: values.architectId });
           }
+          toastStore.show(`${values.firstName} ${values.lastName} added`, "success");
         }}
       />
 
@@ -285,6 +286,7 @@ export function CustomersTable() {
               updatedAt: new Date().toISOString(),
               updatedById: CURRENT_USER_ID,
             });
+            toastStore.show("Customer updated", "success");
           }}
         />
       )}
