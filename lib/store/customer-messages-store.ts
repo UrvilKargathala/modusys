@@ -11,11 +11,16 @@ export type CustomerMessage = {
   mentionedUserIds?: string[];
   audioUrl?: string;
   durationSec?: number;
+  // Single-image fields still populated for backward compat; new sends also
+  // write imageUrls[] so the renderer can show a gallery when > 1.
   imageUrl?: string;
   imageName?: string;
+  imageUrls?: string[];
+  imageNames?: string[];
   pdfUrl?: string;
   pdfName?: string;
   pdfSize?: number;
+  replyToMessageId?: string;
   editedAt?: string;
   createdAt: string;
   status: "sent" | "pending" | "error";
@@ -125,7 +130,13 @@ export const customerMessagesStore = {
     return byCustomer.get(customerId) ?? EMPTY;
   },
   refetch: fetchMessages,
-  async sendMessage(customerId: string, text: string, senderId: string, mentionedUserIds: string[]) {
+  async sendMessage(
+    customerId: string,
+    text: string,
+    senderId: string,
+    mentionedUserIds: string[],
+    replyToMessageId?: string
+  ) {
     const optimistic: CustomerMessage = {
       id: `pending-${Date.now()}`,
       customerId,
@@ -133,10 +144,15 @@ export const customerMessagesStore = {
       senderId,
       text,
       mentionedUserIds,
+      replyToMessageId,
       createdAt: new Date().toISOString(),
       status: "pending",
     };
-    await createMessage(customerId, { kind: "chat", text, mentionedUserIds }, optimistic);
+    await createMessage(
+      customerId,
+      { kind: "chat", text, mentionedUserIds, replyToMessageId },
+      optimistic
+    );
   },
   async retryMessage(customerId: string, id: string) {
     const msg = (byCustomer.get(customerId) ?? []).find((m) => m.id === id);
@@ -163,6 +179,43 @@ export const customerMessagesStore = {
     try {
       const audioUrl = await uploadFile(customerId, blob);
       await postAndReplace(customerId, tempId, { kind: "voice", audioUrl, durationSec });
+    } catch {
+      markError(customerId, tempId);
+    }
+  },
+  // WhatsApp-style batch: 1+ images sent as ONE message with a gallery, plus
+  // an optional caption. Uploads run in parallel; if any upload fails the
+  // whole message is flagged as errored (retry re-sends everything).
+  async addImageGroupMessage(
+    customerId: string,
+    senderId: string,
+    files: File[],
+    caption?: string
+  ) {
+    if (files.length === 0) return;
+    const tempId = `pending-${Date.now()}`;
+    const previews = files.map((f) => URL.createObjectURL(f));
+    insertOptimistic(customerId, {
+      id: tempId,
+      customerId,
+      kind: "image",
+      senderId,
+      text: caption?.trim() || undefined,
+      imageUrl: previews[0],
+      imageName: files[0].name,
+      imageUrls: previews,
+      imageNames: files.map((f) => f.name),
+      createdAt: new Date().toISOString(),
+      status: "pending",
+    });
+    try {
+      const imageUrls = await Promise.all(files.map((f) => uploadFile(customerId, f)));
+      await postAndReplace(customerId, tempId, {
+        kind: "image",
+        imageUrls,
+        imageNames: files.map((f) => f.name),
+        text: caption?.trim() || undefined,
+      });
     } catch {
       markError(customerId, tempId);
     }

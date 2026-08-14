@@ -65,12 +65,22 @@ model Message {
   audioUrl    String?
   durationSec Int?
 
-  imageUrl  String?
-  imageName String?
+  // Legacy single-image fields — pre-gallery messages still read from here.
+  // New sends populate imageUrls[]/imageNames[] instead (imageUrls[0] mirrors
+  // imageUrl for single-image sends so old clients don't break).
+  imageUrl   String?
+  imageName  String?
+  imageUrls  String[] @default([])
+  imageNames String[] @default([])
 
   pdfUrl  String?
   pdfName String?
   pdfSize Int?
+
+  // When set, this message is a reply to another Message.id. The referenced
+  // message may have been deleted — UI treats a dangling ref as "reply to
+  // a removed message" rather than erroring.
+  replyToMessageId String?
 
   editedAt  DateTime?
   createdAt DateTime  @default(now())

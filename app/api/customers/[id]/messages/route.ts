@@ -29,6 +29,20 @@ export async function POST(req: Request, { params }: Ctx) {
   const b = await req.json();
   const kind = ["chat", "system", "voice", "image", "pdf"].includes(b.kind) ? b.kind : "chat";
 
+  // Multi-image sends supply imageUrls[]; for a single image the client can
+  // still send scalar imageUrl (legacy path) — normalise here so the row has
+  // both populated and downstream renderers can trust either.
+  const imageUrls: string[] = Array.isArray(b.imageUrls)
+    ? b.imageUrls.filter((s: unknown): s is string => typeof s === "string" && s.length > 0)
+    : b.imageUrl
+    ? [b.imageUrl]
+    : [];
+  const imageNames: string[] = Array.isArray(b.imageNames)
+    ? b.imageNames.filter((s: unknown): s is string => typeof s === "string")
+    : b.imageName
+    ? [b.imageName]
+    : [];
+
   const message = await prisma.message.create({
     data: {
       customerId,
@@ -38,11 +52,14 @@ export async function POST(req: Request, { params }: Ctx) {
       mentionedUserIds: Array.isArray(b.mentionedUserIds) ? b.mentionedUserIds : [],
       audioUrl: b.audioUrl ?? undefined,
       durationSec: b.durationSec ?? undefined,
-      imageUrl: b.imageUrl ?? undefined,
-      imageName: b.imageName ?? undefined,
+      imageUrl: imageUrls[0] ?? undefined,
+      imageName: imageNames[0] ?? undefined,
+      imageUrls,
+      imageNames,
       pdfUrl: b.pdfUrl ?? undefined,
       pdfName: b.pdfName ?? undefined,
       pdfSize: b.pdfSize ?? undefined,
+      replyToMessageId: typeof b.replyToMessageId === "string" ? b.replyToMessageId : undefined,
     },
   });
 

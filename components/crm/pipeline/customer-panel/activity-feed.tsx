@@ -5,13 +5,18 @@ import { MessageCircle, ArrowDown } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { MessageBubble } from "@/components/crm/pipeline/customer-panel/message-bubble";
 import { MessageInput } from "@/components/crm/pipeline/customer-panel/message-input";
-import { useCustomerMessages } from "@/lib/store/customer-messages-store";
+import { useCustomerMessages, type CustomerMessage } from "@/lib/store/customer-messages-store";
 
 export function ActivityFeed({ customerId }: { customerId: string }) {
   const messages = useCustomerMessages(customerId);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
   const prevCount = useRef(messages.length);
+  // Reply target is composer-level state; each bubble's "Reply" action sets
+  // it, the composer reads it. Kept here (common ancestor) instead of a
+  // store so it resets automatically when the customer panel unmounts.
+  const [replyTarget, setReplyTarget] = useState<CustomerMessage | null>(null);
+  const messagesById = new Map(messages.map((m) => [m.id, m]));
 
   useEffect(() => {
     const grew = messages.length > prevCount.current;
@@ -43,7 +48,12 @@ export function ActivityFeed({ customerId }: { customerId: string }) {
         ) : (
           <div className="flex flex-col gap-3">
             {messages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
+              <MessageBubble
+                key={message.id}
+                message={message}
+                replyTo={message.replyToMessageId ? messagesById.get(message.replyToMessageId) ?? null : null}
+                onReply={() => setReplyTarget(message)}
+              />
             ))}
           </div>
         )}
@@ -61,7 +71,11 @@ export function ActivityFeed({ customerId }: { customerId: string }) {
         </div>
       )}
 
-      <MessageInput customerId={customerId} />
+      <MessageInput
+        customerId={customerId}
+        replyTarget={replyTarget}
+        onClearReply={() => setReplyTarget(null)}
+      />
     </div>
   );
 }
