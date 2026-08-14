@@ -53,15 +53,20 @@ function ensureHydrated(customerId: string) {
 }
 
 async function uploadFile(customerId: string, file: File | Blob): Promise<string> {
-  const form = new FormData();
-  form.append("file", file);
-  const res = await fetch(`/api/customers/${customerId}/messages/upload`, {
-    method: "POST",
-    body: form,
+  // Client-direct upload to Vercel Blob — bypasses the ~4.5 MB serverless
+  // request-body cap so real 20 MB PDFs/images work in production. The
+  // /upload endpoint only issues signed tokens after auth + type/size checks.
+  const { upload } = await import("@vercel/blob/client");
+  const mime = file.type || "application/octet-stream";
+  const ext = mime.split("/")[1] || "bin";
+  const filename = file instanceof File ? file.name : `${Date.now()}.${ext}`;
+  const pathname = `crm/${customerId}/${Date.now()}-${filename}`;
+  const blob = await upload(pathname, file, {
+    access: "public",
+    contentType: mime,
+    handleUploadUrl: `/api/customers/${customerId}/messages/upload`,
   });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || "Upload failed");
-  return json.url as string;
+  return blob.url;
 }
 
 function insertOptimistic(customerId: string, optimistic: CustomerMessage) {

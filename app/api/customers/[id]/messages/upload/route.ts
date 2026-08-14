@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { NextResponse } from "next/server";
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { requireUser } from "@/lib/server/require-user";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_BYTES = 8 * 1024 * 1024;
-const ACCEPT = new Set([
+const MAX_BYTES = 20 * 1024 * 1024;
+const ACCEPT = [
   "image/jpeg",
   "image/png",
   "image/webp",
@@ -15,45 +15,45 @@ const ACCEPT = new Set([
   "audio/webm",
   "audio/mp4",
   "audio/mpeg",
-]);
+];
 
+// Client-direct upload: the browser calls this endpoint (via
+// @vercel/blob/client `upload()`), we hand back a short-lived signed token
+// after auth + type/size validation, and the browser uploads straight to
+// Vercel Blob storage. This bypasses Vercel's ~4.5 MB serverless-function
+// request-body cap so real 20 MB attachments work in production.
 type Ctx = { params: Promise<{ id: string }> };
 
-// POST multipart/form-data with a `file` blob. Used by the CRM chat composer
-// for image/pdf/voice attachments — the resulting URL is then handed to
-// POST /api/customers/[id]/messages as imageUrl/pdfUrl/audioUrl.
-export async function POST(req: NextRequest, { params }: Ctx) {
-  const auth = await requireUser();
-  if (auth.response) return auth.response;
+export async function POST(req: Request, { params }: Ctx) {
   const { id: customerId } = await params;
-
-  const form = await req.formData().catch(() => null);
-  const file = form?.get("file");
-  if (!(file instanceof Blob)) {
-    return NextResponse.json({ error: "file field is required" }, { status: 400 });
-  }
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: `File exceeds ${Math.round(MAX_BYTES / 1024 / 1024)}MB limit` }, { status: 413 });
-  }
-  const mime = file.type || "application/octet-stream";
-  if (!ACCEPT.has(mime)) {
-    return NextResponse.json({ error: "Unsupported file type" }, { status: 415 });
-  }
-
-  const ext = mime.split("/")[1] || "bin";
-  const key = `crm/${customerId}/${Date.now()}.${ext}`;
+  const body = (await req.json()) as HandleUploadBody;
 
   try {
-    const blob = await put(key, file, {
-      access: "public",
-      contentType: mime,
-      addRandomSuffix: false,
+    const jsonResponse = await handleUpload({
+      body,
+      request: req,
+      onBeforeGenerateToken: async () => {
+        const auth = await requireUser();
+        if (auth.response) throw new Error("Unauthorized");
+        return {
+          allowedContentTypes: ACCEPT,
+          maximumSizeInBytes: MAX_BYTES,
+          addRandomSuffix: true,
+          // Prefix the pathname so all chat uploads stay grouped by customer
+          // and can be located in the Blob dashboard.
+          tokenPayload: JSON.stringify({ customerId }),
+        };
+      },
+      onUploadCompleted: async () => {
+        // No-op — the message record is created by the client once it has
+        // the blob URL, via POST /api/customers/[id]/messages.
+      },
     });
-    return NextResponse.json({ url: blob.url });
+    return NextResponse.json(jsonResponse);
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Upload failed" },
-      { status: 500 }
+      { status: 400 }
     );
   }
 }
