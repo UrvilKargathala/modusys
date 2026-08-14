@@ -1,10 +1,24 @@
-// Modusys attendance rules. Times are IST wall-clock (Asia/Kolkata) —
-// records are stored in UTC and interpreted per the row's `timezone` column
-// when read (Modusys is India-only today, so this defaults to IST).
-export const STANDARD_START = { hour: 9, minute: 30 };
+// Modusys Attendance Policy
+// - Standard hours: 10:00 AM – 6:30 PM IST (8.5 hours)
+// - No break deduction (working hours = checkOut − checkIn, wall-clock)
+// - Late grace: 15 min (late = check-in AFTER 10:15 AM, informational only)
+// - Half day threshold: < 4.5 hours worked
+// - Full day: >= 4.5 hours worked
+// - Applies to all sources: face scan (unifi), GPS + selfie (gps+photo),
+//   and legacy gps/photo-only rows.
+//
+// Times are IST wall-clock (Asia/Kolkata). Timestamps are stored in UTC and
+// interpreted per the row's `timezone` column when read (Modusys is
+// India-only today, so this defaults to IST).
+export const STANDARD_START = { hour: 10, minute: 0 };
 export const STANDARD_END = { hour: 18, minute: 30 };
-export const LATE_GRACE_MINUTES = 15; // late = check-in after 9:45 AM
-export const BREAK_MINUTES = 60; // 1 hour lunch subtracted from working hours
+export const LATE_GRACE_MINUTES = 15; // late = check-in AFTER 10:15 AM (10:15 sharp is on time)
+// No lunch break deduction — working hours = checkOut − checkIn directly.
+export const HALF_DAY_THRESHOLD_MINUTES = 4.5 * 60; // < 4h30m worked = half day
+export const TOTAL_WORK_MINUTES = 8.5 * 60;
+export const ATTENDANCE_TIMEZONE = "Asia/Kolkata";
+
+export type DayStatus = "IN_PROGRESS" | "HALF_DAY" | "FULL_DAY";
 
 export const LEAVE_TYPES = [
   { value: "SICK", label: "Sick" },
@@ -69,28 +83,62 @@ export function istMidnight(from: Date | string = new Date()): Date {
   return new Date(`${istDateString(from)}T00:00:00Z`);
 }
 
+// Late = checkIn STRICTLY after 10:15 AM IST. 10:15 sharp still counts as
+// on time (the grace period includes 10:15). Purely informational — no
+// salary deduction is tied to this flag.
 export function isLate(checkIn: Date | null | undefined): boolean {
-  if (!checkIn) return false;
+  return computeLateMinutes(checkIn) > 0;
+}
+
+// Minutes past 10:15 AM IST — 0 if on time or missing.
+export function computeLateMinutes(checkIn: Date | null | undefined): number {
+  if (!checkIn) return 0;
   const { hour, minute } = istParts(checkIn);
   const mins = hour * 60 + minute;
   const cutoff = STANDARD_START.hour * 60 + STANDARD_START.minute + LATE_GRACE_MINUTES;
-  return mins > cutoff;
+  const diff = mins - cutoff;
+  return diff > 0 ? diff : 0;
 }
 
 export function isEarlyExit(checkOut: Date | null | undefined): boolean {
-  if (!checkOut) return false;
+  return computeEarlyExitMinutes(checkOut) > 0;
+}
+
+// Minutes before 6:30 PM IST — 0 if on/after 18:30 or missing.
+export function computeEarlyExitMinutes(checkOut: Date | null | undefined): number {
+  if (!checkOut) return 0;
   const { hour, minute } = istParts(checkOut);
   const mins = hour * 60 + minute;
   const cutoff = STANDARD_END.hour * 60 + STANDARD_END.minute;
-  return mins < cutoff;
+  const diff = cutoff - mins;
+  return diff > 0 ? diff : 0;
 }
 
-// Minutes actually worked = wall-clock duration − break. Never negative,
-// never counted if there's no checkOut yet.
+// Wall-clock minutes worked (checkOut − checkIn). NO break deduction.
+// Never negative, never counted if there's no checkOut yet.
 export function workingMinutes(checkIn: Date | null | undefined, checkOut: Date | null | undefined): number {
   if (!checkIn || !checkOut) return 0;
-  const diff = Math.floor((checkOut.getTime() - checkIn.getTime()) / 60_000) - BREAK_MINUTES;
+  const diff = Math.floor((checkOut.getTime() - checkIn.getTime()) / 60_000);
   return diff > 0 ? diff : 0;
+}
+
+// Day status derived purely from worked minutes.
+// checkOut missing → IN_PROGRESS; < 4h30m → HALF_DAY; else FULL_DAY.
+export function computeDayStatus(
+  checkIn: Date | null | undefined,
+  checkOut: Date | null | undefined
+): DayStatus {
+  if (!checkIn) return "IN_PROGRESS";
+  if (!checkOut) return "IN_PROGRESS";
+  const mins = workingMinutes(checkIn, checkOut);
+  return mins < HALF_DAY_THRESHOLD_MINUTES ? "HALF_DAY" : "FULL_DAY";
+}
+
+export function formatWorkingHours(minutes: number | null | undefined): string {
+  if (minutes == null || minutes <= 0) return "0h 0m";
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h}h ${m}m`;
 }
 
 export function isWeekend(d: Date): boolean {

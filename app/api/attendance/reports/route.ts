@@ -3,8 +3,6 @@ import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/require-user";
 import { getCurrentEmployee } from "@/lib/server/current-employee";
 import {
-  isLate,
-  isEarlyExit,
   workingMinutes,
   weekdaysBetween,
   istMidnight,
@@ -77,6 +75,8 @@ export async function GET(req: NextRequest) {
     department: string | null;
     employeeNumber: string | null;
     daysPresent: number;
+    fullDays: number;
+    halfDays: number;
     totalMinutes: number;
     lateCount: number;
     earlyExitCount: number;
@@ -89,6 +89,8 @@ export async function GET(req: NextRequest) {
     department: e.department,
     employeeNumber: e.employeeNumber,
     daysPresent: 0,
+    fullDays: 0,
+    halfDays: 0,
     totalMinutes: 0,
     lateCount: 0,
     earlyExitCount: 0,
@@ -101,9 +103,14 @@ export async function GET(req: NextRequest) {
     const row = byId.get(r.employeeId);
     if (!row) continue;
     row.daysPresent++;
-    row.totalMinutes += workingMinutes(r.checkIn, r.checkOut);
-    if (isLate(r.checkIn)) row.lateCount++;
-    if (isEarlyExit(r.checkOut)) row.earlyExitCount++;
+    // Prefer the stored derived value; recompute for rows that predate the
+    // schema (backfill script fills these, but old un-backfilled rows fall
+    // through to the live formula so the report never crashes).
+    row.totalMinutes += r.workingMinutes ?? workingMinutes(r.checkIn, r.checkOut);
+    if (r.dayStatus === "FULL_DAY") row.fullDays++;
+    else if (r.dayStatus === "HALF_DAY") row.halfDays++;
+    if (r.isLate) row.lateCount++;
+    if (r.isEarlyExit) row.earlyExitCount++;
   }
   for (const l of leaves) {
     const row = byId.get(l.employeeId);
@@ -125,6 +132,8 @@ export async function GET(req: NextRequest) {
       rows.length > 0 && workingDays > 0
         ? rows.reduce((s, r) => s + r.totalMinutes, 0) / 60 / (rows.length * workingDays)
         : 0,
+    fullDays: rows.reduce((s, r) => s + r.fullDays, 0),
+    halfDays: rows.reduce((s, r) => s + r.halfDays, 0),
     lateArrivals: rows.reduce((s, r) => s + r.lateCount, 0),
     earlyExits: rows.reduce((s, r) => s + r.earlyExitCount, 0),
     absences: rows.reduce((s, r) => s + r.absences, 0),
@@ -133,13 +142,15 @@ export async function GET(req: NextRequest) {
 
   if (format === "csv") {
     const csv = [
-      "Employee,Employee No,Department,Days Present,Working Days,Total Hours,Avg Hours/Day,Late,Early Exit,Leave Days,Absences",
+      "Employee,Employee No,Department,Days Present,Full Days,Half Days,Working Days,Total Hours,Avg Hours/Day,Late,Early Exit,Leave Days,Absences",
       ...rows.map((r) =>
         [
           r.name,
           r.employeeNumber || "",
           r.department || "",
           r.daysPresent,
+          r.fullDays,
+          r.halfDays,
           workingDays,
           (r.totalMinutes / 60).toFixed(2),
           r.daysPresent > 0 ? (r.totalMinutes / 60 / r.daysPresent).toFixed(2) : "0.00",

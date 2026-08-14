@@ -392,9 +392,24 @@ model AttendanceRecord {
   checkOutAddress  String?
   checkInNote      String?
   checkOutNote     String?
-  // source values: "unifi" (face scan) | "gps"
+  // source values: "unifi" (face scan) | "gps+photo" (remote check-in) |
+  // legacy "gps" / "manual" from earlier migrations still readable.
   checkInSource    String    @default("unifi")
   checkOutSource   String?
+  // Derived attendance stats — recomputed on every check-in/check-out write
+  // (see /api/attendance/check-in and /check-out) and by the UniFi webhook,
+  // then backfilled for old rows by scripts/backfill-attendance-stats.ts.
+  // No break deduction: workingMinutes = checkOut − checkIn (wall clock).
+  workingMinutes       Int?
+  // "IN_PROGRESS" | "HALF_DAY" | "FULL_DAY" — half if <4h30m worked.
+  dayStatus            String?
+  // Late = checkIn strictly AFTER 10:15 AM IST. Informational only, no
+  // salary/leave deduction is tied to this flag.
+  isLate               Boolean @default(false)
+  lateByMinutes        Int?
+  // Early exit = checkOut before 6:30 PM IST.
+  isEarlyExit          Boolean @default(false)
+  earlyExitByMinutes   Int?
   // (Photo columns still present from earlier migration but no longer used —
   // Photo Attendance now lives in its own PhotoAttendanceRecord table so the
   // two systems don't share state or unique constraints. Safe to drop in a
@@ -467,6 +482,31 @@ model CustomPipelineStage {
   retired   Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// UniFi face-scan / RFID door-tap audit log. Face scans are NO LONGER a
+// source of attendance — GPS+selfie via the app is the single source of
+// truth. These rows exist only as a security audit trail so an admin can
+// still answer "who came through the door at 10:14 AM?" without inferring
+// from the app's attendance table.
+//
+// Written by /api/webhooks/unifi-access on every access.door.unlock event.
+// Never joined against AttendanceRecord — reports/my-attendance ignore it.
+model DoorAccessLog {
+  id             String   @id @default(cuid())
+  // Nullable because the webhook can receive events for actors we haven't
+  // mapped to an Employee yet — still worth keeping for security review.
+  employeeId     String?
+  unifiUserId    String
+  unifiUserName  String?
+  doorName       String?
+  doorId         String?
+  credentialType String?
+  timestamp      DateTime
+  createdAt      DateTime @default(now())
+
+  @@index([employeeId, timestamp])
+  @@index([timestamp])
 }
 
 // Photo Attendance — independent from AttendanceRecord (which handles

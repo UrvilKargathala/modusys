@@ -3,7 +3,12 @@ import { prisma } from "@/lib/server/prisma";
 import { getCurrentEmployee } from "@/lib/server/current-employee";
 import { reverseGeocode } from "@/lib/server/reverse-geocode";
 import { rateLimit, validCoords } from "@/lib/server/rate-limit";
-import { istMidnight } from "@/lib/attendance-config";
+import {
+  istMidnight,
+  workingMinutes,
+  computeDayStatus,
+  computeEarlyExitMinutes,
+} from "@/lib/attendance-config";
 
 export async function POST(req: NextRequest) {
   try {
@@ -58,6 +63,9 @@ export async function POST(req: NextRequest) {
     }
 
     const address = await reverseGeocode(latitude, longitude);
+    const mins = workingMinutes(existing.checkIn, now);
+    const dayStatus = computeDayStatus(existing.checkIn, now);
+    const earlyExitByMinutes = computeEarlyExitMinutes(now);
 
     const record = await prisma.attendanceRecord.update({
       where: { id: existing.id },
@@ -70,6 +78,10 @@ export async function POST(req: NextRequest) {
         checkOutPhotoUrl: photoUrl,
         checkOutPhotoConsent: photoConsent,
         checkOutSource: "gps+photo",
+        workingMinutes: mins,
+        dayStatus,
+        isEarlyExit: earlyExitByMinutes > 0,
+        earlyExitByMinutes: earlyExitByMinutes > 0 ? earlyExitByMinutes : null,
       },
     });
 

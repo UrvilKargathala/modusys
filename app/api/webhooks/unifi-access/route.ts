@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
-import { istMidnight } from "@/lib/attendance-config";
+
+// UniFi door-tap webhook. Since the attendance system was unified around
+// GPS+selfie, face scans no longer count as attendance — every event is
+// stored in DoorAccessLog for security audit only. Nothing writes to
+// AttendanceRecord from this endpoint anymore.
+//
+// Historical AttendanceRecord rows with checkInSource="unifi" stay in the
+// DB as-is; only NEW webhook events are diverted.
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type UnifiTarget = { type: string; id?: string; display_name?: string };
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,7 +26,7 @@ export async function POST(req: NextRequest) {
     }
 
     const actorId = src.actor?.id;
-    const actorName = src.actor?.display_name;
+    const actorName = src.actor?.display_name ?? null;
     if (!actorId) {
       return NextResponse.json({ ok: true, skipped: "no_actor" });
     }
@@ -27,70 +37,33 @@ export async function POST(req: NextRequest) {
     const credentialType = src.authentication?.credential_provider || "UNKNOWN";
 
     const door = Array.isArray(src.target)
-      ? src.target.find((t: any) => t.type === "door")
+      ? (src.target as UnifiTarget[]).find((t) => t.type === "door")
       : null;
-    const doorName = door?.display_name || "Unknown Door";
-    const doorId = door?.id || null;
+    const doorName = door?.display_name ?? null;
+    const doorId = door?.id ?? null;
 
+    // Look up the mapped employee, but keep going even if unmapped — a
+    // door-tap by an unknown actor is still worth logging for security.
     const employee = await prisma.employee.findFirst({
       where: { unifiUserId: actorId },
+      select: { id: true },
     });
 
-    if (!employee) {
-      console.warn(`[Modusys] Unknown UniFi user: ${actorId} (${actorName})`);
-      return NextResponse.json({ ok: true, skipped: "unmapped_user" });
-    }
-
-    const today = istMidnight(timestamp);
-
-    const existing = await prisma.attendanceRecord.findUnique({
-      where: {
-        employeeId_date: { employeeId: employee.id, date: today },
+    await prisma.doorAccessLog.create({
+      data: {
+        employeeId: employee?.id ?? null,
+        unifiUserId: actorId,
+        unifiUserName: actorName,
+        doorName,
+        doorId,
+        credentialType,
+        timestamp,
       },
     });
 
-    if (!existing) {
-      await prisma.attendanceRecord.create({
-        data: {
-          employeeId: employee.id,
-          date: today,
-          checkIn: timestamp,
-          doorName,
-          doorId,
-          credentialType,
-          source: "unifi",
-          checkInSource: "unifi",
-        },
-      });
-    } else if (existing.checkInSource === "gps" && !existing.checkOut) {
-      // Face scan arrived after a remote GPS check-in — face wins. Overwrite
-      // checkIn time + flip source, but keep the GPS lat/lng/address as
-      // additional context on the row (the admin table shows both).
-      await prisma.attendanceRecord.update({
-        where: { id: existing.id },
-        data: {
-          checkIn: timestamp,
-          checkInSource: "unifi",
-          doorName,
-          doorId,
-          credentialType,
-          source: "unifi",
-        },
-      });
-    } else {
-      await prisma.attendanceRecord.update({
-        where: { id: existing.id },
-        data: {
-          checkOut: timestamp,
-          checkOutDoorName: doorName,
-          checkOutSource: "unifi",
-        },
-      });
-    }
-
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, logged: true });
   } catch (error) {
-    console.error("[Modusys] Webhook error:", error);
+    console.error("[Modusys] UniFi webhook error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

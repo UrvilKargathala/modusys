@@ -3,7 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { getCurrentEmployee } from "@/lib/server/current-employee";
 import { reverseGeocode } from "@/lib/server/reverse-geocode";
 import { rateLimit, validCoords } from "@/lib/server/rate-limit";
-import { istMidnight } from "@/lib/attendance-config";
+import { istMidnight, computeLateMinutes } from "@/lib/attendance-config";
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
     }
 
     const address = await reverseGeocode(latitude, longitude);
+    const lateByMinutes = computeLateMinutes(now);
 
     const record = await prisma.attendanceRecord.create({
       data: {
@@ -72,6 +73,9 @@ export async function POST(req: NextRequest) {
         checkInSource: "gps+photo",
         source: "gps+photo",
         timezone,
+        dayStatus: "IN_PROGRESS",
+        isLate: lateByMinutes > 0,
+        lateByMinutes: lateByMinutes > 0 ? lateByMinutes : null,
       },
     });
 

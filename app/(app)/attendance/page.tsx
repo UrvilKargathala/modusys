@@ -9,7 +9,21 @@ import { AttendanceHealthBanner } from "@/components/attendance/health-banner";
 import { AdminPhotoThumb } from "@/components/attendance/admin-photo-thumb";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Download, MapPin } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  MapPin,
+  Users,
+  UserCheck,
+  Umbrella,
+  UserX,
+  CheckCircle2,
+  Coffee,
+  Clock,
+  DoorOpen,
+  type LucideIcon,
+} from "lucide-react";
 
 // Unified row across AttendanceRecord (unifi face-scan + new remote gps+photo
 // check-ins) and legacy PhotoAttendanceRecord (selfie-only records from
@@ -39,6 +53,12 @@ type Row = {
   photoRecordId: string | null;
   checkInPhotoUrl: string | null;
   checkOutPhotoUrl: string | null;
+  workingMinutes: number | null;
+  dayStatus: string | null;
+  isLate: boolean;
+  lateByMinutes: number | null;
+  isEarlyExit: boolean;
+  earlyExitByMinutes: number | null;
 };
 
 export const dynamic = "force-dynamic";
@@ -48,17 +68,22 @@ const PAGE_SIZE = 20;
 export default async function AttendancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; source?: string; page?: string }>;
+  searchParams: Promise<{ date?: string; source?: string; page?: string; stat?: string }>;
 }) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) redirect("/sign-in");
   if (sessionUser.role !== "super-admin") redirect("/my-attendance");
 
-  const { date: dateParam, source: sourceParam, page: pageParam } = await searchParams;
+  const { date: dateParam, source: sourceParam, page: pageParam, stat: statParam } = await searchParams;
   const date = istMidnight(dateParam ?? new Date());
 
   const sourceFilter =
     sourceParam === "unifi" || sourceParam === "remote" ? sourceParam : null;
+  // Which pill filter is active — clicking a stat pill sets ?stat=... and
+  // narrows the attendance log to only matching rows. Ignored if unrecognised.
+  const statFilter = ["full", "half", "late", "in-office"].includes(statParam ?? "")
+    ? (statParam as "full" | "half" | "late" | "in-office")
+    : null;
   const pageIdx = Math.max(0, Number(pageParam) - 1 || 0);
 
   const approvedLeaves = await prisma.leaveRequest.findMany({
@@ -118,6 +143,12 @@ export default async function AttendancePage({
       photoRecordId: r.checkInPhotoUrl || r.checkOutPhotoUrl ? r.id : null,
       checkInPhotoUrl: r.checkInPhotoUrl,
       checkOutPhotoUrl: r.checkOutPhotoUrl,
+      workingMinutes: r.workingMinutes,
+      dayStatus: r.dayStatus,
+      isLate: r.isLate,
+      lateByMinutes: r.lateByMinutes,
+      isEarlyExit: r.isEarlyExit,
+      earlyExitByMinutes: r.earlyExitByMinutes,
     })),
     ...photoRecords.map((r): Row => ({
       id: `photo:${r.id}`,
@@ -134,12 +165,23 @@ export default async function AttendancePage({
       photoRecordId: r.id,
       checkInPhotoUrl: r.checkInPhotoUrl,
       checkOutPhotoUrl: r.checkOutPhotoUrl,
+      // Legacy PhotoAttendanceRecord rows never carried these stats.
+      workingMinutes: null,
+      dayStatus: null,
+      isLate: false,
+      lateByMinutes: null,
+      isEarlyExit: false,
+      earlyExitByMinutes: null,
     })),
   ].sort((a, b) => b.checkIn.getTime() - a.checkIn.getTime());
 
   // Filter for the displayed rows, but keep allRows for the Present count so
   // the KPI reflects everyone present regardless of the active filter.
-  const rows = sourceFilter ? allRows.filter((r) => r.source === sourceFilter) : allRows;
+  let rows = sourceFilter ? allRows.filter((r) => r.source === sourceFilter) : allRows;
+  if (statFilter === "full") rows = rows.filter((r) => r.dayStatus === "FULL_DAY");
+  else if (statFilter === "half") rows = rows.filter((r) => r.dayStatus === "HALF_DAY");
+  else if (statFilter === "late") rows = rows.filter((r) => r.isLate);
+  else if (statFilter === "in-office") rows = rows.filter((r) => !r.checkOut);
 
   const totalEmployees = await prisma.employee.count({ where: { isActive: true } });
   // Present = distinct employees with ANY attendance today (unifi/gps/photo).
@@ -156,6 +198,11 @@ export default async function AttendancePage({
   // Still-in per row (a photo check-in with no check-out is still counted).
   const checkedOutRows = allRows.filter((r) => r.checkOut).length;
   const stillIn = allRows.length - checkedOutRows;
+  // Derived attendance rollups — full/half only counted once check-out is in;
+  // "late today" is informational, includes still-in employees.
+  const fullDaysToday = allRows.filter((r) => r.dayStatus === "FULL_DAY").length;
+  const halfDaysToday = allRows.filter((r) => r.dayStatus === "HALF_DAY").length;
+  const lateToday = allRows.filter((r) => r.isLate).length;
 
   const prevDate = new Date(date);
   prevDate.setDate(prevDate.getDate() - 1);
@@ -173,7 +220,7 @@ export default async function AttendancePage({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-semibold text-grey-900">Attendance</h1>
-          <p className="text-sm font-body text-grey-500">Face scan at office door · Remote check-in with GPS + selfie</p>
+          <p className="text-sm font-body text-grey-500">Attendance source: GPS + selfie check-in. Face-scan door taps are logged separately for security only.</p>
         </div>
         <SyncButtons />
       </div>
@@ -212,29 +259,79 @@ export default async function AttendancePage({
         )}
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card className="p-5">
-          <p className="text-sm font-body text-grey-500">Total Employees</p>
-          <p className="font-number text-3xl font-bold text-grey-900 mt-1">{totalEmployees}</p>
-        </Card>
-        <Card className="p-5">
-          <p className="text-sm font-body text-grey-500">Present</p>
-          <p className="font-number text-3xl font-bold text-emerald-600 mt-1">{present}</p>
-        </Card>
-        <Card className="p-5">
-          <p className="text-sm font-body text-grey-500">On Leave</p>
-          <p className="font-number text-3xl font-bold text-amber-600 mt-1">{onLeaveCount}</p>
-        </Card>
-        <Card className="p-5">
-          <p className="text-sm font-body text-grey-500">Absent</p>
-          <p className="font-number text-3xl font-bold text-red-500 mt-1">{absent}</p>
-        </Card>
-        <Card className="p-5">
-          <p className="text-sm font-body text-grey-500">Still In Office</p>
-          <p className="font-number text-3xl font-bold text-blue-600 mt-1">{stillIn}</p>
-        </Card>
+      {/* Stats — single compact row (wraps on mobile). Label left, number
+          right in the stat's semantic color for at-a-glance scanning. The
+          four "log-mappable" pills (Full/Half/Late/Still In) are clickable
+          filters that narrow the attendance log below. Others are display-
+          only because they don't correspond to a subset of table rows. */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatPill icon={Users} label="Total Employees" value={totalEmployees} tone="grey" />
+        <StatPill
+          icon={UserCheck}
+          label="Present"
+          value={present}
+          total={totalEmployees}
+          tone="success"
+        />
+        <StatPill
+          icon={Umbrella}
+          label="On Leave"
+          value={onLeaveCount}
+          total={totalEmployees}
+          tone="warning"
+        />
+        <StatPill
+          icon={UserX}
+          label="Absent"
+          value={absent}
+          total={totalEmployees}
+          tone="error"
+        />
+        <StatPill
+          icon={CheckCircle2}
+          label="Full Days"
+          value={fullDaysToday}
+          tone="success"
+          filterHref={statHref(dateStr, sourceFilter, "full")}
+          active={statFilter === "full"}
+        />
+        <StatPill
+          icon={Coffee}
+          label="Half Days"
+          value={halfDaysToday}
+          tone="orange"
+          filterHref={statHref(dateStr, sourceFilter, "half")}
+          active={statFilter === "half"}
+        />
+        <StatPill
+          icon={Clock}
+          label="Late Arrivals"
+          value={lateToday}
+          tone="warning"
+          hint="informational only"
+          title="Informational only — no salary deduction"
+          filterHref={statHref(dateStr, sourceFilter, "late")}
+          active={statFilter === "late"}
+        />
+        <StatPill
+          icon={DoorOpen}
+          label="Still In Office"
+          value={stillIn}
+          tone="info"
+          filterHref={statHref(dateStr, sourceFilter, "in-office")}
+          active={statFilter === "in-office"}
+        />
       </div>
+      {statFilter && (
+        <div className="-mt-4 flex justify-end">
+          <a
+            href={statHref(dateStr, sourceFilter, null)}
+            className="text-xs font-body text-grey-500 hover:text-primary hover:underline"
+          >
+            Clear filter
+          </a>
+        </div>
+      )}
 
       {/* Attendance Table */}
       <Card className="overflow-hidden">
@@ -280,10 +377,12 @@ export default async function AttendancePage({
                   <th className="px-6 py-3">Check In</th>
                   <th className="px-6 py-3">Check Out</th>
                   <th className="px-6 py-3">Working Hours</th>
+                  <th className="px-6 py-3">Day Status</th>
+                  <th className="px-6 py-3">Late</th>
+                  <th className="px-6 py-3">Early Exit</th>
                   <th className="px-6 py-3">Source</th>
                   <th className="px-6 py-3">Photo</th>
                   <th className="px-6 py-3">Door / Location</th>
-                  <th className="px-6 py-3">Credential</th>
                   <th className="px-6 py-3">Status</th>
                 </tr>
               </thead>
@@ -313,7 +412,41 @@ export default async function AttendancePage({
                       {formatTime(record.checkOut)}
                     </td>
                     <td className="px-6 py-4 text-sm font-number text-grey-700">
-                      {getWorkingHours(record.checkIn, record.checkOut)}
+                      {record.workingMinutes != null
+                        ? `${Math.floor(record.workingMinutes / 60)}h ${record.workingMinutes % 60}m`
+                        : getWorkingHours(record.checkIn, record.checkOut)}
+                    </td>
+                    <td className="px-6 py-4">
+                      {record.dayStatus === "FULL_DAY" ? (
+                        <Badge variant="outline" className="text-xs bg-success-transparent text-success border-success/30">Full Day</Badge>
+                      ) : record.dayStatus === "HALF_DAY" ? (
+                        <Badge variant="outline" className="text-xs bg-orange-transparent text-orange border-orange/30">Half Day</Badge>
+                      ) : record.checkOut ? (
+                        <span className="text-xs font-body text-grey-300">-</span>
+                      ) : (
+                        <Badge variant="outline" className="text-xs bg-info-transparent text-info border-info/30">In Progress</Badge>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {record.isLate && record.lateByMinutes != null ? (
+                        <span
+                          className="inline-flex items-center rounded-full bg-warning-transparent px-2 py-0.5 text-[11px] font-body font-medium text-warning-900"
+                          title="Grace period 15 min, informational only — no deduction"
+                        >
+                          <span className="font-number">{record.lateByMinutes}</span> min
+                        </span>
+                      ) : (
+                        <span className="text-xs font-body text-grey-300">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {record.isEarlyExit && record.earlyExitByMinutes != null ? (
+                        <span className="inline-flex items-center rounded-full bg-orange-transparent px-2 py-0.5 text-[11px] font-body font-medium text-orange">
+                          <span className="font-number">{record.earlyExitByMinutes}</span> min early
+                        </span>
+                      ) : (
+                        <span className="text-xs font-body text-grey-300">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <Badge variant="outline" className={`text-xs ${sourceClass}`}>
@@ -370,11 +503,6 @@ export default async function AttendancePage({
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <Badge variant="outline" className="text-xs">
-                        {record.credentialType || "-"}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4">
                       {record.checkOut ? (
                         <Badge variant="outline" className="text-xs bg-grey-50 text-grey-600">
                           Left
@@ -392,36 +520,131 @@ export default async function AttendancePage({
             </table>
           </div>
         )}
-        {pageCount > 1 && (
+        {totalRows > 0 && (
           <div className="flex items-center justify-between gap-3 border-t border-grey-100 px-6 py-3">
             <span className="text-xs font-number text-grey-500">
               {safePageIdx * PAGE_SIZE + 1}–{Math.min((safePageIdx + 1) * PAGE_SIZE, totalRows)} of {totalRows}
             </span>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: pageCount }, (_, i) => {
-                const active = i === safePageIdx;
-                const params = new URLSearchParams();
-                if (dateParam) params.set("date", dateParam);
-                if (sourceFilter) params.set("source", sourceFilter);
-                if (i > 0) params.set("page", String(i + 1));
-                const qs = params.toString();
-                const href = qs ? `/attendance?${qs}` : "/attendance";
-                return (
-                  <a
-                    key={i}
-                    href={href}
-                    className={`flex h-7 min-w-[1.75rem] items-center justify-center rounded-md px-2 text-xs font-number ${
-                      active ? "bg-primary text-white" : "text-grey-600 hover:bg-light-600"
-                    }`}
-                  >
-                    {i + 1}
-                  </a>
-                );
-              })}
-            </div>
+            {pageCount > 1 && (
+              <div className="flex items-center gap-1">
+                {Array.from({ length: pageCount }, (_, i) => {
+                  const active = i === safePageIdx;
+                  const params = new URLSearchParams();
+                  if (dateParam) params.set("date", dateParam);
+                  if (sourceFilter) params.set("source", sourceFilter);
+                  if (statFilter) params.set("stat", statFilter);
+                  if (i > 0) params.set("page", String(i + 1));
+                  const qs = params.toString();
+                  const href = qs ? `/attendance?${qs}` : "/attendance";
+                  return (
+                    <a
+                      key={i}
+                      href={href}
+                      className={`flex h-7 min-w-[1.75rem] items-center justify-center rounded-md px-2 text-xs font-number ${
+                        active ? "bg-primary text-white" : "text-grey-600 hover:bg-light-600"
+                      }`}
+                    >
+                      {i + 1}
+                    </a>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </Card>
+    </div>
+  );
+}
+
+function statHref(
+  dateStr: string,
+  source: "unifi" | "remote" | null,
+  stat: "full" | "half" | "late" | "in-office" | null
+): string {
+  const params = new URLSearchParams();
+  params.set("date", dateStr);
+  if (source) params.set("source", source);
+  if (stat) params.set("stat", stat);
+  return `/attendance?${params.toString()}`;
+}
+
+function StatPill({
+  icon: Icon,
+  label,
+  value,
+  total,
+  tone,
+  title,
+  hint,
+  filterHref,
+  active,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  total?: number;
+  tone: "grey" | "success" | "warning" | "orange" | "error" | "info";
+  title?: string;
+  hint?: string;
+  filterHref?: string;
+  active?: boolean;
+}) {
+  const color =
+    tone === "success"
+      ? "text-success"
+      : tone === "warning"
+      ? "text-warning-900"
+      : tone === "orange"
+      ? "text-orange"
+      : tone === "error"
+      ? "text-error"
+      : tone === "info"
+      ? "text-info"
+      : "text-grey-900";
+  const iconBg =
+    tone === "success"
+      ? "bg-success-transparent"
+      : tone === "warning"
+      ? "bg-warning-transparent"
+      : tone === "orange"
+      ? "bg-orange-transparent"
+      : tone === "error"
+      ? "bg-error-transparent"
+      : tone === "info"
+      ? "bg-info-transparent"
+      : "bg-grey-transparent";
+  const pct = total && total > 0 ? Math.round((value / total) * 100) : null;
+  const inner = (
+    <div className="flex items-center gap-3">
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconBg}`}>
+        <Icon className={`h-4 w-4 ${color}`} />
+      </div>
+      <div className="flex min-w-0 flex-col">
+        <span className="text-xs font-body text-grey-500">{label}</span>
+        <div className="flex items-baseline gap-1.5">
+          <span className={`font-number text-xl font-bold ${color}`}>{value}</span>
+          {pct !== null && (
+            <span className="font-number text-[11px] text-grey-400">· {pct}%</span>
+          )}
+        </div>
+        {hint && <span className="text-[10px] font-body text-grey-400">{hint}</span>}
+      </div>
+    </div>
+  );
+  const activeCls = active ? "ring-2 ring-primary/40 bg-primary-transparent/40" : "ring-1 ring-foreground/10";
+  const hoverCls = filterHref ? "hover:ring-primary/30 cursor-pointer transition-shadow" : "";
+  const commonCls = `rounded-xl bg-card p-3 ${activeCls} ${hoverCls}`;
+  if (filterHref) {
+    return (
+      <a href={filterHref} title={title} className={`block ${commonCls}`}>
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <div title={title} className={commonCls}>
+      {inner}
     </div>
   );
 }

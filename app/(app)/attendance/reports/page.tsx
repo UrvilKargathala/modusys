@@ -3,8 +3,6 @@ import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/require-user";
 import { getCurrentEmployee } from "@/lib/server/current-employee";
 import {
-  isLate,
-  isEarlyExit,
   workingMinutes,
   weekdaysBetween,
   istMidnight,
@@ -105,8 +103,11 @@ export default async function ReportsPage({
   type Row = {
     id: string;
     name: string;
+    employeeNumber: string | null;
     department: string | null;
     daysPresent: number;
+    fullDays: number;
+    halfDays: number;
     totalMinutes: number;
     lateCount: number;
     earlyExitCount: number;
@@ -116,8 +117,11 @@ export default async function ReportsPage({
   const rows: Row[] = employees.map((e) => ({
     id: e.id,
     name: e.name,
+    employeeNumber: e.employeeNumber,
     department: e.department,
     daysPresent: 0,
+    fullDays: 0,
+    halfDays: 0,
     totalMinutes: 0,
     lateCount: 0,
     earlyExitCount: 0,
@@ -130,9 +134,11 @@ export default async function ReportsPage({
     const row = byId.get(r.employeeId);
     if (!row) continue;
     row.daysPresent++;
-    row.totalMinutes += workingMinutes(r.checkIn, r.checkOut);
-    if (isLate(r.checkIn)) row.lateCount++;
-    if (isEarlyExit(r.checkOut)) row.earlyExitCount++;
+    row.totalMinutes += r.workingMinutes ?? workingMinutes(r.checkIn, r.checkOut);
+    if (r.dayStatus === "FULL_DAY") row.fullDays++;
+    else if (r.dayStatus === "HALF_DAY") row.halfDays++;
+    if (r.isLate) row.lateCount++;
+    if (r.isEarlyExit) row.earlyExitCount++;
   }
   for (const l of leaves) {
     const row = byId.get(l.employeeId);
@@ -145,9 +151,12 @@ export default async function ReportsPage({
   for (const r of rows) r.absences = Math.max(0, workingDays - r.daysPresent - r.leaveDays);
 
   const totalMinutes = rows.reduce((s, r) => s + r.totalMinutes, 0);
+  const fullDays = rows.reduce((s, r) => s + r.fullDays, 0);
+  const halfDays = rows.reduce((s, r) => s + r.halfDays, 0);
   const lateArrivals = rows.reduce((s, r) => s + r.lateCount, 0);
   const earlyExits = rows.reduce((s, r) => s + r.earlyExitCount, 0);
   const absences = rows.reduce((s, r) => s + r.absences, 0);
+  const onLeaveTotal = rows.reduce((s, r) => s + r.leaveDays, 0);
   const avgHoursPerEmp = rows.length && workingDays ? totalMinutes / 60 / (rows.length * workingDays) : 0;
 
   const csvHref = `/api/attendance/reports?format=csv&from=${toYmd(fromDate)}&to=${toYmd(toDate)}${sp.employeeId ? `&employeeId=${sp.employeeId}` : ""}${sp.department ? `&department=${encodeURIComponent(sp.department)}` : ""}`;
@@ -158,7 +167,7 @@ export default async function ReportsPage({
         <div>
           <h1 className="font-heading text-2xl font-semibold text-grey-900">Attendance Reports</h1>
           <p className="text-sm font-body text-grey-500">
-            Working days exclude Saturdays and Sundays. Standard hours: 9:30 AM – 6:30 PM (IST).
+            Attendance is captured via app GPS + selfie check-in. Standard hours 10:00 AM – 6:30 PM IST; late = check-in after 10:15 AM (informational only). Working days exclude Saturdays and Sundays.
           </p>
         </div>
         <a
@@ -239,12 +248,14 @@ export default async function ReportsPage({
       </Card>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
-        <SummaryCard label="Working Days" value={workingDays.toString()} />
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-8">
         <SummaryCard label="Total Hours" value={(totalMinutes / 60).toFixed(1)} />
         <SummaryCard label="Avg / Emp / Day" value={avgHoursPerEmp.toFixed(1)} />
-        <SummaryCard label="Late Arrivals" value={lateArrivals.toString()} tone="warning" />
+        <SummaryCard label="Full Days" value={fullDays.toString()} tone="success" />
+        <SummaryCard label="Half Days" value={halfDays.toString()} tone="orange" />
+        <SummaryCard label="Late" value={lateArrivals.toString()} tone="warning" />
         <SummaryCard label="Early Exits" value={earlyExits.toString()} tone="warning" />
+        <SummaryCard label="On Leave" value={onLeaveTotal.toString()} tone="warning" />
         <SummaryCard label="Absences" value={absences.toString()} tone="error" />
       </div>
 
@@ -255,7 +266,12 @@ export default async function ReportsPage({
             <thead>
               <tr className="bg-light-600 text-left text-xs font-heading font-medium uppercase tracking-wider text-grey-500">
                 <th className="px-6 py-3">Employee</th>
+                <th className="px-6 py-3">Emp No</th>
+                <th className="px-6 py-3">Dept</th>
                 <th className="px-6 py-3">Days Present</th>
+                <th className="px-6 py-3">Working Days</th>
+                <th className="px-6 py-3">Full Days</th>
+                <th className="px-6 py-3">Half Days</th>
                 <th className="px-6 py-3">Total Hours</th>
                 <th className="px-6 py-3">Avg / Day</th>
                 <th className="px-6 py-3">Late</th>
@@ -267,21 +283,33 @@ export default async function ReportsPage({
             <tbody className="divide-y divide-grey-100">
               {rows.map((r) => (
                 <tr key={r.id} className="hover:bg-light-600/50">
-                  <td className="px-6 py-3 text-sm font-body">
-                    <p className="font-medium text-grey-900">{r.name}</p>
-                    {r.department && <p className="text-xs text-grey-400">{r.department}</p>}
+                  <td className="px-6 py-3 text-sm font-body font-medium text-grey-900">{r.name}</td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-500">{r.employeeNumber || "-"}</td>
+                  <td className="px-6 py-3 text-sm font-body text-grey-500">{r.department || "-"}</td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-700">{r.daysPresent}</td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-500">{workingDays}</td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-success">{r.fullDays}</td>
+                  <td
+                    className={`px-6 py-3 text-sm font-number font-light ${r.halfDays > 3 ? "text-orange font-medium" : "text-grey-700"}`}
+                  >
+                    {r.halfDays}
                   </td>
-                  <td className="px-6 py-3 text-sm font-number text-grey-700">
-                    {r.daysPresent} / {workingDays}
-                  </td>
-                  <td className="px-6 py-3 text-sm font-number text-grey-700">{(r.totalMinutes / 60).toFixed(1)}</td>
-                  <td className="px-6 py-3 text-sm font-number text-grey-700">
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-700">{(r.totalMinutes / 60).toFixed(1)}</td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-700">
                     {r.daysPresent > 0 ? (r.totalMinutes / 60 / r.daysPresent).toFixed(1) : "0.0"}
                   </td>
-                  <td className="px-6 py-3 text-sm font-number text-grey-700">{r.lateCount}</td>
-                  <td className="px-6 py-3 text-sm font-number text-grey-700">{r.earlyExitCount}</td>
-                  <td className="px-6 py-3 text-sm font-number text-grey-700">{r.leaveDays}</td>
-                  <td className="px-6 py-3 text-sm font-number text-error">{r.absences}</td>
+                  <td
+                    className={`px-6 py-3 text-sm font-number font-light ${r.lateCount > 5 ? "text-error font-medium" : "text-grey-700"}`}
+                  >
+                    {r.lateCount}
+                  </td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-700">{r.earlyExitCount}</td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-700">{r.leaveDays}</td>
+                  <td
+                    className={`px-6 py-3 text-sm font-number font-light ${r.absences > 2 ? "text-error font-medium" : "text-grey-700"}`}
+                  >
+                    {r.absences}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -292,12 +320,21 @@ export default async function ReportsPage({
   );
 }
 
-function SummaryCard({ label, value, tone }: { label: string; value: string; tone?: "warning" | "error" }) {
-  const valueColor = tone === "error" ? "text-error" : tone === "warning" ? "text-orange-600" : "text-grey-900";
+function SummaryCard({ label, value, tone }: { label: string; value: string; tone?: "warning" | "error" | "success" | "orange" }) {
+  const valueColor =
+    tone === "error"
+      ? "text-error"
+      : tone === "warning"
+      ? "text-warning-900"
+      : tone === "success"
+      ? "text-success"
+      : tone === "orange"
+      ? "text-orange"
+      : "text-grey-900";
   return (
     <Card className="p-4">
       <p className="text-xs font-body text-grey-500">{label}</p>
-      <p className={`mt-1 font-number text-2xl font-bold ${valueColor}`}>{value}</p>
+      <p className={`mt-1 font-number font-light text-2xl font-light ${valueColor}`}>{value}</p>
     </Card>
   );
 }

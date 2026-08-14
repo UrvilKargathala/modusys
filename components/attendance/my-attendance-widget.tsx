@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { PhotoCapture } from "@/components/attendance/photo-capture";
 import { toastStore } from "@/lib/store/toast-store";
 import { cn } from "@/lib/utils";
+import { formatWorkingHours } from "@/lib/attendance-config";
 
 type AttendanceRow = {
   id: string;
@@ -35,7 +36,29 @@ type AttendanceRow = {
   checkOutPhotoUrl: string | null;
   doorName: string | null;
   checkOutDoorName: string | null;
+  workingMinutes: number | null;
+  dayStatus: string | null;
+  isLate: boolean;
+  lateByMinutes: number | null;
+  isEarlyExit: boolean;
+  earlyExitByMinutes: number | null;
 };
+
+function DayStatusPill({ status }: { status: string | null }) {
+  if (!status) return null;
+  const label = status === "FULL_DAY" ? "Full Day" : status === "HALF_DAY" ? "Half Day" : "In Progress";
+  const cls =
+    status === "FULL_DAY"
+      ? "bg-success-transparent text-success"
+      : status === "HALF_DAY"
+      ? "bg-orange-transparent text-orange"
+      : "bg-info-transparent text-info";
+  return (
+    <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-body font-medium", cls)}>
+      {label}
+    </span>
+  );
+}
 
 type MeResponse = {
   employee: { id: string; name: string } | null;
@@ -256,13 +279,22 @@ export function MyAttendanceWidget() {
         )}
         {today && !today.checkOut && (
           <div className="flex flex-col gap-2">
-            <p className="text-sm font-body text-grey-700">
-              You are checked in at{" "}
-              <span className="font-number font-semibold text-grey-900">{formatTime(today.checkIn)}</span>
-              {today.checkInSource === "unifi" && (
-                <span className="text-grey-500"> (face scan)</span>
-              )}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-body text-grey-700">
+                You are checked in at{" "}
+                <span className="font-number font-semibold text-grey-900">{formatTime(today.checkIn)}</span>
+                {today.checkInSource === "unifi" && (
+                  <span className="text-grey-500"> (face scan)</span>
+                )}
+              </p>
+              <DayStatusPill status={today.dayStatus} />
+            </div>
+            {today.isLate && today.lateByMinutes != null && (
+              <p className="text-xs font-body text-warning-900">
+                Late by <span className="font-number">{today.lateByMinutes} min</span>
+                <span className="text-grey-500"> · grace period 15 min, no deduction</span>
+              </p>
+            )}
             {today.checkInPhotoUrl && (
               <Thumb recordId={today.id} side="checkIn" label="Check in" />
             )}
@@ -270,14 +302,29 @@ export function MyAttendanceWidget() {
         )}
         {done && (
           <div className="flex flex-col gap-2 text-sm font-body text-grey-700">
-            <p>
-              Checked in at{" "}
-              <span className="font-number font-semibold text-grey-900">{formatTime(today!.checkIn)}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <p>
+                Checked in{" "}
+                <span className="font-number font-semibold text-grey-900">{formatTime(today!.checkIn)}</span>
+                {" · "}out{" "}
+                <span className="font-number font-semibold text-grey-900">{formatTime(today!.checkOut!)}</span>
+              </p>
+              <DayStatusPill status={today!.dayStatus} />
+            </div>
+            <p className="text-xs font-body text-grey-500">
+              Worked <span className="font-number text-grey-900">{formatWorkingHours(today!.workingMinutes)}</span>
             </p>
-            <p>
-              Checked out at{" "}
-              <span className="font-number font-semibold text-grey-900">{formatTime(today!.checkOut!)}</span>
-            </p>
+            {today!.isLate && today!.lateByMinutes != null && (
+              <p className="text-xs font-body text-warning-900">
+                Late by <span className="font-number">{today!.lateByMinutes} min</span>
+                <span className="text-grey-500"> · grace period 15 min, no deduction</span>
+              </p>
+            )}
+            {today!.isEarlyExit && today!.earlyExitByMinutes != null && (
+              <p className="text-xs font-body text-orange">
+                Left <span className="font-number">{today!.earlyExitByMinutes} min</span> early
+              </p>
+            )}
             <div className="flex gap-3 pt-1">
               {today!.checkInPhotoUrl && (
                 <Thumb recordId={today!.id} side="checkIn" label="Check in" />
