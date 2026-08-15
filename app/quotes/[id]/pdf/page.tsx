@@ -117,6 +117,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   const brands = useMaterialItems("brand");
   const hardwareCategories = useMaterialItems("category");
   const unitOfMeasures = useMaterialItems("unit");
+  const spaces = useMaterialItems("space");
 
   const quote = quotes.find((q) => q.id === id);
 
@@ -181,37 +182,42 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
     };
   }
 
-  // Numbering: unit N is "N". A unit with multiple cabinets numbers them
-  // "N.1", "N.2", … EXCEPT when every cabinet is a Standard Cabinet — then
-  // they all share the plain unit number, since the client thinks of them as
-  // one entry ("added a second Standard Cabinet to the same unit").
-  const isStandardCabinetType = (id: string) => {
-    const t = cabinetTypes.find((c) => c.id === id);
-    return !!t && t.name.trim().toLowerCase() === "standard cabinet";
-  };
-  const cabinetGroups = quote.units.flatMap((unit, unitIdx) => {
-    const allStandard = unit.cabinets.length > 0 && unit.cabinets.every((c) => isStandardCabinetType(c.cabinetTypeId));
-    return unit.cabinets.map((cabinet, cabinetIdx) => {
-      const index =
-        !allStandard && unit.cabinets.length > 1
-          ? `${unitIdx + 1}.${cabinetIdx + 1}`
-          : String(unitIdx + 1);
-      const unitType = unitTypes.find((t) => t.id === unit.unitTypeId);
+  // Numbering: one row group per UNIT, indexed "1", "2", … regardless of how
+  // many cabinets the unit contains. Every cabinet's carcass summary is
+  // listed under the same unit header, followed by all its finishes/panels/
+  // hardware — so a unit with two carcasses shows the 2nd carcass row
+  // immediately below the 1st, without a separate "1.2" sub-header.
+  const isSecondary = (levelTypeId?: string) => levelTypeId === secondaryLevelTypeId;
+  const cabinetGroups = quote.units.map((unit, unitIdx) => {
+    const index = String(unitIdx + 1);
+    const unitType = unitTypes.find((t) => t.id === unit.unitTypeId);
+    const firstCabinet = unit.cabinets[0];
+    const firstCabinetType = firstCabinet
+      ? cabinetTypes.find((c) => c.id === firstCabinet.cabinetTypeId)
+      : undefined;
+    const firstCarcassUnit = firstCabinet ? carcassUnitFor(firstCabinet, unit) : { width: 0, depth: 0, height: 0, qty: 0 };
+    const spaceName = spaces.find((s) => s.id === unit.spaceId)?.name;
+    const baseLabel = unitType?.name ?? firstCabinetType?.name ?? "Unit";
+    const label = spaceName ? `${baseLabel} (${spaceName})` : baseLabel;
+    const headerRow: DetailRow = {
+      brand: firstCabinetType ? nameOf(brands, firstCabinetType.brandId) : "—",
+      product: label,
+      description: "",
+      width: firstCarcassUnit.width,
+      depth: firstCarcassUnit.depth,
+      height: firstCarcassUnit.height,
+      qty: firstCarcassUnit.qty,
+      unit: "SET",
+      highlight: true,
+    };
+    // Render order: ALL carcass rows first (grouped, so a second cabinet's
+    // carcass sits right below the first's), then external finishes, then
+    // panels, then hardware — all combined across cabinets. Matches how the
+    // team reads a quote top-to-bottom by material category.
+    const carcassRows: DetailRow[] = unit.cabinets.map((cabinet) => {
       const cabinetType = cabinetTypes.find((c) => c.id === cabinet.cabinetTypeId);
       const carcassUnit = carcassUnitFor(cabinet, unit);
-      const label = unitType?.name ?? cabinetType?.name ?? "Unit";
-      const headerRow: DetailRow = {
-        brand: cabinetType ? nameOf(brands, cabinetType.brandId) : "—",
-        product: label,
-        description: "",
-        width: carcassUnit.width,
-        depth: carcassUnit.depth,
-        height: carcassUnit.height,
-        qty: carcassUnit.qty,
-        unit: "SET",
-        highlight: true,
-      };
-      const carcassSummary: DetailRow = {
+      return {
         brand: cabinetType ? nameOf(brands, cabinetType.brandId) : "—",
         product: cabinetType?.name ?? "—",
         description: cabinetType?.description ?? "—",
@@ -221,15 +227,18 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         qty: carcassUnit.qty,
         unit: "PCS",
       };
-      const isSecondary = (levelTypeId?: string) => levelTypeId === secondaryLevelTypeId;
-      const rows: DetailRow[] = [
-        carcassSummary,
-        ...cabinet.externalFinishes.filter((i) => !isSecondary(i.levelTypeId)).map((i) => furnitureRow(i, unit)),
-        ...cabinet.panels.filter((i) => !isSecondary(i.levelTypeId)).map((i) => furnitureRow(i, unit)),
-        ...cabinet.hardware.filter((i) => !isSecondary(i.levelTypeId)).map((i) => hardwareRow(i, unit)),
-      ];
-      return { index, headerRow, rows, cost: unitTotal({ ...unit, cabinets: [cabinet] }, furnitureItems, hardwareItems) };
     });
+    const externalFinishRows: DetailRow[] = unit.cabinets.flatMap((cabinet) =>
+      cabinet.externalFinishes.filter((i) => !isSecondary(i.levelTypeId)).map((i) => furnitureRow(i, unit))
+    );
+    const panelRows: DetailRow[] = unit.cabinets.flatMap((cabinet) =>
+      cabinet.panels.filter((i) => !isSecondary(i.levelTypeId)).map((i) => furnitureRow(i, unit))
+    );
+    const hardwareRows: DetailRow[] = unit.cabinets.flatMap((cabinet) =>
+      cabinet.hardware.filter((i) => !isSecondary(i.levelTypeId)).map((i) => hardwareRow(i, unit))
+    );
+    const rows: DetailRow[] = [...carcassRows, ...externalFinishRows, ...panelRows, ...hardwareRows];
+    return { index, headerRow, rows, cost: unitTotal(unit, furnitureItems, hardwareItems) };
   });
 
   return (
