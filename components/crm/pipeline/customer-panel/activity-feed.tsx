@@ -42,7 +42,7 @@ export function ActivityFeed({ customerId }: { customerId: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div ref={scrollRef} onScroll={handleScroll} className="relative min-h-0 flex-1 overflow-y-auto p-4">
+      <div ref={scrollRef} onScroll={handleScroll} className="relative min-h-0 flex-1 overflow-y-auto p-4" style={{ backgroundImage: "url(/v748-toon-106.jpg)", backgroundSize: "cover", backgroundPosition: "center" }}>
         {messages.length === 0 ? (
           <EmptyState icon={MessageCircle} message="No messages yet — start the conversation." />
         ) : (
