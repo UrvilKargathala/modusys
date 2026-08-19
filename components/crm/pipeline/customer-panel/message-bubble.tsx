@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, AlertCircle, RotateCcw, Play, Pause, MoreVertical, Copy, Pencil, Trash2, Check, X as XIcon, FileText, ListTodo, Reply, Download } from "lucide-react";
+import { Clock, AlertCircle, RotateCcw, Play, Pause, MoreVertical, Copy, Pencil, Trash2, Check, X as XIcon, FileText, ListTodo, Reply, Download, Info } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { MessageText } from "@/components/crm/pipeline/customer-panel/message-text";
@@ -51,6 +51,91 @@ function VoiceBubble({ message }: { message: CustomerMessage }) {
   );
 }
 
+function MessageInfo({ message, orgUsers, onClose }: { message: CustomerMessage; orgUsers: { id: string; name: string }[]; onClose: () => void }) {
+  const sender = orgUsers.find((u) => u.id === message.senderId);
+  const date = new Date(message.createdAt);
+  const dateStr = date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const timeStr = date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+
+  const imageCount = message.imageUrls?.length || (message.imageUrl ? 1 : 0);
+  const fileNames = message.imageNames?.length ? message.imageNames : message.imageName ? [message.imageName] : [];
+
+  const [seenBy, setSeenBy] = useState<{ userId: string; readAt: string }[]>([]);
+  const [loadingSeen, setLoadingSeen] = useState(true);
+
+  useEffect(() => {
+    if (message.status !== "sent") { setLoadingSeen(false); return; }
+    fetch(`/api/customers/${message.customerId}/messages/read-receipts?messageId=${message.id}`)
+      .then((r) => r.json())
+      .then((d) => setSeenBy(d.receipts ?? []))
+      .catch(() => {})
+      .finally(() => setLoadingSeen(false));
+  }, [message.id, message.customerId, message.status]);
+
+  const rows: [string, string][] = [
+    ["From", sender?.name ?? "Unknown"],
+    ["Date", dateStr],
+    ["Time", timeStr],
+    ["Type", message.kind === "chat" ? "Text" : message.kind === "image" ? `Photo${imageCount > 1 ? ` (${imageCount})` : ""}` : message.kind === "pdf" ? "PDF" : message.kind === "voice" ? "Voice note" : "System"],
+  ];
+  if (message.kind === "pdf" && message.pdfName) rows.push(["File", message.pdfName]);
+  if (message.kind === "pdf" && typeof message.pdfSize === "number") rows.push(["Size", `${(message.pdfSize / 1024 / 1024).toFixed(2)} MB`]);
+  if (fileNames.length > 0) rows.push(["File(s)", fileNames.join(", ")]);
+  if (message.kind === "voice" && message.durationSec) rows.push(["Duration", `0:${String(message.durationSec).padStart(2, "0")}`]);
+  if (message.editedAt) rows.push(["Edited", new Date(message.editedAt).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })]);
+
+  const seenUsers = seenBy
+    .filter((r) => r.userId !== message.senderId)
+    .map((r) => ({
+      name: orgUsers.find((u) => u.id === r.userId)?.name ?? "Unknown",
+      at: new Date(r.readAt).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: true }),
+    }));
+
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xs rounded-xl border border-grey-100 bg-card p-4 shadow-xl">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="font-heading text-sm font-semibold text-grey-900">Message Info</span>
+          <button type="button" onClick={onClose} className="rounded p-1 text-grey-400 hover:bg-light-600 hover:text-grey-700">
+            <XIcon className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex flex-col gap-2">
+          {rows.map(([label, value]) => (
+            <div key={label} className="flex items-start justify-between gap-3">
+              <span className="shrink-0 text-xs font-body text-grey-400">{label}</span>
+              <span className="text-right text-xs font-body font-medium text-grey-700">{value}</span>
+            </div>
+          ))}
+        </div>
+
+        {message.status === "sent" && (
+          <div className="mt-3 border-t border-grey-100 pt-3">
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <Check className="h-3.5 w-3.5 text-secondary" />
+              <span className="text-xs font-body font-medium text-grey-700">Seen by</span>
+            </div>
+            {loadingSeen ? (
+              <span className="text-[11px] font-body text-grey-400">Loading…</span>
+            ) : seenUsers.length === 0 ? (
+              <span className="text-[11px] font-body text-grey-400">No one yet</span>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {seenUsers.map((s) => (
+                  <div key={s.name + s.at} className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-body font-medium text-grey-700">{s.name}</span>
+                    <span className="text-[11px] font-number text-grey-400">{s.at}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MessageActions({
   message,
   isSelf,
@@ -63,7 +148,9 @@ function MessageActions({
   onReply?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const orgUsers = useOrgUsers();
 
   useEffect(() => {
     if (!open) return;
@@ -179,6 +266,10 @@ function MessageActions({
               Download{downloadUrls.length > 1 ? ` (${downloadUrls.length})` : ""}
             </button>
           )}
+          <button type="button" onClick={() => { setShowInfo(true); setOpen(false); }} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-grey-700 hover:bg-light-600">
+            <Info className="h-3.5 w-3.5" />
+            Info
+          </button>
           {canEdit && (
             <button type="button" onClick={() => { onEdit(); setOpen(false); }} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-grey-700 hover:bg-light-600">
               <Pencil className="h-3.5 w-3.5" />
@@ -193,6 +284,7 @@ function MessageActions({
           )}
         </div>
       )}
+      {showInfo && <MessageInfo message={message} orgUsers={orgUsers} onClose={() => setShowInfo(false)} />}
     </div>
   );
 }

@@ -19,6 +19,10 @@ export function ActivityFeed({ customerId }: { customerId: string }) {
   const messagesById = new Map(messages.map((m) => [m.id, m]));
 
   useEffect(() => {
+    fetch(`/api/customers/${customerId}/messages/read-receipts`, { method: "POST" }).catch(() => {});
+  }, [customerId, messages.length]);
+
+  useEffect(() => {
     const grew = messages.length > prevCount.current;
     prevCount.current = messages.length;
     if (!grew) return;

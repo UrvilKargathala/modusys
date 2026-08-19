@@ -90,6 +90,16 @@ model Message {
   @@index([customerId, createdAt])
 }
 
+model MessageReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+}
+
 model Architect {
   id            String             @id @default(cuid())
   prefix        String             @default("")
