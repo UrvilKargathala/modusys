@@ -9,12 +9,28 @@ export const SQMM_PER_SQFT = 92_903.04;
 // single source of truth for every Shutter (External Finish) row's External
 // Colour across every Unit/Cabinet — changing it re-syncs all of them
 // immediately, rather than each Shutter row picking its own colour.
-export function applyShutterFinishToUnits(units: QuoteUnit[], shutterFinishId: string): QuoteUnit[] {
+export type ShutterFinishOverrides = {
+  shutterFinishId?: string;
+  shutterFinishThicknessId?: string;
+  shutterFinishRawMaterialId?: string;
+  shutterFinishInternalColourId?: string;
+  shutterFinishExternalColourId?: string;
+};
+
+export function applyShutterFinishToUnits(units: QuoteUnit[], overrides: ShutterFinishOverrides): QuoteUnit[] {
   return units.map((unit) => ({
     ...unit,
     cabinets: unit.cabinets.map((cabinet) => ({
       ...cabinet,
-      externalFinishes: cabinet.externalFinishes.map((item) => ({ ...item, externalColourId: shutterFinishId })),
+      externalFinishes: cabinet.externalFinishes.map((item) => ({
+        ...item,
+        ...(overrides.shutterFinishThicknessId && { thicknessId: overrides.shutterFinishThicknessId }),
+        ...(overrides.shutterFinishRawMaterialId && { rawMaterialTypeId: overrides.shutterFinishRawMaterialId }),
+        ...(overrides.shutterFinishInternalColourId && { internalColourId: overrides.shutterFinishInternalColourId }),
+        ...((overrides.shutterFinishExternalColourId || overrides.shutterFinishId) && {
+          externalColourId: overrides.shutterFinishExternalColourId || overrides.shutterFinishId,
+        }),
+      })),
     })),
   }));
 }

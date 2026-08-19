@@ -34,10 +34,12 @@ function cloneUnit(u: QuoteUnit): QuoteUnit {
 export function UnitsSection({
   units,
   shutterFinishId,
+  shutterFinishOverrides,
   onChange,
 }: {
   units: QuoteUnit[];
   shutterFinishId: string;
+  shutterFinishOverrides?: Record<string, string>;
   onChange: (units: QuoteUnit[]) => void;
 }) {
   const setAllCollapsed = (collapsed: boolean) => onChange(units.map((u) => ({ ...u, collapsed })));
@@ -92,6 +94,7 @@ export function UnitsSection({
                     unit={unit}
                     index={index}
                     shutterFinishId={shutterFinishId}
+                    shutterFinishOverrides={shutterFinishOverrides}
 
                     onChange={(patch) => onChange(units.map((u) => (u.id === unit.id ? { ...u, ...patch } : u)))}
                     onRemove={() => onChange(units.filter((u) => u.id !== unit.id))}

@@ -82,12 +82,17 @@ function CreateQuotePage() {
     }
   }, [editId, quotes]);
 
+  const shutterKeys = ["shutterFinishId", "shutterFinishThicknessId", "shutterFinishRawMaterialId", "shutterFinishInternalColourId", "shutterFinishExternalColourId"] as const;
+
   const patchQuote = (patch: Partial<Quote>) =>
     setQuote((q) => {
       if (!q) return q;
       const next = { ...q, ...patch };
-      if (patch.shutterFinishId !== undefined && patch.shutterFinishId !== q.shutterFinishId) {
-        next.units = applyShutterFinishToUnits(next.units, patch.shutterFinishId);
+      const changed = shutterKeys.some((k) => patch[k] !== undefined && patch[k] !== q[k]);
+      if (changed) {
+        const overrides: Record<string, string> = {};
+        for (const k of shutterKeys) overrides[k] = next[k];
+        next.units = applyShutterFinishToUnits(next.units, overrides);
       }
       return next;
     });
@@ -191,6 +196,13 @@ function CreateQuotePage() {
         <UnitsSection
           units={quote.units}
           shutterFinishId={quote.shutterFinishId}
+          shutterFinishOverrides={{
+            shutterFinishId: quote.shutterFinishId,
+            shutterFinishThicknessId: quote.shutterFinishThicknessId,
+            shutterFinishRawMaterialId: quote.shutterFinishRawMaterialId,
+            shutterFinishInternalColourId: quote.shutterFinishInternalColourId,
+            shutterFinishExternalColourId: quote.shutterFinishExternalColourId,
+          }}
           onChange={(units) => {
             // Snapshot the outgoing state before overwrite so Cmd/Ctrl+Z can pop it.
             unitsHistory.current.push(quote.units);

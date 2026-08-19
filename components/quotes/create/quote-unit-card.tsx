@@ -184,6 +184,7 @@ export function QuoteUnitCard({
   unit,
   index,
   shutterFinishId,
+  shutterFinishOverrides,
   onChange,
   onRemove,
   onDuplicate,
@@ -191,6 +192,7 @@ export function QuoteUnitCard({
   unit: QuoteUnit;
   index: number;
   shutterFinishId: string;
+  shutterFinishOverrides?: Record<string, string>;
   onChange: (patch: Partial<QuoteUnit>) => void;
   onRemove: () => void;
   onDuplicate: () => void;
@@ -238,14 +240,21 @@ export function QuoteUnitCard({
 
   const runAutoPopulate = (unitType: UnitType) => {
     const cabinets = buildCabinetsFromUnitType(unitType, cabinetTypeName, unit, hardwareItems, furnitureItems);
+    const hasOverrides = shutterFinishId || (shutterFinishOverrides && Object.values(shutterFinishOverrides).some(Boolean));
     onChange({
       unitTypeId: unitType.id,
-      // New Shutter rows start on the Material Specification's Shutter
-      // Finish, same as the live-sync when that field changes afterward.
-      cabinets: shutterFinishId
+      cabinets: hasOverrides
         ? cabinets.map((c) => ({
             ...c,
-            externalFinishes: c.externalFinishes.map((f) => ({ ...f, externalColourId: shutterFinishId })),
+            externalFinishes: c.externalFinishes.map((f) => ({
+              ...f,
+              ...(shutterFinishOverrides?.shutterFinishThicknessId && { thicknessId: shutterFinishOverrides.shutterFinishThicknessId }),
+              ...(shutterFinishOverrides?.shutterFinishRawMaterialId && { rawMaterialTypeId: shutterFinishOverrides.shutterFinishRawMaterialId }),
+              ...(shutterFinishOverrides?.shutterFinishInternalColourId && { internalColourId: shutterFinishOverrides.shutterFinishInternalColourId }),
+              ...((shutterFinishOverrides?.shutterFinishExternalColourId || shutterFinishId) && {
+                externalColourId: shutterFinishOverrides?.shutterFinishExternalColourId || shutterFinishId,
+              }),
+            })),
           }))
         : cabinets,
       autoPopulated: true,

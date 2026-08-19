@@ -95,7 +95,7 @@ export function MaterialSpecificationSection({
             </Field>
             <Field label="Raw Material">
               <MaterialReferenceSelect
-                category="raw-material-description"
+                category="raw-material-type"
                 value={quote.shutterFinishRawMaterialId}
                 onChange={(id) => confirmChange("Shutter Finish Raw Material", { shutterFinishRawMaterialId: id })}
               />
