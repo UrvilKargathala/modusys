@@ -294,8 +294,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         <SectionLabel>Material Specification</SectionLabel>
         <div className="flex flex-col gap-1.5 p-3 pt-2 text-[11px]">
           <Field label="Product Type" value={numFont([nameOf(productTypes, quote.productTypeId), nameOf(externalColours, quote.shutterFinishId), nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId)].filter((v) => v !== "—").join(" + "))} />
-          <Field label="Carcase Material" value={numFont(descOf(rawMaterialDescriptions, quote.materialDescriptionId))} />
-          <Field label="Shutter Finish" value={numFont(descOf(externalColours, quote.shutterFinishId))} />
+          <Field label="Internal Finish" value={numFont(descOf(rawMaterialDescriptions, quote.materialDescriptionId))} />
+          <Field label="External Finish" value={numFont(descOf(externalColours, quote.shutterFinishId))} />
           <Field label="Tandem Runner" value={numFont(nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId))} />
           <Field label="Hinges" value={numFont(descOf(hingesTypes, quote.hingesTypeId))} />
           <Field label="Handle" value={numFont(descOf(handleTypes, quote.handleTypeId))} />
