@@ -52,6 +52,10 @@ export type Quote = {
   markupMultiplier: number;
   materialDescriptionId: string;
   shutterFinishId: string;
+  shutterFinishThicknessId: string;
+  shutterFinishRawMaterialId: string;
+  shutterFinishInternalColourId: string;
+  shutterFinishExternalColourId: string;
   handleTypeId: string;
   hingesTypeId: string;
   clientResponsibilityId: string;
@@ -107,6 +111,10 @@ export function blankQuote(quoteNumber: string, defaultMarkup: number): Quote {
     markupMultiplier: defaultMarkup,
     materialDescriptionId: "",
     shutterFinishId: "",
+    shutterFinishThicknessId: "",
+    shutterFinishRawMaterialId: "",
+    shutterFinishInternalColourId: "",
+    shutterFinishExternalColourId: "",
     handleTypeId: "",
     hingesTypeId: "",
     clientResponsibilityId: "",

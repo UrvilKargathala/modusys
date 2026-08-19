@@ -80,6 +80,43 @@ export function MaterialSpecificationSection({
           />
         </Field>
 
+        {/* Structured shutter finish breakdown — sits in both grid columns so
+            the 4 sub-selects can lay out 2×2 on wide screens without cramping
+            the surrounding single-column fields. */}
+        <div className="lg:col-span-2 flex flex-col gap-3 rounded-lg border border-grey-100 bg-light-600/40 p-4">
+          <div className="text-sm font-body font-medium text-grey-700">Shutter Finish Details</div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Field label="Thickness">
+              <MaterialReferenceSelect
+                category="thickness"
+                value={quote.shutterFinishThicknessId}
+                onChange={(id) => confirmChange("Shutter Finish Thickness", { shutterFinishThicknessId: id })}
+              />
+            </Field>
+            <Field label="Raw Material">
+              <MaterialReferenceSelect
+                category="raw-material-description"
+                value={quote.shutterFinishRawMaterialId}
+                onChange={(id) => confirmChange("Shutter Finish Raw Material", { shutterFinishRawMaterialId: id })}
+              />
+            </Field>
+            <Field label="Internal Colour">
+              <MaterialReferenceSelect
+                category="internal-colour"
+                value={quote.shutterFinishInternalColourId}
+                onChange={(id) => confirmChange("Shutter Finish Internal Colour", { shutterFinishInternalColourId: id })}
+              />
+            </Field>
+            <Field label="External Colour">
+              <MaterialReferenceSelect
+                category="external-colour"
+                value={quote.shutterFinishExternalColourId}
+                onChange={(id) => confirmChange("Shutter Finish External Colour", { shutterFinishExternalColourId: id })}
+              />
+            </Field>
+          </div>
+        </div>
+
         <Field label="Handle" required>
           <MaterialReferenceSelect
             category="handle-type"

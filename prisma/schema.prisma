@@ -260,6 +260,15 @@ model Quote {
   markupMultiplier            Float    @default(1)
   materialDescriptionId       String   @default("")
   shutterFinishId             String   @default("")
+  // Structured breakdown of the shutter finish spec — 4 sub-selects backed
+  // by existing MaterialItem categories (thickness / raw-material-description
+  // / internal-colour / external-colour). Independent of the scalar
+  // shutterFinishId above, which stays as the quick single-select "family"
+  // pick used by legacy renderers.
+  shutterFinishThicknessId      String   @default("")
+  shutterFinishRawMaterialId    String   @default("")
+  shutterFinishInternalColourId String   @default("")
+  shutterFinishExternalColourId String   @default("")
   handleTypeId                String   @default("")
   hingesTypeId                String   @default("")
   clientResponsibilityId      String   @default("")
