@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Copy, X } from "lucide-react";
+import { GripVertical, Copy, X, ChevronDown, ChevronRight } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
@@ -25,16 +25,21 @@ export function UnitTypeHardwareRow({
   onRemove,
   onCopy,
   rateReadOnly,
+  collapsible,
 }: {
   value: UnitTypeHardware;
   onChange: (patch: Partial<UnitTypeHardware>) => void;
   onRemove: () => void;
   onCopy?: () => void;
   rateReadOnly?: boolean;
+  // Templates' Unit Type builder only — Quotes keeps every row always
+  // expanded since users are actively pricing there.
+  collapsible?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingChange, setPendingChange] = useState<{ label: string; patch: Partial<UnitTypeHardware> } | null>(null);
+  const [collapsed, setCollapsed] = useState(!!collapsible);
 
   const commit = (label: string, patch: Partial<UnitTypeHardware>) => {
     const hasExisting = Object.keys(patch).some((k) => value[k as keyof UnitTypeHardware]);
@@ -180,7 +185,7 @@ export function UnitTypeHardwareRow({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn("rounded-lg border border-grey-100 bg-card p-3", isDragging && "opacity-50")}
     >
-      <div className="mb-3 flex items-center gap-2">
+      <div className={cn("flex items-center gap-2", !collapsed && "mb-3")}>
         <button
           type="button"
           {...attributes}
@@ -190,7 +195,25 @@ export function UnitTypeHardwareRow({
         >
           <GripVertical className="h-4 w-4" />
         </button>
+        {collapsible && (
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-label={collapsed ? "Expand" : "Collapse"}
+            className="text-grey-400 hover:text-grey-700"
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+        )}
         <span className="text-xs font-body font-medium uppercase tracking-wide text-grey-400">Hardware</span>
+        {collapsed && (
+          <span className="truncate text-sm font-body text-grey-600">
+            {value.description || value.articleNo || ""}
+            {amount !== undefined && (
+              <span className="ml-2 font-number font-semibold text-grey-900">₹{amount.toFixed(2)}</span>
+            )}
+          </span>
+        )}
         {onCopy && (
           <button
             type="button"
@@ -211,6 +234,7 @@ export function UnitTypeHardwareRow({
         </button>
       </div>
 
+      {!collapsed && (
       <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 [&>div]:min-w-0">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`hw-art-${value.id}`}>Article No.</Label>
@@ -332,6 +356,7 @@ export function UnitTypeHardwareRow({
           </div>
         </div>
       </div>
+      )}
 
       <ConfirmDialog
         open={deleteOpen}

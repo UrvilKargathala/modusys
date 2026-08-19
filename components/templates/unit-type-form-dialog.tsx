@@ -159,7 +159,7 @@ export function UnitTypeFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Unit Type" : "Add Unit Type"}</DialogTitle>
+          <DialogTitle>{isEdit ? `Edit Unit Type (${values.name || item?.name || ""})` : "Add Unit Type"}</DialogTitle>
           <DialogDescription>
             {isEdit ? "Update this unit type." : "Define a new unit type, its components, external finish, and hardware."}
           </DialogDescription>
@@ -270,6 +270,7 @@ export function UnitTypeFormDialog({
                     {externalFinishes.list.map((c) => (
                       <FurnitureLineItemRow
                         key={c.id}
+                        collapsible
                         value={c}
                         label="External Finish"
                         showComponentName
@@ -302,6 +303,7 @@ export function UnitTypeFormDialog({
                     {otherPanels.list.map((c) => (
                       <FurnitureLineItemRow
                         key={c.id}
+                        collapsible
                         value={c}
                         label="Other Panel"
                         showComponentName
@@ -335,6 +337,7 @@ export function UnitTypeFormDialog({
                     {hardware.map((h) => (
                       <UnitTypeHardwareRow
                         key={h.id}
+                        collapsible
                         value={h}
                         rateReadOnly
                         onChange={(patch) => updateHardware(h.id, patch)}

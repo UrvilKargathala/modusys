@@ -218,6 +218,7 @@ export function UnitTypeComponentsSection({
                         {groupItems.map((c) => (
                           <FurnitureLineItemRow
                             key={c.id}
+                            collapsible
                             value={c}
                             label="Component"
                             showComponentName
@@ -262,6 +263,7 @@ export function UnitTypeComponentsSection({
                   {additionalComponents.map((c) => (
                     <FurnitureLineItemRow
                       key={c.id}
+                      collapsible
                       value={c}
                       label="Component"
                       showComponentName

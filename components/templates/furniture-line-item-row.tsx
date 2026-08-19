@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Copy, Trash2, AlertTriangle, Plus } from "lucide-react";
+import { GripVertical, Copy, Trash2, AlertTriangle, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ export function FurnitureLineItemRow({
   totalSqFt,
   compact,
   rateReadOnly,
+  collapsible,
 }: {
   value: FurnitureLineItem;
   onChange: (patch: Partial<FurnitureLineItem>) => void;
@@ -57,11 +58,15 @@ export function FurnitureLineItemRow({
   // Templates want Rate locked to the Price List — edits happen there, not
   // here. Quotes keep it editable so users can override per line.
   rateReadOnly?: boolean;
+  // Templates' Unit Type builder only — Quotes keeps every row always
+  // expanded since users are actively pricing there.
+  collapsible?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   const [addPriceOpen, setAddPriceOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingMaterialChange, setPendingMaterialChange] = useState<{ field: string; id: string } | null>(null);
+  const [collapsed, setCollapsed] = useState(!!collapsible);
 
   const furnitureItems = useFurniturePriceItems();
   const combinationComplete =
@@ -113,7 +118,7 @@ export function FurnitureLineItemRow({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn("rounded-lg border border-grey-100 bg-card p-3", isDragging && "opacity-50")}
     >
-      <div className="mb-3 flex items-center gap-2">
+      <div className={cn("flex items-center gap-2", !collapsed && "mb-3")}>
         <button
           type="button"
           {...attributes}
@@ -123,7 +128,27 @@ export function FurnitureLineItemRow({
         >
           <GripVertical className="h-4 w-4" />
         </button>
+        {collapsible && (
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-label={collapsed ? "Expand" : "Collapse"}
+            className="text-grey-400 hover:text-grey-700"
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+        )}
         <span className="text-xs font-body font-medium uppercase tracking-wide text-grey-400">{label}</span>
+        {collapsed && (
+          <span className="truncate text-sm font-body text-grey-600">
+            {value.widthFormula || value.heightFormula ? `${value.widthFormula || "—"} × ${value.heightFormula || "—"}` : ""}
+            {totalSqFt !== undefined && (
+              <span className="ml-2 font-number font-semibold text-grey-900">
+                ₹{(effectiveRate !== undefined ? effectiveRate * totalSqFt : 0).toFixed(2)}
+              </span>
+            )}
+          </span>
+        )}
         {value.isExtra && (
           <span className="rounded-full bg-grey-transparent px-2 py-0.5 text-xs font-body font-medium text-grey-600">
             + Custom
@@ -154,6 +179,7 @@ export function FurnitureLineItemRow({
         </button>
       </div>
 
+      {!collapsed && (<>
       <div className={cn("grid gap-x-3 gap-y-3 [&>div]:min-w-0", compact ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-6" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6")}>
         {showComponentName && (
           <div className="flex flex-col gap-1.5">
@@ -301,6 +327,7 @@ export function FurnitureLineItemRow({
           </Button>
         </div>
       )}
+      </>)}
 
       <FurniturePriceFormDialog
         open={addPriceOpen}
