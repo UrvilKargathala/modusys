@@ -72,6 +72,22 @@ function buildCabinetsFromUnitType(
     }
     return resolved;
   };
+  // Accessory-only Unit Types (e.g. "Kitchen Accessories", "Light Unit")
+  // may have no cabinet-type links at all. Without a fallback the map()
+  // would return [] and Auto Populate would appear to do nothing. Emit one
+  // empty-carcass cabinet that still carries the unit-wide components /
+  // finishes / hardware / panels so the pricing renders.
+  if (unitType.cabinetTypeLinks.length === 0) {
+    return [{
+      id: `qc-${Date.now()}-0-${Math.random().toString(36).slice(2, 8)}`,
+      cabinetTypeId: "",
+      label: "",
+      components: unitType.components.map(resolve),
+      externalFinishes: unitType.externalFinishes.map(resolve),
+      hardware: unitType.hardware.map(resolveHw),
+      panels: unitType.otherPanels.map(resolve),
+    }];
+  }
   return unitType.cabinetTypeLinks.map((link, index) => ({
     id: `qc-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
     cabinetTypeId: link.cabinetTypeId,
