@@ -60,6 +60,7 @@ export async function POST(req: Request, { params }: Ctx) {
       pdfName: b.pdfName ?? undefined,
       pdfSize: b.pdfSize ?? undefined,
       replyToMessageId: typeof b.replyToMessageId === "string" ? b.replyToMessageId : undefined,
+      replyToImageIndex: typeof b.replyToImageIndex === "number" ? b.replyToImageIndex : undefined,
     },
   });
 

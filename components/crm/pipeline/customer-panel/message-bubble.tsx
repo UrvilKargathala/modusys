@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, AlertCircle, RotateCcw, Play, Pause, MoreVertical, Copy, Pencil, Trash2, Check, X as XIcon, FileText, ListTodo, Reply } from "lucide-react";
+import { Clock, AlertCircle, RotateCcw, Play, Pause, MoreVertical, Copy, Pencil, Trash2, Check, X as XIcon, FileText, ListTodo, Reply, Download } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { MessageText } from "@/components/crm/pipeline/customer-panel/message-text";
@@ -78,8 +78,24 @@ function MessageActions({
   const canEdit = isSelf && message.kind === "chat" && !!message.text;
   const canDelete = isSelf;
   const canReply = !!onReply && message.status !== "pending";
+  // Download only makes sense for real (sent) attachment messages.
+  const downloadUrls: { url: string; name?: string }[] =
+    message.status !== "sent"
+      ? []
+      : message.kind === "image"
+      ? (message.imageUrls && message.imageUrls.length > 0
+          ? message.imageUrls.map((url, i) => ({ url, name: message.imageNames?.[i] }))
+          : message.imageUrl
+          ? [{ url: message.imageUrl, name: message.imageName }]
+          : [])
+      : message.kind === "pdf" && message.pdfUrl
+      ? [{ url: message.pdfUrl, name: message.pdfName }]
+      : message.kind === "voice" && message.audioUrl
+      ? [{ url: message.audioUrl, name: `voice-${message.id}.webm` }]
+      : [];
+  const canDownload = downloadUrls.length > 0;
 
-  if (!canCopy && !canEdit && !canDelete && !canReply) return null;
+  if (!canCopy && !canEdit && !canDelete && !canReply && !canDownload) return null;
 
   const copy = async () => {
     try {
@@ -99,6 +115,30 @@ function MessageActions({
     }
     customerMessagesStore.deleteMessage(message.customerId, message.id);
     setOpen(false);
+  };
+
+  const download = async () => {
+    setOpen(false);
+    try {
+      // Fetch as blob so cross-origin URLs (Vercel Blob) actually download
+      // instead of navigating away. Chain sequentially for multi-image so
+      // the browser doesn't dedupe the same download-name attempts.
+      for (const { url, name } of downloadUrls) {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = name || url.substring(url.lastIndexOf("/") + 1) || "download";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
+      }
+      toastStore.show(downloadUrls.length > 1 ? `Downloaded ${downloadUrls.length} files` : "Downloaded", "success");
+    } catch {
+      toastStore.show("Download failed", "error");
+    }
   };
 
   return (
@@ -133,6 +173,12 @@ function MessageActions({
               Copy
             </button>
           )}
+          {canDownload && (
+            <button type="button" onClick={download} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-grey-700 hover:bg-light-600">
+              <Download className="h-3.5 w-3.5" />
+              Download{downloadUrls.length > 1 ? ` (${downloadUrls.length})` : ""}
+            </button>
+          )}
           {canEdit && (
             <button type="button" onClick={() => { onEdit(); setOpen(false); }} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-grey-700 hover:bg-light-600">
               <Pencil className="h-3.5 w-3.5" />
@@ -154,11 +200,13 @@ function MessageActions({
 export function MessageBubble({
   message,
   replyTo,
+  replyToImageIndex,
   onReply,
 }: {
   message: CustomerMessage;
   replyTo?: CustomerMessage | null;
-  onReply?: () => void;
+  replyToImageIndex?: number;
+  onReply?: (imageIndex?: number) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.text ?? "");
@@ -210,12 +258,12 @@ export function MessageBubble({
           )}
         >
           {replyTo && (
-            <ReplyQuote message={replyTo} isSelf={isSelf} />
+            <ReplyQuote message={replyTo} isSelf={isSelf} imageIndex={replyToImageIndex} />
           )}
           {message.kind === "voice" ? (
             <VoiceBubble message={message} />
           ) : message.kind === "image" ? (
-            <ImageGallery message={message} />
+            <ImageGallery message={message} onReply={onReply} />
           ) : message.kind === "pdf" ? (
             <PdfBubble message={message} />
           ) : editing ? (
@@ -359,9 +407,7 @@ function PdfBubble({ message }: { message: CustomerMessage }) {
   );
 }
 
-function ImageGallery({ message }: { message: CustomerMessage }) {
-  // Prefer imageUrls (new gallery-capable field). Fall back to the legacy
-  // scalar imageUrl for old rows sent before the gallery migration.
+function ImageGallery({ message, onReply }: { message: CustomerMessage; onReply?: (imageIndex?: number) => void }) {
   const urls =
     message.imageUrls && message.imageUrls.length > 0
       ? message.imageUrls
@@ -371,6 +417,7 @@ function ImageGallery({ message }: { message: CustomerMessage }) {
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   if (urls.length === 0) return null;
 
+  const multiImage = urls.length > 1;
   const gridCls =
     urls.length === 1
       ? "grid grid-cols-1"
@@ -383,23 +430,33 @@ function ImageGallery({ message }: { message: CustomerMessage }) {
       : "grid grid-cols-3 gap-1";
   return (
     <div className="flex flex-col gap-1">
-      <div className={cn(gridCls, urls.length > 1 && "max-w-[280px]")}>
+      <div className={cn(gridCls, multiImage && "max-w-[280px]")}>
         {urls.map((url, i) => (
-          <button
-            key={url + i}
-            type="button"
-            onClick={() => setOpenIdx(i)}
-            className="overflow-hidden rounded-lg"
-          >
-            <img
-              src={url}
-              alt={message.imageNames?.[i] ?? `Image ${i + 1}`}
-              className={cn(
-                "w-full object-cover",
-                urls.length === 1 ? "max-h-64 object-contain" : "h-24"
-              )}
-            />
-          </button>
+          <div key={url + i} className="group/img relative overflow-hidden rounded-lg">
+            <button
+              type="button"
+              onClick={() => setOpenIdx(i)}
+              className="w-full"
+            >
+              <img
+                src={url}
+                alt={message.imageNames?.[i] ?? `Image ${i + 1}`}
+                className={cn(
+                  "w-full object-cover",
+                  !multiImage ? "max-h-64 object-contain" : "h-24"
+                )}
+              />
+            </button>
+            {multiImage && onReply && message.status === "sent" && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onReply(i); }}
+                className="absolute bottom-1 right-1 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-body text-white opacity-0 transition-opacity group-hover/img:opacity-100"
+              >
+                <Reply className="h-3 w-3" /> Reply
+              </button>
+            )}
+          </div>
         ))}
       </div>
       {message.text && (
@@ -417,18 +474,24 @@ function ImageGallery({ message }: { message: CustomerMessage }) {
   );
 }
 
-function ReplyQuote({ message, isSelf }: { message: CustomerMessage; isSelf: boolean }) {
+function ReplyQuote({ message, isSelf, imageIndex }: { message: CustomerMessage; isSelf: boolean; imageIndex?: number }) {
   const orgUsers = useOrgUsers();
   const sender = orgUsers.find((u) => u.id === message.senderId);
+
+  const urls = message.imageUrls?.length ? message.imageUrls : message.imageUrl ? [message.imageUrl] : [];
+  const targetUrl = typeof imageIndex === "number" && urls[imageIndex] ? urls[imageIndex] : null;
+
   const snippet =
-    message.text ||
-    (message.kind === "image"
+    targetUrl
       ? "Photo"
-      : message.kind === "pdf"
-      ? "PDF"
-      : message.kind === "voice"
-      ? "Voice note"
-      : "Message");
+      : message.text ||
+        (message.kind === "image"
+          ? "Photo"
+          : message.kind === "pdf"
+          ? "PDF"
+          : message.kind === "voice"
+          ? "Voice note"
+          : "Message");
   return (
     <div
       className={cn(
@@ -437,12 +500,15 @@ function ReplyQuote({ message, isSelf }: { message: CustomerMessage; isSelf: boo
       )}
     >
       <Reply className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="text-[11px] font-body font-medium text-primary">
           {sender?.name ?? "Someone"}
         </div>
         <div className="truncate text-xs font-body text-grey-600">{snippet}</div>
       </div>
+      {targetUrl && (
+        <img src={targetUrl} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
+      )}
     </div>
   );
 }

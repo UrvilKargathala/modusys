@@ -13,10 +13,12 @@ import { cn } from "@/lib/utils";
 export function MessageInput({
   customerId,
   replyTarget,
+  replyImageIndex,
   onClearReply,
 }: {
   customerId: string;
   replyTarget?: CustomerMessage | null;
+  replyImageIndex?: number;
   onClearReply?: () => void;
 }) {
   const [text, setText] = useState("");
@@ -97,7 +99,8 @@ export function MessageInput({
       text.trim(),
       CURRENT_USER_ID,
       mentionedIds,
-      replyTarget?.id
+      replyTarget?.id,
+      replyImageIndex
     );
     setText("");
     setMentionedIds([]);
@@ -174,34 +177,43 @@ export function MessageInput({
         </span>
       )}
 
-      {replyTarget && (
-        <div className="flex items-start gap-2 rounded-md border-l-2 border-primary bg-light-600/60 px-2 py-1.5">
-          <Reply className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-          <div className="min-w-0 flex-1">
-            <div className="text-xs font-body font-medium text-primary">
-              Replying to {replySender ?? "message"}
-            </div>
-            <div className="truncate text-xs font-body text-grey-600">
-              {replyTarget.text ||
-                (replyTarget.kind === "image"
+      {replyTarget && (() => {
+        const replyUrls = replyTarget.imageUrls?.length ? replyTarget.imageUrls : replyTarget.imageUrl ? [replyTarget.imageUrl] : [];
+        const replyThumb = typeof replyImageIndex === "number" && replyUrls[replyImageIndex] ? replyUrls[replyImageIndex] : null;
+        return (
+          <div className="flex items-start gap-2 rounded-md border-l-2 border-primary bg-light-600/60 px-2 py-1.5">
+            <Reply className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-body font-medium text-primary">
+                Replying to {replySender ?? "message"}
+              </div>
+              <div className="truncate text-xs font-body text-grey-600">
+                {replyThumb
                   ? "Photo"
-                  : replyTarget.kind === "pdf"
-                  ? "PDF"
-                  : replyTarget.kind === "voice"
-                  ? "Voice note"
-                  : "Message")}
+                  : replyTarget.text ||
+                    (replyTarget.kind === "image"
+                      ? "Photo"
+                      : replyTarget.kind === "pdf"
+                      ? "PDF"
+                      : replyTarget.kind === "voice"
+                      ? "Voice note"
+                      : "Message")}
+              </div>
             </div>
+            {replyThumb && (
+              <img src={replyThumb} alt="" className="h-9 w-9 shrink-0 rounded object-cover" />
+            )}
+            <button
+              type="button"
+              onClick={() => onClearReply?.()}
+              aria-label="Cancel reply"
+              className="rounded p-1 text-grey-400 hover:bg-light-600 hover:text-grey-700"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => onClearReply?.()}
-            aria-label="Cancel reply"
-            className="rounded p-1 text-grey-400 hover:bg-light-600 hover:text-grey-700"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
+        );
+      })()}
 
       {pendingImages.length > 0 && (
         <div className="flex flex-wrap gap-2 rounded-md bg-light-600/60 p-2">

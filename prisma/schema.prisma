@@ -81,6 +81,7 @@ model Message {
   // message may have been deleted — UI treats a dangling ref as "reply to
   // a removed message" rather than erroring.
   replyToMessageId String?
+  replyToImageIndex Int?
 
   editedAt  DateTime?
   createdAt DateTime  @default(now())

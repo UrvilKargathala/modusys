@@ -15,7 +15,7 @@ export function ActivityFeed({ customerId }: { customerId: string }) {
   // Reply target is composer-level state; each bubble's "Reply" action sets
   // it, the composer reads it. Kept here (common ancestor) instead of a
   // store so it resets automatically when the customer panel unmounts.
-  const [replyTarget, setReplyTarget] = useState<CustomerMessage | null>(null);
+  const [replyTarget, setReplyTarget] = useState<{ message: CustomerMessage; imageIndex?: number } | null>(null);
   const messagesById = new Map(messages.map((m) => [m.id, m]));
 
   useEffect(() => {
@@ -47,14 +47,28 @@ export function ActivityFeed({ customerId }: { customerId: string }) {
           <EmptyState icon={MessageCircle} message="No messages yet — start the conversation." />
         ) : (
           <div className="flex flex-col gap-3">
-            {messages.map((message) => (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                replyTo={message.replyToMessageId ? messagesById.get(message.replyToMessageId) ?? null : null}
-                onReply={() => setReplyTarget(message)}
-              />
-            ))}
+            {messages.map((message, idx) => {
+              const msgDate = new Date(message.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+              const prevDate = idx > 0 ? new Date(messages[idx - 1].createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : null;
+              const showDate = idx === 0 || msgDate !== prevDate;
+              return (
+                <div key={message.id}>
+                  {showDate && (
+                    <div className="flex justify-center py-2">
+                      <span className="rounded-full bg-grey-100 px-3 py-0.5 text-[11px] font-body font-medium text-grey-500">
+                        {msgDate}
+                      </span>
+                    </div>
+                  )}
+                  <MessageBubble
+                    message={message}
+                    replyTo={message.replyToMessageId ? messagesById.get(message.replyToMessageId) ?? null : null}
+                    replyToImageIndex={message.replyToImageIndex}
+                    onReply={(imageIndex?: number) => setReplyTarget({ message, imageIndex })}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -73,7 +87,8 @@ export function ActivityFeed({ customerId }: { customerId: string }) {
 
       <MessageInput
         customerId={customerId}
-        replyTarget={replyTarget}
+        replyTarget={replyTarget?.message ?? null}
+        replyImageIndex={replyTarget?.imageIndex}
         onClearReply={() => setReplyTarget(null)}
       />
     </div>

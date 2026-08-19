@@ -21,6 +21,7 @@ export type CustomerMessage = {
   pdfName?: string;
   pdfSize?: number;
   replyToMessageId?: string;
+  replyToImageIndex?: number;
   editedAt?: string;
   createdAt: string;
   status: "sent" | "pending" | "error";
@@ -135,7 +136,8 @@ export const customerMessagesStore = {
     text: string,
     senderId: string,
     mentionedUserIds: string[],
-    replyToMessageId?: string
+    replyToMessageId?: string,
+    replyToImageIndex?: number
   ) {
     const optimistic: CustomerMessage = {
       id: `pending-${Date.now()}`,
@@ -145,12 +147,13 @@ export const customerMessagesStore = {
       text,
       mentionedUserIds,
       replyToMessageId,
+      replyToImageIndex,
       createdAt: new Date().toISOString(),
       status: "pending",
     };
     await createMessage(
       customerId,
-      { kind: "chat", text, mentionedUserIds, replyToMessageId },
+      { kind: "chat", text, mentionedUserIds, replyToMessageId, replyToImageIndex },
       optimistic
     );
   },
