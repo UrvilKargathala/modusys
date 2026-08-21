@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Paperclip, Mic, Square, Send, AlertCircle, X, Reply } from "lucide-react";
 import { MentionDropdown } from "@/components/crm/pipeline/customer-panel/mention-dropdown";
 import { customerMessagesStore, type CustomerMessage } from "@/lib/store/customer-messages-store";
@@ -10,17 +10,21 @@ import type { OrgUser } from "@/lib/mock/users";
 import { CURRENT_USER_ID } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
-export function MessageInput({
-  customerId,
-  replyTarget,
-  replyImageIndex,
-  onClearReply,
-}: {
+export type MessageInputHandle = {
+  attachFiles: (files: FileList) => void;
+};
+
+export const MessageInput = forwardRef<MessageInputHandle, {
   customerId: string;
   replyTarget?: CustomerMessage | null;
   replyImageIndex?: number;
   onClearReply?: () => void;
-}) {
+}>(function MessageInput({
+  customerId,
+  replyTarget,
+  replyImageIndex,
+  onClearReply,
+}, ref) {
   const [text, setText] = useState("");
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
@@ -109,6 +113,7 @@ export function MessageInput({
 
   const handleAttach = async (files: FileList | null) => {
     if (!files) return;
+    if (files.length === 0) return;
     // Split: batch images to send as a gallery, PDFs/other still send one
     // message per file (existing behaviour).
     const images: File[] = [];
@@ -130,6 +135,10 @@ export function MessageInput({
       textareaRef.current?.focus();
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    attachFiles: (files: FileList) => { handleAttach(files); },
+  }));
 
   const removePending = (index: number) => {
     setPendingImages((prev) => {
@@ -323,4 +332,4 @@ export function MessageInput({
       )}
     </div>
   );
-}
+});

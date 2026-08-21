@@ -1,22 +1,51 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, ArrowDown } from "lucide-react";
+import { MessageCircle, ArrowDown, Upload } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { MessageBubble } from "@/components/crm/pipeline/customer-panel/message-bubble";
-import { MessageInput } from "@/components/crm/pipeline/customer-panel/message-input";
+import { MessageInput, type MessageInputHandle } from "@/components/crm/pipeline/customer-panel/message-input";
 import { useCustomerMessages, type CustomerMessage } from "@/lib/store/customer-messages-store";
 
 export function ActivityFeed({ customerId }: { customerId: string }) {
   const messages = useCustomerMessages(customerId);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<MessageInputHandle>(null);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const dragCounter = useRef(0);
   const prevCount = useRef(messages.length);
   // Reply target is composer-level state; each bubble's "Reply" action sets
   // it, the composer reads it. Kept here (common ancestor) instead of a
   // store so it resets automatically when the customer panel unmounts.
   const [replyTarget, setReplyTarget] = useState<{ message: CustomerMessage; imageIndex?: number } | null>(null);
   const messagesById = new Map(messages.map((m) => [m.id, m]));
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!e.dataTransfer.types.includes("Files")) return;
+    dragCounter.current += 1;
+    setDragActive(true);
+  };
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setDragActive(false);
+    }
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      messageInputRef.current?.attachFiles(e.dataTransfer.files);
+    }
+  };
 
   useEffect(() => {
     fetch(`/api/customers/${customerId}/messages/read-receipts`, { method: "POST" }).catch(() => {});
@@ -45,7 +74,19 @@ export function ActivityFeed({ customerId }: { customerId: string }) {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div
+      className="relative flex min-h-0 flex-1 flex-col"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {dragActive && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-primary bg-primary/10 backdrop-blur-sm">
+          <Upload className="h-8 w-8 text-primary" />
+          <span className="text-sm font-body font-medium text-primary">Drop files to attach</span>
+        </div>
+      )}
       <div ref={scrollRef} onScroll={handleScroll} className="relative min-h-0 flex-1 overflow-y-auto p-4" style={{ backgroundImage: "url(/v748-toon-106.jpg)", backgroundSize: "cover", backgroundPosition: "center" }}>
         {messages.length === 0 ? (
           <EmptyState icon={MessageCircle} message="No messages yet — start the conversation." />
@@ -90,6 +131,7 @@ export function ActivityFeed({ customerId }: { customerId: string }) {
       )}
 
       <MessageInput
+        ref={messageInputRef}
         customerId={customerId}
         replyTarget={replyTarget?.message ?? null}
         replyImageIndex={replyTarget?.imageIndex}
