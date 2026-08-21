@@ -6,6 +6,8 @@ import { EditableField } from "@/components/crm/pipeline/customer-panel/editable
 import { StatusBadge } from "@/components/shared/status-badge";
 import { getCustomerProfile, getCustomerQuotes } from "@/lib/mock/customer-detail";
 import { customersStore } from "@/lib/store/customers-store";
+import { useArchitects } from "@/lib/store/architects-store";
+import { fullName } from "@/lib/mock/architects";
 import { toastStore } from "@/lib/store/toast-store";
 import type { Customer } from "@/lib/mock/pipeline";
 
@@ -25,6 +27,9 @@ const FIELD_MAP = {
 export function DetailsSection({ customer }: { customer: Customer }) {
   const profile = getCustomerProfile(customer);
   const quotes = getCustomerQuotes(customer);
+  const architects = useArchitects();
+  const architect = customer.architectId ? architects.find((a) => a.id === customer.architectId) : undefined;
+  const architectName = architect ? fullName(architect) : null;
 
   const save = (field: keyof typeof FIELD_MAP) => (value: string) => {
     customersStore.updateCustomer(customer.id, { [FIELD_MAP[field]]: value });
@@ -52,7 +57,12 @@ export function DetailsSection({ customer }: { customer: Customer }) {
       <div className="flex flex-col gap-1">
         <span className="text-xs font-body text-grey-500">Architect</span>
         <span className="text-sm font-body text-grey-900">
-          {profile.architectName ?? <span className="text-grey-300">Not associated</span>}
+          {architectName ??
+            (customer.architectId && architects.length === 0 ? (
+              <span className="text-grey-300">Loading…</span>
+            ) : (
+              <span className="text-grey-300">Not associated</span>
+            ))}
         </span>
       </div>
 

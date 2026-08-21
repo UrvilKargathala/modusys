@@ -10,6 +10,7 @@ import { PipelineTab } from "@/components/crm/pipeline/pipeline-tab";
 import { TasksTab } from "@/components/crm/tasks/tasks-tab";
 import { CustomerFormDialog } from "@/components/customers/customer-form-dialog";
 import { customersStore } from "@/lib/store/customers-store";
+import { useArchitects } from "@/lib/store/architects-store";
 import { profileOverridesStore } from "@/lib/store/customer-profile-overrides-store";
 import { CURRENT_USER_ID, getCurrentUser } from "@/lib/session";
 import { toastStore } from "@/lib/store/toast-store";
@@ -26,6 +27,11 @@ function CrmPageContent() {
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab") ?? "tickets";
   const [addOpen, setAddOpen] = useState(false);
+  // Warms the architects store as soon as CRM loads, so it's already
+  // hydrated (not still on first-render mock data) by the time a customer
+  // panel opens and shows/save the Architect field — avoids a several-
+  // second lag before the real name appears.
+  useArchitects();
 
   // Same scoping as PipelineTab's Pending Tasks KPI — mine, or all for
   // admin/super-admin.

@@ -30,6 +30,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   for (const k of ["name","prefix","firstName","lastName","customerCode","mobile","email","gst","address","city","state","postcode","birthdayMonth","birthdayDay","birthdayYear","stage","assignee","daysInStage","finalOfferLakh"] as const) {
     if (b[k] !== undefined) data[k] = b[k];
   }
+  if (b.architectId !== undefined) data.architectId = b.architectId || null;
   // Keep the display `name` in sync when first/last change.
   if (b.firstName !== undefined || b.lastName !== undefined) {
     const first = (b.firstName ?? "").trim();

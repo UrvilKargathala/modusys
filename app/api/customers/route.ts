@@ -59,6 +59,7 @@ export async function POST(req: Request) {
       birthdayMonth: b.birthdayMonth ?? "",
       birthdayDay: b.birthdayDay ?? "",
       birthdayYear: b.birthdayYear ?? "",
+      architectId: b.architectId || null,
       stage: b.stage ?? "upcoming-inquiry",
       assignee: b.assignee ?? "",
       createdById: b.createdById ?? null,

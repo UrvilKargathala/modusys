@@ -32,6 +32,7 @@ model Customer {
   birthdayMonth  String    @default("")
   birthdayDay    String    @default("")
   birthdayYear   String    @default("")
+  architectId    String?
   stage          String    @default("upcoming-inquiry")
   finalOfferLakh Float?
   assignee       String    @default("")

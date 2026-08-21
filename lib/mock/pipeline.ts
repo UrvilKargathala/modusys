@@ -19,6 +19,7 @@ export type Customer = {
   postcode?: string;
   birthdayMonth?: string;
   birthdayDay?: string;
+  architectId?: string;
   address: string;
   companyName?: string;
   stage: PipelineStageKey;

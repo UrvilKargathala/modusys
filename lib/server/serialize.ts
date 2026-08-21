@@ -69,6 +69,7 @@ export function serializeCustomer(c: Customer) {
     postcode: c.postcode,
     birthdayMonth: c.birthdayMonth,
     birthdayDay: c.birthdayDay,
+    architectId: c.architectId ?? "",
     createdById: c.createdById ?? "",
     createdAt: c.createdAt.toISOString(),
   };

@@ -143,10 +143,10 @@ export function CustomerPanel() {
               birthdayMonth: values.birthdayMonth,
               birthdayDay: values.birthdayDay,
               birthdayYear: values.birthdayYear,
-            });
-            // architectId has no Customer column yet — stays client-only.
-            profileOverridesStore.setFields(customer.id, {
               architectId: values.architectId,
+            });
+            // Edit metadata (who/when) still stays client-only — no DB column for it.
+            profileOverridesStore.setFields(customer.id, {
               updatedAt: new Date().toISOString(),
               updatedById: CURRENT_USER_ID,
             });

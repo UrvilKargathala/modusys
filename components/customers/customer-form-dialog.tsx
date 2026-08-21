@@ -92,8 +92,7 @@ function emptyValues(): CustomerFormValues {
 // real data here: the edit form round-trips whatever it's prefilled with
 // back to the server on save, so a blank field must stay blank, not get
 // silently replaced with fabricated data the user never typed.
-// override only still supplies architectId, which has no Customer column yet.
-function prefillValues(customer: Customer, override: ProfileOverride): CustomerFormValues {
+function prefillValues(customer: Customer): CustomerFormValues {
   return {
     prefix: customer.prefix ?? "",
     firstName: customer.firstName || customer.name,
@@ -108,7 +107,7 @@ function prefillValues(customer: Customer, override: ProfileOverride): CustomerF
     birthdayMonth: customer.birthdayMonth ?? "",
     birthdayDay: customer.birthdayDay ?? "",
     birthdayYear: customer.birthdayYear ?? "",
-    architectId: override.architectId ?? "",
+    architectId: customer.architectId ?? "",
   };
 }
 
@@ -152,7 +151,7 @@ export function CustomerFormDialog({
   // whatever the user was actively typing back to the prefilled values.
   useEffect(() => {
     if (!open) return;
-    reset(customer ? prefillValues(customer, override ?? {}) : emptyValues());
+    reset(customer ? prefillValues(customer) : emptyValues());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, customer?.id]);
 
