@@ -76,6 +76,148 @@ export function getStatusDistribution(quotes: Quote[], range: DateRange): Status
   }));
 }
 
+// --- New dashboard metrics ---
+
+export type ConversionKpis = {
+  conversionRatePct: number;
+  avgDealSize: number;
+  approvalRatePct: number;
+  overdueTaskCount: number;
+};
+
+export function getConversionKpis(
+  quotes: Quote[],
+  customers: { stage: string; finalOfferLakh: number | null }[],
+  tasks: { completed: boolean; dueDate: string }[],
+  furnitureItems: FurniturePriceItem[],
+  hardwareItems: HardwarePriceItem[],
+  range: DateRange
+): ConversionKpis {
+  const totalCustomers = customers.length || 1;
+  const completedCustomers = customers.filter((c) => c.stage === "site-completed").length;
+  const conversionRatePct = (completedCustomers / totalCustomers) * 100;
+
+  const completedQuotes = quotes.filter((q) => q.status === "completed" && inRange(q.date, range));
+  const avgDealSize =
+    completedQuotes.length > 0
+      ? completedQuotes.reduce((sum, q) => sum + quoteRevenue(q, furnitureItems, hardwareItems), 0) / completedQuotes.length
+      : 0;
+
+  const filtered = quotes.filter((q) => inRange(q.date, range));
+  const approvedCount = filtered.filter((q) => q.status !== "draft" && q.status !== "cancelled").length;
+  const approvalRatePct = filtered.length > 0 ? (approvedCount / filtered.length) * 100 : 0;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const overdueTaskCount = tasks.filter((t) => !t.completed && t.dueDate < today).length;
+
+  return { conversionRatePct, avgDealSize, approvalRatePct, overdueTaskCount };
+}
+
+export type TopCustomerDatum = { name: string; revenue: number };
+
+export function getTopCustomersByRevenue(
+  quotes: Quote[],
+  customers: { id: string; name: string }[],
+  furnitureItems: FurniturePriceItem[],
+  hardwareItems: HardwarePriceItem[],
+  range: DateRange,
+  limit = 5
+): TopCustomerDatum[] {
+  const filtered = quotes.filter((q) => inRange(q.date, range) && q.customerId);
+  const byCustomer = new Map<string, number>();
+  for (const q of filtered) {
+    byCustomer.set(q.customerId!, (byCustomer.get(q.customerId!) ?? 0) + quoteRevenue(q, furnitureItems, hardwareItems));
+  }
+  const nameMap = new Map(customers.map((c) => [c.id, c.name]));
+  return [...byCustomer.entries()]
+    .map(([id, revenue]) => ({ name: nameMap.get(id) ?? id, revenue }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, limit);
+}
+
+export type TeamPerformanceDatum = { name: string; quotes: number; revenue: number };
+
+export function getTeamPerformance(
+  quotes: Quote[],
+  users: { id: string; name: string }[],
+  furnitureItems: FurniturePriceItem[],
+  hardwareItems: HardwarePriceItem[],
+  range: DateRange
+): TeamPerformanceDatum[] {
+  const filtered = quotes.filter((q) => inRange(q.date, range));
+  const byUser = new Map<string, { quotes: number; revenue: number }>();
+  for (const q of filtered) {
+    const key = q.salesExecutiveId || (q as Record<string, unknown>).createdById as string || "unknown";
+    const existing = byUser.get(key) ?? { quotes: 0, revenue: 0 };
+    existing.quotes += 1;
+    existing.revenue += quoteRevenue(q, furnitureItems, hardwareItems);
+    byUser.set(key, existing);
+  }
+  const nameMap = new Map(users.map((u) => [u.id, u.name]));
+  return [...byUser.entries()]
+    .map(([id, data]) => ({ name: nameMap.get(id) ?? id, ...data }))
+    .sort((a, b) => b.revenue - a.revenue);
+}
+
+export type CustomerAcquisitionDatum = { label: string; count: number };
+
+export function getCustomerAcquisition(
+  customers: { lastActivity: string }[],
+  range: DateRange
+): CustomerAcquisitionDatum[] {
+  const from = new Date(range.from);
+  const to = new Date(range.to);
+  const buckets = new Map<string, number>();
+
+  for (const c of customers) {
+    if (c.lastActivity >= range.from && c.lastActivity <= range.to) {
+      const d = new Date(c.lastActivity);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      buckets.set(key, (buckets.get(key) ?? 0) + 1);
+    }
+  }
+
+  const points: CustomerAcquisitionDatum[] = [];
+  const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
+  while (cursor <= to) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+    const label = cursor.toLocaleDateString("en-IN", { month: "short" });
+    points.push({ label, count: buckets.get(key) ?? 0 });
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return points.length ? points : [{ label: "—", count: 0 }];
+}
+
+export type RevenueByMonthDatum = { label: string; revenue: number };
+
+export function getRevenueByMonth(
+  quotes: Quote[],
+  furnitureItems: FurniturePriceItem[],
+  hardwareItems: HardwarePriceItem[],
+  range: DateRange
+): RevenueByMonthDatum[] {
+  const from = new Date(range.from);
+  const to = new Date(range.to);
+  const filtered = quotes.filter((q) => inRange(q.date, range));
+  const buckets = new Map<string, number>();
+
+  for (const q of filtered) {
+    const d = new Date(q.date);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    buckets.set(key, (buckets.get(key) ?? 0) + quoteRevenue(q, furnitureItems, hardwareItems));
+  }
+
+  const points: RevenueByMonthDatum[] = [];
+  const cursor = new Date(from.getFullYear(), from.getMonth(), 1);
+  while (cursor <= to) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+    const label = cursor.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+    points.push({ label, revenue: buckets.get(key) ?? 0 });
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return points.length ? points : [{ label: "—", revenue: 0 }];
+}
+
 export function getQuoteTrends(
   quotes: Quote[],
   furnitureItems: FurniturePriceItem[],

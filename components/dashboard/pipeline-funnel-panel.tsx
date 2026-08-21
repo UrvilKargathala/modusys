@@ -20,7 +20,7 @@ export function PipelineFunnelPanel() {
   const [active, setActive] = useState<string | null>(null);
 
   return (
-    <Card className="border-grey-100 lg:col-span-2">
+    <Card className="border-grey-100 bg-white shadow-sm h-full">
       <CardHeader>
         <CardTitle className="font-heading text-base text-grey-900">Pipeline by Stage</CardTitle>
       </CardHeader>
