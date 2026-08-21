@@ -1,3 +1,5 @@
+"use client";
+
 import { LiveClock } from "@/components/dashboard/live-clock";
 
 type Stat = { label: string; value: string };
@@ -5,46 +7,41 @@ type Stat = { label: string; value: string };
 export function WelcomeBanner({ name, stats }: { name: string; stats: Stat[] }) {
   return (
     <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary-100 via-primary-200 to-secondary-100 shadow-sm">
-      {/* Animated wave */}
-      <svg
-        className="absolute bottom-0 left-0 w-full"
-        viewBox="0 0 1440 80"
-        preserveAspectRatio="none"
-        style={{ height: "40px" }}
+      {/* Wave 1 */}
+      <div
+        className="absolute bottom-0 left-0 w-[200%] animate-wave-slow"
+        style={{ height: "60px" }}
       >
-        <path
-          d="M0,40 C360,80 720,0 1080,40 C1260,60 1380,50 1440,40 L1440,80 L0,80 Z"
-          fill="var(--color-primary-300)"
-          opacity="0.25"
+        <svg
+          className="h-full w-full"
+          viewBox="0 0 2880 80"
+          preserveAspectRatio="none"
         >
-          <animate
-            attributeName="d"
-            dur="6s"
-            repeatCount="indefinite"
-            values="
-              M0,40 C360,80 720,0 1080,40 C1260,60 1380,50 1440,40 L1440,80 L0,80 Z;
-              M0,50 C360,10 720,70 1080,30 C1260,20 1380,40 1440,50 L1440,80 L0,80 Z;
-              M0,40 C360,80 720,0 1080,40 C1260,60 1380,50 1440,40 L1440,80 L0,80 Z
-            "
+          <path
+            d="M0,30 C360,70 720,0 1080,40 C1260,60 1380,20 1440,30 C1800,70 2160,0 2520,40 C2700,60 2820,20 2880,30 L2880,80 L0,80 Z"
+            fill="var(--color-primary-300)"
+            opacity="0.5"
           />
-        </path>
-        <path
-          d="M0,50 C320,20 640,70 960,40 C1200,20 1360,50 1440,50 L1440,80 L0,80 Z"
-          fill="var(--color-secondary-300)"
-          opacity="0.2"
+        </svg>
+      </div>
+
+      {/* Wave 2 */}
+      <div
+        className="absolute bottom-0 left-0 w-[200%] animate-wave-fast"
+        style={{ height: "50px" }}
+      >
+        <svg
+          className="h-full w-full"
+          viewBox="0 0 2880 80"
+          preserveAspectRatio="none"
         >
-          <animate
-            attributeName="d"
-            dur="8s"
-            repeatCount="indefinite"
-            values="
-              M0,50 C320,20 640,70 960,40 C1200,20 1360,50 1440,50 L1440,80 L0,80 Z;
-              M0,35 C320,65 640,25 960,55 C1200,65 1360,35 1440,35 L1440,80 L0,80 Z;
-              M0,50 C320,20 640,70 960,40 C1200,20 1360,50 1440,50 L1440,80 L0,80 Z
-            "
+          <path
+            d="M0,45 C320,15 640,65 960,35 C1200,15 1360,55 1440,45 C1760,15 2080,65 2400,35 C2640,15 2800,55 2880,45 L2880,80 L0,80 Z"
+            fill="var(--color-secondary-300)"
+            opacity="0.4"
           />
-        </path>
-      </svg>
+        </svg>
+      </div>
 
       <div className="relative z-10 flex flex-col items-start justify-between gap-6 p-6 md:flex-row md:items-center">
         <div className="flex flex-col gap-1">
