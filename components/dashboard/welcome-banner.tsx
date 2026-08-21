@@ -4,7 +4,7 @@ type Stat = { label: string; value: string };
 
 export function WelcomeBanner({ name, stats }: { name: string; stats: Stat[] }) {
   return (
-    <div className="flex flex-col items-start justify-between gap-6 rounded-xl bg-gradient-to-br from-light to-primary-100 p-6 md:flex-row md:items-center">
+    <div className="flex flex-col items-start justify-between gap-6 rounded-xl bg-gradient-to-br from-primary-100 via-primary-200 to-secondary-100 p-6 shadow-sm md:flex-row md:items-center">
       <div className="flex flex-col gap-1">
         <h2 className="font-heading text-xl font-semibold text-grey-900">
           Welcome back, {name}
