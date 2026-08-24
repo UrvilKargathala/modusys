@@ -22,6 +22,9 @@ export type CustomerMessage = {
   pdfSize?: number;
   replyToMessageId?: string;
   replyToImageIndex?: number;
+  starred?: boolean;
+  isForwarded?: boolean;
+  reactions?: { emoji: string; count: number; reactedByMe: boolean; userIds: string[] }[];
   editedAt?: string;
   createdAt: string;
   status: "sent" | "pending" | "error";
@@ -279,16 +282,82 @@ export const customerMessagesStore = {
       void fetchMessages(customerId);
     }
   },
-  async deleteMessage(customerId: string, id: string) {
+  async deleteMessage(customerId: string, id: string, scope: "me" | "everyone" = "everyone") {
     const prev = byCustomer.get(customerId) ?? [];
     byCustomer.set(customerId, prev.filter((m) => m.id !== id));
     emit();
     try {
-      const res = await fetch(`/api/customers/${customerId}/messages/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/customers/${customerId}/messages/${id}?scope=${scope}`, { method: "DELETE" });
       if (!res.ok) throw new Error("delete failed");
     } catch {
       void fetchMessages(customerId);
     }
+  },
+  // Toggling an emoji you've already used removes it — same tap-to-toggle
+  // as the reaction picker itself; applied optimistically before the
+  // request lands, then reconciled against the server's grouped result.
+  async toggleReaction(customerId: string, messageId: string, emoji: string, userId: string) {
+    const prev = byCustomer.get(customerId) ?? [];
+    byCustomer.set(
+      customerId,
+      prev.map((m) => {
+        if (m.id !== messageId) return m;
+        const reactions = m.reactions ?? [];
+        const existing = reactions.find((r) => r.emoji === emoji);
+        let next: NonNullable<CustomerMessage["reactions"]>;
+        if (existing?.reactedByMe) {
+          next = reactions
+            .map((r) => (r.emoji === emoji ? { ...r, count: r.count - 1, reactedByMe: false, userIds: r.userIds.filter((id) => id !== userId) } : r))
+            .filter((r) => r.count > 0);
+        } else if (existing) {
+          next = reactions.map((r) => (r.emoji === emoji ? { ...r, count: r.count + 1, reactedByMe: true, userIds: [...r.userIds, userId] } : r));
+        } else {
+          next = [...reactions, { emoji, count: 1, reactedByMe: true, userIds: [userId] }];
+        }
+        return { ...m, reactions: next };
+      })
+    );
+    emit();
+    try {
+      const res = await fetch(`/api/customers/${customerId}/messages/${messageId}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji }),
+      });
+      if (!res.ok) throw new Error("reaction failed");
+      const saved = (await res.json()) as CustomerMessage;
+      byCustomer.set(customerId, (byCustomer.get(customerId) ?? []).map((m) => (m.id === messageId ? saved : m)));
+      emit();
+    } catch {
+      void fetchMessages(customerId);
+    }
+  },
+  async toggleStar(customerId: string, messageId: string) {
+    const prev = byCustomer.get(customerId) ?? [];
+    byCustomer.set(customerId, prev.map((m) => (m.id === messageId ? { ...m, starred: !m.starred } : m)));
+    emit();
+    try {
+      const res = await fetch(`/api/customers/${customerId}/messages/${messageId}/star`, { method: "POST" });
+      if (!res.ok) throw new Error("star failed");
+      const saved = (await res.json()) as CustomerMessage;
+      byCustomer.set(customerId, (byCustomer.get(customerId) ?? []).map((m) => (m.id === messageId ? saved : m)));
+      emit();
+    } catch {
+      void fetchMessages(customerId);
+    }
+  },
+  // Forwards to one or more other customers' threads — does NOT touch the
+  // current thread, so no optimistic insert here.
+  async forwardMessage(customerId: string, messageId: string, targetCustomerIds: string[]) {
+    const res = await fetch(`/api/customers/${customerId}/messages/${messageId}/forward`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetCustomerIds }),
+    });
+    if (!res.ok) throw new Error("forward failed");
+    // Any target thread already loaded in memory should pick up the new
+    // message without waiting for its next 4s poll.
+    for (const id of targetCustomerIds) if (loadedCustomers.has(id)) void fetchMessages(id);
   },
   async addSystemEvent(customerId: string, text: string) {
     const optimistic: CustomerMessage = {
@@ -308,6 +377,38 @@ export const customerMessagesStore = {
 // users' messages without a websocket. Swap for a subscription if latency
 // ever matters enough to justify the added infra.
 const POLL_MS = 4000;
+
+// Per-user last-read timestamp for the thread — powers inline ✓✓ ticks
+// without fetching read receipts per message. Polled alongside messages.
+export type ReadSummaryEntry = { userId: string; lastReadAt: string | null };
+const readSummaryByCustomer = new Map<string, ReadSummaryEntry[]>();
+const EMPTY_SUMMARY: ReadSummaryEntry[] = [];
+
+async function fetchReadSummary(customerId: string) {
+  try {
+    const res = await fetch(`/api/customers/${customerId}/messages/read-receipts`, { cache: "no-store" });
+    if (!res.ok) return;
+    const data = (await res.json()) as { summary?: ReadSummaryEntry[] };
+    readSummaryByCustomer.set(customerId, data.summary ?? []);
+    emit();
+  } catch {
+    // transient
+  }
+}
+
+export function useReadSummary(customerId: string) {
+  const summary = useSyncExternalStore(
+    customerMessagesStore.subscribe,
+    () => readSummaryByCustomer.get(customerId) ?? EMPTY_SUMMARY,
+    () => EMPTY_SUMMARY
+  );
+  useEffect(() => {
+    void fetchReadSummary(customerId);
+    const id = setInterval(() => void fetchReadSummary(customerId), POLL_MS);
+    return () => clearInterval(id);
+  }, [customerId]);
+  return summary;
+}
 
 export function useCustomerMessages(customerId: string) {
   const messages = useSyncExternalStore(

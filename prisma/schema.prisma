@@ -106,6 +106,22 @@ model Message {
   replyToMessageId String?
   replyToImageIndex Int?
 
+  // WhatsApp-style per-user star (not a single shared flag — each user
+  // stars independently). Small list, no join table needed.
+  starredBy String[] @default([])
+
+  // "Delete for me" hides the message for just these users while it stays
+  // visible to everyone else; "delete for everyone" is the existing hard
+  // DELETE. A message hidden for every participant is left in place rather
+  // than hard-deleted, since senderId/other users' state still reference it.
+  deletedForUserIds String[] @default([])
+
+  // Set when this message was created via the "Forward" action, referencing
+  // the original message it was copied from (which may itself be deleted).
+  forwardedFromId String?
+
+  reactions MessageReaction[]
+
   editedAt  DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -121,6 +137,36 @@ model MessageReadReceipt {
 
   @@unique([messageId, userId])
   @@index([messageId])
+}
+
+// One row per (message, user, emoji) — a user can react with several
+// different emoji to the same message, WhatsApp-style, but not the same
+// emoji twice (toggling removes it).
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}
+
+// Ephemeral per-(customer, user) chat state — typing indicator + last-seen.
+// Polled the same way messages already are (see POLL_MS in
+// customer-messages-store.ts) rather than a websocket, so it reuses the
+// existing request cadence instead of adding new infra.
+model ChatPresence {
+  id         String   @id @default(cuid())
+  customerId String
+  userId     String
+  isTyping   Boolean  @default(false)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([customerId, userId])
+  @@index([customerId])
 }
 
 model Architect {

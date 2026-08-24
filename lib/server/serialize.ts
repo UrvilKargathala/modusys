@@ -1,5 +1,5 @@
 import "server-only";
-import type { Customer, Architect, User, ArchitectPartner, Message, MediaAttachment } from "@prisma/client";
+import type { Customer, Architect, User, ArchitectPartner, Message, MediaAttachment, MessageReaction } from "@prisma/client";
 import type { ArchitectSiteEngineer } from "@/lib/mock/architects";
 
 // DB rows carry Date objects and a merged/relational shape; the existing app
@@ -75,7 +75,27 @@ export function serializeCustomer(c: Customer) {
   };
 }
 
-export function serializeMessage(m: Message) {
+export type MessageWithReactions = Message & { reactions?: MessageReaction[] };
+
+// Groups raw MessageReaction rows into { emoji, count, reactedByMe, userIds }
+// per emoji — the shape the bubble renders directly, no client-side grouping.
+function groupReactions(reactions: MessageReaction[] | undefined, currentUserId: string) {
+  if (!reactions || reactions.length === 0) return [];
+  const byEmoji = new Map<string, string[]>();
+  for (const r of reactions) {
+    const list = byEmoji.get(r.emoji) ?? [];
+    list.push(r.userId);
+    byEmoji.set(r.emoji, list);
+  }
+  return [...byEmoji.entries()].map(([emoji, userIds]) => ({
+    emoji,
+    count: userIds.length,
+    reactedByMe: userIds.includes(currentUserId),
+    userIds,
+  }));
+}
+
+export function serializeMessage(m: MessageWithReactions, currentUserId: string) {
   return {
     id: m.id,
     customerId: m.customerId,
@@ -93,6 +113,10 @@ export function serializeMessage(m: Message) {
     pdfName: m.pdfName ?? undefined,
     pdfSize: m.pdfSize ?? undefined,
     replyToMessageId: m.replyToMessageId ?? undefined,
+    replyToImageIndex: m.replyToImageIndex ?? undefined,
+    starred: m.starredBy.includes(currentUserId),
+    isForwarded: !!m.forwardedFromId,
+    reactions: groupReactions(m.reactions, currentUserId),
     editedAt: m.editedAt?.toISOString(),
     createdAt: m.createdAt.toISOString(),
     status: "sent" as const,

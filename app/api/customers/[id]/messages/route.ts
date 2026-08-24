@@ -13,10 +13,11 @@ export async function GET(_req: Request, { params }: Ctx) {
   if (auth.response) return auth.response;
   const { id: customerId } = await params;
   const messages = await prisma.message.findMany({
-    where: { customerId },
+    where: { customerId, NOT: { deletedForUserIds: { has: auth.user.id } } },
     orderBy: { createdAt: "asc" },
+    include: { reactions: true },
   });
-  return NextResponse.json(messages.map(serializeMessage));
+  return NextResponse.json(messages.map((m) => serializeMessage(m, auth.user.id)));
 }
 
 // Handles every message kind — kind defaults to "chat" for the normal text
@@ -61,6 +62,7 @@ export async function POST(req: Request, { params }: Ctx) {
       pdfSize: b.pdfSize ?? undefined,
       replyToMessageId: typeof b.replyToMessageId === "string" ? b.replyToMessageId : undefined,
       replyToImageIndex: typeof b.replyToImageIndex === "number" ? b.replyToImageIndex : undefined,
+      forwardedFromId: typeof b.forwardedFromId === "string" ? b.forwardedFromId : undefined,
     },
   });
 
@@ -123,5 +125,5 @@ export async function POST(req: Request, { params }: Ctx) {
     }
   }
 
-  return NextResponse.json(serializeMessage(message), { status: 201 });
+  return NextResponse.json(serializeMessage(message, auth.user.id), { status: 201 });
 }

@@ -16,6 +16,8 @@ import {
 import { useEffectivePipelineStages } from "@/lib/store/custom-pipeline-stages-store";
 import { customersStore } from "@/lib/store/customers-store";
 import { customerMessagesStore } from "@/lib/store/customer-messages-store";
+import { useChatPresence } from "@/lib/store/chat-presence-store";
+import { useOrgUsers } from "@/lib/store/users-store";
 import { toastStore } from "@/lib/store/toast-store";
 import type { Customer } from "@/lib/mock/pipeline";
 
@@ -40,6 +42,12 @@ export function PanelHeader({
 }) {
   const colors = stageColorTokens[stage.color];
   const effectiveStages = useEffectivePipelineStages();
+  const presence = useChatPresence(customer.id);
+  const orgUsers = useOrgUsers();
+  const onlineNames = presence
+    .filter((p) => p.online)
+    .map((p) => orgUsers.find((u) => u.id === p.userId)?.name)
+    .filter((n): n is string => !!n);
 
   const changeStage = async (next: PipelineStageKey) => {
     if (next === stage.key) return;
@@ -64,6 +72,12 @@ export function PanelHeader({
           >
             {displayName ?? customer.name}
           </button>
+          {onlineNames.length > 0 && (
+            <span className="flex items-center gap-1.5 text-[11px] font-body text-grey-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-success" />
+              {onlineNames.join(", ")} viewing now
+            </span>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label="Change stage"

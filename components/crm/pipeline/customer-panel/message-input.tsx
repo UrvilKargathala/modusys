@@ -5,6 +5,7 @@ import { Paperclip, Mic, Square, Send, AlertCircle, X, Reply } from "lucide-reac
 import { MentionDropdown } from "@/components/crm/pipeline/customer-panel/mention-dropdown";
 import { customerMessagesStore, type CustomerMessage } from "@/lib/store/customer-messages-store";
 import { customerMediaStore } from "@/lib/store/customer-media-store";
+import { chatPresenceStore } from "@/lib/store/chat-presence-store";
 import { useOrgUsers } from "@/lib/store/users-store";
 import type { OrgUser } from "@/lib/mock/users";
 import { CURRENT_USER_ID } from "@/lib/session";
@@ -56,6 +57,7 @@ export const MessageInput = forwardRef<MessageInputHandle, {
 
   const handleTextChange = (value: string) => {
     setText(value);
+    chatPresenceStore.notifyTyping(customerId);
     const cursor = textareaRef.current?.selectionStart ?? value.length;
     const upToCursor = value.slice(0, cursor);
     const atIndex = upToCursor.lastIndexOf("@");

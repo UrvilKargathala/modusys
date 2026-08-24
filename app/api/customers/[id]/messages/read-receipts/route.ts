@@ -37,22 +37,37 @@ export async function POST(
 }
 
 // GET ?messageId=xxx — fetch read receipts for a single message.
+// GET (no messageId) — per-user latest readAt across this whole thread, used
+// to render inline ✓✓ ticks without an N+1 fetch per message: a message is
+// "seen" once any other user's lastReadAt is >= that message's createdAt.
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireUser();
   if (auth.response) return auth.response;
-  await params;
+  const { id: customerId } = await params;
 
   const { searchParams } = new URL(req.url);
   const messageId = searchParams.get("messageId");
-  if (!messageId) return NextResponse.json({ receipts: [] });
+  if (messageId) {
+    const receipts = await prisma.messageReadReceipt.findMany({
+      where: { messageId },
+      orderBy: { readAt: "asc" },
+    });
+    return NextResponse.json({ receipts });
+  }
 
-  const receipts = await prisma.messageReadReceipt.findMany({
-    where: { messageId },
-    orderBy: { readAt: "asc" },
+  const threadMessageIds = await prisma.message.findMany({
+    where: { customerId },
+    select: { id: true },
   });
-
-  return NextResponse.json({ receipts });
+  const grouped = await prisma.messageReadReceipt.groupBy({
+    by: ["userId"],
+    where: { messageId: { in: threadMessageIds.map((m) => m.id) } },
+    _max: { readAt: true },
+  });
+  return NextResponse.json({
+    summary: grouped.map((g) => ({ userId: g.userId, lastReadAt: g._max.readAt?.toISOString() ?? null })),
+  });
 }

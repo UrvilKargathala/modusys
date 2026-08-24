@@ -1,14 +1,17 @@
 "use client";
 
-import { Clock, AlertCircle, RotateCcw, Play, Pause, MoreVertical, Copy, Pencil, Trash2, Check, X as XIcon, FileText, ListTodo, Reply, Download, Info } from "lucide-react";
+import { Clock, AlertCircle, RotateCcw, Play, Pause, MoreVertical, Copy, Pencil, Trash2, Check, CheckCheck, X as XIcon, FileText, ListTodo, Reply, Download, Info, Star, Forward, SmilePlus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { MessageText } from "@/components/crm/pipeline/customer-panel/message-text";
-import { customerMessagesStore, type CustomerMessage } from "@/lib/store/customer-messages-store";
+import { customerMessagesStore, useReadSummary, type CustomerMessage } from "@/lib/store/customer-messages-store";
 import { useOrgUsers } from "@/lib/store/users-store";
 import { CURRENT_USER_ID } from "@/lib/session";
 import { toastStore } from "@/lib/store/toast-store";
+import { ForwardDialog } from "@/components/crm/pipeline/customer-panel/forward-dialog";
 import { cn } from "@/lib/utils";
+
+const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "🙏", "🎉"];
 
 function timeAgo(iso: string) {
   return new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
@@ -136,6 +139,55 @@ function MessageInfo({ message, orgUsers, onClose }: { message: CustomerMessage;
   );
 }
 
+function ReactionPicker({ onPick, onClose }: { onPick: (emoji: string) => void; onClose: () => void }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [onClose]);
+
+  return (
+    <div ref={rootRef} className="absolute z-20 mt-1 flex gap-0.5 rounded-full border border-grey-100 bg-card px-1.5 py-1 shadow-md">
+      {QUICK_REACTIONS.map((emoji) => (
+        <button
+          key={emoji}
+          type="button"
+          onClick={() => { onPick(emoji); onClose(); }}
+          className="rounded-full p-1 text-base hover:scale-125 hover:bg-light-600"
+        >
+          {emoji}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ReactionPills({ message, isSelf }: { message: CustomerMessage; isSelf: boolean }) {
+  const reactions = message.reactions ?? [];
+  if (reactions.length === 0) return null;
+  return (
+    <div className={cn("flex flex-wrap gap-1 pt-0.5", isSelf && "justify-end")}>
+      {reactions.map((r) => (
+        <button
+          key={r.emoji}
+          type="button"
+          onClick={() => customerMessagesStore.toggleReaction(message.customerId, message.id, r.emoji, CURRENT_USER_ID)}
+          className={cn(
+            "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs",
+            r.reactedByMe ? "border-primary bg-primary-transparent" : "border-grey-100 bg-light-600"
+          )}
+        >
+          <span>{r.emoji}</span>
+          <span className="font-number text-[10px] text-grey-600">{r.count}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function MessageActions({
   message,
   isSelf,
@@ -149,6 +201,8 @@ function MessageActions({
 }) {
   const [open, setOpen] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [showForward, setShowForward] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const orgUsers = useOrgUsers();
 
@@ -163,8 +217,12 @@ function MessageActions({
 
   const canCopy = !!message.text || message.kind === "image";
   const canEdit = isSelf && message.kind === "chat" && !!message.text;
-  const canDelete = isSelf;
+  const canDeleteEveryone = isSelf && message.status === "sent";
+  const canDeleteMe = message.status === "sent";
   const canReply = !!onReply && message.status !== "pending";
+  const canReact = message.status === "sent";
+  const canForward = message.status === "sent";
+  const isStarred = !!message.starred;
   // Download only makes sense for real (sent) attachment messages.
   const downloadUrls: { url: string; name?: string }[] =
     message.status !== "sent"
@@ -182,7 +240,7 @@ function MessageActions({
       : [];
   const canDownload = downloadUrls.length > 0;
 
-  if (!canCopy && !canEdit && !canDelete && !canReply && !canDownload) return null;
+  if (!canCopy && !canEdit && !canDeleteMe && !canReply && !canDownload && !canReact && !canForward) return null;
 
   const copy = async () => {
     try {
@@ -195,12 +253,22 @@ function MessageActions({
     setOpen(false);
   };
 
-  const del = () => {
-    if (!confirm("Delete this message?")) {
+  const delForMe = () => {
+    customerMessagesStore.deleteMessage(message.customerId, message.id, "me");
+    setOpen(false);
+  };
+
+  const delForEveryone = () => {
+    if (!confirm("Delete this message for everyone?")) {
       setOpen(false);
       return;
     }
-    customerMessagesStore.deleteMessage(message.customerId, message.id);
+    customerMessagesStore.deleteMessage(message.customerId, message.id, "everyone");
+    setOpen(false);
+  };
+
+  const star = () => {
+    customerMessagesStore.toggleStar(message.customerId, message.id);
     setOpen(false);
   };
 
@@ -232,7 +300,24 @@ function MessageActions({
   };
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative flex items-center gap-0.5">
+      {canReact && (
+        <button
+          type="button"
+          aria-label="React"
+          onClick={() => setShowReactionPicker((o) => !o)}
+          className="flex h-6 w-6 items-center justify-center rounded-full text-grey-400 opacity-0 transition-opacity hover:bg-light-600 hover:text-grey-700 group-hover:opacity-100 data-[open=true]:opacity-100"
+          data-open={showReactionPicker}
+        >
+          <SmilePlus className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {showReactionPicker && (
+        <ReactionPicker
+          onClose={() => setShowReactionPicker(false)}
+          onPick={(emoji) => customerMessagesStore.toggleReaction(message.customerId, message.id, emoji, CURRENT_USER_ID)}
+        />
+      )}
       <button
         type="button"
         aria-label="Message actions"
@@ -269,6 +354,18 @@ function MessageActions({
               Download{downloadUrls.length > 1 ? ` (${downloadUrls.length})` : ""}
             </button>
           )}
+          {canForward && (
+            <button type="button" onClick={() => { setShowForward(true); setOpen(false); }} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-grey-700 hover:bg-light-600">
+              <Forward className="h-3.5 w-3.5" />
+              Forward
+            </button>
+          )}
+          {message.status === "sent" && (
+            <button type="button" onClick={star} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-grey-700 hover:bg-light-600">
+              <Star className={cn("h-3.5 w-3.5", isStarred && "fill-warning-900 text-warning-900")} />
+              {isStarred ? "Unstar" : "Star"}
+            </button>
+          )}
           <button type="button" onClick={() => { setShowInfo(true); setOpen(false); }} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-grey-700 hover:bg-light-600">
             <Info className="h-3.5 w-3.5" />
             Info
@@ -279,15 +376,22 @@ function MessageActions({
               Edit
             </button>
           )}
-          {canDelete && (
-            <button type="button" onClick={del} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-error hover:bg-error-transparent">
+          {canDeleteMe && (
+            <button type="button" onClick={delForMe} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-error hover:bg-error-transparent">
               <Trash2 className="h-3.5 w-3.5" />
-              Delete
+              Delete for me
+            </button>
+          )}
+          {canDeleteEveryone && (
+            <button type="button" onClick={delForEveryone} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-error hover:bg-error-transparent">
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete for everyone
             </button>
           )}
         </div>
       )}
       {showInfo && <MessageInfo message={message} orgUsers={orgUsers} onClose={() => setShowInfo(false)} />}
+      {showForward && <ForwardDialog customerId={message.customerId} messageId={message.id} onClose={() => setShowForward(false)} />}
     </div>
   );
 }
@@ -305,6 +409,11 @@ export function MessageBubble({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.text ?? "");
+  // Hooks must run unconditionally — called here, above the "system" early
+  // return below, rather than after it (was already the case for useOrgUsers
+  // before useReadSummary was added alongside it).
+  const orgUsers = useOrgUsers();
+  const readSummary = useReadSummary(message.customerId);
 
   if (message.kind === "system") {
     return (
@@ -316,9 +425,14 @@ export function MessageBubble({
     );
   }
 
-  const orgUsers = useOrgUsers();
   const sender = orgUsers.find((u) => u.id === message.senderId);
   const isSelf = message.senderId === CURRENT_USER_ID;
+  // Seen once any OTHER user's lastReadAt is >= this message's createdAt —
+  // aggregate summary (see useReadSummary) instead of a per-message fetch.
+  const seenByOthers =
+    isSelf &&
+    message.status === "sent" &&
+    readSummary.some((r) => r.userId !== message.senderId && r.lastReadAt && r.lastReadAt >= message.createdAt);
 
   const saveEdit = () => {
     const next = draft.trim();
@@ -352,6 +466,12 @@ export function MessageBubble({
             message.kind === "image" && "p-1.5"
           )}
         >
+          {message.isForwarded && (
+            <div className={cn("mb-1 flex items-center gap-1 text-[11px] italic", isSelf ? "text-grey-700/70" : "text-grey-400")}>
+              <Forward className="h-3 w-3" />
+              Forwarded
+            </div>
+          )}
           {replyTo && (
             <ReplyQuote message={replyTo} isSelf={isSelf} imageIndex={replyToImageIndex} />
           )}
@@ -388,6 +508,7 @@ export function MessageBubble({
             <MessageText text={message.text ?? ""} inverted={isSelf} />
           )}
         </div>
+        <ReactionPills message={message} isSelf={isSelf} />
         {message.status === "sent" && message.mentionedUserIds && message.mentionedUserIds.length > 0 && (
           <div className={cn("flex flex-wrap gap-1 pt-1", isSelf && "justify-end")}>
             {message.mentionedUserIds
@@ -426,8 +547,15 @@ export function MessageBubble({
           )}
           {message.status === "sent" && (
             <>
+              {message.starred && <Star className="h-3 w-3 fill-warning-900 text-warning-900" />}
               {timeAgo(message.createdAt)}
               {message.editedAt && <span className="italic text-grey-400">(edited)</span>}
+              {isSelf &&
+                (seenByOthers ? (
+                  <CheckCheck className="h-3.5 w-3.5 text-secondary" />
+                ) : (
+                  <Check className="h-3.5 w-3.5 text-grey-300" />
+                ))}
             </>
           )}
         </div>
