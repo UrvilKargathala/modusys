@@ -208,9 +208,11 @@ function MessageActions({
     setOpen(false);
     try {
       // Fetch as blob so cross-origin URLs (Vercel Blob) actually download
-      // instead of navigating away. Chain sequentially for multi-image so
-      // the browser doesn't dedupe the same download-name attempts.
-      for (const { url, name } of downloadUrls) {
+      // instead of navigating away. Chrome silently blocks automatic
+      // downloads past ~10 in a tight loop (anti-abuse throttling), so each
+      // click is spaced out instead of firing back-to-back.
+      for (let i = 0; i < downloadUrls.length; i++) {
+        const { url, name } = downloadUrls[i];
         const res = await fetch(url);
         const blob = await res.blob();
         const objectUrl = URL.createObjectURL(blob);
@@ -221,6 +223,7 @@ function MessageActions({
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
+        if (i < downloadUrls.length - 1) await new Promise((r) => setTimeout(r, 400));
       }
       toastStore.show(downloadUrls.length > 1 ? `Downloaded ${downloadUrls.length} files` : "Downloaded", "success");
     } catch {
