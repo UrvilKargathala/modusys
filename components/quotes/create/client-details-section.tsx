@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { CustomerPicker, CustomerReadOnlyDetails } from "@/components/quotes/create/customer-picker";
 import { ArchitectPicker, ArchitectReadOnlyDetails } from "@/components/quotes/create/architect-picker";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
+import { UserPicker } from "@/components/crm/tasks/user-picker";
 import { StatusPicker } from "@/components/quotes/create/status-picker";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import type { StatusKey } from "@/lib/status";
@@ -100,8 +101,7 @@ export function ClientDetailsSection({
           </Field>
 
           <Field label="Sales Executive" required>
-            <MaterialReferenceSelect
-              category="sales-executive"
+            <UserPicker
               value={quote.salesExecutiveId}
               onChange={(id) => confirmChange("Sales Executive", { salesExecutiveId: id })}
             />
