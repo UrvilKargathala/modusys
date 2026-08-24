@@ -329,62 +329,63 @@ function MessageActions({
       </button>
       {open && (
         <div className={cn(
-          "absolute z-10 mt-1 flex min-w-32 flex-col overflow-hidden rounded-md border border-grey-100 bg-card shadow-md",
+          "absolute z-10 mt-1 flex w-44 flex-col overflow-hidden rounded-lg border border-grey-100 bg-card py-1 shadow-lg",
           isSelf ? "right-0" : "left-0"
         )}>
           {canReply && (
             <button
               type="button"
               onClick={() => { onReply?.(); setOpen(false); }}
-              className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-grey-700 hover:bg-light-600"
+              className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-body text-grey-700 hover:bg-light-600"
             >
-              <Reply className="h-3.5 w-3.5" />
+              <Reply className="h-3.5 w-3.5 shrink-0 text-grey-400" />
               Reply
             </button>
           )}
           {canCopy && (
-            <button type="button" onClick={copy} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-grey-700 hover:bg-light-600">
-              <Copy className="h-3.5 w-3.5" />
+            <button type="button" onClick={copy} className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-body text-grey-700 hover:bg-light-600">
+              <Copy className="h-3.5 w-3.5 shrink-0 text-grey-400" />
               Copy
             </button>
           )}
           {canDownload && (
-            <button type="button" onClick={download} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-grey-700 hover:bg-light-600">
-              <Download className="h-3.5 w-3.5" />
+            <button type="button" onClick={download} className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-body text-grey-700 hover:bg-light-600">
+              <Download className="h-3.5 w-3.5 shrink-0 text-grey-400" />
               Download{downloadUrls.length > 1 ? ` (${downloadUrls.length})` : ""}
             </button>
           )}
           {canForward && (
-            <button type="button" onClick={() => { setShowForward(true); setOpen(false); }} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-grey-700 hover:bg-light-600">
-              <Forward className="h-3.5 w-3.5" />
+            <button type="button" onClick={() => { setShowForward(true); setOpen(false); }} className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-body text-grey-700 hover:bg-light-600">
+              <Forward className="h-3.5 w-3.5 shrink-0 text-grey-400" />
               Forward
             </button>
           )}
           {message.status === "sent" && (
-            <button type="button" onClick={star} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-grey-700 hover:bg-light-600">
-              <Star className={cn("h-3.5 w-3.5", isStarred && "fill-warning-900 text-warning-900")} />
+            <button type="button" onClick={star} className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-body text-grey-700 hover:bg-light-600">
+              <Star className={cn("h-3.5 w-3.5 shrink-0", isStarred ? "fill-warning-900 text-warning-900" : "text-grey-400")} />
               {isStarred ? "Unstar" : "Star"}
             </button>
           )}
-          <button type="button" onClick={() => { setShowInfo(true); setOpen(false); }} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-grey-700 hover:bg-light-600">
-            <Info className="h-3.5 w-3.5" />
+          <button type="button" onClick={() => { setShowInfo(true); setOpen(false); }} className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-body text-grey-700 hover:bg-light-600">
+            <Info className="h-3.5 w-3.5 shrink-0 text-grey-400" />
             Info
           </button>
           {canEdit && (
-            <button type="button" onClick={() => { onEdit(); setOpen(false); }} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-grey-700 hover:bg-light-600">
-              <Pencil className="h-3.5 w-3.5" />
+            <button type="button" onClick={() => { onEdit(); setOpen(false); }} className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-body text-grey-700 hover:bg-light-600">
+              <Pencil className="h-3.5 w-3.5 shrink-0 text-grey-400" />
               Edit
             </button>
           )}
+          {(canDeleteMe || canDeleteEveryone) && <div className="my-1 border-t border-grey-100" />}
           {canDeleteMe && (
-            <button type="button" onClick={delForMe} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-error hover:bg-error-transparent">
-              <Trash2 className="h-3.5 w-3.5" />
+            <button type="button" onClick={delForMe} className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-body text-error hover:bg-error-transparent">
+              <Trash2 className="h-3.5 w-3.5 shrink-0" />
               Delete for me
             </button>
           )}
           {canDeleteEveryone && (
-            <button type="button" onClick={delForEveryone} className="flex items-center gap-2 px-3 py-1.5 text-left text-xs font-body text-error hover:bg-error-transparent">
-              <Trash2 className="h-3.5 w-3.5" />
+            <button type="button" onClick={delForEveryone} className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-body text-error hover:bg-error-transparent">
+              <Trash2 className="h-3.5 w-3.5 shrink-0" />
               Delete for everyone
             </button>
           )}
