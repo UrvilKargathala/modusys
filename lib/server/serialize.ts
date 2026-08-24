@@ -1,5 +1,5 @@
 import "server-only";
-import type { Customer, Architect, User, ArchitectPartner, Message } from "@prisma/client";
+import type { Customer, Architect, User, ArchitectPartner, Message, MediaAttachment } from "@prisma/client";
 import type { ArchitectSiteEngineer } from "@/lib/mock/architects";
 
 // DB rows carry Date objects and a merged/relational shape; the existing app
@@ -96,5 +96,19 @@ export function serializeMessage(m: Message) {
     editedAt: m.editedAt?.toISOString(),
     createdAt: m.createdAt.toISOString(),
     status: "sent" as const,
+  };
+}
+
+export function serializeMediaAttachment(m: MediaAttachment) {
+  return {
+    id: m.id,
+    customerId: m.customerId,
+    type: m.type as "image" | "video" | "document",
+    name: m.name,
+    url: m.url,
+    sizeBytes: m.sizeBytes,
+    durationSec: m.durationSec ?? undefined,
+    uploadedAt: m.uploadedAt.toISOString(),
+    status: "done" as const,
   };
 }

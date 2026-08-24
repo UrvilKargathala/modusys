@@ -1,7 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { SEEDED_CUSTOMER_IDS } from "@/lib/mock/customer-detail";
+import { useEffect, useSyncExternalStore } from "react";
 
 export type MediaType = "image" | "video" | "document";
 
@@ -18,78 +17,51 @@ export type MediaAttachment = {
   progress?: number; // 0-100 while uploading
 };
 
-const STORAGE_KEY = "modusys.customerMedia.v1";
+// Backed by the shared PostgreSQL database + Vercel Blob storage via
+// /api/customers/[id]/media — previously files were blob: URLs
+// (URL.createObjectURL) kept only in this browser's memory/localStorage, so
+// the URL went dead on reload even though the gallery entry survived. That's
+// why a "37 photos" gallery only ever downloaded 13-17: whichever ones still
+// had a live blob reference in the current tab. Real upload now, so the URL
+// is permanent and every listed item is actually downloadable.
+const byCustomer = new Map<string, MediaAttachment[]>();
+const loadedCustomers = new Set<string>();
 const EMPTY: MediaAttachment[] = [];
-
-function seedMedia(): MediaAttachment[] {
-  const [c1] = SEEDED_CUSTOMER_IDS;
-  const now = Date.now();
-  return [
-    {
-      id: "media-1",
-      customerId: c1,
-      type: "image",
-      name: "site-photo-1.jpg",
-      url: "https://picsum.photos/seed/modusys1/480/480",
-      sizeBytes: 842_000,
-      uploadedAt: new Date(now - 1000 * 60 * 60 * 24 * 6).toISOString(),
-      status: "done",
-    },
-    {
-      id: "media-2",
-      customerId: c1,
-      type: "image",
-      name: "kitchen-layout.jpg",
-      url: "https://picsum.photos/seed/modusys2/480/480",
-      sizeBytes: 1_240_000,
-      uploadedAt: new Date(now - 1000 * 60 * 60 * 24 * 3).toISOString(),
-      status: "done",
-    },
-    {
-      id: "media-3",
-      customerId: c1,
-      type: "document",
-      name: "final-quote-v2.pdf",
-      url: "#",
-      sizeBytes: 320_000,
-      uploadedAt: new Date(now - 1000 * 60 * 60 * 24 * 2).toISOString(),
-      status: "done",
-    },
-  ];
-}
-
-// Previously in-memory only, so a reload wiped every uploaded file entry —
-// persisted now the same way chat/tasks/customers already are. Caveat: a
-// freshly-uploaded image/video's `url` is a blob: URL (from
-// URL.createObjectURL), which the browser invalidates on reload regardless
-// of persistence — the row survives, but its thumbnail won't render after a
-// refresh. Fixing that needs real upload storage (S3/R2, Phase B2), not
-// something localStorage can paper over.
-let media: MediaAttachment[] = seedMedia();
-let hydrated = false;
 const listeners = new Set<() => void>();
-
-function persist() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(media));
-  } catch {
-    // ignore write failures
-  }
-}
 
 function emit() {
   for (const listener of listeners) listener();
 }
 
-function ensureHydrated() {
-  if (hydrated || typeof window === "undefined") return;
-  hydrated = true;
+async function fetchMedia(customerId: string) {
   try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) media = JSON.parse(stored) as MediaAttachment[];
+    const res = await fetch(`/api/customers/${customerId}/media`, { cache: "no-store" });
+    if (!res.ok) return;
+    byCustomer.set(customerId, (await res.json()) as MediaAttachment[]);
+    emit();
   } catch {
-    // ignore parse failures, keep seed
+    // transient — keep whatever's cached
   }
+}
+
+function ensureHydrated(customerId: string) {
+  if (loadedCustomers.has(customerId) || typeof window === "undefined") return;
+  loadedCustomers.add(customerId);
+  void fetchMedia(customerId);
+}
+
+function setItem(customerId: string, id: string, patch: Partial<MediaAttachment>) {
+  byCustomer.set(
+    customerId,
+    (byCustomer.get(customerId) ?? []).map((m) => (m.id === id ? { ...m, ...patch } : m))
+  );
+  emit();
+}
+
+function typeOf(file: File): MediaType {
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type.startsWith("video/")) return "video";
+  return "document";
 }
 
 export const customerMediaStore = {
@@ -97,66 +69,91 @@ export const customerMediaStore = {
     listeners.add(listener);
     return () => listeners.delete(listener);
   },
-  getSnapshot() {
-    ensureHydrated();
-    return media;
+  getSnapshot(customerId: string) {
+    ensureHydrated(customerId);
+    return byCustomer.get(customerId) ?? EMPTY;
   },
-  getServerSnapshot() {
-    return EMPTY;
-  },
-  // TODO: real upload to S3/R2 (Phase B2) — simulates progress + occasional
-  // failure so the upload-progress and error UI are real, not decorative.
-  addFile(customerId: string, file: File) {
-    ensureHydrated();
-    const id = `media-${Date.now()}-${Math.random()}`;
-    const type: MediaType = file.type.startsWith("image/")
-      ? "image"
-      : file.type.startsWith("video/")
-        ? "video"
-        : "document";
-    const url = type === "document" ? "#" : URL.createObjectURL(file);
+  refetch: fetchMedia,
 
-    media = [
-      ...media,
+  // Client-direct upload to Vercel Blob (bypasses the ~4.5MB serverless body
+  // cap), with real progress reporting instead of a simulated timer. Once
+  // the blob upload finishes, the DB row is created via POST .../media.
+  async addFile(customerId: string, file: File) {
+    const tempId = `pending-${Date.now()}-${Math.random()}`;
+    const type = typeOf(file);
+    const list = byCustomer.get(customerId) ?? [];
+    byCustomer.set(customerId, [
+      ...list,
       {
-        id,
+        id: tempId,
         customerId,
         type,
         name: file.name,
-        url,
+        url: URL.createObjectURL(file), // local preview only, replaced by the real URL below
         sizeBytes: file.size,
         uploadedAt: new Date().toISOString(),
         status: "uploading",
         progress: 0,
       },
-    ];
-    persist();
+    ]);
     emit();
 
-    const interval = setInterval(() => {
-      media = media.map((m) => {
-        if (m.id !== id || m.status !== "uploading") return m;
-        const next = (m.progress ?? 0) + 20 + Math.random() * 20;
-        if (next >= 100) {
-          clearInterval(interval);
-          const failed = Math.random() < 0.1;
-          return { ...m, progress: 100, status: failed ? "error" : "done" };
-        }
-        return { ...m, progress: next };
+    try {
+      const { upload } = await import("@vercel/blob/client");
+      const pathname = `customers/${customerId}/${Date.now()}-${file.name}`;
+      const blob = await upload(pathname, file, {
+        access: "public",
+        contentType: file.type || "application/octet-stream",
+        handleUploadUrl: `/api/customers/${customerId}/media/upload`,
+        onUploadProgress: ({ percentage }) => setItem(customerId, tempId, { progress: percentage }),
       });
-      persist();
-      emit();
-    }, 300);
 
-    return id;
+      const res = await fetch(`/api/customers/${customerId}/media`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          name: file.name,
+          url: blob.url,
+          pathname: blob.pathname,
+          sizeBytes: file.size,
+        }),
+      });
+      if (!res.ok) throw new Error("save failed");
+      const saved = (await res.json()) as MediaAttachment;
+      byCustomer.set(
+        customerId,
+        (byCustomer.get(customerId) ?? []).map((m) => (m.id === tempId ? saved : m))
+      );
+      emit();
+    } catch {
+      setItem(customerId, tempId, { status: "error", progress: 100 });
+    }
+  },
+
+  async deleteFile(customerId: string, id: string) {
+    const prev = byCustomer.get(customerId) ?? [];
+    byCustomer.set(customerId, prev.filter((m) => m.id !== id));
+    emit();
+    try {
+      const res = await fetch(`/api/customers/${customerId}/media/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("delete failed");
+    } catch {
+      void fetchMedia(customerId);
+    }
   },
 };
 
 export function useCustomerMedia(customerId: string) {
-  const all = useSyncExternalStore(
+  const media = useSyncExternalStore(
     customerMediaStore.subscribe,
-    customerMediaStore.getSnapshot,
-    customerMediaStore.getServerSnapshot
+    () => customerMediaStore.getSnapshot(customerId),
+    () => EMPTY
   );
-  return all.filter((m) => m.customerId === customerId);
+
+  useEffect(() => {
+    void customerMediaStore.refetch(customerId);
+  }, [customerId]);
+
+  return media;
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { X, ChevronLeft, ChevronRight, Download } from "lucide-react";
-import type { MediaAttachment } from "@/lib/store/customer-media-store";
+import { X, ChevronLeft, ChevronRight, Download, Trash2 } from "lucide-react";
+import { customerMediaStore, type MediaAttachment } from "@/lib/store/customer-media-store";
 
 export function MediaLightbox({
   items,
@@ -59,6 +59,19 @@ export function MediaLightbox({
       >
         <Download className="h-5 w-5" />
       </a>
+
+      <button
+        type="button"
+        onClick={() => {
+          customerMediaStore.deleteFile(item.customerId, item.id);
+          if (items.length > 1) onNavigate(index > 0 ? index - 1 : 0);
+          else onClose();
+        }}
+        aria-label="Delete"
+        className="absolute right-28 top-4 rounded-full p-2 text-white/80 hover:bg-white/10 hover:text-error"
+      >
+        <Trash2 className="h-5 w-5" />
+      </button>
 
       {index > 0 && (
         <button

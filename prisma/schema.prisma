@@ -44,9 +44,31 @@ model Customer {
   deletedAt      DateTime?
 
   messages Message[]
+  media    MediaAttachment[]
 
   @@index([stage])
   @@index([deletedAt])
+}
+
+// Customer profile gallery (photos/videos/documents shared outside chat).
+// Previously client-only: files were blob: URLs from URL.createObjectURL,
+// which the browser invalidates on reload — so uploads "disappeared" for
+// anyone who refreshed, and bulk-downloads silently returned fewer files
+// than the gallery listed. Real Blob storage now, so the URL stays valid.
+model MediaAttachment {
+  id           String   @id @default(cuid())
+  customerId   String
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type         String // image | video | document
+  name         String
+  url          String
+  pathname     String // blob key, needed to delete from Blob storage
+  sizeBytes    Int
+  durationSec  Int? // videos only
+  uploadedById String?
+  uploadedAt   DateTime @default(now())
+
+  @@index([customerId, uploadedAt])
 }
 
 // CRM chat thread for a customer — was previously client-only (localStorage),
