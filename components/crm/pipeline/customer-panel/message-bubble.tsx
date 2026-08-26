@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, AlertCircle, RotateCcw, Play, Pause, MoreVertical, Copy, Pencil, Trash2, Check, CheckCheck, X as XIcon, FileText, ListTodo, Reply, Download, Info, Star, Forward, SmilePlus } from "lucide-react";
+import { Clock, AlertCircle, RotateCcw, Play, Pause, MoreVertical, Copy, Pencil, Trash2, Check, CheckCheck, X as XIcon, FileText, ListTodo, Reply, Download, Info, Star, Forward, SmilePlus, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { MessageText } from "@/components/crm/pipeline/customer-panel/message-text";
@@ -687,12 +687,80 @@ function ImageGallery({ message, onReply }: { message: CustomerMessage; onReply?
         <p className="px-1 pt-1 text-sm font-body text-grey-800">{message.text}</p>
       )}
       {openIdx !== null && (
-        <div
-          onClick={() => setOpenIdx(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+        <ImageLightbox urls={urls} index={openIdx} onClose={() => setOpenIdx(null)} onNavigate={setOpenIdx} />
+      )}
+    </div>
+  );
+}
+
+function ImageLightbox({
+  urls,
+  index,
+  onClose,
+  onNavigate,
+}: {
+  urls: string[];
+  index: number;
+  onClose: () => void;
+  onNavigate: (nextIndex: number) => void;
+}) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+      if (e.key === "ArrowRight" && index < urls.length - 1) onNavigate(index + 1);
+      if (e.key === "ArrowLeft" && index > 0) onNavigate(index - 1);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [index, urls.length, onClose, onNavigate]);
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+    >
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        aria-label="Close viewer"
+        className="absolute right-4 top-4 rounded-full p-2 text-white/80 hover:bg-white/10 hover:text-white"
+      >
+        <XIcon className="h-5 w-5" />
+      </button>
+      {index > 0 && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onNavigate(index - 1); }}
+          aria-label="Previous"
+          className="absolute left-4 rounded-full p-2 text-white/80 hover:bg-white/10 hover:text-white"
         >
-          <img src={urls[openIdx]} alt="" className="max-h-full max-w-full rounded shadow-xl" />
-        </div>
+          <ChevronLeft className="h-6 w-6" />
+        </button>
+      )}
+      {index < urls.length - 1 && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onNavigate(index + 1); }}
+          aria-label="Next"
+          className="absolute right-4 rounded-full p-2 text-white/80 hover:bg-white/10 hover:text-white"
+        >
+          <ChevronRight className="h-6 w-6" />
+        </button>
+      )}
+      <img
+        src={urls[index]}
+        alt=""
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-full max-w-full rounded shadow-xl"
+      />
+      {urls.length > 1 && (
+        <span className="absolute bottom-4 rounded-full bg-black/60 px-2.5 py-1 text-xs font-number text-white">
+          {index + 1} / {urls.length}
+        </span>
       )}
     </div>
   );
