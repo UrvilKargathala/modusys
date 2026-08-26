@@ -43,7 +43,10 @@ export type AuditAction =
   | "PRICE_LIST_ENTRY_CREATED"
   | "PRICE_LIST_ENTRY_UPDATED"
   | "PRICE_LIST_ENTRY_DELETED"
-  | "QUOTE_TEMPLATE_SETTING_UPDATED";
+  | "QUOTE_TEMPLATE_SETTING_UPDATED"
+  | "PANEL_CALC_SPEC_CREATED"
+  | "PANEL_CALC_SPEC_UPDATED"
+  | "PANEL_CALC_SPEC_DELETED";
 
 export type AuditTargetType =
   | "USER"
@@ -58,7 +61,8 @@ export type AuditTargetType =
   | "MATERIAL_LIBRARY_ENTRY"
   | "PRICE_LIST_ENTRY"
   | "QUOTE_TEMPLATE_SETTING"
-  | "SESSION";
+  | "SESSION"
+  | "PANEL_CALC_SPEC";
 
 export type AuditResult = "SUCCESS" | "FAILURE";
 

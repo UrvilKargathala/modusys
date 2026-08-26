@@ -258,6 +258,28 @@ model MaterialItem {
   @@index([category])
 }
 
+// Reference table for the Templates "Calculator" tab — a direct lookup of
+// cutting dimensions (not a formula), since a hardware catalog publishes
+// exact Bottom/Back Panel W×H per (brand, product, width, height), not a
+// formula to derive them from. The admin enters both panels' dimensions
+// straight from the catalog/spec sheet.
+model PanelCalcSpec {
+  id               String   @id
+  brand            String
+  product          String
+  width            Int
+  height           Int
+  description      String   @default("")
+  bottomPanelWidth  Int
+  bottomPanelHeight Int
+  backPanelWidth    Int
+  backPanelHeight   Int
+  createdAt        DateTime @default(now())
+
+  @@unique([brand, product, width, height])
+  @@index([brand, product])
+}
+
 model FurniturePriceItem {
   id                String   @id
   thicknessId       String

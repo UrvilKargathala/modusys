@@ -145,17 +145,23 @@ export function getTeamPerformance(
   range: DateRange
 ): TeamPerformanceDatum[] {
   const filtered = quotes.filter((q) => inRange(q.date, range));
+  const nameMap = new Map(users.map((u) => [u.id, u.name]));
+  // salesExecutiveId on older quotes may still hold a pre-fix value (a
+  // material-library reference id, not a real User.id) that will never
+  // resolve to a name — group those under one "Unassigned" bucket instead
+  // of listing each raw id as its own row.
+  const UNASSIGNED = "unassigned";
   const byUser = new Map<string, { quotes: number; revenue: number }>();
   for (const q of filtered) {
-    const key = q.salesExecutiveId || (q as Record<string, unknown>).createdById as string || "unknown";
+    const rawId = q.salesExecutiveId || ((q as Record<string, unknown>).createdById as string) || "";
+    const key = nameMap.has(rawId) ? rawId : UNASSIGNED;
     const existing = byUser.get(key) ?? { quotes: 0, revenue: 0 };
     existing.quotes += 1;
     existing.revenue += quoteRevenue(q, furnitureItems, hardwareItems);
     byUser.set(key, existing);
   }
-  const nameMap = new Map(users.map((u) => [u.id, u.name]));
   return [...byUser.entries()]
-    .map(([id, data]) => ({ name: nameMap.get(id) ?? id, ...data }))
+    .map(([id, data]) => ({ name: id === UNASSIGNED ? "Unassigned" : nameMap.get(id)!, ...data }))
     .sort((a, b) => b.revenue - a.revenue);
 }
 

@@ -10,6 +10,7 @@ import { PricingListSection } from "@/components/templates/pricing-list-section"
 import { CabinetTypeSection } from "@/components/templates/cabinet-type-section";
 import { UnitTypeSection } from "@/components/templates/unit-type-section";
 import { QuoteTemplateSection } from "@/components/templates/quote-template-section";
+import { CalculatorSection } from "@/components/templates/calculator-section";
 
 const topTabs = [
   { value: "material-spec", label: "Material Spec" },
@@ -17,6 +18,7 @@ const topTabs = [
   { value: "unit-type", label: "Unit Type" },
   { value: "cabinet-type", label: "Cabinet Type" },
   { value: "quote-template", label: "Quote Template" },
+  { value: "calculator", label: "Calculator" },
 ];
 
 function TemplatesPageContent() {
@@ -62,6 +64,8 @@ function TemplatesPageContent() {
               <UnitTypeSection />
             ) : t.value === "quote-template" ? (
               <QuoteTemplateSection />
+            ) : t.value === "calculator" ? (
+              <CalculatorSection />
             ) : (
               <EmptyState icon={Construction} message={`${t.label} is coming in a later phase.`} />
             )}
