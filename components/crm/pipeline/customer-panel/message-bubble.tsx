@@ -75,17 +75,30 @@ function MessageInfo({ message, orgUsers, onClose }: { message: CustomerMessage;
       .finally(() => setLoadingSeen(false));
   }, [message.id, message.customerId, message.status]);
 
-  const rows: [string, string][] = [
+  const rows: [string, React.ReactNode][] = [
     ["From", sender?.name ?? "Unknown"],
     ["Date", dateStr],
     ["Time", timeStr],
-    ["Type", message.kind === "chat" ? "Text" : message.kind === "image" ? `Photo${imageCount > 1 ? ` (${imageCount})` : ""}` : message.kind === "pdf" ? "PDF" : message.kind === "voice" ? "Voice note" : "System"],
+    [
+      "Type",
+      message.kind === "chat"
+        ? "Text"
+        : message.kind === "image"
+        ? <>Photo{imageCount > 1 ? <> (<span className="font-number">{imageCount}</span>)</> : ""}</>
+        : message.kind === "pdf"
+        ? "PDF"
+        : message.kind === "voice"
+        ? "Voice note"
+        : "System",
+    ],
   ];
   if (message.kind === "pdf" && message.pdfName) rows.push(["File", message.pdfName]);
   if (message.kind === "pdf" && typeof message.pdfSize === "number") rows.push(["Size", `${(message.pdfSize / 1024 / 1024).toFixed(2)} MB`]);
   if (fileNames.length > 0) rows.push(["File(s)", fileNames.join(", ")]);
   if (message.kind === "voice" && message.durationSec) rows.push(["Duration", `0:${String(message.durationSec).padStart(2, "0")}`]);
   if (message.editedAt) rows.push(["Edited", new Date(message.editedAt).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })]);
+
+  const numberRowLabels = new Set(["Date", "Time", "Size", "Duration", "Edited"]);
 
   const seenUsers = seenBy
     .filter((r) => r.userId !== message.senderId)
@@ -107,7 +120,7 @@ function MessageInfo({ message, orgUsers, onClose }: { message: CustomerMessage;
           {rows.map(([label, value]) => (
             <div key={label} className="flex items-start justify-between gap-3">
               <span className="shrink-0 text-xs font-body text-grey-400">{label}</span>
-              <span className="text-right text-xs font-body font-medium text-grey-700">{value}</span>
+              <span className={cn("text-right text-xs font-body font-medium text-grey-700", numberRowLabels.has(label) && "font-number")}>{value}</span>
             </div>
           ))}
         </div>
@@ -351,7 +364,7 @@ function MessageActions({
           {canDownload && (
             <button type="button" onClick={download} className="flex items-center gap-2.5 px-3 py-2 text-left text-xs font-body text-grey-700 hover:bg-light-600">
               <Download className="h-3.5 w-3.5 shrink-0 text-grey-400" />
-              Download{downloadUrls.length > 1 ? ` (${downloadUrls.length})` : ""}
+              Download{downloadUrls.length > 1 ? <> (<span className="font-number">{downloadUrls.length}</span>)</> : ""}
             </button>
           )}
           {canForward && (
@@ -569,9 +582,11 @@ function PdfBubble({ message }: { message: CustomerMessage }) {
   const [open, setOpen] = useState(false);
   if (!message.pdfUrl) return null;
   const sizeLabel =
-    typeof message.pdfSize === "number"
-      ? `PDF · ${(message.pdfSize / 1024 / 1024).toFixed(2)} MB`
-      : "PDF";
+    typeof message.pdfSize === "number" ? (
+      <>PDF · <span className="font-number">{(message.pdfSize / 1024 / 1024).toFixed(2)} MB</span></>
+    ) : (
+      "PDF"
+    );
   return (
     <>
       <button
@@ -708,14 +723,18 @@ function ImageLightbox({
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
+        e.stopImmediatePropagation();
         onClose();
         return;
       }
       if (e.key === "ArrowRight" && index < urls.length - 1) onNavigate(index + 1);
       if (e.key === "ArrowLeft" && index > 0) onNavigate(index - 1);
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    // Capture phase — the customer panel Sheet registers its own capturing
+    // keydown listener (see media-lightbox.tsx), which otherwise runs first
+    // and swallows these before they reach a bubble-phase listener here.
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
   }, [index, urls.length, onClose, onNavigate]);
 
   return (

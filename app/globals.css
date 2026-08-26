@@ -399,6 +399,33 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+/* Thin scrollbar for wide horizontally-scrolling rows (e.g. the Kanban
+   board), hidden until hover — scrollbar-hide left desktop users with no
+   visual cue at all that there was more to scroll to, but an always-on
+   bar was noisier than needed once you know it's there. */
+.scrollbar-thin {
+  scrollbar-width: none;
+}
+.scrollbar-thin:hover {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-grey-200) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  height: 8px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+}
+.scrollbar-thin:hover::-webkit-scrollbar-thumb {
+  background-color: var(--color-grey-200);
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-grey-300);
+}
 /* iOS Safari zooms into any focused input whose computed font-size is
    < 16px. Enforcing a 16px floor on the touch breakpoint kills the
    zoom-on-focus without shrinking the text on desktop, where we still

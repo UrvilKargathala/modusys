@@ -304,7 +304,7 @@ export function QuoteCabinetGroup({
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
         <span className="shrink-0 text-xs font-body font-medium text-grey-400">
-          {index}. Type:
+          <span className="font-number">{index}</span>. Type:
         </span>
         <CabinetTypeSelect
           value={cabinet.cabinetTypeId}

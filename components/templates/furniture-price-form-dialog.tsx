@@ -128,7 +128,7 @@ export function FurniturePriceFormDialog({
             <div className="flex flex-col gap-2 rounded-lg bg-warning-transparent px-3 py-2.5 text-sm font-body text-warning">
               <span className="flex items-start gap-1.5">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                This combination already exists ({duplicate.rate.toFixed(2)}/sq.ft) — edit the existing entry instead?
+                This combination already exists (<span className="font-number">{duplicate.rate.toFixed(2)}</span>/sq.ft) — edit the existing entry instead?
               </span>
               <Button
                 size="sm"

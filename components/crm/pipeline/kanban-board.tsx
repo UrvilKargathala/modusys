@@ -135,7 +135,7 @@ export function KanbanBoard({
             actually scrolls vertically), that's a no-op rather than a
             regression — it simply never had vertical overflow to stick
             against in the first place. */}
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+        <div className="flex gap-3 overflow-x-auto scrollbar-thin pb-2">
           {filteredStage && (
             <KanbanColumn
               stage={filteredStage}

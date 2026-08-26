@@ -89,22 +89,25 @@ export function CustomerReadOnlyDetails({ customerId }: { customerId: string }) 
 
   // Compact one-line summary — skip empty fields, join what's populated with
   // dot separators so the block collapses to whatever detail actually exists.
+  // `numeric: true` bits render in font-number (Outfit) per the app-wide
+  // convention that any number-flavored value — codes, phone, GST — uses
+  // the number font, not body text.
   const cityLine = [customer.city, customer.state, customer.postcode].filter(Boolean).join(", ");
   const bits = [
-    customer.srNo && `Code ${String(customer.srNo).padStart(4, "0")}${customer.customerCode ? `-${customer.customerCode}` : ""}`,
-    customer.address,
-    cityLine,
-    customer.email,
-    customer.gst && `GST ${customer.gst}`,
-  ].filter(Boolean);
+    customer.srNo && { text: `Code ${String(customer.srNo).padStart(4, "0")}${customer.customerCode ? `-${customer.customerCode}` : ""}`, numeric: true },
+    customer.address && { text: customer.address, numeric: false },
+    cityLine && { text: cityLine, numeric: false },
+    customer.email && { text: customer.email, numeric: false },
+    customer.gst && { text: `GST ${customer.gst}`, numeric: true },
+  ].filter((b): b is { text: string; numeric: boolean } => !!b);
   if (bits.length === 0) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-grey-100 bg-light-600 px-3 py-1.5 text-xs font-body text-grey-600">
       {bits.map((b, i) => (
-        <span key={i} className="flex items-center gap-2">
+        <span key={i} className="flex min-w-0 max-w-full items-center gap-2">
           {i > 0 && <span className="text-grey-300">·</span>}
-          <span className="truncate">{b}</span>
+          <span className={cn("truncate", b.numeric && "font-number")}>{b.text}</span>
         </span>
       ))}
     </div>

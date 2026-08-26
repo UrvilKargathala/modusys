@@ -30,9 +30,9 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[auto_1fr] sm:gap-2">
+    <div className="grid min-w-0 grid-cols-1 items-start gap-1 sm:grid-cols-[auto_1fr] sm:gap-2">
       <Label htmlFor={htmlFor} className="whitespace-nowrap sm:pt-2 sm:leading-tight">{label}{required && <span className="text-error"> *</span>}</Label>
-      <div className="flex flex-col gap-1">
+      <div className="flex min-w-0 flex-col gap-1">
         {children}
         {helper && <span className="text-xs font-body text-grey-400">{helper}</span>}
       </div>

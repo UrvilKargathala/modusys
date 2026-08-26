@@ -109,16 +109,23 @@ export function ArchitectReadOnlyDetails({ architectId }: { architectId: string 
   const architect = architects.find((a) => a.id === architectId);
   if (!architect) return null;
 
+  // `numeric: true` bits render in font-number (Outfit) per the app-wide
+  // convention that any number-flavored value — here, the phone number —
+  // uses the number font, not body text.
   const cityLine = [architect.address, architect.city, architect.state, architect.postcode].filter(Boolean).join(", ");
-  const bits = [architect.company, cityLine, architect.mobile].filter(Boolean);
+  const bits = [
+    architect.company && { text: architect.company, numeric: false },
+    cityLine && { text: cityLine, numeric: false },
+    architect.mobile && { text: architect.mobile, numeric: true },
+  ].filter((b): b is { text: string; numeric: boolean } => !!b);
   if (bits.length === 0) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-grey-100 bg-light-600 px-3 py-1.5 text-xs font-body text-grey-600">
       {bits.map((b, i) => (
-        <span key={i} className="flex items-center gap-2">
+        <span key={i} className="flex min-w-0 max-w-full items-center gap-2">
           {i > 0 && <span className="text-grey-300">·</span>}
-          <span className="truncate">{b}</span>
+          <span className={cn("truncate", b.numeric && "font-number")}>{b.text}</span>
         </span>
       ))}
     </div>

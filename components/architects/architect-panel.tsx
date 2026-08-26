@@ -152,7 +152,7 @@ export function ArchitectPanel() {
                   <div className="flex flex-col gap-1">
                     <span className="text-xs font-body text-grey-500">Birthday</span>
                     <span className="text-sm font-body text-grey-900">
-                      {architect.birthdayMonth ? `${architect.birthdayMonth} ${architect.birthdayDay}` : "—"}
+                      {architect.birthdayMonth ? <>{architect.birthdayMonth} <span className="font-number">{architect.birthdayDay}</span></> : "—"}
                     </span>
                   </div>
                 </div>

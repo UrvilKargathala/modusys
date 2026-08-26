@@ -490,7 +490,7 @@ export default async function AttendancePage({
                             <MapPin className="h-3.5 w-3.5" />
                             {record.checkInAddress
                               ? record.checkInAddress.split(",").slice(0, 2).join(",")
-                              : `${record.checkInLat.toFixed(4)}, ${record.checkInLng.toFixed(4)}`}
+                              : <span className="font-number">{record.checkInLat.toFixed(4)}, {record.checkInLng.toFixed(4)}</span>}
                           </a>
                           {record.note && (
                             <span className="text-xs italic text-grey-500" title={record.note}>

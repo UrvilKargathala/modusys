@@ -67,7 +67,7 @@ export function RecentQuotesPanel() {
                       href={`/quotes/new?id=${q.id}&mode=view`}
                       className="truncate text-sm font-body font-medium text-grey-800 hover:text-primary"
                     >
-                      {q.quoteNumber} · {customerName(q.customerId)}
+                      <span className="font-number">{q.quoteNumber}</span> · {customerName(q.customerId)}
                     </Link>
                     <span className="text-[11px] font-number text-grey-400">{formatDate(q.updatedAt)}</span>
                   </div>

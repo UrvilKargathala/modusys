@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { FileText, UserPlus, CheckCircle2, ArrowRight, Package, Edit3, AlertCircle, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -17,7 +17,7 @@ type TimelineItem = {
   iconClass: string;
   bgClass: string;
   title: string;
-  subtitle: string;
+  subtitle: ReactNode;
   time: string;
   timestamp: number;
 };
@@ -57,7 +57,11 @@ export function ActivityTimelinePanel() {
         iconClass: isNew ? "text-primary" : "text-secondary",
         bgClass: isNew ? "bg-primary-transparent" : "bg-secondary-transparent",
         title: isNew ? `New quote created` : `Quote updated`,
-        subtitle: `${q.quoteNumber} · ${name} · ${status}`,
+        subtitle: (
+          <>
+            <span className="font-number">{q.quoteNumber}</span> · {name} · {status}
+          </>
+        ),
         time: timeAgo(q.updatedAt),
         timestamp: new Date(q.updatedAt).getTime(),
       });
