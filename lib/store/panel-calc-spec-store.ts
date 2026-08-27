@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { mockPanelCalcSpecs, type PanelCalcSpec } from "@/lib/mock/panel-calc-spec";
+import { mockPanelCalcSpecs, type PanelCalcSpec, type PanelFormula } from "@/lib/mock/panel-calc-spec";
 import { fetchJson, makeDebouncedPut } from "@/lib/store/api-sync";
 
 // Small admin-maintained reference table — same shape as
@@ -34,13 +34,11 @@ function ensureHydrated() {
 export type NewPanelCalcSpecInput = {
   brand: string;
   product: string;
-  width: number;
+  length: number;
   height: number;
   description: string;
-  bottomPanelWidth: number;
-  bottomPanelHeight: number;
-  backPanelWidth: number;
-  backPanelHeight: number;
+  bottomPanels: PanelFormula[];
+  backPanels: PanelFormula[];
 };
 
 export const panelCalcSpecStore = {
@@ -75,14 +73,14 @@ export const panelCalcSpecStore = {
     persist();
     emit();
   },
-  isDuplicate(brand: string, product: string, width: number, height: number, excludeId?: string) {
+  isDuplicate(brand: string, product: string, length: number, height: number, excludeId?: string) {
     ensureHydrated();
     return specs.some(
       (s) =>
         s.id !== excludeId &&
         s.brand.toLowerCase() === brand.trim().toLowerCase() &&
         s.product.toLowerCase() === product.trim().toLowerCase() &&
-        s.width === width &&
+        s.length === length &&
         s.height === height
     );
   },

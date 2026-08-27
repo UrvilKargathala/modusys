@@ -3,18 +3,33 @@ import { prisma } from "@/lib/server/prisma";
 import { replaceCollection, toDate } from "@/lib/server/bulk";
 import { requireUser } from "@/lib/server/require-user";
 import { logAudit } from "@/lib/server/audit";
+import type { PanelFormula } from "@/lib/mock/panel-calc-spec";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function normalizePanels(v: unknown): PanelFormula[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .filter((p): p is Record<string, unknown> => !!p && typeof p === "object")
+    .map((p) => ({
+      id: String(p.id ?? ""),
+      label: String(p.label ?? ""),
+      description: String(p.description ?? ""),
+      widthFormula: String(p.widthFormula ?? ""),
+      heightFormula: String(p.heightFormula ?? ""),
+      thickness: Number(p.thickness ?? 0),
+    }));
+}
 
 export async function GET() {
   const auth = await requireUser();
   if (auth.response) return auth.response;
   const rows = await prisma.panelCalcSpec.findMany({ orderBy: { createdAt: "asc" } });
   return NextResponse.json(rows.map((r) => ({
-    id: r.id, brand: r.brand, product: r.product, width: r.width, height: r.height,
-    description: r.description, bottomPanelWidth: r.bottomPanelWidth, bottomPanelHeight: r.bottomPanelHeight,
-    backPanelWidth: r.backPanelWidth, backPanelHeight: r.backPanelHeight, createdAt: r.createdAt.toISOString(),
+    id: r.id, brand: r.brand, product: r.product, length: r.length, height: r.height,
+    description: r.description, bottomPanels: normalizePanels(r.bottomPanels), backPanels: normalizePanels(r.backPanels),
+    createdAt: r.createdAt.toISOString(),
   })));
 }
 
@@ -33,29 +48,25 @@ export async function PUT(req: Request) {
     id: String(r.id),
     brand: String(r.brand),
     product: String(r.product),
-    width: Number(r.width),
+    length: Number(r.length),
     height: Number(r.height),
     description: String(r.description ?? ""),
-    bottomPanelWidth: Number(r.bottomPanelWidth),
-    bottomPanelHeight: Number(r.bottomPanelHeight),
-    backPanelWidth: Number(r.backPanelWidth),
-    backPanelHeight: Number(r.backPanelHeight),
+    bottomPanels: normalizePanels(r.bottomPanels),
+    backPanels: normalizePanels(r.backPanels),
     createdAt: toDate(r.createdAt),
   }));
   await replaceCollection(prisma.panelCalcSpec, mapped);
 
   const newMap = new Map(mapped.map((r) => [r.id, r]));
-  const label = (r: { brand: string; product: string; width: number; height: number }) =>
-    `${r.brand} ${r.product} — ${r.width}×${r.height}`;
+  const label = (r: { brand: string; product: string; length: number; height: number }) =>
+    `${r.brand} ${r.product} — ${r.length}×${r.height}`;
   for (const r of mapped) {
     const old = oldMap.get(r.id);
     if (!old) {
       void logAudit({ action: "PANEL_CALC_SPEC_CREATED", actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name }, target: { type: "PANEL_CALC_SPEC", id: r.id, label: label(r) }, req });
     } else if (
-      old.bottomPanelWidth !== r.bottomPanelWidth ||
-      old.bottomPanelHeight !== r.bottomPanelHeight ||
-      old.backPanelWidth !== r.backPanelWidth ||
-      old.backPanelHeight !== r.backPanelHeight
+      JSON.stringify(old.bottomPanels) !== JSON.stringify(r.bottomPanels) ||
+      JSON.stringify(old.backPanels) !== JSON.stringify(r.backPanels)
     ) {
       void logAudit({ action: "PANEL_CALC_SPEC_UPDATED", actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name }, target: { type: "PANEL_CALC_SPEC", id: r.id, label: label(r) }, req });
     }

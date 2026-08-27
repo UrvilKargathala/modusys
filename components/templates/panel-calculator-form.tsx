@@ -5,8 +5,9 @@ import { Calculator, Copy, AlertCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { usePanelCalcSpecs } from "@/lib/store/panel-calc-spec-store";
 import { toastStore } from "@/lib/store/toast-store";
+import { evaluateFormula } from "@/lib/quote-pricing";
 
-type ResultRow = { label: string; width: number; height: number };
+type ResultRow = { id: string; label: string; description: string; thickness: number; width: number; height: number };
 
 export function PanelCalculatorForm() {
   const specs = usePanelCalcSpecs();
@@ -20,30 +21,39 @@ export function PanelCalculatorForm() {
   );
   const [product, setProduct] = useState("");
 
-  const widths = useMemo(
-    () => [...new Set(specs.filter((s) => s.brand === brand && s.product === product).map((s) => s.width))].sort((a, b) => a - b),
+  const lengths = useMemo(
+    () => [...new Set(specs.filter((s) => s.brand === brand && s.product === product).map((s) => s.length))].sort((a, b) => a - b),
     [specs, brand, product]
   );
-  const [width, setWidth] = useState<number | "">("");
+  const [length, setLength] = useState<number | "">("");
 
   const heights = useMemo(
     () =>
-      [...new Set(specs.filter((s) => s.brand === brand && s.product === product && s.width === width).map((s) => s.height))].sort(
+      [...new Set(specs.filter((s) => s.brand === brand && s.product === product && s.length === length).map((s) => s.height))].sort(
         (a, b) => a - b
       ),
-    [specs, brand, product, width]
+    [specs, brand, product, length]
   );
   const [height, setHeight] = useState<number | "">("");
 
   const matchedSpec = specs.find(
-    (s) => s.brand === brand && s.product === product && s.width === width && s.height === height
+    (s) => s.brand === brand && s.product === product && s.length === length && s.height === height
   );
 
   const results: ResultRow[] | null = matchedSpec
-    ? [
-        { label: "Bottom Panel", width: matchedSpec.bottomPanelWidth, height: matchedSpec.bottomPanelHeight },
-        { label: "Back Panel", width: matchedSpec.backPanelWidth, height: matchedSpec.backPanelHeight },
-      ]
+    ? (() => {
+        const vars = { W: matchedSpec.length, D: 0, H: matchedSpec.height };
+        const evalPanels = (panels: typeof matchedSpec.bottomPanels): ResultRow[] =>
+          panels.map((p) => ({
+            id: p.id,
+            label: p.label,
+            description: p.description,
+            thickness: p.thickness,
+            width: Math.round(evaluateFormula(p.widthFormula, vars)),
+            height: Math.round(evaluateFormula(p.heightFormula, vars)),
+          }));
+        return [...evalPanels(matchedSpec.bottomPanels), ...evalPanels(matchedSpec.backPanels)];
+      })()
     : null;
 
   const copyResult = (r: ResultRow) => {
@@ -56,7 +66,7 @@ export function PanelCalculatorForm() {
       <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-grey-200 py-12 text-center">
         <AlertCircle className="h-6 w-6 text-grey-300" />
         <p className="text-sm font-body text-grey-500">
-          No panel specs configured yet. Add Bottom/Back Panel dimensions under the &quot;Panel Specs&quot; tab first.
+          No panel specs configured yet. Add Bottom/Back Panel formulas under the &quot;Panel Specs&quot; tab first.
         </p>
       </div>
     );
@@ -69,7 +79,7 @@ export function PanelCalculatorForm() {
           <Label>Brand</Label>
           <select
             value={brand}
-            onChange={(e) => { setBrand(e.target.value); setProduct(""); setWidth(""); setHeight(""); }}
+            onChange={(e) => { setBrand(e.target.value); setProduct(""); setLength(""); setHeight(""); }}
             className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
           >
             <option value="">Select brand</option>
@@ -82,7 +92,7 @@ export function PanelCalculatorForm() {
           <select
             value={product}
             disabled={!brand}
-            onChange={(e) => { setProduct(e.target.value); setWidth(""); setHeight(""); }}
+            onChange={(e) => { setProduct(e.target.value); setLength(""); setHeight(""); }}
             className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary disabled:bg-light-600 disabled:text-grey-300"
           >
             <option value="">Select product</option>
@@ -91,15 +101,15 @@ export function PanelCalculatorForm() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label>Width</Label>
+          <Label>Length</Label>
           <select
-            value={width}
+            value={length}
             disabled={!product}
-            onChange={(e) => { setWidth(e.target.value ? Number(e.target.value) : ""); setHeight(""); }}
+            onChange={(e) => { setLength(e.target.value ? Number(e.target.value) : ""); setHeight(""); }}
             className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary disabled:bg-light-600 disabled:text-grey-300"
           >
-            <option value="">Select width</option>
-            {widths.map((w) => <option key={w} value={w}>{w} mm</option>)}
+            <option value="">Select length</option>
+            {lengths.map((l) => <option key={l} value={l}>{l} mm</option>)}
           </select>
         </div>
 
@@ -107,7 +117,7 @@ export function PanelCalculatorForm() {
           <Label>Height</Label>
           <select
             value={height}
-            disabled={width === ""}
+            disabled={length === ""}
             onChange={(e) => setHeight(e.target.value ? Number(e.target.value) : "")}
             className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary disabled:bg-light-600 disabled:text-grey-300"
           >
@@ -121,7 +131,7 @@ export function PanelCalculatorForm() {
         {!results ? (
           <div className="flex items-center gap-2 text-sm font-body text-grey-400">
             <Calculator className="h-4 w-4" />
-            Select Brand, Product, Width, and Height to look up panel dimensions.
+            Select Brand, Product, Length, and Height to look up panel dimensions.
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -131,12 +141,14 @@ export function PanelCalculatorForm() {
             <h4 className="font-heading text-sm font-semibold text-grey-900">Cutting Dimensions</h4>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {results.map((r) => (
-                <div key={r.label} className="flex items-center justify-between rounded-lg border border-grey-100 bg-light-600/60 px-4 py-3">
+                <div key={r.id} className="flex items-center justify-between rounded-lg border border-grey-100 bg-light-600/60 px-4 py-3">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-xs font-body font-medium text-grey-500">{r.label}</span>
                     <span className="font-number text-lg font-semibold text-grey-900">
                       {r.width} <span className="text-grey-300">×</span> {r.height} <span className="text-xs font-body text-grey-400">mm</span>
+                      {r.thickness > 0 && <span className="text-xs font-body text-grey-400"> · {r.thickness}mm thick</span>}
                     </span>
+                    {r.description && <span className="text-xs font-body text-grey-400">{r.description}</span>}
                   </div>
                   <button
                     type="button"

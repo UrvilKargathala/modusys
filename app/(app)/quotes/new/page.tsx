@@ -61,12 +61,7 @@ function CreateQuotePage() {
       const prev = unitsHistory.current.pop();
       if (!prev) return;
       e.preventDefault();
-      setQuote((q) => {
-        if (!q) return q;
-        const next = { ...q, units: prev };
-        quotesStore.saveQuote(next);
-        return next;
-      });
+      setQuote((q) => (q ? { ...q, units: prev } : q));
       toastStore.show("Reverted last unit change");
     }
     window.addEventListener("keydown", onKey);
@@ -208,7 +203,6 @@ function CreateQuotePage() {
             unitsHistory.current.push(quote.units);
             if (unitsHistory.current.length > UNDO_LIMIT) unitsHistory.current.shift();
             patchQuote({ units });
-            quotesStore.saveQuote({ ...quote, units });
           }}
         />
         <QuoteSummarySection quote={quote} onChange={patchQuote} onSaveRemark={handleSaveRemark} />

@@ -258,25 +258,28 @@ model MaterialItem {
   @@index([category])
 }
 
-// Reference table for the Templates "Calculator" tab — a direct lookup of
-// cutting dimensions (not a formula), since a hardware catalog publishes
-// exact Bottom/Back Panel W×H per (brand, product, width, height), not a
-// formula to derive them from. The admin enters both panels' dimensions
-// straight from the catalog/spec sheet.
+// Reference table for the Templates "Calculator" tab. bottomPanels/
+// backPanels are each a JSON array of { id, label, widthFormula,
+// heightFormula } — one spec can define several cut panels per side (e.g.
+// two different Bottom Panel cuts), each a formula (e.g. "W-10", "H-24")
+// referencing this spec's own Length/Width/Height via the same
+// evaluateFormula() used for Cabinet Type's widthFormula/heightFormula
+// (lib/quote-pricing.ts), not fixed numbers — most hardware catalogs define
+// panel cuts as an offset from the opening size rather than one number per
+// exact size. Kept as a JSON blob (not a child table) since the app never
+// queries inside it, same tradeoff as CabinetType.components.
 model PanelCalcSpec {
-  id               String   @id
-  brand            String
-  product          String
-  width            Int
-  height           Int
-  description      String   @default("")
-  bottomPanelWidth  Int
-  bottomPanelHeight Int
-  backPanelWidth    Int
-  backPanelHeight   Int
-  createdAt        DateTime @default(now())
+  id           String   @id
+  brand        String
+  product      String
+  length       Int
+  height       Int
+  description  String   @default("")
+  bottomPanels Json     @default("[]")
+  backPanels   Json     @default("[]")
+  createdAt    DateTime @default(now())
 
-  @@unique([brand, product, width, height])
+  @@unique([brand, product, length, height])
   @@index([brand, product])
 }
 
