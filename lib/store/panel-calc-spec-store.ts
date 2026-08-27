@@ -35,6 +35,7 @@ export type NewPanelCalcSpecInput = {
   brand: string;
   product: string;
   width: number;
+  length: number;
   height: number;
   description: string;
   panels: PanelFormula[];
@@ -72,7 +73,7 @@ export const panelCalcSpecStore = {
     persist();
     emit();
   },
-  isDuplicate(brand: string, product: string, width: number, height: number, excludeId?: string) {
+  isDuplicate(brand: string, product: string, width: number, length: number, height: number, excludeId?: string) {
     ensureHydrated();
     return specs.some(
       (s) =>
@@ -80,6 +81,7 @@ export const panelCalcSpecStore = {
         s.brand.toLowerCase() === brand.trim().toLowerCase() &&
         s.product.toLowerCase() === product.trim().toLowerCase() &&
         s.width === width &&
+        s.length === length &&
         s.height === height
     );
   },

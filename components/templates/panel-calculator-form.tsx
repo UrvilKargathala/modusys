@@ -27,22 +27,28 @@ export function PanelCalculatorForm() {
   );
   const [width, setWidth] = useState<number | "">("");
 
+  const lengths = useMemo(
+    () => [...new Set(specs.filter((s) => s.brand === brand && s.product === product && s.width === width).map((s) => s.length))].sort((a, b) => a - b),
+    [specs, brand, product, width]
+  );
+  const [length, setLength] = useState<number | "">("");
+
   const heights = useMemo(
     () =>
-      [...new Set(specs.filter((s) => s.brand === brand && s.product === product && s.width === width).map((s) => s.height))].sort(
+      [...new Set(specs.filter((s) => s.brand === brand && s.product === product && s.width === width && s.length === length).map((s) => s.height))].sort(
         (a, b) => a - b
       ),
-    [specs, brand, product, width]
+    [specs, brand, product, width, length]
   );
   const [height, setHeight] = useState<number | "">("");
 
   const matchedSpec = specs.find(
-    (s) => s.brand === brand && s.product === product && s.width === width && s.height === height
+    (s) => s.brand === brand && s.product === product && s.width === width && s.length === length && s.height === height
   );
 
   const results: ResultRow[] | null = matchedSpec
     ? (() => {
-        const vars = { W: matchedSpec.width, D: 0, H: matchedSpec.height };
+        const vars = { W: matchedSpec.width, D: matchedSpec.length, H: matchedSpec.height };
         return matchedSpec.panels.map((p) => ({
           id: p.id,
           label: p.label,
@@ -71,12 +77,12 @@ export function PanelCalculatorForm() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="flex flex-col gap-1.5">
           <Label>Brand</Label>
           <select
             value={brand}
-            onChange={(e) => { setBrand(e.target.value); setProduct(""); setWidth(""); setHeight(""); }}
+            onChange={(e) => { setBrand(e.target.value); setProduct(""); setWidth(""); setLength(""); setHeight(""); }}
             className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
           >
             <option value="">Select brand</option>
@@ -89,7 +95,7 @@ export function PanelCalculatorForm() {
           <select
             value={product}
             disabled={!brand}
-            onChange={(e) => { setProduct(e.target.value); setWidth(""); setHeight(""); }}
+            onChange={(e) => { setProduct(e.target.value); setWidth(""); setLength(""); setHeight(""); }}
             className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary disabled:bg-light-600 disabled:text-grey-300"
           >
             <option value="">Select product</option>
@@ -102,7 +108,7 @@ export function PanelCalculatorForm() {
           <select
             value={width}
             disabled={!product}
-            onChange={(e) => { setWidth(e.target.value ? Number(e.target.value) : ""); setHeight(""); }}
+            onChange={(e) => { setWidth(e.target.value ? Number(e.target.value) : ""); setLength(""); setHeight(""); }}
             className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary disabled:bg-light-600 disabled:text-grey-300"
           >
             <option value="">Select width</option>
@@ -111,10 +117,23 @@ export function PanelCalculatorForm() {
         </div>
 
         <div className="flex flex-col gap-1.5">
+          <Label>Length</Label>
+          <select
+            value={length}
+            disabled={width === ""}
+            onChange={(e) => { setLength(e.target.value ? Number(e.target.value) : ""); setHeight(""); }}
+            className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary disabled:bg-light-600 disabled:text-grey-300"
+          >
+            <option value="">Select length</option>
+            {lengths.map((l) => <option key={l} value={l}>{l} mm</option>)}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
           <Label>Height</Label>
           <select
             value={height}
-            disabled={width === ""}
+            disabled={length === ""}
             onChange={(e) => setHeight(e.target.value ? Number(e.target.value) : "")}
             className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary disabled:bg-light-600 disabled:text-grey-300"
           >
@@ -128,7 +147,7 @@ export function PanelCalculatorForm() {
         {!results ? (
           <div className="flex items-center gap-2 text-sm font-body text-grey-400">
             <Calculator className="h-4 w-4" />
-            Select Brand, Product, Width, and Height to look up panel dimensions.
+            Select Brand, Product, Width, Length, and Height to look up panel dimensions.
           </div>
         ) : (
           <div className="flex flex-col gap-3">

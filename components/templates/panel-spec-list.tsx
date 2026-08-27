@@ -15,7 +15,7 @@ import type { PanelCalcSpec, PanelFormula } from "@/lib/mock/panel-calc-spec";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 function panelDims(s: PanelCalcSpec, p: PanelFormula) {
-  const vars = { W: s.width, D: 0, H: s.height };
+  const vars = { W: s.width, D: s.length, H: s.height };
   return `${Math.round(evaluateFormula(p.widthFormula, vars))} × ${Math.round(evaluateFormula(p.heightFormula, vars))} mm`;
 }
 
@@ -74,6 +74,7 @@ export function PanelSpecList() {
                 <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Brand</th>
                 <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Product</th>
                 <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Width</th>
+                <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Length</th>
                 <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Height</th>
                 <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Panels</th>
                 <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Actions</th>
@@ -85,6 +86,7 @@ export function PanelSpecList() {
                   <td className="px-4 py-3 text-[13px] font-body text-grey-900">{s.brand}</td>
                   <td className="px-4 py-3 text-[13px] font-body text-grey-900">{s.product}</td>
                   <td className="px-4 py-3 text-right text-[13px] font-number text-grey-700">{s.width} mm</td>
+                  <td className="px-4 py-3 text-right text-[13px] font-number text-grey-700">{s.length} mm</td>
                   <td className="px-4 py-3 text-right text-[13px] font-number text-grey-700">{s.height} mm</td>
                   <td className="px-4 py-3 text-right text-[13px] text-grey-900">
                     {s.panels.map((p) => (
@@ -148,7 +150,7 @@ export function PanelSpecList() {
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete panel spec?"
-        description={deleteTarget ? `This removes the ${deleteTarget.brand} ${deleteTarget.product} — ${deleteTarget.width}×${deleteTarget.height} spec. The calculator won't resolve panel dimensions for that combination anymore.` : ""}
+        description={deleteTarget ? `This removes the ${deleteTarget.brand} ${deleteTarget.product} — ${deleteTarget.width}×${deleteTarget.length}×${deleteTarget.height} spec. The calculator won't resolve panel dimensions for that combination anymore.` : ""}
         confirmLabel="Delete"
         onConfirm={() => {
           if (!deleteTarget) return;

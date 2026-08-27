@@ -273,12 +273,13 @@ model PanelCalcSpec {
   brand        String
   product      String
   width        Int
+  length       Int
   height       Int
   description  String   @default("")
   panels       Json     @default("[]")
   createdAt    DateTime @default(now())
 
-  @@unique([brand, product, width, height])
+  @@unique([brand, product, width, length, height])
   @@index([brand, product])
 }
 
