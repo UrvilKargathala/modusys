@@ -34,7 +34,6 @@ function ensureHydrated() {
 export type NewPanelCalcSpecInput = {
   brand: string;
   product: string;
-  width: number;
   length: number;
   height: number;
   description: string;
@@ -73,14 +72,13 @@ export const panelCalcSpecStore = {
     persist();
     emit();
   },
-  isDuplicate(brand: string, product: string, width: number, length: number, height: number, excludeId?: string) {
+  isDuplicate(brand: string, product: string, length: number, height: number, excludeId?: string) {
     ensureHydrated();
     return specs.some(
       (s) =>
         s.id !== excludeId &&
         s.brand.toLowerCase() === brand.trim().toLowerCase() &&
         s.product.toLowerCase() === product.trim().toLowerCase() &&
-        s.width === width &&
         s.length === length &&
         s.height === height
     );

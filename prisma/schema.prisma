@@ -272,15 +272,28 @@ model PanelCalcSpec {
   id           String   @id
   brand        String
   product      String
-  width        Int
   length       Int
   height       Int
   description  String   @default("")
   panels       Json     @default("[]")
   createdAt    DateTime @default(now())
 
-  @@unique([brand, product, width, length, height])
+  @@unique([brand, product, length, height])
   @@index([brand, product])
+}
+
+// A log of Panel Calculator results — one row per Calculate click, snapshotting
+// the resolved panel dimensions at that width/length/height so the log stays
+// accurate even if the underlying PanelCalcSpec's formulas change later.
+model PanelCalcHistory {
+  id        String   @id
+  brand     String
+  product   String
+  width     Int
+  length    Int
+  height    Int
+  panels    Json     @default("[]")
+  createdAt DateTime @default(now())
 }
 
 model FurniturePriceItem {

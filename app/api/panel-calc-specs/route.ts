@@ -26,7 +26,7 @@ export async function GET() {
   if (auth.response) return auth.response;
   const rows = await prisma.panelCalcSpec.findMany({ orderBy: { createdAt: "asc" } });
   return NextResponse.json(rows.map((r) => ({
-    id: r.id, brand: r.brand, product: r.product, width: r.width, length: r.length, height: r.height,
+    id: r.id, brand: r.brand, product: r.product, length: r.length, height: r.height,
     description: r.description, panels: normalizePanels(r.panels),
     createdAt: r.createdAt.toISOString(),
   })));
@@ -47,7 +47,6 @@ export async function PUT(req: Request) {
     id: String(r.id),
     brand: String(r.brand),
     product: String(r.product),
-    width: Number(r.width),
     length: Number(r.length),
     height: Number(r.height),
     description: String(r.description ?? ""),
@@ -57,8 +56,8 @@ export async function PUT(req: Request) {
   await replaceCollection(prisma.panelCalcSpec, mapped);
 
   const newMap = new Map(mapped.map((r) => [r.id, r]));
-  const label = (r: { brand: string; product: string; width: number; length: number; height: number }) =>
-    `${r.brand} ${r.product} — ${r.width}×${r.length}×${r.height}`;
+  const label = (r: { brand: string; product: string; length: number; height: number }) =>
+    `${r.brand} ${r.product} — ${r.length}×${r.height}`;
   for (const r of mapped) {
     const old = oldMap.get(r.id);
     if (!old) {

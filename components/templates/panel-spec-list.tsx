@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Search, Plus, Pencil, Trash2, Ruler } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -10,24 +11,36 @@ import { PanelSpecFormDialog } from "@/components/templates/panel-spec-form-dial
 import { usePanelCalcSpecs, panelCalcSpecStore } from "@/lib/store/panel-calc-spec-store";
 import { getCurrentUser } from "@/lib/session";
 import { toastStore } from "@/lib/store/toast-store";
-import { evaluateFormula } from "@/lib/quote-pricing";
-import type { PanelCalcSpec, PanelFormula } from "@/lib/mock/panel-calc-spec";
+import type { PanelCalcSpec } from "@/lib/mock/panel-calc-spec";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
-
-function panelDims(s: PanelCalcSpec, p: PanelFormula) {
-  const vars = { W: s.width, D: s.length, H: s.height };
-  return `${Math.round(evaluateFormula(p.widthFormula, vars))} × ${Math.round(evaluateFormula(p.heightFormula, vars))} mm`;
-}
 
 export function PanelSpecList() {
   const currentUser = getCurrentUser();
   const canDelete = currentUser.role === "super-admin" || currentUser.role === "admin";
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("editId");
 
   const specs = usePanelCalcSpecs();
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<PanelCalcSpec | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PanelCalcSpec | null>(null);
+
+  // Deep link from the Panel Calculator's "Edit" button — opens straight to
+  // that spec's edit dialog, then drops ?editId= so it doesn't reopen on
+  // back/forward.
+  useEffect(() => {
+    if (!editId) return;
+    const found = specs.find((s) => s.id === editId);
+    if (found) setEditTarget(found);
+    const params = new URLSearchParams(searchParams);
+    params.delete("editId");
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId, specs]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -73,7 +86,6 @@ export function PanelSpecList() {
               <tr>
                 <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Brand</th>
                 <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Product</th>
-                <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Width</th>
                 <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Length</th>
                 <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Height</th>
                 <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Panels</th>
@@ -85,14 +97,13 @@ export function PanelSpecList() {
                 <tr key={s.id} className="border-t border-grey-100">
                   <td className="px-4 py-3 text-[13px] font-body text-grey-900">{s.brand}</td>
                   <td className="px-4 py-3 text-[13px] font-body text-grey-900">{s.product}</td>
-                  <td className="px-4 py-3 text-right text-[13px] font-number text-grey-700">{s.width} mm</td>
                   <td className="px-4 py-3 text-right text-[13px] font-number text-grey-700">{s.length} mm</td>
                   <td className="px-4 py-3 text-right text-[13px] font-number text-grey-700">{s.height} mm</td>
                   <td className="px-4 py-3 text-right text-[13px] text-grey-900">
                     {s.panels.map((p) => (
                       <div key={p.id} className="mb-1 last:mb-0">
-                        <div className="font-number font-medium">{panelDims(s, p)} · {p.thickness}mm</div>
-                        <div className="text-[11px] font-body text-grey-400">{p.label} · {p.widthFormula} × {p.heightFormula}</div>
+                        <div className="font-number font-medium">{p.widthFormula} × {p.heightFormula} · {p.thickness}mm</div>
+                        <div className="text-[11px] font-body text-grey-400">{p.label}</div>
                       </div>
                     ))}
                   </td>
@@ -150,7 +161,7 @@ export function PanelSpecList() {
         open={!!deleteTarget}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title="Delete panel spec?"
-        description={deleteTarget ? `This removes the ${deleteTarget.brand} ${deleteTarget.product} — ${deleteTarget.width}×${deleteTarget.length}×${deleteTarget.height} spec. The calculator won't resolve panel dimensions for that combination anymore.` : ""}
+        description={deleteTarget ? `This removes the ${deleteTarget.brand} ${deleteTarget.product} — ${deleteTarget.length}×${deleteTarget.height} spec. The calculator won't resolve panel dimensions for that combination anymore.` : ""}
         confirmLabel="Delete"
         onConfirm={() => {
           if (!deleteTarget) return;

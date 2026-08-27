@@ -23,25 +23,26 @@ import { useMaterialItems } from "@/lib/store/material-spec-store";
 import type { PanelCalcSpec } from "@/lib/mock/panel-calc-spec";
 
 // Panel fields are formulas (e.g. "W-10", "H-24") evaluated against this
-// spec's own Width(W)/Length(D)/Height(H) — same allow-list evaluateFormula()
-// itself enforces (lib/quote-pricing.ts), checked here too so a bad formula
-// is caught at save time instead of silently evaluating to 0 in the
-// calculator. Label comes from Material Library's Furniture Component list
+// spec's own Length(L)/Height(H) plus a Width(W) supplied at calculation
+// time by the Panel Calculator — width isn't stored on the spec since the
+// same formulas apply at any width. User-facing letter for length is L, but
+// evaluateFormula's own allow-list (lib/quote-pricing.ts) is W/D/H — L is
+// translated to D right before evaluation (see toEvalFormula below), never
+// stored translated. Label comes from Material Library's Furniture Component list
 // (Bottom Panel, Back Panel, Shutter, etc.) — one merged list of rows
 // instead of separate sections per type.
-const formulaPattern = /^[\d\s+\-*/().WHwh]+$/;
+const formulaPattern = /^[\d\s+\-*/().WLHwlh]+$/;
 const panelSchema = z.object({
   id: z.string(),
   label: z.string().min(1, "Panel is required"),
-  widthFormula: z.string().min(1, "Required").regex(formulaPattern, "Use only W, H, numbers, and + - * / ( )"),
-  heightFormula: z.string().min(1, "Required").regex(formulaPattern, "Use only W, H, numbers, and + - * / ( )"),
+  widthFormula: z.string().min(1, "Required").regex(formulaPattern, "Use only W, L, H, numbers, and + - * / ( )"),
+  heightFormula: z.string().min(1, "Required").regex(formulaPattern, "Use only W, L, H, numbers, and + - * / ( )"),
   thickness: z.number().nonnegative("Enter a valid thickness"),
 });
 
 const specSchema = z.object({
   brand: z.string().min(1, "Brand is required"),
   product: z.string().min(1, "Product is required"),
-  width: z.number().int().positive("Enter a valid width"),
   length: z.number().int().positive("Enter a valid length"),
   height: z.number().int().positive("Enter a valid height"),
   description: z.string(),
@@ -59,7 +60,7 @@ const newPanel = (label: string): SpecFormValues["panels"][number] => ({
 });
 
 const emptyValues: SpecFormValues = {
-  brand: "", product: "", width: 0, length: 0, height: 0, description: "",
+  brand: "", product: "", length: 0, height: 0, description: "",
   panels: [newPanel("Panel"), newPanel("Back Panel")],
 };
 
@@ -114,7 +115,7 @@ export function PanelSpecFormDialog({
     reset(
       spec
         ? {
-            brand: spec.brand, product: spec.product, width: spec.width, length: spec.length, height: spec.height,
+            brand: spec.brand, product: spec.product, length: spec.length, height: spec.height,
             description: spec.description,
             panels: spec.panels.length > 0 ? spec.panels : [newPanel("Panel"), newPanel("Back Panel")],
           }
@@ -133,8 +134,8 @@ export function PanelSpecFormDialog({
   }, [productValue, descriptionValue, allSpecs, setValue]);
 
   const submit = (values: SpecFormValues) => {
-    if (panelCalcSpecStore.isDuplicate(values.brand, values.product, values.width, values.length, values.height, spec?.id)) {
-      setError("height", { message: "A spec for this brand/product/width/length/height already exists." });
+    if (panelCalcSpecStore.isDuplicate(values.brand, values.product, values.length, values.height, spec?.id)) {
+      setError("height", { message: "A spec for this brand/product/length/height already exists." });
       return;
     }
     onSubmit(values);
@@ -147,7 +148,7 @@ export function PanelSpecFormDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Panel Spec" : "Add Panel Spec"}</DialogTitle>
           <DialogDescription>
-            {isEdit ? "Update this hardware spec entry." : "Add panel cutting formulas for a brand/product/width/length/height combination."}
+            {isEdit ? "Update this hardware spec entry." : "Add panel cutting formulas for a brand/product/length/height combination."}
           </DialogDescription>
         </DialogHeader>
 
@@ -192,12 +193,7 @@ export function PanelSpecFormDialog({
             <Input id="ps-description" placeholder="e.g. Blum Antaro Tandem Drawer System" {...register("description")} />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="ps-width">Width (mm) *</Label>
-              <Input id="ps-width" type="number" placeholder="550" {...register("width", { valueAsNumber: true })} />
-              {errors.width && <span className="text-xs font-body text-error">{errors.width.message}</span>}
-            </div>
+          <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="ps-length">Length (mm) *</Label>
               <Input id="ps-length" type="number" placeholder="450" {...register("length", { valueAsNumber: true })} />
@@ -223,7 +219,7 @@ export function PanelSpecFormDialog({
 
             {panelsOpen && (
               <>
-                <p className="text-xs font-body text-grey-500">Formula using Width as W, Length as D, and Height as H — e.g. W-10, H-24. Panel is picked from Material Library&apos;s Furniture Component list.</p>
+                <p className="text-xs font-body text-grey-500">Formula using Width as W (entered in the Calculator), Length as L, and Height as H — e.g. W-10, H-24. Panel is picked from Material Library&apos;s Furniture Component list.</p>
                 {fields.map((field, i) => {
                   const rowErr = errors.panels?.[i];
                   return (
