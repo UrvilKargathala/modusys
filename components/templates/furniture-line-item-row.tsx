@@ -275,7 +275,7 @@ export function FurnitureLineItemRow({
               : "—"}
           </div>
         </div>
-        <div className={cn("flex flex-col gap-1.5", !showLevelType && "md:col-span-3")}>
+        <div className="flex flex-col gap-1.5">
           <Label>Rate</Label>
           <div className="relative">
             <Input
