@@ -59,7 +59,20 @@ export function PanelCalculatorForm() {
   const [product, setProduct] = useState("");
 
   const [width, setWidth] = useState<number | "">("");
+
+  const lengths = useMemo(
+    () => [...new Set(specs.filter((s) => s.brand === brand && s.product === product).map((s) => s.length))].sort((a, b) => a - b),
+    [specs, brand, product]
+  );
   const [length, setLength] = useState<number | "">("");
+
+  const heights = useMemo(
+    () =>
+      [...new Set(specs.filter((s) => s.brand === brand && s.product === product && s.length === length).map((s) => s.height))].sort(
+        (a, b) => a - b
+      ),
+    [specs, brand, product, length]
+  );
   const [height, setHeight] = useState<number | "">("");
 
   // Nothing computes until Calculate is clicked — typing dimensions doesn't
@@ -147,7 +160,7 @@ export function PanelCalculatorForm() {
           <Label>Brand</Label>
           <select
             value={brand}
-            onChange={(e) => { setBrand(e.target.value); setProduct(""); setSearched(false); setMatchedSpec(null); }}
+            onChange={(e) => { setBrand(e.target.value); setProduct(""); setLength(""); setHeight(""); setSearched(false); setMatchedSpec(null); }}
             className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
           >
             <option value="">Select brand</option>
@@ -160,7 +173,7 @@ export function PanelCalculatorForm() {
           <select
             value={product}
             disabled={!brand}
-            onChange={(e) => { setProduct(e.target.value); setSearched(false); setMatchedSpec(null); }}
+            onChange={(e) => { setProduct(e.target.value); setLength(""); setHeight(""); setSearched(false); setMatchedSpec(null); }}
             className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary disabled:bg-light-600 disabled:text-grey-300"
           >
             <option value="">Select product</option>
@@ -181,24 +194,28 @@ export function PanelCalculatorForm() {
 
         <div className="flex flex-col gap-1.5">
           <Label>Length (mm)</Label>
-          <Input
-            type="number"
-            placeholder="e.g. 450"
-            disabled={!product}
+          <select
             value={length}
-            onChange={(e) => { setLength(e.target.value === "" ? "" : Number(e.target.value)); setSearched(false); setMatchedSpec(null); }}
-          />
+            disabled={!product}
+            onChange={(e) => { setLength(e.target.value ? Number(e.target.value) : ""); setHeight(""); setSearched(false); setMatchedSpec(null); }}
+            className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary disabled:bg-light-600 disabled:text-grey-300"
+          >
+            <option value="">Select length</option>
+            {lengths.map((l) => <option key={l} value={l}>{l} mm</option>)}
+          </select>
         </div>
 
         <div className="flex flex-col gap-1.5">
           <Label>Height (mm)</Label>
-          <Input
-            type="number"
-            placeholder="e.g. 100"
-            disabled={!product}
+          <select
             value={height}
-            onChange={(e) => { setHeight(e.target.value === "" ? "" : Number(e.target.value)); setSearched(false); setMatchedSpec(null); }}
-          />
+            disabled={length === ""}
+            onChange={(e) => { setHeight(e.target.value ? Number(e.target.value) : ""); setSearched(false); setMatchedSpec(null); }}
+            className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary disabled:bg-light-600 disabled:text-grey-300"
+          >
+            <option value="">Select height</option>
+            {heights.map((h) => <option key={h} value={h}>{h} mm</option>)}
+          </select>
         </div>
       </div>
 

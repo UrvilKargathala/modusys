@@ -241,6 +241,33 @@ export function FurnitureLineItemRow({
           </div>
         )}
         <div className="flex flex-col gap-1.5">
+          <Label>Raw Material</Label>
+          <MaterialReferenceSelect
+            category="raw-material-type"
+            value={value.rawMaterialTypeId}
+            onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)}
+            triggerClassName="bg-[#F0E4E4]"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>External Colour</Label>
+          <MaterialReferenceSelect
+            category="external-colour"
+            value={value.externalColourId}
+            onChange={(id) => requestMaterialChange("externalColourId", id)}
+            triggerClassName="bg-[#F0E4E4]"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Internal Colour</Label>
+          <MaterialReferenceSelect
+            category="internal-colour"
+            value={value.internalColourId}
+            onChange={(id) => requestMaterialChange("internalColourId", id)}
+            triggerClassName="bg-[#F0E4E4]"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
           <Label>Amount</Label>
           <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 text-sm font-number font-semibold text-grey-900">
             {totalSqFt !== undefined
@@ -248,7 +275,7 @@ export function FurnitureLineItemRow({
               : "—"}
           </div>
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className={cn("flex flex-col gap-1.5", !showLevelType && "md:col-span-3")}>
           <Label>Rate</Label>
           <div className="relative">
             <Input
@@ -276,33 +303,6 @@ export function FurnitureLineItemRow({
               Reset to price-list rate (<span className="font-number">₹{match.rate.toFixed(2)}</span>)
             </button>
           )}
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Raw Material</Label>
-          <MaterialReferenceSelect
-            category="raw-material-type"
-            value={value.rawMaterialTypeId}
-            onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)}
-            triggerClassName="bg-[#F0E4E4]"
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>Internal Colour</Label>
-          <MaterialReferenceSelect
-            category="internal-colour"
-            value={value.internalColourId}
-            onChange={(id) => requestMaterialChange("internalColourId", id)}
-            triggerClassName="bg-[#F0E4E4]"
-          />
-        </div>
-        <div className={cn("flex flex-col gap-1.5", !showLevelType && "md:col-span-3")}>
-          <Label>External Colour</Label>
-          <MaterialReferenceSelect
-            category="external-colour"
-            value={value.externalColourId}
-            onChange={(id) => requestMaterialChange("externalColourId", id)}
-            triggerClassName="bg-[#F0E4E4]"
-          />
         </div>
         {showLevelType && (
           <div className="flex flex-col gap-1.5 md:col-span-2">
