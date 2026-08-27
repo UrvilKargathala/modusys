@@ -15,7 +15,6 @@ function normalizePanels(v: unknown): PanelFormula[] {
     .map((p) => ({
       id: String(p.id ?? ""),
       label: String(p.label ?? ""),
-      description: String(p.description ?? ""),
       widthFormula: String(p.widthFormula ?? ""),
       heightFormula: String(p.heightFormula ?? ""),
       thickness: Number(p.thickness ?? 0),
@@ -28,7 +27,7 @@ export async function GET() {
   const rows = await prisma.panelCalcSpec.findMany({ orderBy: { createdAt: "asc" } });
   return NextResponse.json(rows.map((r) => ({
     id: r.id, brand: r.brand, product: r.product, length: r.length, height: r.height,
-    description: r.description, bottomPanels: normalizePanels(r.bottomPanels), backPanels: normalizePanels(r.backPanels),
+    description: r.description, panels: normalizePanels(r.panels),
     createdAt: r.createdAt.toISOString(),
   })));
 }
@@ -51,8 +50,7 @@ export async function PUT(req: Request) {
     length: Number(r.length),
     height: Number(r.height),
     description: String(r.description ?? ""),
-    bottomPanels: normalizePanels(r.bottomPanels),
-    backPanels: normalizePanels(r.backPanels),
+    panels: normalizePanels(r.panels),
     createdAt: toDate(r.createdAt),
   }));
   await replaceCollection(prisma.panelCalcSpec, mapped);
@@ -64,10 +62,7 @@ export async function PUT(req: Request) {
     const old = oldMap.get(r.id);
     if (!old) {
       void logAudit({ action: "PANEL_CALC_SPEC_CREATED", actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name }, target: { type: "PANEL_CALC_SPEC", id: r.id, label: label(r) }, req });
-    } else if (
-      JSON.stringify(old.bottomPanels) !== JSON.stringify(r.bottomPanels) ||
-      JSON.stringify(old.backPanels) !== JSON.stringify(r.backPanels)
-    ) {
+    } else if (JSON.stringify(old.panels) !== JSON.stringify(r.panels)) {
       void logAudit({ action: "PANEL_CALC_SPEC_UPDATED", actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name }, target: { type: "PANEL_CALC_SPEC", id: r.id, label: label(r) }, req });
     }
   }

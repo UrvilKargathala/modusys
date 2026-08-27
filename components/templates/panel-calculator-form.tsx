@@ -7,7 +7,7 @@ import { usePanelCalcSpecs } from "@/lib/store/panel-calc-spec-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { evaluateFormula } from "@/lib/quote-pricing";
 
-type ResultRow = { id: string; label: string; description: string; thickness: number; width: number; height: number };
+type ResultRow = { id: string; label: string; thickness: number; width: number; height: number };
 
 export function PanelCalculatorForm() {
   const specs = usePanelCalcSpecs();
@@ -43,16 +43,13 @@ export function PanelCalculatorForm() {
   const results: ResultRow[] | null = matchedSpec
     ? (() => {
         const vars = { W: matchedSpec.length, D: 0, H: matchedSpec.height };
-        const evalPanels = (panels: typeof matchedSpec.bottomPanels): ResultRow[] =>
-          panels.map((p) => ({
-            id: p.id,
-            label: p.label,
-            description: p.description,
-            thickness: p.thickness,
-            width: Math.round(evaluateFormula(p.widthFormula, vars)),
-            height: Math.round(evaluateFormula(p.heightFormula, vars)),
-          }));
-        return [...evalPanels(matchedSpec.bottomPanels), ...evalPanels(matchedSpec.backPanels)];
+        return matchedSpec.panels.map((p) => ({
+          id: p.id,
+          label: p.label,
+          thickness: p.thickness,
+          width: Math.round(evaluateFormula(p.widthFormula, vars)),
+          height: Math.round(evaluateFormula(p.heightFormula, vars)),
+        }));
       })()
     : null;
 
@@ -66,7 +63,7 @@ export function PanelCalculatorForm() {
       <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-grey-200 py-12 text-center">
         <AlertCircle className="h-6 w-6 text-grey-300" />
         <p className="text-sm font-body text-grey-500">
-          No panel specs configured yet. Add Bottom/Back Panel formulas under the &quot;Panel Specs&quot; tab first.
+          No panel specs configured yet. Add panel formulas under the &quot;Panel Specs&quot; tab first.
         </p>
       </div>
     );
@@ -148,7 +145,6 @@ export function PanelCalculatorForm() {
                       {r.width} <span className="text-grey-300">×</span> {r.height} <span className="text-xs font-body text-grey-400">mm</span>
                       {r.thickness > 0 && <span className="text-xs font-body text-grey-400"> · {r.thickness}mm thick</span>}
                     </span>
-                    {r.description && <span className="text-xs font-body text-grey-400">{r.description}</span>}
                   </div>
                   <button
                     type="button"

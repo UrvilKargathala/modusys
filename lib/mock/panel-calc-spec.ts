@@ -1,11 +1,10 @@
 // One cut panel — a formula (e.g. "W-10", "H-24") evaluated against the
 // parent spec's Length(W)/Height(H) via evaluateFormula()
-// (lib/quote-pricing.ts). A spec can list several under each side (e.g.
-// two different Bottom Panel cuts).
+// (lib/quote-pricing.ts). A spec lists several — label distinguishes them
+// (e.g. "Bottom Panel", "Back Panel").
 export type PanelFormula = {
   id: string;
   label: string;
-  description: string;
   widthFormula: string;
   heightFormula: string;
   thickness: number;
@@ -18,8 +17,7 @@ export type PanelCalcSpec = {
   length: number;
   height: number;
   description: string;
-  bottomPanels: PanelFormula[];
-  backPanels: PanelFormula[];
+  panels: PanelFormula[];
   createdAt: string;
 };
 

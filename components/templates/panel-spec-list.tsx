@@ -63,7 +63,7 @@ export function PanelSpecList() {
       {filtered.length === 0 ? (
         <EmptyState
           icon={Ruler}
-          message={specs.length === 0 ? "No panel specs yet — add the Bottom/Back Panel dimensions your hardware catalog defines." : "No entries match your search."}
+          message={specs.length === 0 ? "No panel specs yet — add the panel dimensions your hardware catalog defines." : "No entries match your search."}
           cta={specs.length === 0 ? { label: "Add Spec", onClick: () => setAddOpen(true) } : undefined}
         />
       ) : (
@@ -75,8 +75,7 @@ export function PanelSpecList() {
                 <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Product</th>
                 <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Length</th>
                 <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Height</th>
-                <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Bottom Panel</th>
-                <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Back Panel</th>
+                <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Panels</th>
                 <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Actions</th>
               </tr>
             </thead>
@@ -88,20 +87,10 @@ export function PanelSpecList() {
                   <td className="px-4 py-3 text-right text-[13px] font-number text-grey-700">{s.length} mm</td>
                   <td className="px-4 py-3 text-right text-[13px] font-number text-grey-700">{s.height} mm</td>
                   <td className="px-4 py-3 text-right text-[13px] text-grey-900">
-                    {s.bottomPanels.map((p) => (
+                    {s.panels.map((p) => (
                       <div key={p.id} className="mb-1 last:mb-0">
                         <div className="font-number font-medium">{panelDims(s, p)} · {p.thickness}mm</div>
                         <div className="text-[11px] font-body text-grey-400">{p.label} · {p.widthFormula} × {p.heightFormula}</div>
-                        {p.description && <div className="text-[11px] font-body text-grey-400">{p.description}</div>}
-                      </div>
-                    ))}
-                  </td>
-                  <td className="px-4 py-3 text-right text-[13px] text-grey-900">
-                    {s.backPanels.map((p) => (
-                      <div key={p.id} className="mb-1 last:mb-0">
-                        <div className="font-number font-medium">{panelDims(s, p)} · {p.thickness}mm</div>
-                        <div className="text-[11px] font-body text-grey-400">{p.label} · {p.widthFormula} × {p.heightFormula}</div>
-                        {p.description && <div className="text-[11px] font-body text-grey-400">{p.description}</div>}
                       </div>
                     ))}
                   </td>

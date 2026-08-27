@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useForm, useFieldArray, Controller, type FieldErrors } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
@@ -26,12 +26,13 @@ import type { PanelCalcSpec } from "@/lib/mock/panel-calc-spec";
 // spec's own Length(W)/Height(H) — same allow-list evaluateFormula()
 // itself enforces (lib/quote-pricing.ts), checked here too so a bad formula
 // is caught at save time instead of silently evaluating to 0 in the
-// calculator.
+// calculator. Label comes from Material Library's Furniture Component list
+// (Bottom Panel, Back Panel, Shutter, etc.) — one merged list of rows
+// instead of separate sections per type.
 const formulaPattern = /^[\d\s+\-*/().WHwh]+$/;
 const panelSchema = z.object({
   id: z.string(),
-  label: z.string().min(1, "Label is required"),
-  description: z.string(),
+  label: z.string().min(1, "Panel is required"),
   widthFormula: z.string().min(1, "Required").regex(formulaPattern, "Use only W, H, numbers, and + - * / ( )"),
   heightFormula: z.string().min(1, "Required").regex(formulaPattern, "Use only W, H, numbers, and + - * / ( )"),
   thickness: z.number().nonnegative("Enter a valid thickness"),
@@ -43,16 +44,14 @@ const specSchema = z.object({
   length: z.number().int().positive("Enter a valid length"),
   height: z.number().int().positive("Enter a valid height"),
   description: z.string(),
-  bottomPanels: z.array(panelSchema).min(1, "Add at least one Bottom Panel"),
-  backPanels: z.array(panelSchema).min(1, "Add at least one Back Panel"),
+  panels: z.array(panelSchema).min(1, "Add at least one panel"),
 });
 
 type SpecFormValues = z.infer<typeof specSchema>;
 
-const newPanel = (label: string): SpecFormValues["bottomPanels"][number] => ({
+const newPanel = (label: string): SpecFormValues["panels"][number] => ({
   id: `panel-${Date.now()}-${Math.random()}`,
   label,
-  description: "",
   widthFormula: "",
   heightFormula: "",
   thickness: 0,
@@ -60,95 +59,8 @@ const newPanel = (label: string): SpecFormValues["bottomPanels"][number] => ({
 
 const emptyValues: SpecFormValues = {
   brand: "", product: "", length: 0, height: 0, description: "",
-  bottomPanels: [newPanel("Bottom Panel")],
-  backPanels: [newPanel("Back Panel")],
+  panels: [newPanel("Panel"), newPanel("Back Panel")],
 };
-
-function PanelListSection({
-  title,
-  fieldName,
-  fields,
-  append,
-  remove,
-  register,
-  errors,
-  addLabel,
-}: {
-  title: string;
-  fieldName: "bottomPanels" | "backPanels";
-  fields: SpecFormValues["bottomPanels"];
-  append: (p: SpecFormValues["bottomPanels"][number]) => void;
-  remove: (index: number) => void;
-  register: ReturnType<typeof useForm<SpecFormValues>>["register"];
-  errors: FieldErrors<SpecFormValues>["bottomPanels"];
-  addLabel: string;
-}) {
-  const [open, setOpen] = useState(true);
-
-  return (
-    <div className="flex flex-col gap-3 rounded-lg border border-grey-100 bg-light-600/60 p-3">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 text-left"
-      >
-        {open ? <ChevronDown className="h-4 w-4 text-grey-400" /> : <ChevronRight className="h-4 w-4 text-grey-400" />}
-        <h4 className="font-heading text-sm font-semibold text-grey-900">{title}</h4>
-        <span className="text-xs font-body text-grey-400">({fields.length})</span>
-      </button>
-
-      {open && (
-        <>
-          <p className="text-xs font-body text-grey-500">Formula using Length as W and Height as H — e.g. W-10, H-24</p>
-          {fields.map((field, i) => {
-            const rowErr = errors?.[i];
-            return (
-              <div key={field.id} className="flex flex-col gap-2 rounded-md border border-grey-100 bg-card p-3">
-                <div className="flex items-center gap-2">
-                  <Input placeholder="Label, e.g. Bottom Panel" {...register(`${fieldName}.${i}.label`)} className="flex-1" />
-                  {fields.length > 1 && (
-                    <button type="button" onClick={() => remove(i)} aria-label="Remove panel" className="shrink-0 rounded-md p-2 text-grey-400 hover:bg-error-transparent hover:text-error">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Label className="text-xs">Description</Label>
-                  <Input placeholder="e.g. 18mm prelam ply" {...register(`${fieldName}.${i}.description`)} />
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <Label className="text-xs">Width formula *</Label>
-                    <Input placeholder="e.g. W-10" {...register(`${fieldName}.${i}.widthFormula`)} />
-                    {rowErr?.widthFormula && <span className="text-xs font-body text-error">{rowErr.widthFormula.message}</span>}
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label className="text-xs">Height formula *</Label>
-                    <Input placeholder="e.g. H-10" {...register(`${fieldName}.${i}.heightFormula`)} />
-                    {rowErr?.heightFormula && <span className="text-xs font-body text-error">{rowErr.heightFormula.message}</span>}
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label className="text-xs">Thickness (mm) *</Label>
-                    <Input type="number" placeholder="e.g. 18" {...register(`${fieldName}.${i}.thickness`, { valueAsNumber: true })} />
-                    {rowErr?.thickness && <span className="text-xs font-body text-error">{rowErr.thickness.message}</span>}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => append(newPanel(title))}
-            className="flex items-center gap-1.5 self-start text-xs font-body font-medium text-primary hover:underline"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {addLabel}
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
 
 export function PanelSpecFormDialog({
   open,
@@ -178,8 +90,8 @@ export function PanelSpecFormDialog({
     defaultValues: emptyValues,
   });
 
-  const bottomPanels = useFieldArray({ control, name: "bottomPanels" });
-  const backPanels = useFieldArray({ control, name: "backPanels" });
+  const { fields, append, remove } = useFieldArray({ control, name: "panels" });
+  const [panelsOpen, setPanelsOpen] = useState(true);
 
   const allSpecs = usePanelCalcSpecs();
   const brandValue = watch("brand");
@@ -192,6 +104,9 @@ export function PanelSpecFormDialog({
   // product ever entered, for ANY brand, not just the selected one.
   const brandItems = useMaterialItems("brand");
   const productOptions = useMemo(() => [...new Set(allSpecs.map((s) => s.product))].sort(), [allSpecs]);
+  // Panel label comes from the same Material Library "Furniture Component"
+  // list Cabinet Type components use (Bottom Panel, Back Panel, Shutter, …).
+  const componentItems = useMaterialItems("furniture-component");
 
   useEffect(() => {
     if (!open) return;
@@ -200,8 +115,7 @@ export function PanelSpecFormDialog({
         ? {
             brand: spec.brand, product: spec.product, length: spec.length, height: spec.height,
             description: spec.description,
-            bottomPanels: spec.bottomPanels.length > 0 ? spec.bottomPanels : [newPanel("Bottom Panel")],
-            backPanels: spec.backPanels.length > 0 ? spec.backPanels : [newPanel("Back Panel")],
+            panels: spec.panels.length > 0 ? spec.panels : [newPanel("Panel"), newPanel("Back Panel")],
           }
         : emptyValues
     );
@@ -232,7 +146,7 @@ export function PanelSpecFormDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Panel Spec" : "Add Panel Spec"}</DialogTitle>
           <DialogDescription>
-            {isEdit ? "Update this hardware spec entry." : "Add Bottom Panel and Back Panel cutting formulas for a brand/product/length/height combination."}
+            {isEdit ? "Update this hardware spec entry." : "Add panel cutting formulas for a brand/product/length/height combination."}
           </DialogDescription>
         </DialogHeader>
 
@@ -290,27 +204,76 @@ export function PanelSpecFormDialog({
             </div>
           </div>
 
-          <PanelListSection
-            title="Bottom Panel"
-            fieldName="bottomPanels"
-            fields={bottomPanels.fields}
-            append={bottomPanels.append}
-            remove={bottomPanels.remove}
-            register={register}
-            errors={errors.bottomPanels}
-            addLabel="Add another Bottom Panel"
-          />
+          <div className="flex flex-col gap-3 rounded-lg border border-grey-100 bg-light-600/60 p-3">
+            <button
+              type="button"
+              onClick={() => setPanelsOpen((o) => !o)}
+              className="flex items-center gap-1.5 text-left"
+            >
+              {panelsOpen ? <ChevronDown className="h-4 w-4 text-grey-400" /> : <ChevronRight className="h-4 w-4 text-grey-400" />}
+              <h4 className="font-heading text-sm font-semibold text-grey-900">Panels</h4>
+              <span className="text-xs font-body text-grey-400">({fields.length})</span>
+            </button>
 
-          <PanelListSection
-            title="Back Panel"
-            fieldName="backPanels"
-            fields={backPanels.fields}
-            append={backPanels.append}
-            remove={backPanels.remove}
-            register={register}
-            errors={errors.backPanels}
-            addLabel="Add another Back Panel"
-          />
+            {panelsOpen && (
+              <>
+                <p className="text-xs font-body text-grey-500">Formula using Length as W and Height as H — e.g. W-10, H-24. Panel is picked from Material Library&apos;s Furniture Component list.</p>
+                {fields.map((field, i) => {
+                  const rowErr = errors.panels?.[i];
+                  return (
+                    <div key={field.id} className="flex flex-col gap-2 rounded-md border border-grey-100 bg-card p-3">
+                      <div className="flex items-center gap-2">
+                        <Controller
+                          control={control}
+                          name={`panels.${i}.label`}
+                          render={({ field: labelField }) => (
+                            <div className="flex-1">
+                              <MaterialReferenceSelect
+                                category="furniture-component"
+                                value={componentItems.find((c) => c.name === labelField.value)?.id ?? ""}
+                                onChange={(id) => labelField.onChange(componentItems.find((c) => c.id === id)?.name ?? "")}
+                              />
+                            </div>
+                          )}
+                        />
+                        {fields.length > 1 && (
+                          <button type="button" onClick={() => remove(i)} aria-label="Remove panel" className="shrink-0 rounded-md p-2 text-grey-400 hover:bg-error-transparent hover:text-error">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                      {rowErr?.label && <span className="text-xs font-body text-error">{rowErr.label.message}</span>}
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="flex flex-col gap-1">
+                          <Label className="text-xs">Width formula *</Label>
+                          <Input placeholder="e.g. W-10" {...register(`panels.${i}.widthFormula`)} />
+                          {rowErr?.widthFormula && <span className="text-xs font-body text-error">{rowErr.widthFormula.message}</span>}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <Label className="text-xs">Height formula *</Label>
+                          <Input placeholder="e.g. H-10" {...register(`panels.${i}.heightFormula`)} />
+                          {rowErr?.heightFormula && <span className="text-xs font-body text-error">{rowErr.heightFormula.message}</span>}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <Label className="text-xs">Thickness *</Label>
+                          <Input type="number" placeholder="e.g. 18mm" {...register(`panels.${i}.thickness`, { valueAsNumber: true })} />
+                          {rowErr?.thickness && <span className="text-xs font-body text-error">{rowErr.thickness.message}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => append(newPanel("Panel"))}
+                  className="flex items-center gap-1.5 self-start text-xs font-body font-medium text-primary hover:underline"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add another panel
+                </button>
+              </>
+            )}
+          </div>
 
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

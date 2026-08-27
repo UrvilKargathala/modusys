@@ -37,8 +37,7 @@ export type NewPanelCalcSpecInput = {
   length: number;
   height: number;
   description: string;
-  bottomPanels: PanelFormula[];
-  backPanels: PanelFormula[];
+  panels: PanelFormula[];
 };
 
 export const panelCalcSpecStore = {
