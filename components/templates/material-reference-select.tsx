@@ -20,6 +20,7 @@ export function MaterialReferenceSelect({
   nameOnly = false,
   bold = false,
   triggerClassName,
+  disabled = false,
 }: {
   category: MaterialCategoryKey;
   value: string;
@@ -27,6 +28,7 @@ export function MaterialReferenceSelect({
   nameOnly?: boolean;
   bold?: boolean;
   triggerClassName?: string;
+  disabled?: boolean;
 }) {
   const meta = getMaterialCategory(category);
   const items = useMaterialItems(category);
@@ -42,7 +44,14 @@ export function MaterialReferenceSelect({
   return (
     <>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger className={cn("flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary", triggerClassName)}>
+        <PopoverTrigger
+          disabled={disabled}
+          className={cn(
+            "flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary",
+            disabled && "cursor-not-allowed bg-input/50 opacity-50",
+            triggerClassName
+          )}
+        >
           {selected ? (
             <span className={cn("min-w-0 truncate font-number", bold && "font-semibold")}>
               {selected.name}
