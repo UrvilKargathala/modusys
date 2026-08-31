@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
-import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, Printer, ArrowUpDown, ArrowUp, ArrowDown, Upload } from "lucide-react";
+import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, Printer, ArrowUpDown, ArrowUp, ArrowDown, Upload, FileArchive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -13,7 +13,10 @@ import { useQuotes, quotesStore } from "@/lib/store/quotes-store";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
+import { useUnitTypes } from "@/lib/store/unit-type-store";
+import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { quoteRawTotal, quoteWaterfall } from "@/lib/quote-pricing";
+import { downloadQuoteExportZip } from "@/lib/quote-export-zip";
 import { formatInr } from "@/lib/format";
 import { toastStore } from "@/lib/store/toast-store";
 import { statusConfig, type StatusKey } from "@/lib/status";
@@ -67,6 +70,15 @@ export default function QuotesPage() {
   const productTypes = useMaterialItems("product-type");
   const furnitureItems = useFurniturePriceItems();
   const hardwareItems = useHardwarePriceItems();
+  const unitTypes = useUnitTypes();
+  const cabinetTypes = useCabinetTypes();
+  const brands = useMaterialItems("brand");
+  const hardwareCategories = useMaterialItems("category");
+  const unitOfMeasures = useMaterialItems("unit");
+  const rawMaterialTypes = useMaterialItems("raw-material-type");
+  const internalColours = useMaterialItems("internal-colour");
+  const externalColours = useMaterialItems("external-colour");
+  const furnitureComponents = useMaterialItems("furniture-component");
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Quote | null>(null);
   type SortKey = "quoteNumber" | "customer" | "date" | "productType" | "finalAmount" | "revision" | "status";
@@ -97,6 +109,15 @@ export default function QuotesPage() {
     };
     quotesStore.saveQuote(copy);
     toastStore.show(`Duplicated as ${copy.quoteNumber}`, "success");
+  };
+
+  const exportZip = (q: Quote) => {
+    void downloadQuoteExportZip({
+      quote: q,
+      customer: q.customerId ? customers.find((c) => c.id === q.customerId) : null,
+      unitTypes, cabinetTypes, furnitureItems, hardwareItems,
+      brands, hardwareCategories, unitOfMeasures, rawMaterialTypes, internalColours, externalColours, furnitureComponents,
+    });
   };
 
   const exportExcel = (q: Quote) => {
@@ -368,6 +389,16 @@ export default function QuotesPage() {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
+                            <Tooltip>
+                              <TooltipTrigger
+                                aria-label="Download Manufacturing/PO/Hardware ZIP"
+                                onClick={() => exportZip(quote)}
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                              >
+                                <FileArchive className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent>Manufacturing / PO / Hardware (ZIP)</TooltipContent>
+                            </Tooltip>
                             <Tooltip>
                               <TooltipTrigger
                                 aria-label="Delete"
