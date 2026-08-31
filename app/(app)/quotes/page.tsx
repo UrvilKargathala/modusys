@@ -221,6 +221,17 @@ export default function QuotesPage() {
           <p className="text-sm font-body text-grey-400">Every priced quotation across your customers</p>
         </div>
         <div className="flex items-center gap-2">
+          {quotes.length > 0 && (
+            <div className="relative w-full max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by quote no. or customer"
+                className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-700 outline-none placeholder:text-grey-300 focus:border-primary"
+              />
+            </div>
+          )}
           <Button type="button" variant="outline" onClick={exportAll}>
             <Download className="h-4 w-4" />
             Export
@@ -253,16 +264,6 @@ export default function QuotesPage() {
         <EmptyState icon={FileStack} message='No quotes yet. Click "Create New Quote" to price your first quote.' />
       ) : (
         <div className="flex flex-col gap-3">
-          <div className="relative w-full max-w-xs">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by quote no. or customer"
-              className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-700 outline-none placeholder:text-grey-300 focus:border-primary"
-            />
-          </div>
-
           <div className="overflow-x-auto rounded-lg border border-grey-100 bg-card">
             <table className="w-full text-[13px] font-body">
               <thead>
