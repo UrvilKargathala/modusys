@@ -195,18 +195,21 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
     const firstCabinetType = firstCabinet
       ? cabinetTypes.find((c) => c.id === firstCabinet.cabinetTypeId)
       : undefined;
-    const firstCarcassUnit = firstCabinet ? carcassUnitFor(firstCabinet, unit) : { width: 0, depth: 0, height: 0, qty: 0 };
     const spaceName = spaces.find((s) => s.id === unit.spaceId)?.name;
     const baseLabel = unitType?.name ?? firstCabinetType?.name ?? "Unit";
     const label = spaceName ? `${baseLabel} (${spaceName})` : baseLabel;
+    // The SET header row is the Unit's own envelope dimensions — not the
+    // first cabinet's carcass, which can be independently overridden (e.g.
+    // a bed built from two 915mm cabinet halves inside an 1880mm unit) and
+    // was hiding the unit's real W/D/H from the printed quote entirely.
     const headerRow: DetailRow = {
       brand: firstCabinetType ? nameOf(brands, firstCabinetType.brandId) : "—",
       product: label,
       description: "",
-      width: firstCarcassUnit.width,
-      depth: firstCarcassUnit.depth,
-      height: firstCarcassUnit.height,
-      qty: firstCarcassUnit.qty,
+      width: unit.width,
+      depth: unit.depth,
+      height: unit.height,
+      qty: unit.qty,
       unit: "SET",
       highlight: true,
     };
