@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ChevronDown, LogOut, UserPlus, Clock3, CheckCircle2, AtSign, KeyRound, AlertTriangle, FileText, UserRound, Download } from "lucide-react";
+import { Bell, ChevronDown, LogOut, UserPlus, KeyRound, UserRound, Download } from "lucide-react";
 import { pwaInstallStore, usePwaInstall, isStandalone } from "@/lib/store/pwa-install-store";
 import { cn } from "@/lib/utils";
 import { navigationItems, administrationItems, attendanceItems, canSeeNav } from "@/lib/nav";
@@ -18,7 +18,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useNotifications, notificationsStore, type NotificationType } from "@/lib/store/notifications-store";
+import { useNotifications, notificationsStore } from "@/lib/store/notifications-store";
+import { notificationStyle, virtualNotificationStyle, isToday } from "@/lib/notification-style";
 import { taskPanelStore } from "@/lib/store/task-panel-store";
 import { useCurrentUser, signOut } from "@/lib/session";
 import { getRole } from "@/lib/constants/roles";
@@ -27,22 +28,8 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useTasks } from "@/lib/store/tasks-store";
 import { useOrgUsers } from "@/lib/store/users-store";
 import { customerPanelStore } from "@/lib/store/customer-panel-store";
-import { getVirtualNotifications, type VirtualNotification } from "@/lib/notifications-feed";
+import { getVirtualNotifications } from "@/lib/notifications-feed";
 
-const notificationIcon: Record<NotificationType, typeof UserPlus> = {
-  assigned: UserPlus,
-  "due-soon": Clock3,
-  completed: CheckCircle2,
-  mentioned: AtSign,
-};
-
-const virtualNotificationIcon: Record<VirtualNotification["kind"], typeof UserPlus> = {
-  "stale-quote": AlertTriangle,
-  "quote-status": FileText,
-  "new-lead": UserPlus,
-  "task-assigned": UserPlus,
-  "task-completed": CheckCircle2,
-};
 
 function timeAgo(iso: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -52,6 +39,54 @@ function timeAgo(iso: string) {
   const hours = Math.round(mins / 60);
   if (hours < 24) return `${hours}h ago`;
   return `${Math.round(hours / 24)}d ago`;
+}
+
+type NotificationRow = {
+  id: string;
+  message: string;
+  createdAt: string;
+  icon: typeof UserPlus;
+  iconClass: string;
+  bgClass: string;
+  actionNeeded: boolean;
+  isVirtual: boolean;
+  unread: boolean;
+  onClick: () => void;
+};
+
+function NotificationGroup({ label, rows }: { label: string; rows: NotificationRow[] }) {
+  return (
+    <div className="flex flex-col">
+      <span className="px-3 pb-1 pt-2 text-[10px] font-body font-semibold uppercase tracking-wide text-grey-400">
+        {label}
+      </span>
+      {rows.map((n) => (
+        <button
+          key={n.id}
+          type="button"
+          onClick={n.onClick}
+          className={cn(
+            "flex items-start gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-light-600",
+            n.unread && "bg-primary-transparent",
+            // Virtual (live-computed) rows get their own neutral wash so
+            // they never look like an unread real alert that's "stuck".
+            n.isVirtual && "bg-light-600/60"
+          )}
+        >
+          <span className={cn("relative mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full", n.bgClass, n.iconClass)}>
+            <n.icon className="h-3.5 w-3.5" />
+            {n.actionNeeded && (
+              <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-error ring-2 ring-popover" />
+            )}
+          </span>
+          <span className="flex flex-col gap-0.5">
+            <span className="text-sm font-body text-grey-800">{n.message}</span>
+            <span className="text-xs font-number text-grey-400">{timeAgo(n.createdAt)}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
 }
 
 export function TopNavbar() {
@@ -86,6 +121,57 @@ export function TopNavbar() {
   );
 
   const unreadCount = myNotifications.filter((n) => !n.read).length + virtualNotifications.length;
+
+  // Merge real (persisted) and virtual (live-computed) notifications into one
+  // timeline so they can be sorted and grouped together, while keeping each
+  // kind's own icon/color/urgency and click behavior.
+  const notificationRows: NotificationRow[] = [
+    ...myNotifications.map((n) => {
+      const style = notificationStyle[n.type];
+      return {
+        id: n.id,
+        message: n.message,
+        createdAt: n.createdAt,
+        icon: style.icon,
+        iconClass: style.iconClass,
+        bgClass: style.bgClass,
+        actionNeeded: style.actionNeeded,
+        isVirtual: false,
+        unread: !n.read,
+        onClick: () => {
+          notificationsStore.markRead(n.id);
+          if (n.type === "leave-requested") router.push("/admin/leaves");
+          else if (n.type === "leave-approved" || n.type === "leave-rejected") router.push("/leaves");
+          else taskPanelStore.open(n.relatedTaskId);
+        },
+      };
+    }),
+    ...virtualNotifications.map((n) => {
+      const style = virtualNotificationStyle[n.kind];
+      return {
+        id: n.id,
+        message: n.message,
+        createdAt: n.createdAt,
+        icon: style.icon,
+        iconClass: style.iconClass,
+        bgClass: style.bgClass,
+        actionNeeded: style.actionNeeded,
+        // Virtual notifications have no read state — they're "live truth"
+        // that reappears until the underlying condition resolves — but they
+        // still get their own visual treatment (below) so they don't read
+        // as stuck unread alerts.
+        isVirtual: true,
+        unread: false,
+        onClick: () => {
+          if (n.href) router.push(n.href);
+          else if (n.customerId) customerPanelStore.open(n.customerId);
+        },
+      };
+    }),
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const todayRows = notificationRows.filter((r) => isToday(r.createdAt));
+  const earlierRows = notificationRows.filter((r) => !isToday(r.createdAt));
 
   return (
     <header className="flex h-16 items-center justify-between gap-4 border-b border-grey-100 bg-card px-4 md:px-6">
@@ -209,54 +295,17 @@ export function TopNavbar() {
             </div>
             <DropdownMenuSeparator />
             <div className="flex max-h-80 flex-col overflow-y-auto">
-              {myNotifications.length === 0 && virtualNotifications.length === 0 && (
+              {notificationRows.length === 0 && (
                 <span className="px-3 py-6 text-center text-sm font-body text-grey-400">
                   No notifications yet.
                 </span>
               )}
-              {myNotifications.map((n) => {
-                const Icon = notificationIcon[n.type];
-                return (
-                  <button
-                    key={n.id}
-                    type="button"
-                    onClick={() => {
-                      notificationsStore.markRead(n.id);
-                      taskPanelStore.open(n.relatedTaskId);
-                    }}
-                    className={cn(
-                      "flex items-start gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-light-600",
-                      !n.read && "bg-primary-transparent"
-                    )}
-                  >
-                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    <span className="flex flex-col gap-0.5">
-                      <span className="text-sm font-body text-grey-800">{n.message}</span>
-                      <span className="text-xs font-number text-grey-400">{timeAgo(n.createdAt)}</span>
-                    </span>
-                  </button>
-                );
-              })}
-              {virtualNotifications.map((n) => {
-                const Icon = virtualNotificationIcon[n.kind];
-                return (
-                  <button
-                    key={n.id}
-                    type="button"
-                    onClick={() => {
-                      if (n.href) router.push(n.href);
-                      else if (n.customerId) customerPanelStore.open(n.customerId);
-                    }}
-                    className="flex items-start gap-2.5 bg-primary-transparent px-3 py-2.5 text-left transition-colors hover:bg-light-600"
-                  >
-                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    <span className="flex flex-col gap-0.5">
-                      <span className="text-sm font-body text-grey-800">{n.message}</span>
-                      <span className="text-xs font-number text-grey-400">{timeAgo(n.createdAt)}</span>
-                    </span>
-                  </button>
-                );
-              })}
+              {todayRows.length > 0 && (
+                <NotificationGroup label="Today" rows={todayRows} />
+              )}
+              {earlierRows.length > 0 && (
+                <NotificationGroup label="Earlier" rows={earlierRows} />
+              )}
             </div>
           </DropdownMenuContent>
         </DropdownMenu>

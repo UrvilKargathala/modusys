@@ -1,18 +1,13 @@
 "use client";
 
-import { UserPlus, Clock3, CheckCircle2, AtSign, Bell, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Bell, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useNotifications, notificationsStore, type NotificationType } from "@/lib/store/notifications-store";
+import { useNotifications, notificationsStore } from "@/lib/store/notifications-store";
+import { notificationStyle } from "@/lib/notification-style";
 import { taskPanelStore } from "@/lib/store/task-panel-store";
 import { getCurrentUser } from "@/lib/session";
-
-const notificationConfig: Record<NotificationType, { icon: typeof UserPlus; iconClass: string; bgClass: string }> = {
-  completed: { icon: CheckCircle2, iconClass: "text-success", bgClass: "bg-success-transparent" },
-  assigned: { icon: UserPlus, iconClass: "text-secondary", bgClass: "bg-secondary-transparent" },
-  "due-soon": { icon: Clock3, iconClass: "text-orange", bgClass: "bg-orange-transparent" },
-  mentioned: { icon: AtSign, iconClass: "text-primary", bgClass: "bg-primary-transparent" },
-};
 
 function timeAgo(iso: string) {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -24,6 +19,7 @@ function timeAgo(iso: string) {
 }
 
 export function NotificationsPanel() {
+  const router = useRouter();
   const currentUser = getCurrentUser();
   const all = useNotifications();
   const unread = all
@@ -51,7 +47,7 @@ export function NotificationsPanel() {
         ) : (
           <ul className="flex flex-col gap-2">
             {unread.map((n) => {
-              const config = notificationConfig[n.type];
+              const config = notificationStyle[n.type];
               const Icon = config.icon;
               return (
                 <li key={n.id}>
@@ -60,12 +56,17 @@ export function NotificationsPanel() {
                       type="button"
                       onClick={() => {
                         notificationsStore.markRead(n.id);
-                        taskPanelStore.open(n.relatedTaskId);
+                        if (n.type === "leave-requested") router.push("/admin/leaves");
+                        else if (n.type === "leave-approved" || n.type === "leave-rejected") router.push("/leaves");
+                        else taskPanelStore.open(n.relatedTaskId);
                       }}
                       className="flex flex-1 items-center gap-3 text-left"
                     >
-                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${config.bgClass} ${config.iconClass}`}>
+                      <span className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${config.bgClass} ${config.iconClass}`}>
                         <Icon className="h-4 w-4" />
+                        {config.actionNeeded && (
+                          <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-error ring-2 ring-card" />
+                        )}
                       </span>
                       <span className="flex flex-col gap-1">
                         <span className="text-sm font-body text-grey-800">{n.message}</span>

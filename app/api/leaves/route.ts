@@ -150,5 +150,21 @@ export async function POST(req: NextRequest) {
     req,
   });
 
+  // Every super-admin needs to see this to approve/reject it — unlike task
+  // notifications this has no single owner, so it fans out to all of them.
+  const superAdmins = await prisma.user.findMany({
+    where: { role: "super-admin" },
+    select: { id: true },
+  });
+  if (superAdmins.length > 0) {
+    await prisma.notification.createMany({
+      data: superAdmins.map((admin) => ({
+        userId: admin.id,
+        type: "leave-requested",
+        message: `${employee.name} applied for ${isHalfDay ? "half-day " : ""}leave (${leave.fromDate.toISOString().slice(0, 10)} to ${leave.toDate.toISOString().slice(0, 10)})`,
+      })),
+    });
+  }
+
   return NextResponse.json({ ok: true, leave });
 }

@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const updated = await prisma.leaveRequest.update({
     where: { id },
     data: { status, reviewNote, reviewedAt: new Date(), reviewedBy: user.id },
-    include: { employee: { select: { name: true } } },
+    include: { employee: { select: { name: true, email: true } } },
   });
   void logAudit({
     action: status === "APPROVED" ? "LEAVE_APPROVED" : "LEAVE_REJECTED",
@@ -64,6 +64,27 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     details: { reviewNote },
     req,
   });
+
+  // Tell the employee back — same explicit-link-then-email-match resolution
+  // as getCurrentEmployee(), just in reverse (employee -> user).
+  const requester =
+    (await prisma.user.findFirst({ where: { employeeId: existing.employeeId } })) ??
+    (updated.employee.email
+      ? await prisma.user.findFirst({ where: { email: updated.employee.email } })
+      : null);
+  if (requester) {
+    await prisma.notification.create({
+      data: {
+        userId: requester.id,
+        type: status === "APPROVED" ? "leave-approved" : "leave-rejected",
+        message:
+          status === "APPROVED"
+            ? `Your leave request (${updated.fromDate.toISOString().slice(0, 10)} to ${updated.toDate.toISOString().slice(0, 10)}) was approved`
+            : `Your leave request (${updated.fromDate.toISOString().slice(0, 10)} to ${updated.toDate.toISOString().slice(0, 10)}) was rejected${reviewNote ? `: ${reviewNote}` : ""}`,
+      },
+    });
+  }
+
   return NextResponse.json({ ok: true, leave: updated });
 }
 

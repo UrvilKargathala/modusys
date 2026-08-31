@@ -3,7 +3,14 @@
 import { useSyncExternalStore } from "react";
 import { toastStore } from "@/lib/store/toast-store";
 
-export type NotificationType = "assigned" | "due-soon" | "completed" | "mentioned";
+export type NotificationType =
+  | "assigned"
+  | "due-soon"
+  | "completed"
+  | "mentioned"
+  | "leave-requested"
+  | "leave-approved"
+  | "leave-rejected";
 
 export type AppNotification = {
   id: string;
@@ -40,7 +47,13 @@ async function refetch() {
     if (seenIds.size > 0) {
       for (const n of next) {
         if (n.read || seenIds.has(n.id)) continue;
-        if (n.type === "assigned" || n.type === "completed") {
+        if (
+          n.type === "assigned" ||
+          n.type === "completed" ||
+          n.type === "leave-requested" ||
+          n.type === "leave-approved" ||
+          n.type === "leave-rejected"
+        ) {
           toastStore.show(n.message);
         }
       }
