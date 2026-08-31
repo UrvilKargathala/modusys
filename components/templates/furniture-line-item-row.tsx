@@ -11,7 +11,6 @@ import { MaterialReferenceSelect } from "@/components/templates/material-referen
 import { FurniturePriceFormDialog } from "@/components/templates/furniture-price-form-dialog";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useFurniturePriceItems, pricingListStore } from "@/lib/store/pricing-list-store";
-import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { cn } from "@/lib/utils";
 import type { FurnitureLineItem } from "@/lib/mock/unit-type";
 
@@ -72,12 +71,6 @@ export function FurnitureLineItemRow({
   const furnitureItems = useFurniturePriceItems();
   const combinationComplete =
     !!value.thicknessId && !!value.rawMaterialTypeId && !!value.internalColourId && !!value.externalColourId;
-
-  // Aluminium Profile shutters come pre-finished from the extrusion —
-  // Thickness/External/Internal Colour and Rate are fixed by that raw
-  // material, not independently editable.
-  const rawMaterialItems = useMaterialItems("raw-material-type");
-  const isAluminiumProfile = rawMaterialItems.find((i) => i.id === value.rawMaterialTypeId)?.name.trim().toLowerCase() === "aluminium profile";
 
   // Editing a snapshotted row (one that came from a Cabinet Type group, not
   // manually added) marks it "Customized" the first time any field changes.
@@ -237,7 +230,6 @@ export function FurnitureLineItemRow({
             value={value.thicknessId}
             onChange={(id) => requestMaterialChange("thicknessId", id)}
             triggerClassName="font-number bg-[#F0E4E4]"
-            disabled={isAluminiumProfile}
           />
         </div>
         {totalSqFt !== undefined && (
@@ -264,7 +256,6 @@ export function FurnitureLineItemRow({
             value={value.externalColourId}
             onChange={(id) => requestMaterialChange("externalColourId", id)}
             triggerClassName="bg-[#F0E4E4]"
-            disabled={isAluminiumProfile}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -274,7 +265,6 @@ export function FurnitureLineItemRow({
             value={value.internalColourId}
             onChange={(id) => requestMaterialChange("internalColourId", id)}
             triggerClassName="bg-[#F0E4E4]"
-            disabled={isAluminiumProfile}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -294,17 +284,17 @@ export function FurnitureLineItemRow({
               min={0}
               placeholder="0.00"
               value={value.rateOverride ?? (match ? match.rate.toFixed(2) : "")}
-              readOnly={rateReadOnly || isAluminiumProfile}
+              readOnly={rateReadOnly}
               onChange={(e) => {
-                if (rateReadOnly || isAluminiumProfile) return;
+                if (rateReadOnly) return;
                 const raw = e.target.value;
                 handleFieldChange({ rateOverride: raw === "" ? undefined : Number(raw) });
               }}
-              className={`pr-14 font-number bg-[#F0E4E4] ${rateReadOnly || isAluminiumProfile ? "cursor-not-allowed" : ""}`}
+              className={`pr-14 font-number bg-[#F0E4E4] ${rateReadOnly ? "cursor-not-allowed" : ""}`}
             />
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">/sq.ft</span>
           </div>
-          {!rateReadOnly && !isAluminiumProfile && value.rateOverride !== undefined && match && value.rateOverride !== match.rate && (
+          {!rateReadOnly && value.rateOverride !== undefined && match && value.rateOverride !== match.rate && (
             <button
               type="button"
               onClick={() => handleFieldChange({ rateOverride: undefined })}

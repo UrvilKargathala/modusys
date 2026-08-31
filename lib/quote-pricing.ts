@@ -2,6 +2,17 @@ import type { FurnitureLineItem, UnitTypeHardware } from "@/lib/mock/unit-type";
 import type { FurniturePriceItem, HardwarePriceItem } from "@/lib/mock/pricing-list";
 import { rateAfterDiscount } from "@/lib/mock/pricing-list";
 import type { QuoteCabinet, QuoteUnit } from "@/lib/mock/quote";
+import { materialSpecStore } from "@/lib/store/material-spec-store";
+
+// Aluminium Profile shutters come as a complete pre-made unit — Width,
+// Height, Qty, Thickness, Amount, Rate, colours, everything — so a Shutter
+// Finish change (which carries plywood/BWP-style thickness/colour values)
+// must never touch them.
+export function isAluminiumProfileRawMaterial(rawMaterialTypeId?: string): boolean {
+  if (!rawMaterialTypeId) return false;
+  const item = materialSpecStore.getSnapshot().find((i) => i.id === rawMaterialTypeId);
+  return item?.name.trim().toLowerCase() === "aluminium profile";
+}
 
 export const SQMM_PER_SQFT = 92_903.04;
 
@@ -22,15 +33,19 @@ export function applyShutterFinishToUnits(units: QuoteUnit[], overrides: Shutter
     ...unit,
     cabinets: unit.cabinets.map((cabinet) => ({
       ...cabinet,
-      externalFinishes: cabinet.externalFinishes.map((item) => ({
-        ...item,
-        ...(overrides.shutterFinishThicknessId && { thicknessId: overrides.shutterFinishThicknessId }),
-        ...(overrides.shutterFinishRawMaterialId && { rawMaterialTypeId: overrides.shutterFinishRawMaterialId }),
-        ...(overrides.shutterFinishInternalColourId && { internalColourId: overrides.shutterFinishInternalColourId }),
-        ...((overrides.shutterFinishExternalColourId || overrides.shutterFinishId) && {
-          externalColourId: overrides.shutterFinishExternalColourId || overrides.shutterFinishId,
-        }),
-      })),
+      externalFinishes: cabinet.externalFinishes.map((item) =>
+        isAluminiumProfileRawMaterial(item.rawMaterialTypeId)
+          ? item
+          : {
+              ...item,
+              ...(overrides.shutterFinishThicknessId && { thicknessId: overrides.shutterFinishThicknessId }),
+              ...(overrides.shutterFinishRawMaterialId && { rawMaterialTypeId: overrides.shutterFinishRawMaterialId }),
+              ...(overrides.shutterFinishInternalColourId && { internalColourId: overrides.shutterFinishInternalColourId }),
+              ...((overrides.shutterFinishExternalColourId || overrides.shutterFinishId) && {
+                externalColourId: overrides.shutterFinishExternalColourId || overrides.shutterFinishId,
+              }),
+            }
+      ),
     })),
   }));
 }

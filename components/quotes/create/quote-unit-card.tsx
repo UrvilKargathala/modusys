@@ -24,7 +24,7 @@ import { UnitTypeFormDialog } from "@/components/templates/unit-type-form-dialog
 import { useUnitTypes, unitTypeStore } from "@/lib/store/unit-type-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
-import { cabinetTotal, unitTotal, resolveLineItemDimensions, resolveHardwareForUnit, findFurnitureMatch } from "@/lib/quote-pricing";
+import { cabinetTotal, unitTotal, resolveLineItemDimensions, resolveHardwareForUnit, findFurnitureMatch, isAluminiumProfileRawMaterial } from "@/lib/quote-pricing";
 import type { QuoteUnit, QuoteCabinet } from "@/lib/mock/quote";
 import type { UnitType, FurnitureLineItem, UnitTypeHardware } from "@/lib/mock/unit-type";
 import { rateAfterDiscount, type FurniturePriceItem, type HardwarePriceItem } from "@/lib/mock/pricing-list";
@@ -246,15 +246,19 @@ export function QuoteUnitCard({
       cabinets: hasOverrides
         ? cabinets.map((c) => ({
             ...c,
-            externalFinishes: c.externalFinishes.map((f) => ({
-              ...f,
-              ...(shutterFinishOverrides?.shutterFinishThicknessId && { thicknessId: shutterFinishOverrides.shutterFinishThicknessId }),
-              ...(shutterFinishOverrides?.shutterFinishRawMaterialId && { rawMaterialTypeId: shutterFinishOverrides.shutterFinishRawMaterialId }),
-              ...(shutterFinishOverrides?.shutterFinishInternalColourId && { internalColourId: shutterFinishOverrides.shutterFinishInternalColourId }),
-              ...((shutterFinishOverrides?.shutterFinishExternalColourId || shutterFinishId) && {
-                externalColourId: shutterFinishOverrides?.shutterFinishExternalColourId || shutterFinishId,
-              }),
-            })),
+            externalFinishes: c.externalFinishes.map((f) =>
+              isAluminiumProfileRawMaterial(f.rawMaterialTypeId)
+                ? f
+                : {
+                    ...f,
+                    ...(shutterFinishOverrides?.shutterFinishThicknessId && { thicknessId: shutterFinishOverrides.shutterFinishThicknessId }),
+                    ...(shutterFinishOverrides?.shutterFinishRawMaterialId && { rawMaterialTypeId: shutterFinishOverrides.shutterFinishRawMaterialId }),
+                    ...(shutterFinishOverrides?.shutterFinishInternalColourId && { internalColourId: shutterFinishOverrides.shutterFinishInternalColourId }),
+                    ...((shutterFinishOverrides?.shutterFinishExternalColourId || shutterFinishId) && {
+                      externalColourId: shutterFinishOverrides?.shutterFinishExternalColourId || shutterFinishId,
+                    }),
+                  }
+            ),
           }))
         : cabinets,
       autoPopulated: true,
