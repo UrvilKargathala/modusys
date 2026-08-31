@@ -34,6 +34,7 @@ export async function GET() {
   return NextResponse.json(
     events.map((e) => ({
       id: e.id,
+      action: e.action,
       message: describe(e.action, e.actorName, e.targetName),
       createdAt: e.createdAt.toISOString(),
     }))

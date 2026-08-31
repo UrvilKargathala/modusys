@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 
 export type SecurityAuditEvent = {
   id: string;
+  action: string;
   message: string;
   createdAt: string; // ISO date
 };
