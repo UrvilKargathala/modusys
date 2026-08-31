@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Camera, RefreshCw, Check, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -35,12 +35,20 @@ const DENIED_STEPS: { ios: string[]; android: string[]; other: string[] } = {
 type Props = {
   onCapture: (blob: Blob, dataUrl: string) => void;
   onReset?: () => void;
+  // Skips the "Open camera" tap — the viewfinder requests permission and
+  // starts live the moment this component mounts.
+  autoStart?: boolean;
+  // Rendered as a small badge over the bottom-left of the captured photo —
+  // used for the GPS status pill. Not shown while the live viewfinder is up.
+  photoOverlay?: ReactNode;
 };
 
-export function PhotoCapture({ onCapture, onReset }: Props) {
+export function PhotoCapture({ onCapture, onReset, autoStart, photoOverlay }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [state, setState] = useState<"idle" | "starting" | "live" | "captured" | "denied" | "error">("idle");
+  const [state, setState] = useState<"idle" | "starting" | "live" | "captured" | "denied" | "error">(
+    autoStart ? "starting" : "idle"
+  );
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [pendingBlob, setPendingBlob] = useState<Blob | null>(null);
@@ -81,6 +89,11 @@ export function PhotoCapture({ onCapture, onReset }: Props) {
       }
     }
   };
+
+  useEffect(() => {
+    if (autoStart) void start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Attach the MediaStream to the <video> only after the element is in the
   // DOM. Doing it inside start() runs while state==="starting" and the video
@@ -152,7 +165,7 @@ export function PhotoCapture({ onCapture, onReset }: Props) {
       )}
 
       {(state === "live" || state === "captured") && (
-        <div className="overflow-hidden rounded-md border border-grey-200 bg-black">
+        <div className="relative overflow-hidden rounded-md border border-grey-200 bg-black">
           {state === "live" ? (
             <video
               ref={videoRef}
@@ -167,13 +180,20 @@ export function PhotoCapture({ onCapture, onReset }: Props) {
               className="h-64 w-full object-cover"
             />
           )}
+          {state === "captured" && photoOverlay && (
+            <div className="absolute bottom-2 left-2">{photoOverlay}</div>
+          )}
         </div>
       )}
 
       {state === "live" && (
-        <Button type="button" onClick={capture} className="h-11 w-full">
-          <Camera className="h-4 w-4" />
-          Capture
+        <Button
+          type="button"
+          onClick={capture}
+          className="mx-auto h-16 w-16 rounded-full p-0 shadow-lg"
+          aria-label="Capture selfie"
+        >
+          <Camera className="h-6 w-6" />
         </Button>
       )}
 

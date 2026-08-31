@@ -6,7 +6,6 @@ import {
   LogIn,
   LogOut,
   Loader2,
-  Camera,
   ArrowLeft,
   Check,
   AlertTriangle,
@@ -66,7 +65,7 @@ type MeResponse = {
 };
 
 type Flow = "in" | "out";
-type Step = "location" | "selfie" | "note" | "review";
+type Step = "capture" | "confirm" | "success";
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-IN", {
@@ -77,62 +76,24 @@ function formatTime(iso: string) {
   });
 }
 
-function osmEmbed(lat: number, lng: number) {
-  const d = 0.005;
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - d}%2C${lat - d}%2C${lng + d}%2C${lat + d}&layer=mapnik&marker=${lat}%2C${lng}`;
-}
-
-function detectPlatform(): "ios" | "android" | "other" {
-  if (typeof navigator === "undefined") return "other";
-  const ua = navigator.userAgent;
-  if (/iPad|iPhone|iPod/.test(ua)) return "ios";
-  if (/Android/.test(ua)) return "android";
-  return "other";
-}
-
-const LOCATION_DENIED_STEPS: Record<"ios" | "android" | "other", string[]> = {
-  ios: [
-    "Open the iOS Settings app.",
-    "Go to Safari → Location.",
-    'Tap "Ask" or "Allow".',
-    "Return here and try again.",
-  ],
-  android: [
-    "Tap the lock icon in the address bar.",
-    'Tap "Permissions" → "Location".',
-    'Choose "Allow".',
-    "Reload this page and try again.",
-  ],
-  other: [
-    "Click the lock or info icon in your browser's address bar.",
-    "Find Location and set it to Allow.",
-    "Reload this page and try again.",
-  ],
-};
-
-const STEPS: { key: Step; label: string }[] = [
-  { key: "location", label: "Location" },
-  { key: "selfie", label: "Selfie" },
-  { key: "note", label: "Note" },
-  { key: "review", label: "Review" },
-];
+type GpsStatus = "pending" | "resolved" | "denied" | "error" | "unsupported";
 
 export function MyAttendanceWidget() {
   const [data, setData] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [flow, setFlow] = useState<Flow | null>(null);
-  const [step, setStep] = useState<Step>("location");
+  const [step, setStep] = useState<Step>("capture");
 
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [consent, setConsent] = useState(false);
   const [note, setNote] = useState("");
+  const [gpsStatus, setGpsStatus] = useState<GpsStatus>("pending");
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [locationDenied, setLocationDenied] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -149,56 +110,55 @@ export function MyAttendanceWidget() {
 
   function openFlow(kind: Flow) {
     setFlow(kind);
-    setStep("location");
+    setStep("capture");
     setCoords(null);
+    setLocationLabel(null);
     setPhotoBlob(null);
     setPhotoPreview(null);
-    setConsent(false);
     setNote("");
     setError(null);
-    setLocationDenied(false);
+    startLocation();
   }
 
   function closeFlow() {
     setFlow(null);
     setError(null);
-    setLocationDenied(false);
   }
 
   function goBack() {
     setError(null);
-    if (step === "selfie") setStep("location");
-    else if (step === "note") setStep("selfie");
-    else if (step === "review") setStep("note");
+    if (step === "confirm") {
+      setStep("capture");
+      setPhotoBlob(null);
+      setPhotoPreview(null);
+    }
   }
 
-  async function captureLocation() {
-    setError(null);
-    setLocationDenied(false);
-    setBusy(true);
-    try {
-      if (!("geolocation" in navigator)) {
-        throw new Error("Location is not supported by your browser");
-      }
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 0,
-        });
-      });
-      setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-    } catch (e: unknown) {
-      const err = e as { code?: number; message?: string };
-      if (err.code === 1) {
-        setLocationDenied(true);
-        setError("Location access is blocked for this site.");
-      } else if (err.code === 2) setError("Could not determine your location.");
-      else if (err.code === 3) setError("Location request timed out. Try again.");
-      else setError(err.message || "Failed to capture location");
-    } finally {
-      setBusy(false);
+  // Fired the instant Step 1 mounts, in parallel with the camera — GPS is
+  // best-effort and never blocks the selfie/check-in (see edge cases 3 & 4).
+  function startLocation() {
+    setGpsStatus("pending");
+    if (!("geolocation" in navigator)) {
+      setGpsStatus("unsupported");
+      return;
     }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setCoords(c);
+        setGpsStatus("resolved");
+        // Best-effort — badge just falls back to raw coordinates if this
+        // fails or is slow, never blocks anything.
+        fetch(`/api/attendance/reverse-geocode?lat=${c.lat}&lng=${c.lng}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((json) => json?.label && setLocationLabel(json.label))
+          .catch(() => {});
+      },
+      (err: GeolocationPositionError) => {
+        setGpsStatus(err.code === 1 ? "denied" : "error");
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
   }
 
   async function uploadPhoto(blob: Blob, side: "checkIn" | "checkOut"): Promise<string> {
@@ -212,7 +172,9 @@ export function MyAttendanceWidget() {
   }
 
   async function submit() {
-    if (!flow || !coords || !photoBlob) return;
+    // Coords are optional — GPS may still be "pending"/"denied"/"error" at
+    // submit time, and the selfie alone is enough to check in (edge case 3).
+    if (!flow || !photoBlob) return;
     setBusy(true);
     setError(null);
     try {
@@ -224,24 +186,31 @@ export function MyAttendanceWidget() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          latitude: coords.lat,
-          longitude: coords.lng,
+          latitude: coords?.lat,
+          longitude: coords?.lng,
           photoUrl,
-          photoConsent: consent,
+          // Taking and submitting the selfie is the consent action — no
+          // separate checkbox in the simplified 2-step flow.
+          photoConsent: true,
           note: note || undefined,
           timezone,
         }),
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error || "Something went wrong");
+        setError(json.error || "Check-in failed — please try again");
         return;
       }
       toastStore.show(flow === "in" ? "Checked in" : "Checked out", "success");
-      closeFlow();
-      await load();
+      // Brief success animation before swapping to the real status card —
+      // load() is deferred so the two don't flash on top of each other.
+      setStep("success");
+      setTimeout(() => {
+        closeFlow();
+        load();
+      }, 900);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Submit failed");
+      setError(e instanceof Error ? e.message : "Check-in failed — please try again");
     } finally {
       setBusy(false);
     }
@@ -360,27 +329,14 @@ export function MyAttendanceWidget() {
         )
       )}
 
-      {/* Unified 4-step flow */}
+      {/* Simplified 2-step flow */}
       {flow !== null && (
         <Card className="flex flex-col gap-4 p-5">
-          <ProgressBar currentStep={step} />
-
-          {step === "location" && (
-            <LocationStep
+          {step === "capture" && (
+            <CaptureStep
+              gpsStatus={gpsStatus}
               coords={coords}
-              busy={busy}
-              error={error}
-              denied={locationDenied}
-              onCapture={captureLocation}
-              onNext={() => setStep("selfie")}
-              onCancel={closeFlow}
-            />
-          )}
-
-          {step === "selfie" && (
-            <SelfieStep
-              consent={consent}
-              onConsentChange={setConsent}
+              locationLabel={locationLabel}
               photoBlob={photoBlob}
               onCapture={(blob, url) => {
                 setPhotoBlob(blob);
@@ -390,33 +346,28 @@ export function MyAttendanceWidget() {
                 setPhotoBlob(null);
                 setPhotoPreview(null);
               }}
-              onBack={goBack}
-              onNext={() => setStep("note")}
+              onNext={() => setStep("confirm")}
+              onCancel={closeFlow}
             />
           )}
 
-          {step === "note" && (
-            <NoteStep
-              note={note}
-              onNoteChange={setNote}
-              onBack={goBack}
-              onNext={() => setStep("review")}
-            />
-          )}
-
-          {step === "review" && coords && photoPreview && (
-            <ReviewStep
+          {step === "confirm" && photoPreview && (
+            <ConfirmStep
               flow={flow}
+              gpsStatus={gpsStatus}
               coords={coords}
+              locationLabel={locationLabel}
               photoPreview={photoPreview}
               note={note}
+              onNoteChange={setNote}
               busy={busy}
               error={error}
               onBack={goBack}
               onSubmit={submit}
-              onCancel={closeFlow}
             />
           )}
+
+          {step === "success" && <SuccessStep flow={flow} />}
         </Card>
       )}
 
@@ -454,264 +405,138 @@ export function MyAttendanceWidget() {
 
 // --- Steps ---
 
-function ProgressBar({ currentStep }: { currentStep: Step }) {
-  const currentIdx = STEPS.findIndex((s) => s.key === currentStep);
+// GPS badge shown over the photo in both steps — pending/resolved/denied all
+// read live off the same gpsStatus/coords state, so it updates in place if
+// GPS resolves after the selfie was already taken (edge case: slow fix).
+function GpsBadge({
+  status,
+  coords,
+  label,
+}: {
+  status: GpsStatus;
+  coords: { lat: number; lng: number } | null;
+  label: string | null;
+}) {
+  if (status === "resolved" && coords) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[11px] font-body text-white backdrop-blur-sm">
+        <MapPin className="h-3 w-3 text-success" />
+        <span className={label ? undefined : "font-number"}>
+          {label ?? `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`}
+        </span>
+      </span>
+    );
+  }
+  if (status === "pending") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[11px] font-body text-white backdrop-blur-sm">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Fetching location…
+      </span>
+    );
+  }
   return (
-    <div className="flex items-center gap-2">
-      {STEPS.map((s, i) => {
-        const done = i < currentIdx;
-        const active = i === currentIdx;
-        return (
-          <div key={s.key} className="flex flex-1 items-center gap-2">
-            <div
-              className={cn(
-                "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-number font-semibold",
-                done && "bg-success text-white",
-                active && "bg-primary text-white",
-                !done && !active && "bg-grey-100 text-grey-400"
-              )}
-            >
-              {done ? <Check className="h-3 w-3" /> : i + 1}
-            </div>
-            <span
-              className={cn(
-                "hidden text-xs font-body sm:inline",
-                active ? "font-medium text-grey-900" : "text-grey-400"
-              )}
-            >
-              {s.label}
-            </span>
-            {i < STEPS.length - 1 && (
-              <div className={cn("h-px flex-1", done ? "bg-success" : "bg-grey-100")} />
-            )}
-          </div>
-        );
-      })}
-    </div>
+    <span className="inline-flex items-center gap-1 rounded-full bg-warning-900/90 px-2 py-1 text-[11px] font-body text-white backdrop-blur-sm">
+      <AlertTriangle className="h-3 w-3" />
+      No location captured
+    </span>
   );
 }
 
-function LocationStep({
+function CaptureStep({
+  gpsStatus,
   coords,
-  busy,
-  error,
-  denied,
+  locationLabel,
+  photoBlob,
   onCapture,
+  onReset,
   onNext,
   onCancel,
 }: {
+  gpsStatus: GpsStatus;
   coords: { lat: number; lng: number } | null;
-  busy: boolean;
-  error: string | null;
-  denied: boolean;
-  onCapture: () => void;
+  locationLabel: string | null;
+  photoBlob: Blob | null;
+  onCapture: (blob: Blob, url: string) => void;
+  onReset: () => void;
   onNext: () => void;
   onCancel: () => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="font-heading text-base font-semibold text-grey-900">Step 1 — Capture Location</h3>
-      <p className="text-xs font-body text-grey-500">
-        We use GPS to verify where you're checking in from.
-      </p>
-
-      {!coords && !denied && (
-        <Button
-          type="button"
-          onClick={onCapture}
-          disabled={busy}
-          className="h-11 w-full"
-        >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <><MapPin className="h-4 w-4" /> Get My Location</>}
-        </Button>
-      )}
-
-      {coords && (
-        <div className="flex flex-col gap-2">
-          <div className="overflow-hidden rounded-md border border-grey-200">
-            <iframe
-              title="Captured location"
-              src={osmEmbed(coords.lat, coords.lng)}
-              className="h-40 w-full"
-            />
-            <p className="flex items-center gap-1 px-3 py-2 font-number text-xs text-grey-600">
-              <Check className="h-3.5 w-3.5 text-success" />
-              Location captured — {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {error && !denied && <p className="text-sm font-body text-error">{error}</p>}
-
-      {denied && (
-        <div className="rounded-md border border-error/30 bg-error-transparent p-3">
-          <p className="flex items-center gap-1.5 text-sm font-body font-medium text-grey-900">
-            <AlertTriangle className="h-4 w-4 text-warning-900" />
-            Enable location access
-          </p>
-          <ol className="mt-2 list-inside list-decimal space-y-1 text-xs font-body text-grey-700">
-            {LOCATION_DENIED_STEPS[detectPlatform()].map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCapture}
-            className="mt-3 h-9 w-full"
-          >
-            Try Again
-          </Button>
-        </div>
-      )}
-
-      <div className="flex gap-2 pt-1">
-        <Button type="button" variant="outline" onClick={onCancel} className="h-11 flex-1">
+      <div className="flex items-center justify-between">
+        <h3 className="font-heading text-base font-semibold text-grey-900">Take your selfie</h3>
+        <button type="button" onClick={onCancel} className="text-xs font-body text-grey-400 hover:text-grey-700">
           Cancel
-        </Button>
-        <Button type="button" onClick={onNext} disabled={!coords} className="h-11 flex-1">
-          Continue
-        </Button>
+        </button>
       </div>
-    </div>
-  );
-}
 
-function SelfieStep({
-  consent,
-  onConsentChange,
-  photoBlob,
-  onCapture,
-  onReset,
-  onBack,
-  onNext,
-}: {
-  consent: boolean;
-  onConsentChange: (v: boolean) => void;
-  photoBlob: Blob | null;
-  onCapture: (blob: Blob, url: string) => void;
-  onReset: () => void;
-  onBack: () => void;
-  onNext: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-3">
-      <h3 className="font-heading text-base font-semibold text-grey-900">Step 2 — Capture Selfie</h3>
-      <p className="text-xs font-body text-grey-500">
-        A quick selfie verifies it's really you. Photo is stored securely.
-      </p>
-
-      <label className="flex items-start gap-2 text-xs font-body text-grey-700">
-        <input
-          type="checkbox"
-          checked={consent}
-          onChange={(e) => onConsentChange(e.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-primary"
-        />
-        <span>I consent to my photo being captured for attendance verification.</span>
-      </label>
-
-      <PhotoCapture onCapture={onCapture} onReset={onReset} />
-
-      <div className="flex gap-2 pt-1">
-        <Button type="button" variant="outline" onClick={onBack} className="h-11 flex-1">
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-        <Button
-          type="button"
-          onClick={onNext}
-          disabled={!consent || !photoBlob}
-          className="h-11 flex-1"
-        >
-          Continue
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function NoteStep({
-  note,
-  onNoteChange,
-  onBack,
-  onNext,
-}: {
-  note: string;
-  onNoteChange: (v: string) => void;
-  onBack: () => void;
-  onNext: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-3">
-      <h3 className="font-heading text-base font-semibold text-grey-900">Step 3 — Add Note (optional)</h3>
-      <textarea
-        value={note}
-        onChange={(e) => onNoteChange(e.target.value)}
-        rows={3}
-        placeholder="e.g., client site name, reason for remote check-in…"
-        className="w-full rounded-md border border-grey-200 px-3 py-2 text-sm font-body text-grey-900 focus:border-primary focus:outline-none"
+      <PhotoCapture
+        autoStart
+        onCapture={onCapture}
+        onReset={onReset}
+        photoOverlay={<GpsBadge status={gpsStatus} coords={coords} label={locationLabel} />}
       />
 
-      <div className="flex gap-2 pt-1">
-        <Button type="button" variant="outline" onClick={onBack} className="h-11 flex-1">
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-        <Button type="button" onClick={onNext} className="h-11 flex-1">
+      {photoBlob && (
+        <Button type="button" onClick={onNext} className="h-11 w-full">
           Continue
         </Button>
-      </div>
+      )}
     </div>
   );
 }
 
-function ReviewStep({
+function ConfirmStep({
   flow,
+  gpsStatus,
   coords,
+  locationLabel,
   photoPreview,
   note,
+  onNoteChange,
   busy,
   error,
   onBack,
   onSubmit,
-  onCancel,
 }: {
   flow: Flow;
-  coords: { lat: number; lng: number };
+  gpsStatus: GpsStatus;
+  coords: { lat: number; lng: number } | null;
+  locationLabel: string | null;
   photoPreview: string;
   note: string;
+  onNoteChange: (v: string) => void;
   busy: boolean;
   error: string | null;
   onBack: () => void;
   onSubmit: () => void;
-  onCancel: () => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="font-heading text-base font-semibold text-grey-900">Step 4 — Review & Submit</h3>
+      <button
+        type="button"
+        onClick={onBack}
+        disabled={busy}
+        className="flex w-fit items-center gap-1 text-xs font-body text-grey-400 hover:text-grey-700"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Retake
+      </button>
 
-      <div className="flex flex-col gap-3 rounded-md border border-grey-200 p-3">
-        <div className="flex items-start gap-3">
-          <img
-            src={photoPreview}
-            alt="Selfie preview"
-            className="h-20 w-20 rounded-md object-cover"
-          />
-          <div className="flex flex-1 flex-col gap-1">
-            <div className="flex items-center gap-1 text-xs font-body text-grey-600">
-              <MapPin className="h-3 w-3" />
-              <span className="font-number">
-                {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-              </span>
-            </div>
-            {note && (
-              <p className="text-xs font-body italic text-grey-600">"{note}"</p>
-            )}
-          </div>
+      <div className="relative overflow-hidden rounded-md border border-grey-200 bg-black">
+        <img src={photoPreview} alt="Your selfie" className="h-64 w-full object-cover" />
+        <div className="absolute bottom-2 left-2">
+          <GpsBadge status={gpsStatus} coords={coords} label={locationLabel} />
         </div>
       </div>
+
+      <input
+        value={note}
+        onChange={(e) => onNoteChange(e.target.value)}
+        placeholder="Optional — add a note about your check-in"
+        className="w-full rounded-md border border-grey-200 px-3 py-2 text-sm font-body text-grey-900 focus:border-primary focus:outline-none"
+      />
 
       {error && <p className="text-sm font-body text-error">{error}</p>}
 
@@ -725,24 +550,29 @@ function ReviewStep({
         )}
       >
         {busy ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
-        ) : (
           <>
-            <Camera className="h-4 w-4" />
-            {flow === "in" ? "Complete Check In" : "Complete Check Out"}
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Checking in…
           </>
+        ) : error ? (
+          "Retry"
+        ) : (
+          flow === "in" ? "Check In" : "Check Out"
         )}
       </Button>
+    </div>
+  );
+}
 
-      <div className="flex gap-2">
-        <Button type="button" variant="outline" onClick={onBack} disabled={busy} className="h-11 flex-1">
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-        <Button type="button" variant="outline" onClick={onCancel} disabled={busy} className="h-11 flex-1">
-          Cancel
-        </Button>
+function SuccessStep({ flow }: { flow: Flow }) {
+  return (
+    <div className="flex flex-col items-center gap-2 py-6">
+      <div className="flex h-14 w-14 animate-in zoom-in items-center justify-center rounded-full bg-success-transparent">
+        <Check className="h-7 w-7 text-success" />
       </div>
+      <p className="text-sm font-body font-medium text-grey-900">
+        {flow === "in" ? "Checked in!" : "Checked out!"}
+      </p>
     </div>
   );
 }

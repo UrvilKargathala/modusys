@@ -25,15 +25,19 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const latitude = Number(body?.latitude);
-    const longitude = Number(body?.longitude);
+    // GPS is best-effort — the selfie alone proves the person is real, so a
+    // denied/failed location shouldn't block check-in. Coordinates are only
+    // rejected when present but garbage; absent means "no location".
+    const hasCoords = body?.latitude != null && body?.longitude != null;
+    const latitude = hasCoords ? Number(body.latitude) : null;
+    const longitude = hasCoords ? Number(body.longitude) : null;
     const photoUrl = typeof body?.photoUrl === "string" ? body.photoUrl.trim() : "";
     const photoConsent = body?.photoConsent === true;
     const note = typeof body?.note === "string" ? body.note.trim() || null : null;
     const timezone =
       typeof body?.timezone === "string" && body.timezone.trim() ? body.timezone.trim() : "Asia/Kolkata";
 
-    if (!validCoords(latitude, longitude)) {
+    if (hasCoords && !validCoords(latitude!, longitude!)) {
       return NextResponse.json({ error: "Invalid location. Try again with GPS on." }, { status: 400 });
     }
     if (!photoUrl) {
@@ -56,7 +60,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Already checked in today" }, { status: 409 });
     }
 
-    const address = await reverseGeocode(latitude, longitude);
+    const address = hasCoords ? await reverseGeocode(latitude!, longitude!) : null;
     const lateByMinutes = computeLateMinutes(now);
 
     const record = await prisma.attendanceRecord.create({

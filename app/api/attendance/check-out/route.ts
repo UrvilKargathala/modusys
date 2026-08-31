@@ -30,13 +30,16 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const latitude = Number(body?.latitude);
-    const longitude = Number(body?.longitude);
+    // GPS is best-effort — see check-in/route.ts for why absent coords aren't
+    // a hard failure.
+    const hasCoords = body?.latitude != null && body?.longitude != null;
+    const latitude = hasCoords ? Number(body.latitude) : null;
+    const longitude = hasCoords ? Number(body.longitude) : null;
     const photoUrl = typeof body?.photoUrl === "string" ? body.photoUrl.trim() : "";
     const photoConsent = body?.photoConsent === true;
     const note = typeof body?.note === "string" ? body.note.trim() || null : null;
 
-    if (!validCoords(latitude, longitude)) {
+    if (hasCoords && !validCoords(latitude!, longitude!)) {
       return NextResponse.json({ error: "Invalid location. Try again with GPS on." }, { status: 400 });
     }
     if (!photoUrl) {
@@ -62,7 +65,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Already checked out" }, { status: 409 });
     }
 
-    const address = await reverseGeocode(latitude, longitude);
+    const address = hasCoords ? await reverseGeocode(latitude!, longitude!) : null;
     const mins = workingMinutes(existing.checkIn, now);
     const dayStatus = computeDayStatus(existing.checkIn, now);
     const earlyExitByMinutes = computeEarlyExitMinutes(now);
