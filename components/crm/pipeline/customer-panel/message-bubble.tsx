@@ -415,11 +415,16 @@ export function MessageBubble({
   replyTo,
   replyToImageIndex,
   onReply,
+  onOpenImage,
 }: {
   message: CustomerMessage;
   replyTo?: CustomerMessage | null;
   replyToImageIndex?: number;
   onReply?: (imageIndex?: number) => void;
+  // When provided, image clicks open a lightbox scrolling through every
+  // image in the whole conversation (WhatsApp-style) instead of just this
+  // message's own group — see ImageGallery below.
+  onOpenImage?: (key: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.text ?? "");
@@ -492,7 +497,7 @@ export function MessageBubble({
           {message.kind === "voice" ? (
             <VoiceBubble message={message} />
           ) : message.kind === "image" ? (
-            <ImageGallery message={message} onReply={onReply} />
+            <ImageGallery message={message} onReply={onReply} onOpenImage={onOpenImage} />
           ) : message.kind === "pdf" ? (
             <PdfBubble message={message} />
           ) : editing ? (
@@ -646,7 +651,15 @@ function PdfBubble({ message }: { message: CustomerMessage }) {
   );
 }
 
-function ImageGallery({ message, onReply }: { message: CustomerMessage; onReply?: (imageIndex?: number) => void }) {
+function ImageGallery({
+  message,
+  onReply,
+  onOpenImage,
+}: {
+  message: CustomerMessage;
+  onReply?: (imageIndex?: number) => void;
+  onOpenImage?: (key: string) => void;
+}) {
   const urls =
     message.imageUrls && message.imageUrls.length > 0
       ? message.imageUrls
@@ -674,7 +687,7 @@ function ImageGallery({ message, onReply }: { message: CustomerMessage; onReply?
           <div key={url + i} className="group/img relative overflow-hidden rounded-lg">
             <button
               type="button"
-              onClick={() => setOpenIdx(i)}
+              onClick={() => (onOpenImage ? onOpenImage(`${message.id}-${i}`) : setOpenIdx(i))}
               className="w-full"
             >
               <img
@@ -701,14 +714,14 @@ function ImageGallery({ message, onReply }: { message: CustomerMessage; onReply?
       {message.text && (
         <p className="px-1 pt-1 text-sm font-body text-grey-800">{message.text}</p>
       )}
-      {openIdx !== null && (
+      {!onOpenImage && openIdx !== null && (
         <ImageLightbox urls={urls} index={openIdx} onClose={() => setOpenIdx(null)} onNavigate={setOpenIdx} />
       )}
     </div>
   );
 }
 
-function ImageLightbox({
+export function ImageLightbox({
   urls,
   index,
   onClose,

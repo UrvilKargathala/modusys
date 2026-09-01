@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageCircle, ArrowDown, Upload, Search, ChevronUp, ChevronDown, X, Star } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
-import { MessageBubble } from "@/components/crm/pipeline/customer-panel/message-bubble";
+import { MessageBubble, ImageLightbox } from "@/components/crm/pipeline/customer-panel/message-bubble";
 import { MessageInput, type MessageInputHandle } from "@/components/crm/pipeline/customer-panel/message-input";
 import { useCustomerMessages, type CustomerMessage } from "@/lib/store/customer-messages-store";
 import { useChatPresence } from "@/lib/store/chat-presence-store";
@@ -23,6 +23,20 @@ export function ActivityFeed({ customerId }: { customerId: string }) {
   // store so it resets automatically when the customer panel unmounts.
   const [replyTarget, setReplyTarget] = useState<{ message: CustomerMessage; imageIndex?: number } | null>(null);
   const messagesById = new Map(messages.map((m) => [m.id, m]));
+
+  // Every image across the whole conversation, chronological — clicking any
+  // image opens the lightbox here so Left/Right walks the entire chat's
+  // media (WhatsApp-style), not just the one message's own group.
+  const allImages = useMemo(() => {
+    const out: { key: string; url: string; name: string }[] = [];
+    for (const m of messages) {
+      const urls = m.imageUrls && m.imageUrls.length > 0 ? m.imageUrls : m.imageUrl ? [m.imageUrl] : [];
+      urls.forEach((url, i) => out.push({ key: `${m.id}-${i}`, url, name: m.imageNames?.[i] ?? `Image ${i + 1}` }));
+    }
+    return out;
+  }, [messages]);
+  const [lightboxKey, setLightboxKey] = useState<string | null>(null);
+  const lightboxIndex = allImages.findIndex((im) => im.key === lightboxKey);
   const presence = useChatPresence(customerId);
   const orgUsers = useOrgUsers();
   const typingNames = presence
@@ -226,6 +240,7 @@ export function ActivityFeed({ customerId }: { customerId: string }) {
                     replyTo={message.replyToMessageId ? messagesById.get(message.replyToMessageId) ?? null : null}
                     replyToImageIndex={message.replyToImageIndex}
                     onReply={(imageIndex?: number) => setReplyTarget({ message, imageIndex })}
+                    onOpenImage={setLightboxKey}
                   />
                 </div>
               );
@@ -261,6 +276,15 @@ export function ActivityFeed({ customerId }: { customerId: string }) {
         replyImageIndex={replyTarget?.imageIndex}
         onClearReply={() => setReplyTarget(null)}
       />
+
+      {lightboxIndex !== -1 && (
+        <ImageLightbox
+          urls={allImages.map((im) => im.url)}
+          index={lightboxIndex}
+          onClose={() => setLightboxKey(null)}
+          onNavigate={(i) => setLightboxKey(allImages[i].key)}
+        />
+      )}
     </div>
   );
 }
