@@ -1,0 +1,78 @@
+"use client";
+
+import { useDraggable } from "@dnd-kit/core";
+import { Users } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { tasksStore, type Task } from "@/lib/store/tasks-store";
+import { useCustomers } from "@/lib/store/customers-store";
+import { useOrgUsers } from "@/lib/store/users-store";
+import { getPriority } from "@/lib/constants/priority";
+import { taskPanelStore } from "@/lib/store/task-panel-store";
+
+function formatDueDate(iso: string) {
+  if (!iso) return "no date";
+  return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+// Same drag mechanics as CustomerCard (pipeline kanban) — a task only ever
+// moves to the OTHER column (Pending <-> Completed), never reordered within
+// its own column, so touch-pan-y (not touch-none) is deliberate here too.
+export function TaskCard({ task, overlay }: { task: Task; overlay?: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+    disabled: overlay,
+  });
+  const users = useOrgUsers();
+  const customers = useCustomers();
+  const userName = (id: string) => users.find((u) => u.id === id)?.name ?? "Unknown";
+  const customer = task.customerId ? customers.find((c) => c.id === task.customerId) : null;
+  const priority = getPriority(task.priority);
+  const differentPeople = task.createdById !== task.assigneeId;
+
+  return (
+    <div
+      ref={overlay ? undefined : setNodeRef}
+      {...(overlay ? {} : attributes)}
+      {...(overlay ? {} : listeners)}
+      onClick={() => !overlay && taskPanelStore.open(task.id)}
+      style={{
+        transform: !overlay && transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
+      }}
+      className={cn(
+        "group flex cursor-grab touch-pan-y flex-col gap-1.5 rounded-lg border border-grey-100 bg-card px-3 py-2.5 text-left shadow-sm transition-shadow active:cursor-grabbing",
+        isDragging && !overlay && "z-10 opacity-60 shadow-lg",
+        overlay && "w-72 rotate-2 cursor-grabbing shadow-xl"
+      )}
+    >
+      <div className="flex items-start gap-2">
+        <input
+          type="checkbox"
+          checked={task.completed}
+          onClick={(e) => e.stopPropagation()}
+          onChange={() => tasksStore.toggleComplete(task.id)}
+          aria-label={`Mark "${task.title}" as ${task.completed ? "incomplete" : "complete"}`}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+        />
+        <span className={cn("min-w-0 flex-1 text-sm font-body text-grey-800", task.completed && "text-grey-400 line-through")}>
+          {task.title}
+        </span>
+        <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium font-body", priority.light, priority.solid)}>
+          {priority.label}
+        </span>
+      </div>
+      <span className="pl-6 text-xs font-body text-grey-400">
+        {task.dueDate ? <span className="font-number">Due {formatDueDate(task.dueDate)}</span> : "No due date"} · {userName(task.assigneeId)}
+        {differentPeople && <span className="text-grey-300"> (by {userName(task.createdById)})</span>}
+        {customer && (
+          <>
+            {" · "}
+            <span className="inline-flex items-center gap-1 text-grey-500">
+              <Users className="h-3 w-3" />
+              {customer.name}
+            </span>
+          </>
+        )}
+      </span>
+    </div>
+  );
+}

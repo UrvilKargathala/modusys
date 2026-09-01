@@ -1,30 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, ListTodo, ChevronDown } from "lucide-react";
+import { Plus } from "lucide-react";
+import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/shared/empty-state";
-import { TaskRow } from "@/components/crm/tasks/task-row";
 import { TaskFormDialog } from "@/components/crm/tasks/task-form-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from "@/components/ui/dropdown-menu";
-import { useTasks, visibleTasks, type TaskScope } from "@/lib/store/tasks-store";
+import { TaskKanbanColumn, type TaskColumnKey } from "@/components/crm/tasks/task-kanban-column";
+import { TaskCard } from "@/components/crm/tasks/task-card";
+import { useTasks, visibleTasks, tasksStore, type Task, type TaskScope } from "@/lib/store/tasks-store";
 import { useCurrentUser } from "@/lib/session";
 import { useOrgUsers } from "@/lib/store/users-store";
 import { cn } from "@/lib/utils";
-
-type StatusFilter = "pending" | "completed" | "all";
-
-const statusOptions: { label: string; value: StatusFilter }[] = [
-  { label: "Pending", value: "pending" },
-  { label: "Completed", value: "completed" },
-  { label: "All", value: "all" },
-];
 
 export function TasksTab() {
   const currentUser = useCurrentUser();
@@ -41,10 +27,11 @@ export function TasksTab() {
   const allTasks = useTasks();
   const users = useOrgUsers();
   const [scope, setScope] = useState<TaskScope>(canSeeAll ? "all" : "mine");
-  const [status, setStatus] = useState<StatusFilter>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all"); // "all" | userId — admin-only
-  const [groupByAssignee, setGroupByAssignee] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const scoped = useMemo(
     () => visibleTasks(allTasks, currentUser.id, currentUser.role === "no-role" ? "staff" : currentUser.role, scope),
@@ -57,25 +44,29 @@ export function TasksTab() {
       const bDue = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
       return aDue - bDue;
     });
-    let out = sorted;
-    if (status === "pending") out = out.filter((t) => !t.completed);
-    else if (status === "completed") out = out.filter((t) => t.completed);
     if (canSeeAll && scope === "all" && assigneeFilter !== "all") {
-      out = out.filter((t) => t.assigneeId === assigneeFilter);
+      return sorted.filter((t) => t.assigneeId === assigneeFilter);
     }
-    return out;
-  }, [scoped, status, canSeeAll, scope, assigneeFilter]);
+    return sorted;
+  }, [scoped, canSeeAll, scope, assigneeFilter]);
 
-  const grouped = useMemo(() => {
-    if (!groupByAssignee) return null;
-    const map = new Map<string, typeof filteredTasks>();
-    for (const task of filteredTasks) {
-      const list = map.get(task.assigneeId) ?? [];
-      list.push(task);
-      map.set(task.assigneeId, list);
-    }
-    return map;
-  }, [filteredTasks, groupByAssignee]);
+  const pending = filteredTasks.filter((t) => !t.completed);
+  const completed = filteredTasks.filter((t) => t.completed);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveTask(filteredTasks.find((t) => t.id === String(event.active.id)) ?? null);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveTask(null);
+    const { active, over } = event;
+    if (!over) return;
+    const task = filteredTasks.find((t) => t.id === String(active.id));
+    if (!task) return;
+    const nextColumn = String(over.id) as TaskColumnKey;
+    const shouldBeCompleted = nextColumn === "completed";
+    if (task.completed !== shouldBeCompleted) tasksStore.toggleComplete(task.id);
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -99,29 +90,9 @@ export function TasksTab() {
             ))}
           </div>
 
-          <div className="h-5 w-px bg-grey-100" />
-
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-lg border border-grey-100 bg-card px-3 py-1.5 text-sm font-body font-medium text-grey-700 transition-colors hover:bg-light-600">
-              {statusOptions.find((o) => o.value === status)?.label}
-              <ChevronDown className="h-3.5 w-3.5 text-grey-400" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-40">
-              <DropdownMenuRadioGroup
-                value={status}
-                onValueChange={(value) => setStatus(value as StatusFilter)}
-              >
-                {statusOptions.map((option) => (
-                  <DropdownMenuRadioItem key={option.value} value={option.value}>
-                    {option.label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           {canSeeAll && scope === "all" && (
             <>
+              <div className="h-5 w-px bg-grey-100" />
               <select
                 value={assigneeFilter}
                 onChange={(e) => setAssigneeFilter(e.target.value)}
@@ -138,16 +109,6 @@ export function TasksTab() {
                     </option>
                   ))}
               </select>
-
-              <label className="flex items-center gap-2 text-sm font-body text-grey-500">
-                <input
-                  type="checkbox"
-                  checked={groupByAssignee}
-                  onChange={(e) => setGroupByAssignee(e.target.checked)}
-                  className="h-3.5 w-3.5 accent-primary"
-                />
-                Group by assignee
-              </label>
             </>
           )}
         </div>
@@ -158,36 +119,14 @@ export function TasksTab() {
         </Button>
       </div>
 
-      {filteredTasks.length === 0 ? (
-        <EmptyState
-          icon={ListTodo}
-          message={
-            status === "completed"
-              ? "No completed tasks yet."
-              : "No tasks here. Create one to get started."
-          }
-          cta={{ label: "Create Task", onClick: () => setFormOpen(true) }}
-        />
-      ) : grouped ? (
-        <div className="flex flex-col gap-4">
-          {[...grouped.entries()].map(([assigneeId, tasks]) => (
-            <div key={assigneeId} className="flex flex-col gap-2">
-              <span className="text-xs font-body font-medium uppercase tracking-wide text-grey-400">
-                {users.find((u) => u.id === assigneeId)?.name ?? "Unknown"} · <span className="font-number">{tasks.length}</span>
-              </span>
-              {tasks.map((task) => (
-                <TaskRow key={task.id} task={task} />
-              ))}
-            </div>
-          ))}
+      <DndContext id="tasks-kanban" sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="flex gap-3 overflow-x-auto scrollbar-thin pb-2">
+          <TaskKanbanColumn columnKey="pending" label="Pending" dotClassName="bg-warning" tasks={pending} />
+          <TaskKanbanColumn columnKey="completed" label="Completed" dotClassName="bg-success" tasks={completed} />
         </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {filteredTasks.map((task) => (
-            <TaskRow key={task.id} task={task} />
-          ))}
-        </div>
-      )}
+
+        <DragOverlay>{activeTask && <TaskCard task={activeTask} overlay />}</DragOverlay>
+      </DndContext>
 
       <TaskFormDialog open={formOpen} onOpenChange={setFormOpen} />
     </div>
