@@ -3,9 +3,12 @@
 import { useMemo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Copy, X, ChevronDown, ChevronRight } from "lucide-react";
+import { GripVertical, Copy, X, ChevronDown, ChevronRight, Check, Plus } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useHardwarePriceItems } from "@/lib/store/pricing-list-store";
@@ -275,20 +278,12 @@ export function UnitTypeHardwareRow({
         </div>
 
         <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-3">
-          <Label htmlFor={`hw-desc-${value.id}`}>Description</Label>
-          <select
-            id={`hw-desc-${value.id}`}
+          <Label>Description</Label>
+          <DescriptionCombobox
             value={value.description ?? ""}
-            onChange={(e) => handleDescriptionChange(e.target.value)}
-            className="w-full rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
-          >
-            <option value="">Select description</option>
-            {descriptionOptions.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
+            options={descriptionOptions}
+            onChange={handleDescriptionChange}
+          />
         </div>
 
         <div className="flex flex-col gap-1.5 lg:col-start-1">
@@ -377,5 +372,148 @@ export function UnitTypeHardwareRow({
         }}
       />
     </div>
+  );
+}
+
+// Same search + list + "Add new" popover as MaterialReferenceSelect, but for
+// Description — which isn't a Material Library category, just a distinct
+// string pulled from the Hardware Price List (see the note atop this file).
+// "Add new" is always pinned at the bottom (like "+Add new category") and
+// opens a small dialog rather than accepting the search box's text directly.
+function DescriptionCombobox({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const filtered = options.filter((o) => o.toLowerCase().includes(query.toLowerCase()));
+
+  return (
+    <>
+      <Popover
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setQuery("");
+        }}
+      >
+        <PopoverTrigger className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary">
+          <span className="min-w-0 truncate">
+            {value || <span className="text-grey-400">Select description</span>}
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-80 p-2">
+          <Input
+            autoFocus
+            placeholder="Search description"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="mb-2"
+          />
+          <div className="flex max-h-52 flex-col overflow-y-auto">
+            {filtered.map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => {
+                  onChange(d);
+                  setOpen(false);
+                  setQuery("");
+                }}
+                className={cn(
+                  "flex w-full min-w-0 items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body hover:bg-light-600",
+                  d === value ? "text-primary" : "text-grey-800"
+                )}
+              >
+                <span className="min-w-0 truncate">{d}</span>
+                {d === value && <Check className="h-3.5 w-3.5 shrink-0" />}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <span className="px-2 py-1.5 text-sm font-body text-grey-400">No matches</span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setQuery("");
+              setAddOpen(true);
+            }}
+            className="mt-1 flex items-center gap-1.5 rounded-md border-t border-grey-100 px-2 py-2 text-left text-sm font-body font-medium text-primary hover:bg-light-600"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add new description
+          </button>
+        </PopoverContent>
+      </Popover>
+
+      <AddDescriptionDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onSubmit={(name) => onChange(name)}
+      />
+    </>
+  );
+}
+
+function AddDescriptionDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (name: string) => void;
+}) {
+  const [name, setName] = useState("");
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange(next);
+        if (!next) setName("");
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Description</DialogTitle>
+          <DialogDescription>Add a new description option.</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="new-hw-description">Name *</Label>
+          <Input
+            id="new-hw-description"
+            autoFocus
+            placeholder="e.g. Profile Handle — Aluminium"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            disabled={!name.trim()}
+            onClick={() => {
+              onSubmit(name.trim());
+              onOpenChange(false);
+            }}
+          >
+            Add
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
