@@ -321,7 +321,7 @@ export function QuoteCabinetGroup({
                   type="number"
                   value={cabinet[key] ?? fallback ?? ""}
                   onChange={(e) => onChange({ [key]: Number(e.target.value) })}
-                  className="h-7 w-16 bg-card text-sm font-number"
+                  className="h-7 w-16 bg-card text-sm font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
               </div>
             );
@@ -333,7 +333,7 @@ export function QuoteCabinetGroup({
               min={1}
               value={cabinet.carcassQty ?? unit.qty ?? ""}
               onChange={(e) => onChange({ carcassQty: Number(e.target.value) })}
-              className="h-7 w-14 bg-card text-sm font-number"
+              className="h-7 w-14 bg-card text-sm font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
           </div>
         </div>
