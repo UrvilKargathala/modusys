@@ -464,7 +464,7 @@ export function MessageBubble({
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-transparent text-xs font-medium text-primary">
         {sender?.name?.[0] ?? "?"}
       </span>
-      <div className={cn("flex max-w-[75%] flex-col gap-0.5", isSelf ? "items-end" : "items-start")}>
+      <div className={cn("flex min-w-0 max-w-[75%] flex-col gap-0.5", isSelf ? "items-end" : "items-start")}>
         <div className={cn("flex items-center gap-1", isSelf && "flex-row-reverse")}>
           <span className="text-xs font-body font-medium text-grey-500">{sender?.name ?? "Unknown"}</span>
           <MessageActions
@@ -603,7 +603,7 @@ function PdfBubble({ message }: { message: CustomerMessage }) {
           <FileText className="h-4 w-4" />
         </span>
         <span className="flex min-w-0 flex-col">
-          <span className="truncate text-sm font-body font-medium">{message.pdfName ?? "Document.pdf"}</span>
+          <span className="line-clamp-2 break-all text-sm font-body font-medium">{message.pdfName ?? "Document.pdf"}</span>
           <span className="text-[11px] font-body text-grey-500">{sizeLabel}</span>
         </span>
       </button>
