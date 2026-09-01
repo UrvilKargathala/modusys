@@ -15,15 +15,12 @@ import type { MaterialItem } from "@/lib/mock/material-spec";
 import type { Customer } from "@/lib/mock/pipeline";
 import {
   carcassUnitFor,
-  cabinetTotal,
   furnitureLineTotal,
   effectiveFurnitureRate,
   effectiveHardwareRate,
-  hardwareLineTotal,
   evaluateFormula,
   SQMM_PER_SQFT,
 } from "@/lib/quote-pricing";
-import { rateAfterDiscount } from "@/lib/mock/pricing-list";
 
 const CUT_LIST_HEADER = [
   "NO", "NAME", "W", "D", "H", "QTY", "DESIGN TYPE", "MATERIAL", "REMARK",
@@ -92,8 +89,22 @@ function cabinetPieces(cabinet: QuoteCabinet): FurnitureLineItem[] {
   return [...cabinet.components, ...cabinet.externalFinishes, ...cabinet.panels];
 }
 
-function cutListRows(quote: Quote, deps: Deps, mode: "manufacturing" | "po"): (string | number)[][] {
+// A blank row with a label + total pinned to the end, sized to whichever
+// header it's appended under.
+function finalAmountRow(total: number, columnCount: number): (string | number)[] {
+  const row = new Array(columnCount).fill("");
+  row[1] = "FINAL AMOUNT";
+  row[columnCount - 1] = Number(total.toFixed(2));
+  return row;
+}
+
+// Manufacturing: every cabinet's carcass row followed immediately by its own
+// piece rows (components/shutter/other panel) — the carcass row's Amount is
+// the sum of just those pieces (not cabinetTotal, which also folds in
+// hardware that this sheet never lists), so the two stay reconcilable.
+function manufacturingRows(quote: Quote, deps: Deps): (string | number)[][] {
   const rows: (string | number)[][] = [];
+  let grandTotal = 0;
   quote.units.forEach((unit, unitIdx) => {
     const no = unitIdx + 1;
     const unitType = deps.unitTypes.find((t) => t.id === unit.unitTypeId);
@@ -107,14 +118,13 @@ function cutListRows(quote: Quote, deps: Deps, mode: "manufacturing" | "po"): (s
         const h = evaluateFormula(p.heightFormula, { W: unit.width, D: unit.depth, H: unit.height });
         return sum + (w * h * p.qty) / SQMM_PER_SQFT;
       }, 0);
+      const piecesTotal = pieces.reduce((sum, p) => sum + furnitureLineTotal(p, unit, deps.furnitureItems), 0);
+      grandTotal += piecesTotal;
       rows.push([
         no, cabinetType?.name ?? "—", carcass.width, carcass.depth, carcass.height, carcass.qty,
         designType, "—", "—", "—", "—", "—", "—", "—", "—",
-        Number(totalSqft.toFixed(3)), "—", Number(cabinetTotal(cabinet, unit, deps.furnitureItems, deps.hardwareItems).toFixed(2)),
+        Number(totalSqft.toFixed(3)), "—", Number(piecesTotal.toFixed(2)),
       ]);
-      // PO is board procurement only — one rollup row per cabinet, no
-      // individual piece breakdown.
-      if (mode === "po") return;
       pieces.forEach((p, i) => {
         const r = pieceRow(p, `PANEL-${no}.${i + 1}`, unit, deps);
         rows.push([
@@ -124,34 +134,102 @@ function cutListRows(quote: Quote, deps: Deps, mode: "manufacturing" | "po"): (s
       });
     });
   });
+  rows.push(finalAmountRow(grandTotal, CUT_LIST_HEADER.length));
   return rows;
 }
 
-function hardwareRows(quote: Quote, deps: Deps): (string | number)[][] {
+// PO: just the Shutter (external finish) and Other Panel line items across
+// every cabinet — no carcass rollup, no components — followed by the total.
+function poRows(quote: Quote, deps: Deps): (string | number)[][] {
   const rows: (string | number)[][] = [];
+  let grandTotal = 0;
+  quote.units.forEach((unit, unitIdx) => {
+    const no = unitIdx + 1;
+    const unitType = deps.unitTypes.find((t) => t.id === unit.unitTypeId);
+    const designType = unitType?.shortCode ?? "—";
+    unit.cabinets.forEach((cabinet) => {
+      const items = [...cabinet.externalFinishes, ...cabinet.panels];
+      items.forEach((p, i) => {
+        const r = pieceRow(p, `PANEL-${no}.${i + 1}`, unit, deps);
+        grandTotal += Number(r.amount);
+        rows.push([
+          r.label, r.name, r.w, r.d, r.h, r.qty, designType, r.material, "—",
+          r.inColour, r.exColour, "—", "—", "—", "—", r.sqft, r.rate, r.amount,
+        ]);
+      });
+    });
+  });
+  rows.push(finalAmountRow(grandTotal, CUT_LIST_HEADER.length));
+  return rows;
+}
+
+// Same hardware line (same Hardware Price List SKU, or same
+// category/brand/description/article-no combo when it isn't pinned to one)
+// used across multiple cabinets collapses into a single row — quantities
+// sum and the description gets an "xN" suffix, matching how a consolidated
+// hardware BOM is normally read.
+function hardwareRows(quote: Quote, deps: Deps): (string | number)[][] {
+  type Group = {
+    category: string; brand: string; description: string; articleNo: string;
+    unit: string; qty: number; mrp: number; discountPct: number; rate: number;
+  };
+  const groups = new Map<string, Group>();
+
   quote.units.forEach((unit) => {
     unit.cabinets.forEach((cabinet) => {
       cabinet.hardware.forEach((item: UnitTypeHardware) => {
         const matched = deps.hardwareItems.find((h) => h.id === item.hardwareItemId);
         const brandId = item.brandId ?? matched?.brandId;
         const categoryId = item.categoryId ?? matched?.categoryId;
-        const qty = evaluateFormula(item.qtyFormula, { W: unit.width, D: unit.depth, H: unit.height });
-        const rate = effectiveHardwareRate(item, deps.hardwareItems);
-        rows.push([
-          nameOf(deps.hardwareCategories, categoryId),
-          nameOf(deps.brands, brandId),
-          item.description ?? matched?.description ?? "—",
-          item.articleNo ?? matched?.articleNo ?? "—",
-          nameOf(deps.unitOfMeasures, matched?.unitId),
-          Number.isFinite(qty) && qty > 0 ? qty : item.qtyFormula,
-          matched ? matched.mrp : "—",
-          matched ? matched.discountPct : "—",
-          rate !== undefined ? Number(rate.toFixed(2)) : "—",
-          Number(hardwareLineTotal(item, unit, deps.hardwareItems).toFixed(2)),
-        ]);
+        const rawQty = evaluateFormula(item.qtyFormula, { W: unit.width, D: unit.depth, H: unit.height });
+        // Unresolved formula (e.g. still "H/450" at Unit Type stage rather
+        // than a real Quote) can't be summed — count it as 1 rather than
+        // dropping it from the total.
+        const qty = Number.isFinite(rawQty) && rawQty > 0 ? rawQty : 1;
+        const rate = effectiveHardwareRate(item, deps.hardwareItems) ?? 0;
+        const description = item.description ?? matched?.description ?? "—";
+        const articleNo = item.articleNo ?? matched?.articleNo ?? "—";
+        const key = item.hardwareItemId || `${categoryId}|${brandId}|${description}|${articleNo}`;
+
+        const existing = groups.get(key);
+        if (existing) {
+          existing.qty += qty;
+        } else {
+          groups.set(key, {
+            category: nameOf(deps.hardwareCategories, categoryId),
+            brand: nameOf(deps.brands, brandId),
+            description,
+            articleNo,
+            unit: nameOf(deps.unitOfMeasures, matched?.unitId),
+            qty,
+            mrp: matched?.mrp ?? 0,
+            discountPct: matched?.discountPct ?? 0,
+            rate,
+          });
+        }
       });
     });
   });
+
+  const rows: (string | number)[][] = [];
+  let grandTotal = 0;
+  for (const g of groups.values()) {
+    const amount = g.rate * g.qty;
+    grandTotal += amount;
+    rows.push([
+      g.category,
+      g.brand,
+      g.qty > 1 ? `${g.description} x${g.qty}` : g.description,
+      g.articleNo,
+      g.unit,
+      g.qty,
+      g.mrp || "—",
+      g.discountPct || "—",
+      Number(g.rate.toFixed(2)),
+      Number(amount.toFixed(2)),
+    ]);
+  }
+  rows.push(finalAmountRow(grandTotal, HARDWARE_HEADER.length));
   return rows;
 }
 
@@ -183,8 +261,8 @@ export async function downloadQuoteExportZip(deps: Deps) {
   const { quote } = deps;
   const header = headerBlock(deps);
 
-  const manufacturingSheet = sheetFromRows(header, CUT_LIST_HEADER, cutListRows(quote, deps, "manufacturing"));
-  const poSheet = sheetFromRows(header, CUT_LIST_HEADER, cutListRows(quote, deps, "po"));
+  const manufacturingSheet = sheetFromRows(header, CUT_LIST_HEADER, manufacturingRows(quote, deps));
+  const poSheet = sheetFromRows(header, CUT_LIST_HEADER, poRows(quote, deps));
   const hardwareSheet = sheetFromRows(
     [...header, ["CONSOLIDATED HARDWARE LIST"], []],
     HARDWARE_HEADER,
