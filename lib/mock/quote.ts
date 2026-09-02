@@ -76,6 +76,7 @@ export type FinishOption = {
   externalColourId: string;    // Material Library → external-colour
   tandemDrawerTypeId: string;  // Material Specification → tandem-drawer-type
   price: number;
+  remarks?: string;
 };
 
 export function blankQuoteUnit(): QuoteUnit {

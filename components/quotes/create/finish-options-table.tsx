@@ -23,6 +23,33 @@ function newOption(): FinishOption {
   };
 }
 
+// Controlled inputs that reformat their value on every keystroke fight the
+// caret and block typing. Keep the raw string while focused; format to
+// en-IN 2-decimal only on blur.
+function PriceInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const formatted = value ? value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      placeholder="0"
+      value={draft ?? formatted}
+      onChange={(e) => {
+        const cleaned = e.target.value.replace(/[^\d.]/g, "");
+        const firstDot = cleaned.indexOf(".");
+        const normalized =
+          firstDot === -1 ? cleaned : cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, "");
+        setDraft(normalized);
+        onChange(normalized ? Number(normalized) : 0);
+      }}
+      onBlur={() => setDraft(null)}
+      className="w-32 font-number font-semibold"
+    />
+  );
+}
+
 export function FinishOptionsTable({
   options,
   onChange,
@@ -68,6 +95,9 @@ export function FinishOptionsTable({
               <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
                 Price
               </th>
+              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
+                Remarks
+              </th>
               <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-bold uppercase tracking-wide text-grey-900">
                 Actions
               </th>
@@ -76,7 +106,7 @@ export function FinishOptionsTable({
           <tbody>
             {options.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-sm font-body text-grey-400">
+                <td colSpan={5} className="px-4 py-8 text-center text-sm font-body text-grey-400">
                   No options yet. Click &quot;+ Add Option&quot; to add one.
                 </td>
               </tr>
@@ -109,23 +139,15 @@ export function FinishOptionsTable({
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
+                    <PriceInput value={row.price} onChange={(price) => update(row.id, { price })} />
+                  </td>
+                  <td className="px-4 py-3">
                     <Input
                       type="text"
-                      inputMode="decimal"
-                      placeholder="0"
-                      value={
-                        row.price
-                          ? row.price.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : ""
-                      }
-                      onChange={(e) => {
-                        const cleaned = e.target.value.replace(/[^\d.]/g, "");
-                        const firstDot = cleaned.indexOf(".");
-                        const normalized =
-                          firstDot === -1 ? cleaned : cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, "");
-                        update(row.id, { price: normalized ? Number(normalized) : 0 });
-                      }}
-                      className="w-32 font-number font-semibold"
+                      placeholder="Remarks"
+                      value={row.remarks ?? ""}
+                      onChange={(e) => update(row.id, { remarks: e.target.value })}
+                      className="min-w-40 font-body"
                     />
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
