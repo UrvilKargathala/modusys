@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
-import { Paperclip, Mic, Square, Send, AlertCircle, X, Reply } from "lucide-react";
+import { Paperclip, Mic, Square, Send, AlertCircle, X, Reply, FileText } from "lucide-react";
 import { MentionDropdown } from "@/components/crm/pipeline/customer-panel/mention-dropdown";
 import { customerMessagesStore, type CustomerMessage } from "@/lib/store/customer-messages-store";
 import { customerMediaStore } from "@/lib/store/customer-media-store";
@@ -32,10 +32,11 @@ export const MessageInput = forwardRef<MessageInputHandle, {
   const [recording, setRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [micError, setMicError] = useState<string | null>(null);
-  // Picked images held in state until the user hits Send (WhatsApp-style
-  // batch preview + optional caption). PDFs/other files still send
-  // immediately as separate messages.
+  // Picked images/PDFs held in state until the user hits Send (WhatsApp-style
+  // batch preview + optional caption) — this is what makes drag-and-drop and
+  // the paperclip picker "stage" a file instead of firing it off instantly.
   const [pendingImages, setPendingImages] = useState<{ file: File; url: string }[]>([]);
+  const [pendingPdfs, setPendingPdfs] = useState<{ file: File; url: string }[]>([]);
   // NOTE: previously had a `useEffect(..., [pendingImages])` cleanup that
   // revoked blob URLs — but the cleanup fires BEFORE the next effect runs
   // on every state change, so adding a 2nd image revoked the 1st's URL
@@ -80,20 +81,26 @@ export const MessageInput = forwardRef<MessageInputHandle, {
   };
 
   const send = () => {
-    // Priority: if user has pending images, send them as a group (with the
-    // typed text as caption). Otherwise send a plain text message.
-    if (pendingImages.length > 0) {
-      customerMessagesStore.addImageGroupMessage(
-        customerId,
-        CURRENT_USER_ID,
-        pendingImages.map((p) => p.file),
-        text.trim() || undefined
-      );
+    // Priority: if user has pending images/PDFs staged, send those (images
+    // as a group with the typed text as caption; PDFs one message each).
+    // Otherwise send a plain text message.
+    if (pendingImages.length > 0 || pendingPdfs.length > 0) {
+      if (pendingImages.length > 0) {
+        customerMessagesStore.addImageGroupMessage(
+          customerId,
+          CURRENT_USER_ID,
+          pendingImages.map((p) => p.file),
+          text.trim() || undefined
+        );
+      }
+      pendingPdfs.forEach((p) => customerMessagesStore.addPdfMessage(customerId, CURRENT_USER_ID, p.file));
       // The store creates its OWN blob URLs for the optimistic preview, so
       // it's safe to revoke ours here without breaking the just-inserted
       // optimistic message.
       pendingImages.forEach((p) => URL.revokeObjectURL(p.url));
+      pendingPdfs.forEach((p) => URL.revokeObjectURL(p.url));
       setPendingImages([]);
+      setPendingPdfs([]);
       setText("");
       setMentionedIds([]);
       onClearReply?.();
@@ -116,15 +123,17 @@ export const MessageInput = forwardRef<MessageInputHandle, {
   const handleAttach = async (files: FileList | null) => {
     if (!files) return;
     if (files.length === 0) return;
-    // Split: batch images to send as a gallery, PDFs/other still send one
-    // message per file (existing behaviour).
+    // Stage images and PDFs for review (WhatsApp-style: pick/drop ≠ send).
+    // Anything else still sends immediately as a plain text mention of the
+    // filename — there's no preview UI for arbitrary file types yet.
     const images: File[] = [];
+    const pdfs: File[] = [];
     for (const file of Array.from(files)) {
       customerMediaStore.addFile(customerId, file);
       if (file.type.startsWith("image/")) {
         images.push(file);
       } else if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
-        customerMessagesStore.addPdfMessage(customerId, CURRENT_USER_ID, file);
+        pdfs.push(file);
       } else {
         customerMessagesStore.sendMessage(customerId, `Shared a file: ${file.name}`, CURRENT_USER_ID, []);
       }
@@ -134,8 +143,14 @@ export const MessageInput = forwardRef<MessageInputHandle, {
         ...prev,
         ...images.map((file) => ({ file, url: URL.createObjectURL(file) })),
       ]);
-      textareaRef.current?.focus();
     }
+    if (pdfs.length > 0) {
+      setPendingPdfs((prev) => [
+        ...prev,
+        ...pdfs.map((file) => ({ file, url: URL.createObjectURL(file) })),
+      ]);
+    }
+    if (images.length > 0 || pdfs.length > 0) textareaRef.current?.focus();
   };
 
   useImperativeHandle(ref, () => ({
@@ -144,6 +159,15 @@ export const MessageInput = forwardRef<MessageInputHandle, {
 
   const removePending = (index: number) => {
     setPendingImages((prev) => {
+      const next = [...prev];
+      const [removed] = next.splice(index, 1);
+      if (removed) URL.revokeObjectURL(removed.url);
+      return next;
+    });
+  };
+
+  const removePendingPdf = (index: number) => {
+    setPendingPdfs((prev) => {
       const next = [...prev];
       const [removed] = next.splice(index, 1);
       if (removed) URL.revokeObjectURL(removed.url);
@@ -251,6 +275,25 @@ export const MessageInput = forwardRef<MessageInputHandle, {
         </div>
       )}
 
+      {pendingPdfs.length > 0 && (
+        <div className="flex flex-wrap gap-2 rounded-md bg-light-600/60 p-2">
+          {pendingPdfs.map((p, i) => (
+            <div key={p.url} className="group relative flex items-center gap-1.5 rounded-md bg-card px-2 py-1.5 pr-6 shadow-sm">
+              <FileText className="h-4 w-4 shrink-0 text-error" />
+              <span className="max-w-40 truncate text-xs font-body text-grey-700">{p.file.name}</span>
+              <button
+                type="button"
+                onClick={() => removePendingPdf(i)}
+                aria-label={`Remove ${p.file.name}`}
+                className="absolute right-1 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-grey-900 text-white opacity-0 shadow group-hover:opacity-100"
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {recording ? (
         <div className="flex items-center gap-3 rounded-lg bg-error-transparent px-3 py-2">
           <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-error" />
@@ -302,9 +345,9 @@ export const MessageInput = forwardRef<MessageInputHandle, {
                 send();
               }
             }}
-            placeholder={pendingImages.length > 0 ? "Add a caption (optional)…" : "Message... use @ to mention"}
+            placeholder={pendingImages.length > 0 || pendingPdfs.length > 0 ? "Add a caption (optional)…" : "Message... use @ to mention"}
             rows={1}
-            className="max-h-32 min-h-9 flex-1 resize-none overflow-hidden rounded-2xl border border-grey-100 bg-light-600/60 px-3 py-2 text-sm font-body text-grey-900 outline-none placeholder:truncate placeholder:text-grey-300 focus:border-primary"
+            className="max-h-32 min-h-9 flex-1 resize-none overflow-y-auto rounded-2xl border border-grey-100 bg-light-600/60 px-3 py-2 text-sm font-body text-grey-900 outline-none placeholder:truncate placeholder:text-grey-300 focus:border-primary"
           />
 
           <button
@@ -319,11 +362,11 @@ export const MessageInput = forwardRef<MessageInputHandle, {
           <button
             type="button"
             onClick={send}
-            disabled={!text.trim() && pendingImages.length === 0}
+            disabled={!text.trim() && pendingImages.length === 0 && pendingPdfs.length === 0}
             aria-label="Send message"
             className={cn(
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors",
-              text.trim() || pendingImages.length > 0
+              text.trim() || pendingImages.length > 0 || pendingPdfs.length > 0
                 ? "bg-teal text-grey-900 hover:bg-teal/80"
                 : "bg-grey-100 text-grey-300"
             )}
