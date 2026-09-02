@@ -23,7 +23,7 @@ import {
 } from "@/lib/quote-pricing";
 
 const CUT_LIST_HEADER = [
-  "NO", "NAME", "W", "D", "H", "QTY", "DESIGN TYPE", "MATERIAL", "REMARK",
+  "NO", "NAME", "Width", "Depth", "Height", "QTY", "DESIGN TYPE", "MATERIAL", "REMARK",
   "IN.COLOUR", "EX.COLOUR", "FRONT EDGE", "BACK EDGE", "TOP EDGE", "BOTTOM EDGE",
   "SQFT", "RATE", "AMOUNT",
 ];
@@ -85,10 +85,6 @@ function pieceRow(
   };
 }
 
-function cabinetPieces(cabinet: QuoteCabinet): FurnitureLineItem[] {
-  return [...cabinet.components, ...cabinet.externalFinishes, ...cabinet.panels];
-}
-
 // A blank row with a label + total pinned to the end, sized to whichever
 // header it's appended under.
 function finalAmountRow(total: number, columnCount: number): (string | number)[] {
@@ -98,68 +94,156 @@ function finalAmountRow(total: number, columnCount: number): (string | number)[]
   return row;
 }
 
-// Manufacturing: every cabinet's carcass row followed immediately by its own
-// piece rows (components/shutter/other panel) — the carcass row's Amount is
-// the sum of just those pieces (not cabinetTotal, which also folds in
-// hardware that this sheet never lists), so the two stay reconcilable.
-function manufacturingRows(quote: Quote, deps: Deps): (string | number)[][] {
-  const rows: (string | number)[][] = [];
-  let grandTotal = 0;
-  quote.units.forEach((unit, unitIdx) => {
-    const no = unitIdx + 1;
+// Same as finalAmountRow but also carries a Total sqft figure — matches the
+// business's own Manufacturing/PO template, which shows both under every
+// section (Total-A/B/C, and the sheet's grand Total).
+function totalRow(label: string, sqft: number, amount: number, columnCount: number): (string | number)[] {
+  const row = new Array(columnCount).fill("");
+  row[1] = label;
+  row[columnCount - 3] = Number(sqft.toFixed(3)); // SQFT column
+  row[columnCount - 1] = Number(amount.toFixed(2)); // AMOUNT column
+  return row;
+}
+
+type CabinetCtx = { no: number; unit: QuoteUnit; cabinet: QuoteCabinet; designType: string };
+
+// One running number across every unit's every cabinet (1, 2, 3…) — the
+// template numbers cabinets globally, not per-unit.
+function orderedCabinets(quote: Quote, deps: Deps): CabinetCtx[] {
+  const list: CabinetCtx[] = [];
+  quote.units.forEach((unit) => {
     const unitType = deps.unitTypes.find((t) => t.id === unit.unitTypeId);
     const designType = unitType?.shortCode ?? "—";
     unit.cabinets.forEach((cabinet) => {
-      const cabinetType = deps.cabinetTypes.find((c) => c.id === cabinet.cabinetTypeId);
-      const carcass = carcassUnitFor(cabinet, unit);
-      const pieces = cabinetPieces(cabinet);
-      const totalSqft = pieces.reduce((sum, p) => {
-        const w = evaluateFormula(p.widthFormula, { W: unit.width, D: unit.depth, H: unit.height });
-        const h = evaluateFormula(p.heightFormula, { W: unit.width, D: unit.depth, H: unit.height });
-        return sum + (w * h * p.qty) / SQMM_PER_SQFT;
-      }, 0);
-      const piecesTotal = pieces.reduce((sum, p) => sum + furnitureLineTotal(p, unit, deps.furnitureItems), 0);
-      grandTotal += piecesTotal;
-      rows.push([
-        no, cabinetType?.name ?? "—", carcass.width, carcass.depth, carcass.height, carcass.qty,
-        designType, "—", "—", "—", "—", "—", "—", "—", "—",
-        Number(totalSqft.toFixed(3)), "—", Number(piecesTotal.toFixed(2)),
-      ]);
-      pieces.forEach((p, i) => {
-        const r = pieceRow(p, `PANEL-${no}.${i + 1}`, unit, deps);
-        rows.push([
-          r.label, r.name, r.w, r.d, r.h, r.qty, designType, r.material, "—",
-          r.inColour, r.exColour, "—", "—", "—", "—", r.sqft, r.rate, r.amount,
-        ]);
-      });
+      list.push({ no: list.length + 1, unit, cabinet, designType });
     });
   });
-  rows.push(finalAmountRow(grandTotal, CUT_LIST_HEADER.length));
+  return list;
+}
+
+function sumPieces(pieces: FurnitureLineItem[], unitDims: { width: number; depth: number; height: number }, furnitureItems: FurniturePriceItem[]) {
+  let sqft = 0;
+  let amount = 0;
+  for (const p of pieces) {
+    const w = evaluateFormula(p.widthFormula, { W: unitDims.width, D: unitDims.depth, H: unitDims.height });
+    const h = evaluateFormula(p.heightFormula, { W: unitDims.width, D: unitDims.depth, H: unitDims.height });
+    sqft += (w * h * p.qty) / SQMM_PER_SQFT;
+    amount += furnitureLineTotal(p, unitDims, furnitureItems);
+  }
+  return { sqft, amount };
+}
+
+function pieceRows(pieces: FurnitureLineItem[], no: number, designType: string, unitDims: { width: number; depth: number; height: number }, deps: Deps): (string | number)[][] {
+  return pieces.map((p, i) => {
+    const r = pieceRow(p, `${no}.${String(i + 1).padStart(2, "0")}`, unitDims, deps);
+    return [
+      r.label, r.name, r.w, r.d, r.h, r.qty, designType, r.material, "—",
+      r.inColour, r.exColour, "—", "—", "—", "—", r.sqft, r.rate, r.amount,
+    ];
+  });
+}
+
+function carcassRow(ctx: CabinetCtx, deps: Deps, sqft: number, amount: number): (string | number)[] {
+  const carcass = carcassUnitFor(ctx.cabinet, ctx.unit);
+  const cabinetType = deps.cabinetTypes.find((c) => c.id === ctx.cabinet.cabinetTypeId);
+  return [
+    ctx.no, cabinetType?.name ?? "—", carcass.width, carcass.depth, carcass.height, carcass.qty,
+    ctx.designType, "—", "—", "—", "—", "—", "—", "—", "—",
+    Number(sqft.toFixed(3)), "—", Number(amount.toFixed(2)),
+  ];
+}
+
+// Manufacturing: matches the business's own template — Carcass+Components
+// for every cabinet, then (if any) every cabinet's Shutter items as one
+// block, then every cabinet's Other Panel items as one block, each block
+// separated by a blank row, ending in a single grand Total row. The carcass
+// row's own Amount is the sum of just its components (not cabinetTotal,
+// which also folds in hardware that this sheet never lists).
+function manufacturingRows(quote: Quote, deps: Deps): (string | number)[][] {
+  const cabinets = orderedCabinets(quote, deps);
+  const rows: (string | number)[][] = [];
+  let grandSqft = 0;
+  let grandAmount = 0;
+
+  cabinets.forEach((ctx) => {
+    const { sqft, amount } = sumPieces(ctx.cabinet.components, ctx.unit, deps.furnitureItems);
+    rows.push(carcassRow(ctx, deps, sqft, amount));
+    rows.push(...pieceRows(ctx.cabinet.components, ctx.no, ctx.designType, ctx.unit, deps));
+    grandSqft += sqft;
+    grandAmount += amount;
+  });
+
+  const shutterRows = cabinets.flatMap((ctx) => pieceRows(ctx.cabinet.externalFinishes, ctx.no, ctx.designType, ctx.unit, deps));
+  if (shutterRows.length) {
+    rows.push([]);
+    rows.push(...shutterRows);
+    cabinets.forEach((ctx) => {
+      const { sqft, amount } = sumPieces(ctx.cabinet.externalFinishes, ctx.unit, deps.furnitureItems);
+      grandSqft += sqft;
+      grandAmount += amount;
+    });
+  }
+
+  const panelRows = cabinets.flatMap((ctx) => pieceRows(ctx.cabinet.panels, ctx.no, ctx.designType, ctx.unit, deps));
+  if (panelRows.length) {
+    rows.push([]);
+    rows.push(...panelRows);
+    cabinets.forEach((ctx) => {
+      const { sqft, amount } = sumPieces(ctx.cabinet.panels, ctx.unit, deps.furnitureItems);
+      grandSqft += sqft;
+      grandAmount += amount;
+    });
+  }
+
+  rows.push([]);
+  rows.push(totalRow("Total", grandSqft, grandAmount, CUT_LIST_HEADER.length));
   return rows;
 }
 
-// PO: just the Shutter (external finish) and Other Panel line items across
-// every cabinet — no carcass rollup, no components — followed by the total.
+// PO: same 3-block layout as Manufacturing, but Section A lists just the
+// carcass header rows (no component detail) — and every block gets its own
+// Total-A/B/C subtotal, ending in a grand FINAL AMOUNT row.
 function poRows(quote: Quote, deps: Deps): (string | number)[][] {
+  const cabinets = orderedCabinets(quote, deps);
   const rows: (string | number)[][] = [];
-  let grandTotal = 0;
-  quote.units.forEach((unit, unitIdx) => {
-    const no = unitIdx + 1;
-    const unitType = deps.unitTypes.find((t) => t.id === unit.unitTypeId);
-    const designType = unitType?.shortCode ?? "—";
-    unit.cabinets.forEach((cabinet) => {
-      const items = [...cabinet.externalFinishes, ...cabinet.panels];
-      items.forEach((p, i) => {
-        const r = pieceRow(p, `PANEL-${no}.${i + 1}`, unit, deps);
-        grandTotal += Number(r.amount);
-        rows.push([
-          r.label, r.name, r.w, r.d, r.h, r.qty, designType, r.material, "—",
-          r.inColour, r.exColour, "—", "—", "—", "—", r.sqft, r.rate, r.amount,
-        ]);
-      });
-    });
+
+  let aSqft = 0, aAmount = 0;
+  cabinets.forEach((ctx) => {
+    const { sqft, amount } = sumPieces(ctx.cabinet.components, ctx.unit, deps.furnitureItems);
+    rows.push(carcassRow(ctx, deps, sqft, amount));
+    aSqft += sqft;
+    aAmount += amount;
   });
-  rows.push(finalAmountRow(grandTotal, CUT_LIST_HEADER.length));
+  rows.push(totalRow("Total-A", aSqft, aAmount, CUT_LIST_HEADER.length));
+
+  let bSqft = 0, bAmount = 0;
+  const shutterRows = cabinets.flatMap((ctx) => pieceRows(ctx.cabinet.externalFinishes, ctx.no, ctx.designType, ctx.unit, deps));
+  if (shutterRows.length) {
+    cabinets.forEach((ctx) => {
+      const { sqft, amount } = sumPieces(ctx.cabinet.externalFinishes, ctx.unit, deps.furnitureItems);
+      bSqft += sqft;
+      bAmount += amount;
+    });
+    rows.push([]);
+    rows.push(...shutterRows);
+    rows.push(totalRow("Total-B", bSqft, bAmount, CUT_LIST_HEADER.length));
+  }
+
+  let cSqft = 0, cAmount = 0;
+  const panelRows = cabinets.flatMap((ctx) => pieceRows(ctx.cabinet.panels, ctx.no, ctx.designType, ctx.unit, deps));
+  if (panelRows.length) {
+    cabinets.forEach((ctx) => {
+      const { sqft, amount } = sumPieces(ctx.cabinet.panels, ctx.unit, deps.furnitureItems);
+      cSqft += sqft;
+      cAmount += amount;
+    });
+    rows.push([]);
+    rows.push(...panelRows);
+    rows.push(totalRow("Total-C", cSqft, cAmount, CUT_LIST_HEADER.length));
+  }
+
+  rows.push([]);
+  rows.push(totalRow("FINAL AMOUNT", aSqft + bSqft + cSqft, aAmount + bAmount + cAmount, CUT_LIST_HEADER.length));
   return rows;
 }
 
