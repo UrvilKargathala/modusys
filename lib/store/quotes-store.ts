@@ -42,6 +42,28 @@ export function generateQuoteNumber(existing: Quote[], date = new Date()): strin
   return `${prefix}${pad(sameDay.length + 1, 2)}`;
 }
 
+// generateQuoteNumber counts unsaved quotes by their in-memory position, not
+// a persisted counter — two drafts opened the same day before either is
+// saved (two tabs, Create + Duplicate in quick succession) both count the
+// same "existing" list and land on the same number. Rather than guard every
+// call site, catch it once at the only place a number actually becomes
+// permanent: bump to the next free suffix if it would collide with another
+// quote at save time.
+function uniqueQuoteNumber(desired: string, existing: Quote[], excludeId: string): string {
+  const collides = (n: string) => existing.some((q) => q.quoteNumber === n && q.id !== excludeId);
+  if (!collides(desired)) return desired;
+  const match = desired.match(/^(.*-)(\d+)$/);
+  if (!match) return desired; // unrecognized format — leave it, nothing safe to bump
+  const [, prefix, digits] = match;
+  let n = Number(digits);
+  let candidate = desired;
+  while (collides(candidate)) {
+    n += 1;
+    candidate = `${prefix}${pad(n, digits.length)}`;
+  }
+  return candidate;
+}
+
 export const quotesStore = {
   subscribe(listener: () => void) {
     listeners.add(listener);
@@ -61,7 +83,8 @@ export const quotesStore = {
   saveQuote(quote: Quote) {
     ensureHydrated();
     const existingIndex = quotes.findIndex((q) => q.id === quote.id);
-    const updated = { ...quote, updatedAt: new Date().toISOString() };
+    const quoteNumber = uniqueQuoteNumber(quote.quoteNumber, quotes, quote.id);
+    const updated = { ...quote, quoteNumber, updatedAt: new Date().toISOString() };
     quotes = existingIndex >= 0 ? quotes.map((q, i) => (i === existingIndex ? updated : q)) : [updated, ...quotes];
     emit();
     // Upsert this single quote in the shared DB.

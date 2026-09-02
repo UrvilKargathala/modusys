@@ -107,8 +107,8 @@ export default function QuotesPage() {
       createdAt: now,
       updatedAt: now,
     };
-    quotesStore.saveQuote(copy);
-    toastStore.show(`Duplicated as ${copy.quoteNumber}`, "success");
+    const saved = quotesStore.saveQuote(copy);
+    toastStore.show(`Duplicated as ${saved.quoteNumber}`, "success");
   };
 
   const exportZip = (q: Quote) => {

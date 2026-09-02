@@ -111,8 +111,8 @@ function CreateQuotePage() {
       toastStore.show(`Required: ${missing.join(", ")}`, "error", { durationMs: 6000 });
       return;
     }
-    quotesStore.saveQuote(quote);
-    toastStore.show(`${quote.quoteNumber} saved`);
+    const saved = quotesStore.saveQuote(quote);
+    toastStore.show(`${saved.quoteNumber} saved`);
     router.push("/quotes");
   };
 
