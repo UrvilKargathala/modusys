@@ -404,7 +404,7 @@ function DescriptionCombobox({
         }}
       >
         <PopoverTrigger className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary">
-          <span className="min-w-0 truncate">
+          <span title={value || undefined} className="min-w-0 truncate">
             {value || <span className="text-grey-400">Select description</span>}
           </span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
@@ -432,7 +432,7 @@ function DescriptionCombobox({
                   d === value ? "text-primary" : "text-grey-800"
                 )}
               >
-                <span className="min-w-0 truncate">{d}</span>
+                <span title={d} className="min-w-0 truncate">{d}</span>
                 {d === value && <Check className="h-3.5 w-3.5 shrink-0" />}
               </button>
             ))}

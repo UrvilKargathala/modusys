@@ -53,7 +53,10 @@ export function MaterialReferenceSelect({
           )}
         >
           {selected ? (
-            <span className={cn("min-w-0 truncate font-number", bold && "font-semibold")}>
+            <span
+              title={nameOnly || !selected.description ? selected.name : `${selected.name} — ${selected.description}`}
+              className={cn("min-w-0 truncate font-number", bold && "font-semibold")}
+            >
               {selected.name}
               {!nameOnly && selected.description && <span className="text-grey-400"> — {selected.description}</span>}
             </span>
@@ -85,7 +88,10 @@ export function MaterialReferenceSelect({
                   i.id === value ? "text-primary" : "text-grey-800"
                 )}
               >
-                <span className="min-w-0 truncate font-number">
+                <span
+                  title={nameOnly || !i.description ? i.name : `${i.name} — ${i.description}`}
+                  className="min-w-0 truncate font-number"
+                >
                   {i.name}
                   {!nameOnly && i.description && <span className="text-grey-400"> — {i.description}</span>}
                 </span>
