@@ -28,16 +28,16 @@ const CUT_LIST_HEADER = [
   "SQFT", "RATE", "AMOUNT",
 ];
 
-// Manufacturing keeps the business's older short column labels (W/D/H) —
-// it's a distinct template from PO's, not just a relabeling of the same one.
-const MANUFACTURING_HEADER = [
+const HARDWARE_HEADER = [
+  "CATEGORY", "BRAND", "DESCRIPTION", "ARTICLE NO", "UNIT", "QTY", "MRP", "DISCOUNT %", "RATE", "AMOUNT",
+];
+
+// Unit Wise uses the business's older short column labels (W/D/H) — a
+// distinct 4th sheet, not a replacement for Manufacturing's own header.
+const UNIT_WISE_HEADER = [
   "NO", "NAME", "W", "D", "H", "QTY", "DESIGN TYPE", "MATERIAL", "REMARK",
   "IN.COLOUR", "EX.COLOUR", "FRONT EDGE", "BACK EDGE", "TOP EDGE", "BOTTOM EDGE",
   "SQFT", "RATE", "AMOUNT",
-];
-
-const HARDWARE_HEADER = [
-  "CATEGORY", "BRAND", "DESCRIPTION", "ARTICLE NO", "UNIT", "QTY", "MRP", "DISCOUNT %", "RATE", "AMOUNT",
 ];
 
 type Deps = {
@@ -141,24 +141,15 @@ function sumPieces(pieces: FurnitureLineItem[], unitDims: { width: number; depth
   return { sqft, amount };
 }
 
-function pieceRows(
-  pieces: FurnitureLineItem[],
-  labelFor: (index: number) => string,
-  designType: string,
-  unitDims: { width: number; depth: number; height: number },
-  deps: Deps
-): (string | number)[][] {
+function pieceRows(pieces: FurnitureLineItem[], no: number, designType: string, unitDims: { width: number; depth: number; height: number }, deps: Deps): (string | number)[][] {
   return pieces.map((p, i) => {
-    const r = pieceRow(p, labelFor(i), unitDims, deps);
+    const r = pieceRow(p, `${no}.${String(i + 1).padStart(2, "0")}`, unitDims, deps);
     return [
       r.label, r.name, r.w, r.d, r.h, r.qty, designType, r.material, "—",
       r.inColour, r.exColour, "—", "—", "—", "—", r.sqft, r.rate, r.amount,
     ];
   });
 }
-
-const poLabel = (no: number) => (i: number) => `${no}.${String(i + 1).padStart(2, "0")}`;
-const manufacturingLabel = (no: number) => (i: number) => `PANEL-${no}.${i + 1}`;
 
 function carcassRow(ctx: CabinetCtx, deps: Deps, sqft: number, amount: number): (string | number)[] {
   const carcass = carcassUnitFor(ctx.cabinet, ctx.unit);
@@ -170,22 +161,50 @@ function carcassRow(ctx: CabinetCtx, deps: Deps, sqft: number, amount: number): 
   ];
 }
 
-// Manufacturing ("Unit Wise_<QuoteNo>.xlsx"): one block per cabinet — the
-// carcass row, immediately followed by that cabinet's own pieces in
-// Carcass Components -> Shutter -> Other Panel order, labeled
-// "PANEL-<cabinet>.<n>". No grand total row — matches the business's
-// reference file, which doesn't carry one either.
+// Manufacturing: matches the business's own template — Carcass+Components
+// for every cabinet, then (if any) every cabinet's Shutter items as one
+// block, then every cabinet's Other Panel items as one block, each block
+// separated by a blank row, ending in a single grand Total row. The carcass
+// row's own Amount is the sum of just its components (not cabinetTotal,
+// which also folds in hardware that this sheet never lists).
 function manufacturingRows(quote: Quote, deps: Deps): (string | number)[][] {
   const cabinets = orderedCabinets(quote, deps);
   const rows: (string | number)[][] = [];
+  let grandSqft = 0;
+  let grandAmount = 0;
 
   cabinets.forEach((ctx) => {
-    const pieces = [...ctx.cabinet.components, ...ctx.cabinet.externalFinishes, ...ctx.cabinet.panels];
-    const { sqft, amount } = sumPieces(pieces, ctx.unit, deps.furnitureItems);
+    const { sqft, amount } = sumPieces(ctx.cabinet.components, ctx.unit, deps.furnitureItems);
     rows.push(carcassRow(ctx, deps, sqft, amount));
-    rows.push(...pieceRows(pieces, manufacturingLabel(ctx.no), ctx.designType, ctx.unit, deps));
+    rows.push(...pieceRows(ctx.cabinet.components, ctx.no, ctx.designType, ctx.unit, deps));
+    grandSqft += sqft;
+    grandAmount += amount;
   });
 
+  const shutterRows = cabinets.flatMap((ctx) => pieceRows(ctx.cabinet.externalFinishes, ctx.no, ctx.designType, ctx.unit, deps));
+  if (shutterRows.length) {
+    rows.push([]);
+    rows.push(...shutterRows);
+    cabinets.forEach((ctx) => {
+      const { sqft, amount } = sumPieces(ctx.cabinet.externalFinishes, ctx.unit, deps.furnitureItems);
+      grandSqft += sqft;
+      grandAmount += amount;
+    });
+  }
+
+  const panelRows = cabinets.flatMap((ctx) => pieceRows(ctx.cabinet.panels, ctx.no, ctx.designType, ctx.unit, deps));
+  if (panelRows.length) {
+    rows.push([]);
+    rows.push(...panelRows);
+    cabinets.forEach((ctx) => {
+      const { sqft, amount } = sumPieces(ctx.cabinet.panels, ctx.unit, deps.furnitureItems);
+      grandSqft += sqft;
+      grandAmount += amount;
+    });
+  }
+
+  rows.push([]);
+  rows.push(totalRow("Total", grandSqft, grandAmount, CUT_LIST_HEADER.length));
   return rows;
 }
 
@@ -206,7 +225,7 @@ function poRows(quote: Quote, deps: Deps): (string | number)[][] {
   rows.push(totalRow("Total-A", aSqft, aAmount, CUT_LIST_HEADER.length));
 
   let bSqft = 0, bAmount = 0;
-  const shutterRows = cabinets.flatMap((ctx) => pieceRows(ctx.cabinet.externalFinishes, poLabel(ctx.no), ctx.designType, ctx.unit, deps));
+  const shutterRows = cabinets.flatMap((ctx) => pieceRows(ctx.cabinet.externalFinishes, ctx.no, ctx.designType, ctx.unit, deps));
   if (shutterRows.length) {
     cabinets.forEach((ctx) => {
       const { sqft, amount } = sumPieces(ctx.cabinet.externalFinishes, ctx.unit, deps.furnitureItems);
@@ -219,7 +238,7 @@ function poRows(quote: Quote, deps: Deps): (string | number)[][] {
   }
 
   let cSqft = 0, cAmount = 0;
-  const panelRows = cabinets.flatMap((ctx) => pieceRows(ctx.cabinet.panels, poLabel(ctx.no), ctx.designType, ctx.unit, deps));
+  const panelRows = cabinets.flatMap((ctx) => pieceRows(ctx.cabinet.panels, ctx.no, ctx.designType, ctx.unit, deps));
   if (panelRows.length) {
     cabinets.forEach((ctx) => {
       const { sqft, amount } = sumPieces(ctx.cabinet.panels, ctx.unit, deps.furnitureItems);
@@ -233,6 +252,33 @@ function poRows(quote: Quote, deps: Deps): (string | number)[][] {
 
   rows.push([]);
   rows.push(totalRow("FINAL AMOUNT", aSqft + bSqft + cSqft, aAmount + bAmount + cAmount, CUT_LIST_HEADER.length));
+  return rows;
+}
+
+// Unit Wise ("Unit Wise_<QuoteNo>.xlsx"): a 4th sheet alongside Manufacturing/
+// PO/Hardware — one block per cabinet, the carcass row immediately followed
+// by that cabinet's own pieces in Components -> Shutter -> Other Panel
+// order, labeled "PANEL-<cabinet>.<n>". No grand total row (matches the
+// business's reference file, which doesn't carry one either).
+function unitWiseRows(quote: Quote, deps: Deps): (string | number)[][] {
+  const cabinets = orderedCabinets(quote, deps);
+  const rows: (string | number)[][] = [];
+
+  cabinets.forEach((ctx) => {
+    const pieces = [...ctx.cabinet.components, ...ctx.cabinet.externalFinishes, ...ctx.cabinet.panels];
+    const { sqft, amount } = sumPieces(pieces, ctx.unit, deps.furnitureItems);
+    rows.push(carcassRow(ctx, deps, sqft, amount));
+    rows.push(
+      ...pieces.map((p, i) => {
+        const r = pieceRow(p, `PANEL-${ctx.no}.${i + 1}`, ctx.unit, deps);
+        return [
+          r.label, r.name, r.w, r.d, r.h, r.qty, ctx.designType, r.material, "—",
+          r.inColour, r.exColour, "—", "—", "—", "—", r.sqft, r.rate, r.amount,
+        ];
+      })
+    );
+  });
+
   return rows;
 }
 
@@ -334,18 +380,20 @@ export async function downloadQuoteExportZip(deps: Deps) {
   const { quote } = deps;
   const header = headerBlock(deps);
 
-  const manufacturingSheet = sheetFromRows(header, MANUFACTURING_HEADER, manufacturingRows(quote, deps));
+  const manufacturingSheet = sheetFromRows(header, CUT_LIST_HEADER, manufacturingRows(quote, deps));
   const poSheet = sheetFromRows(header, CUT_LIST_HEADER, poRows(quote, deps));
   const hardwareSheet = sheetFromRows(
     [...header, ["CONSOLIDATED HARDWARE LIST"], []],
     HARDWARE_HEADER,
     hardwareRows(quote, deps)
   );
+  const unitWiseSheet = sheetFromRows(header, UNIT_WISE_HEADER, unitWiseRows(quote, deps));
 
   const zip = new JSZip();
-  zip.file(`Unit Wise_${quote.quoteNumber}.xlsx`, workbookBlob("Manufacturing", manufacturingSheet));
+  zip.file(`Manufacturing_${quote.quoteNumber}.xlsx`, workbookBlob("Manufacturing", manufacturingSheet));
   zip.file(`PO_${quote.quoteNumber}.xlsx`, workbookBlob("PO", poSheet));
   zip.file(`Hardware_${quote.quoteNumber}.xlsx`, workbookBlob("Hardware", hardwareSheet));
+  zip.file(`Unit Wise_${quote.quoteNumber}.xlsx`, workbookBlob("Manufacturing", unitWiseSheet));
 
   const blob = await zip.generateAsync({ type: "blob" });
   const url = URL.createObjectURL(blob);
