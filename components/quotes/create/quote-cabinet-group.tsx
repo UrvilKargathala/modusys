@@ -36,6 +36,15 @@ function blankHardware(): UnitTypeHardware {
   return { id: `qhw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, categoryId: "", hardwareItemId: "", qtyFormula: "1" };
 }
 
+function duplicateAt<T extends { id: string }>(items: T[], id: string, makeId: () => string): T[] {
+  const idx = items.findIndex((i) => i.id === id);
+  if (idx === -1) return items;
+  const copy = { ...items[idx], id: makeId() };
+  const next = [...items];
+  next.splice(idx + 1, 0, copy);
+  return next;
+}
+
 // One accent per group so a scanning eye can immediately tell Carcass from
 // Shutter from Other Panel without reading the header.
 const groupAccent = {
@@ -133,6 +142,7 @@ export function FurnitureGroup({
 
                     onChange={(patch) => onChange(items.map((i) => (i.id === item.id ? { ...i, ...patch } : i)))}
                     onRemove={() => onChange(items.filter((i) => i.id !== item.id))}
+                    onCopy={() => onChange(duplicateAt(items, item.id, () => `qli-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`))}
                   />
                 );
               })}
@@ -206,6 +216,7 @@ function HardwareGroup({
                   value={item}
                   onChange={(patch) => onChange(items.map((i) => (i.id === item.id ? { ...i, ...patch } : i)))}
                   onRemove={() => onChange(items.filter((i) => i.id !== item.id))}
+                  onCopy={() => onChange(duplicateAt(items, item.id, () => `qhw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`))}
                 />
               ))}
             </div>
