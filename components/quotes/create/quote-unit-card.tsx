@@ -24,7 +24,7 @@ import { UnitTypeFormDialog } from "@/components/templates/unit-type-form-dialog
 import { useUnitTypes, unitTypeStore } from "@/lib/store/unit-type-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
-import { cabinetTotal, unitTotal, resolveLineItemDimensions, resolveHardwareForUnit, findFurnitureMatch, isAluminiumProfileRawMaterial } from "@/lib/quote-pricing";
+import { cabinetTotal, unitTotal, unitSqFt, resolveLineItemDimensions, resolveHardwareForUnit, findFurnitureMatch, isAluminiumProfileRawMaterial } from "@/lib/quote-pricing";
 import type { QuoteUnit, QuoteCabinet } from "@/lib/mock/quote";
 import type { UnitType, FurnitureLineItem, UnitTypeHardware } from "@/lib/mock/unit-type";
 import { rateAfterDiscount, type FurniturePriceItem, type HardwarePriceItem } from "@/lib/mock/pricing-list";
@@ -274,6 +274,7 @@ export function QuoteUnitCard({
   };
 
   const total = unitTotal(unit, furnitureItems, hardwareItems);
+  const totalSqFt = unitSqFt(unit);
 
   return (
     <div
@@ -362,6 +363,7 @@ export function QuoteUnitCard({
 
         <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
           <div className="flex items-center justify-end gap-3">
+            <span className="text-sm font-body text-grey-500">Total: <span className="font-number">{totalSqFt.toFixed(2)} sq.ft</span></span>
             <span className="text-sm font-body font-semibold text-grey-900">Amount: <span className="font-number">₹{total.toFixed(2)}</span></span>
             <button
               type="button"

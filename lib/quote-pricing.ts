@@ -157,6 +157,17 @@ export function groupTotal(
   return items.reduce((sum, i) => sum + furnitureLineTotal(i, unit, furnitureItems), 0);
 }
 
+// Mirrors furnitureLineTotal's own area calc, minus the rate — used
+// wherever a group/cabinet/unit needs a Total Sq.Ft alongside its Amount.
+// Hardware has no width/height formulas, so it has no sq.ft equivalent.
+export function groupSqFt(items: FurnitureLineItem[], unit: { width: number; depth: number; height: number }): number {
+  return items.reduce((sum, item) => {
+    const w = evaluateFormula(item.widthFormula, { W: unit.width, D: unit.depth, H: unit.height });
+    const h = evaluateFormula(item.heightFormula, { W: unit.width, D: unit.depth, H: unit.height });
+    return sum + ((w * h) / SQMM_PER_SQFT) * item.qty;
+  }, 0);
+}
+
 // Carcass reads its own W/D/H/Qty override when set, falling back to the
 // Unit's — Shutter/Other Panel/Hardware always use the Unit's directly, so
 // editing Carcass dimensions never resizes them.
@@ -195,6 +206,20 @@ export function unitTotal(
   const perUnit = unit.cabinets.reduce((sum, c) => sum + cabinetTotal(c, unit, furnitureItems, hardwareItems), 0);
   // A unit's Qty means "this many identical units in the quote", so its
   // cost has to scale by qty for the raw total to match Combined Total.
+  return perUnit * Math.max(1, unit.qty || 1);
+}
+
+export function cabinetSqFt(cabinet: QuoteCabinet, unit: { width: number; depth: number; height: number; qty: number }): number {
+  const carcassUnit = carcassUnitFor(cabinet, unit);
+  return (
+    groupSqFt(cabinet.components, carcassUnit) +
+    groupSqFt(cabinet.externalFinishes, unit) +
+    groupSqFt(cabinet.panels, unit)
+  );
+}
+
+export function unitSqFt(unit: QuoteUnit): number {
+  const perUnit = unit.cabinets.reduce((sum, c) => sum + cabinetSqFt(c, unit), 0);
   return perUnit * Math.max(1, unit.qty || 1);
 }
 

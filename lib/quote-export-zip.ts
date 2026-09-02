@@ -258,8 +258,9 @@ function poRows(quote: Quote, deps: Deps): (string | number)[][] {
 // Unit Wise ("Unit Wise_<QuoteNo>.xlsx"): a 4th sheet alongside Manufacturing/
 // PO/Hardware — one block per cabinet, the carcass row immediately followed
 // by that cabinet's own pieces in Components -> Shutter -> Other Panel
-// order, labeled "PANEL-<cabinet>.<n>". No grand total row (matches the
-// business's reference file, which doesn't carry one either).
+// order, labeled "<cabinet>.<n>" (e.g. 1, 1.1, 1.2, 2, 2.1). No grand total
+// row (matches the business's reference file, which doesn't carry one
+// either).
 function unitWiseRows(quote: Quote, deps: Deps): (string | number)[][] {
   const cabinets = orderedCabinets(quote, deps);
   const rows: (string | number)[][] = [];
@@ -270,7 +271,7 @@ function unitWiseRows(quote: Quote, deps: Deps): (string | number)[][] {
     rows.push(carcassRow(ctx, deps, sqft, amount));
     rows.push(
       ...pieces.map((p, i) => {
-        const r = pieceRow(p, `PANEL-${ctx.no}.${i + 1}`, ctx.unit, deps);
+        const r = pieceRow(p, `${ctx.no}.${i + 1}`, ctx.unit, deps);
         return [
           r.label, r.name, r.w, r.d, r.h, r.qty, ctx.designType, r.material, "—",
           r.inColour, r.exColour, "—", "—", "—", "—", r.sqft, r.rate, r.amount,

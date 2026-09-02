@@ -13,7 +13,7 @@ import { UnitTypeHardwareRow } from "@/components/templates/unit-type-hardware-r
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
-import { groupTotal, hardwareLineTotal, evaluateFormula, SQMM_PER_SQFT, resolveLineItemDimensions, carcassUnitFor } from "@/lib/quote-pricing";
+import { groupTotal, groupSqFt, hardwareLineTotal, evaluateFormula, SQMM_PER_SQFT, resolveLineItemDimensions, carcassUnitFor } from "@/lib/quote-pricing";
 import type { QuoteCabinet } from "@/lib/mock/quote";
 import type { FurnitureLineItem, UnitTypeHardware } from "@/lib/mock/unit-type";
 import { cn } from "@/lib/utils";
@@ -80,6 +80,7 @@ export function FurnitureGroup({
   const furnitureItems = useFurniturePriceItems();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const subtotal = groupTotal(items, unit, furnitureItems);
+  const totalSqFt = groupSqFt(items, unit);
   const isViewMode = useSearchParams().get("mode") === "view";
   const [collapsed, setCollapsed] = useState(true);
 
@@ -110,6 +111,7 @@ export function FurnitureGroup({
           <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-700">{title}</h4>
         </div>
         <div className="flex items-center gap-3">
+          <span className="text-xs font-number text-grey-500">{totalSqFt.toFixed(2)} sq.ft</span>
           <span className="text-sm font-number font-semibold text-grey-700">₹{subtotal.toFixed(2)}</span>
           <Button
             type="button"
