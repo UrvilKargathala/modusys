@@ -341,7 +341,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             ) : (
               cabinetGroups.map((group) => (
                 <>
-                  <tr key={`h-${group.index}`} className="pdf-cream pdf-heading pdf-border border-t font-semibold">
+                  <tr key={`h-${group.index}`} className="pdf-cream pdf-heading pdf-border border-t font-semibold break-inside-avoid-page">
                     <td className="whitespace-nowrap px-2.5 py-1.5 font-number">{group.index}</td>
                     <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.brand}</td>
                     <td colSpan={2} className="px-2.5 py-1.5 overflow-hidden" style={{ maxHeight: "2.8em" }}>{group.headerRow.product}</td>
@@ -352,7 +352,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                     <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.unit}</td>
                   </tr>
                   {group.rows.map((row, i) => (
-                    <tr key={`${group.index}-${i}`} className="pdf-cream-body">
+                    <tr key={`${group.index}-${i}`} className="pdf-cream-body break-inside-avoid-page">
                       <td className="px-2.5 py-1" />
                       <td className="px-2.5 py-1">{row.brand}</td>
                       <td className="px-2.5 py-1">{row.product}</td>
@@ -372,7 +372,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         </div>
 
         <div className="pdf-border mt-2 border-t" />
-        <div className="mt-3 flex flex-col items-end">
+        <div className="mt-3 flex flex-col items-end break-inside-avoid-page">
           <div className="w-full max-w-sm">
             <div className="pdf-border border-b pb-1.5">
               <h2 className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">Pricing Summary</h2>
@@ -451,7 +451,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         )}
 
         {notes.length > 0 && (
-          <div className="pdf-cream-body mt-3 text-[11px]">
+          <div className="pdf-cream-body mt-3 break-inside-avoid-page text-[11px]">
             <span className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">Client Responsibilities</span>
             <ol className="mt-1 list-decimal pl-4">
               {notes.map((n) => (
@@ -466,7 +466,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <span className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">Terms &amp; Conditions</span>
             <ol className="mt-1 list-decimal pl-4">
               {terms.map((t) => (
-                <li key={t.id} className="marker-number">{numFont(t.text)}</li>
+                <li key={t.id} className="marker-number break-inside-avoid-page">{numFont(t.text)}</li>
               ))}
             </ol>
           </div>
@@ -477,13 +477,13 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             <span className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">Payment Terms</span>
             <ol className="mt-1 list-decimal pl-4">
               {paymentTerms.map((t) => (
-                <li key={t.id} className="marker-number">{numFont(t.text)}</li>
+                <li key={t.id} className="marker-number break-inside-avoid-page">{numFont(t.text)}</li>
               ))}
             </ol>
           </div>
         )}
 
-        <div className="pdf-cream-body mt-3 flex flex-col gap-1 text-[11px]">
+        <div className="pdf-cream-body mt-3 flex flex-col gap-1 break-inside-avoid-page text-[11px]">
           <span className="pdf-cream pdf-heading font-heading text-xs font-semibold uppercase tracking-wide">Bank Details</span>
           <div className="flex flex-wrap gap-x-6 gap-y-0.5">
             <span>Account Name : {banking.accountName}</span>
@@ -495,7 +495,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           <span>{numFont(layout.quoteValidityText)}</span>
         </div>
 
-        <div className="pdf-cream mt-5 flex flex-col items-end gap-4 text-right text-xs">
+        <div className="pdf-cream mt-5 flex flex-col items-end gap-4 break-inside-avoid-page text-right text-xs">
           <div className="flex flex-col items-end gap-0.5">
             <span className="pdf-heading font-bold">For, {signature.companyName}</span>
             {signature.additionalFooterText && (

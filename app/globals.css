@@ -332,6 +332,16 @@
   }
 }
 
+/* Quote PDF print pagination — Chrome's default print margin is close to
+   1 inch per side, which is most of what reads as "too much blank space
+   around each page." This shrinks it to something the content actually
+   needs. Doesn't affect on-screen viewing (only applies inside an actual
+   print/PDF render), and can't remove the browser's own headers/footers
+   text (a print-dialog setting, not something page CSS can touch). */
+@page {
+  margin: 10mm 12mm;
+}
+
 /* Quote PDF — mauve theme for Download, white+black for Print. */
 .quote-pdf-sheet {
   background-color: #9E7676;
