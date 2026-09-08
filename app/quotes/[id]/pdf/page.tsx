@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Printer, Download } from "lucide-react";
 import { useQuotes } from "@/lib/store/quotes-store";
@@ -105,26 +105,40 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   const [printed, setPrinted] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  // Server-rendered PDF (Puppeteer) instead of window.print() — the same
-  // page always comes out the same way regardless of the visitor's device,
-  // where a phone's own print pipeline (iOS Safari in particular) doesn't
-  // reliably reflow to the page width at all.
-  //
-  // Navigate straight to the endpoint (real URL, not a fetch+blob+<a
-  // download> object URL) so the browser's own Content-Disposition
-  // handling does the save — the blob-URL trick silently does nothing in
-  // an installed iOS PWA (standalone mode has no browser chrome for a
-  // blob download to attach to; a real network request works there too).
-  const handleDownload = () => {
-    if (downloading) return;
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  const handleDownload = async () => {
+    if (downloading || !sheetRef.current) return;
     setDownloading(true);
-    const a = document.createElement("a");
-    a.href = `/api/quotes/${id}/pdf`;
-    a.download = `${quote?.quoteNumber ?? "quote"}.pdf`;
-    a.click();
-    // Cosmetic only — a plain navigation gives no completion signal to
-    // watch, so just clear the "Preparing…" state after a beat.
-    setTimeout(() => setDownloading(false), 3000);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+
+      const el = sheetRef.current;
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, logging: false });
+
+      const imgW = canvas.width;
+      const imgH = canvas.height;
+      const pdfW = 210; // A4 mm
+      const pdfH = 297;
+      const ratio = pdfW / imgW;
+      const scaledH = imgH * ratio;
+      const pages = Math.ceil(scaledH / pdfH);
+
+      const pdf = new jsPDF("p", "mm", "a4");
+      for (let i = 0; i < pages; i++) {
+        if (i > 0) pdf.addPage();
+        pdf.addImage(
+          canvas.toDataURL("image/jpeg", 0.92),
+          "JPEG", 0, -(i * pdfH), pdfW, scaledH
+        );
+      }
+      pdf.save(`${quote?.quoteNumber ?? "quote"}.pdf`);
+    } catch (e) {
+      console.error("PDF generation failed", e);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const productTypes = useMaterialItems("product-type");
@@ -281,7 +295,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         {isDownload ? (downloading ? "Preparing PDF…" : "Download as PDF") : "Print / Save as PDF"}
       </button>
 
-      <div className={`quote-pdf-sheet w-full max-w-[960px] rounded-sm p-10 font-body text-[13px] shadow-sm print:max-w-none print:rounded-none print:shadow-none${isDownload ? "" : " pdf-print-mode"}`}>
+      <div ref={sheetRef} className={`quote-pdf-sheet w-full max-w-[960px] rounded-sm p-10 font-body text-[13px] shadow-sm print:max-w-none print:rounded-none print:shadow-none${isDownload ? "" : " pdf-print-mode"}`}>
         <div className="flex flex-col gap-4 pb-4 sm:flex-row sm:items-start sm:justify-between sm:gap-0">
           <div className="flex flex-col gap-1.5">
             <BrandMark className="h-10" />
