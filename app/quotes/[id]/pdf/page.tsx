@@ -11,6 +11,7 @@ import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { useQuoteTemplateSettings } from "@/lib/store/quote-template-store";
+import { toastStore } from "@/lib/store/toast-store";
 import { quoteRawTotal, quoteWaterfall, unitTotal, evaluateFormula, carcassUnitFor } from "@/lib/quote-pricing";
 import { fullName } from "@/lib/mock/architects";
 import type { MaterialItem } from "@/lib/mock/material-spec";
@@ -103,6 +104,31 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   const searchParams = useSearchParams();
   const isDownload = searchParams.get("download") === "1";
   const [printed, setPrinted] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  // Server-rendered PDF (Puppeteer) instead of window.print() — the same
+  // page always comes out the same way regardless of the visitor's device,
+  // where a phone's own print pipeline (iOS Safari in particular) doesn't
+  // reliably reflow to the page width at all.
+  const handleDownload = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/quotes/${id}/pdf`);
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${quote?.quoteNumber ?? "quote"}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toastStore.show("Couldn't generate the PDF — try again.", "error");
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const productTypes = useMaterialItems("product-type");
   const handleTypes = useMaterialItems("handle-type");
@@ -245,17 +271,20 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   });
 
   return (
-    <div className="flex min-h-screen flex-col items-center gap-4 overflow-x-hidden bg-grey-100 p-6 print:bg-white print:p-0">
+    // data-pdf-ready: the server-side PDF route (Puppeteer) waits on this so
+    // it never captures the page before the client stores have hydrated.
+    <div data-pdf-ready="true" className="flex min-h-screen flex-col items-center gap-4 overflow-x-hidden bg-grey-100 p-6 print:bg-white print:p-0">
       <button
         type="button"
-        onClick={() => window.print()}
-        className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-body font-medium text-white shadow-sm print:hidden"
+        disabled={downloading}
+        onClick={isDownload ? handleDownload : () => window.print()}
+        className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-body font-medium text-white shadow-sm disabled:opacity-60 print:hidden"
       >
         {isDownload ? <Download className="h-4 w-4" /> : <Printer className="h-4 w-4" />}
-        {isDownload ? "Download as PDF" : "Print / Save as PDF"}
+        {isDownload ? (downloading ? "Preparing PDF…" : "Download as PDF") : "Print / Save as PDF"}
       </button>
 
-      <div className={`quote-pdf-sheet w-full max-w-[960px] rounded-sm p-10 font-body text-[13px] shadow-sm print:max-w-none print:shadow-none${isDownload ? "" : " pdf-print-mode"}`}>
+      <div className={`quote-pdf-sheet w-full max-w-[960px] rounded-sm p-10 font-body text-[13px] shadow-sm print:max-w-none print:rounded-none print:shadow-none${isDownload ? "" : " pdf-print-mode"}`}>
         <div className="flex flex-col gap-4 pb-4 sm:flex-row sm:items-start sm:justify-between sm:gap-0">
           <div className="flex flex-col gap-1.5">
             <BrandMark className="h-10" />

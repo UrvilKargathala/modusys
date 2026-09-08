@@ -17,7 +17,7 @@ export function PWAInstallPrompt() {
   if (!mounted || !visible || !variant) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-16 z-40 px-4 pb-[env(safe-area-inset-bottom)] lg:bottom-4 lg:right-4 lg:left-auto lg:w-96 lg:px-0">
+    <div className="fixed inset-x-0 bottom-16 z-40 px-4 pb-[env(safe-area-inset-bottom)] print:hidden lg:bottom-4 lg:right-4 lg:left-auto lg:w-96 lg:px-0">
       <div className="flex items-start gap-3 rounded-xl bg-card p-4 shadow-lg ring-1 ring-grey-100">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#B08B8B] font-heading text-sm font-bold text-white">
           M
