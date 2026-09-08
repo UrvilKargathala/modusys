@@ -11,7 +11,6 @@ import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { useQuoteTemplateSettings } from "@/lib/store/quote-template-store";
-import { toastStore } from "@/lib/store/toast-store";
 import { quoteRawTotal, quoteWaterfall, unitTotal, evaluateFormula, carcassUnitFor } from "@/lib/quote-pricing";
 import { fullName } from "@/lib/mock/architects";
 import type { MaterialItem } from "@/lib/mock/material-spec";
@@ -110,24 +109,22 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   // page always comes out the same way regardless of the visitor's device,
   // where a phone's own print pipeline (iOS Safari in particular) doesn't
   // reliably reflow to the page width at all.
-  const handleDownload = async () => {
+  //
+  // Navigate straight to the endpoint (real URL, not a fetch+blob+<a
+  // download> object URL) so the browser's own Content-Disposition
+  // handling does the save — the blob-URL trick silently does nothing in
+  // an installed iOS PWA (standalone mode has no browser chrome for a
+  // blob download to attach to; a real network request works there too).
+  const handleDownload = () => {
     if (downloading) return;
     setDownloading(true);
-    try {
-      const res = await fetch(`/api/quotes/${id}/pdf`);
-      if (!res.ok) throw new Error(await res.text());
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${quote?.quoteNumber ?? "quote"}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      toastStore.show("Couldn't generate the PDF — try again.", "error");
-    } finally {
-      setDownloading(false);
-    }
+    const a = document.createElement("a");
+    a.href = `/api/quotes/${id}/pdf`;
+    a.download = `${quote?.quoteNumber ?? "quote"}.pdf`;
+    a.click();
+    // Cosmetic only — a plain navigation gives no completion signal to
+    // watch, so just clear the "Preparing…" state after a beat.
+    setTimeout(() => setDownloading(false), 3000);
   };
 
   const productTypes = useMaterialItems("product-type");
