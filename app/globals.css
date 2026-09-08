@@ -339,16 +339,15 @@
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
-/* Lock the sheet to a fixed desktop-equivalent width while printing so a
-   phone's print/"Save as PDF" renders the full layout instead of whatever
-   the live mobile viewport happens to be (which is what the responsive
-   w-full/max-w classes give it on screen). */
-@media print {
-  .quote-pdf-sheet {
-    width: 960px;
-    max-width: none;
-  }
-}
+/* NOTE: previously forced a fixed 960px width here for print, trying to
+   stop a phone's print/"Save as PDF" from inheriting the tiny mobile
+   viewport. That backfired — 960px is wider than the actual print page
+   canvas, so instead of scaling to fit, the print engine cropped/paginated
+   the overflow (text cut off mid-word on every page, an extra near-empty
+   trailing page for the signature block). The print canvas is comfortably
+   wider than Tailwind's `sm:` breakpoint (640px) on any real paper size, so
+   the sm:flex-row / sm:w-80 responsive classes on the page itself already
+   apply correctly under print without needing this override. */
 .pdf-cream { color: #FFF8EA; }
 .pdf-cream-muted { color: rgba(255,248,234,0.7); }
 .pdf-cream-dim { color: rgba(255,248,234,0.6); }

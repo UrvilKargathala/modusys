@@ -306,7 +306,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
         <SectionLabel>Unit Details</SectionLabel>
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[700px] table-fixed border-collapse text-[11px]">
+        <table className="w-full min-w-[700px] table-fixed border-collapse text-[11px] print:min-w-0">
           <colgroup>
             <col style={{ width: "5%" }} />
             <col style={{ width: "11%" }} />
