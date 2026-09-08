@@ -245,7 +245,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   });
 
   return (
-    <div className="flex min-h-screen flex-col items-center gap-4 bg-grey-100 p-6 print:bg-white print:p-0">
+    <div className="flex min-h-screen flex-col items-center gap-4 overflow-x-hidden bg-grey-100 p-6 print:bg-white print:p-0">
       <button
         type="button"
         onClick={() => window.print()}
@@ -256,7 +256,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
       </button>
 
       <div className={`quote-pdf-sheet w-full max-w-[960px] rounded-sm p-10 font-body text-[13px] shadow-sm print:max-w-none print:shadow-none${isDownload ? "" : " pdf-print-mode"}`}>
-        <div className="flex items-start justify-between pb-4">
+        <div className="flex flex-col gap-4 pb-4 sm:flex-row sm:items-start sm:justify-between sm:gap-0">
           <div className="flex flex-col gap-1.5">
             <BrandMark className="h-10" />
             <span className="pdf-cream-muted pdf-heading text-[11px] font-bold">{branding.tagline}</span>
@@ -269,7 +269,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
               Email: {branding.email} | Tel: <span className="font-number">{branding.phone}</span>
             </span>
           </div>
-          <div className="flex w-80 shrink-0 flex-col gap-1.5 pt-[46px] text-[13px]">
+          <div className="flex w-full shrink-0 flex-col gap-1.5 text-[13px] sm:w-80 sm:pt-[46px]">
             {branding.logoDataUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={branding.logoDataUrl} alt="" className="ml-auto h-12 w-24 object-contain" />
@@ -305,7 +305,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         </div>
 
         <SectionLabel>Unit Details</SectionLabel>
-        <table className="w-full table-fixed border-collapse text-[11px]">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[700px] table-fixed border-collapse text-[11px]">
           <colgroup>
             <col style={{ width: "5%" }} />
             <col style={{ width: "11%" }} />
@@ -368,6 +369,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             )}
           </tbody>
         </table>
+        </div>
 
         <div className="pdf-border mt-2 border-t" />
         <div className="mt-3 flex flex-col items-end">
