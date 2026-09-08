@@ -115,7 +115,19 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
       const { jsPDF } = await import("jspdf");
 
       const el = sheetRef.current;
-      const canvas = await html2canvas(el, { scale: 2, useCORS: true, logging: false });
+      // Force a desktop-width render so nothing is clipped on mobile
+      const origW = el.style.width;
+      const origMaxW = el.style.maxWidth;
+      const origOverflow = el.style.overflow;
+      el.style.width = "960px";
+      el.style.maxWidth = "960px";
+      el.style.overflow = "visible";
+
+      const canvas = await html2canvas(el, { scale: 1.5, useCORS: true, logging: false, windowWidth: 960 });
+
+      el.style.width = origW;
+      el.style.maxWidth = origMaxW;
+      el.style.overflow = origOverflow;
 
       const imgW = canvas.width;
       const imgH = canvas.height;
