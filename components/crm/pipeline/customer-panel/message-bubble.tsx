@@ -287,23 +287,33 @@ function MessageActions({
 
   const download = async () => {
     setOpen(false);
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     try {
-      // Fetch as blob so cross-origin URLs (Vercel Blob) actually download
-      // instead of navigating away. Chrome silently blocks automatic
-      // downloads past ~10 in a tight loop (anti-abuse throttling), so each
-      // click is spaced out instead of firing back-to-back.
       for (let i = 0; i < downloadUrls.length; i++) {
         const { url, name } = downloadUrls[i];
-        const res = await fetch(url);
-        const blob = await res.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = objectUrl;
-        a.download = name || url.substring(url.lastIndexOf("/") + 1) || "download";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
+        if (isMobile) {
+          // Mobile Safari/PWA ignores a.download on blob URLs, producing
+          // ugly hash filenames. Route through /api/download which sets
+          // Content-Disposition with the correct filename.
+          const fname = name || url.substring(url.lastIndexOf("/") + 1) || "download";
+          const proxyUrl = `/api/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(fname)}`;
+          const a = document.createElement("a");
+          a.href = proxyUrl;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } else {
+          const res = await fetch(url);
+          const blob = await res.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = objectUrl;
+          a.download = name || url.substring(url.lastIndexOf("/") + 1) || "download";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
+        }
         if (i < downloadUrls.length - 1) await new Promise((r) => setTimeout(r, 400));
       }
       toastStore.show(downloadUrls.length > 1 ? `Downloaded ${downloadUrls.length} files` : "Downloaded", "success");
