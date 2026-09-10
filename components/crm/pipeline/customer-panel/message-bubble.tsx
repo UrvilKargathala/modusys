@@ -292,16 +292,9 @@ function MessageActions({
       for (let i = 0; i < downloadUrls.length; i++) {
         const { url, name } = downloadUrls[i];
         if (isMobile) {
-          // Mobile Safari/PWA ignores a.download on blob URLs, producing
-          // ugly hash filenames. Route through /api/download which sets
-          // Content-Disposition with the correct filename.
           const fname = name || url.substring(url.lastIndexOf("/") + 1) || "download";
           const proxyUrl = `/api/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(fname)}`;
-          const a = document.createElement("a");
-          a.href = proxyUrl;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
+          window.location.href = proxyUrl;
         } else {
           const res = await fetch(url);
           const blob = await res.blob();
@@ -631,14 +624,29 @@ function PdfBubble({ message }: { message: CustomerMessage }) {
                 {message.pdfName ?? "Document.pdf"}
               </span>
               <div className="flex items-center gap-2">
-                <a
-                  href={message.pdfUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs font-body font-medium text-primary hover:underline"
+                <button
+                  type="button"
+                  onClick={() => {
+                    const fname = message.pdfName ?? "Document.pdf";
+                    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                    if (isMobile) {
+                      window.location.href = `/api/download?url=${encodeURIComponent(message.pdfUrl!)}&name=${encodeURIComponent(fname)}`;
+                    } else {
+                      const a = document.createElement("a");
+                      a.href = message.pdfUrl!;
+                      a.download = fname;
+                      a.target = "_blank";
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }
+                    setOpen(false);
+                  }}
+                  className="flex items-center gap-1 text-xs font-body font-medium text-primary hover:underline"
                 >
-                  Open in new tab
-                </a>
+                  <Download className="h-3.5 w-3.5" />
+                  Save PDF
+                </button>
                 <button
                   type="button"
                   aria-label="Close preview"
