@@ -293,8 +293,17 @@ function MessageActions({
         const { url, name } = downloadUrls[i];
         if (isMobile) {
           const fname = name || url.substring(url.lastIndexOf("/") + 1) || "download";
-          const proxyUrl = `/api/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(fname)}`;
-          window.location.href = proxyUrl;
+          const res = await fetch(`/api/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(fname)}`);
+          const blob = await res.blob();
+          const file = new File([blob], fname, { type: blob.type || "application/octet-stream" });
+          if (navigator.share && navigator.canShare?.({ files: [file] })) {
+            await navigator.share({ files: [file] });
+          } else {
+            // Fallback: open blob in new tab
+            const objectUrl = URL.createObjectURL(blob);
+            window.open(objectUrl, "_blank");
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+          }
         } else {
           const res = await fetch(url);
           const blob = await res.blob();
@@ -626,20 +635,31 @@ function PdfBubble({ message }: { message: CustomerMessage }) {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     const fname = message.pdfName ?? "Document.pdf";
                     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                    if (isMobile) {
-                      window.location.href = `/api/download?url=${encodeURIComponent(message.pdfUrl!)}&name=${encodeURIComponent(fname)}`;
-                    } else {
-                      const a = document.createElement("a");
-                      a.href = message.pdfUrl!;
-                      a.download = fname;
-                      a.target = "_blank";
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                    }
+                    try {
+                      if (isMobile) {
+                        const res = await fetch(`/api/download?url=${encodeURIComponent(message.pdfUrl!)}&name=${encodeURIComponent(fname)}`);
+                        const blob = await res.blob();
+                        const file = new File([blob], fname, { type: "application/pdf" });
+                        if (navigator.share && navigator.canShare?.({ files: [file] })) {
+                          await navigator.share({ files: [file] });
+                        } else {
+                          const objectUrl = URL.createObjectURL(blob);
+                          window.open(objectUrl, "_blank");
+                          setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+                        }
+                      } else {
+                        const a = document.createElement("a");
+                        a.href = message.pdfUrl!;
+                        a.download = fname;
+                        a.target = "_blank";
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                      }
+                    } catch { /* user cancelled share sheet */ }
                     setOpen(false);
                   }}
                   className="flex items-center gap-1 text-xs font-body font-medium text-primary hover:underline"
