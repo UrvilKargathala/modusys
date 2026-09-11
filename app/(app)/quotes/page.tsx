@@ -78,6 +78,7 @@ export default function QuotesPage() {
   const rawMaterialTypes = useMaterialItems("raw-material-type");
   const internalColours = useMaterialItems("internal-colour");
   const externalColours = useMaterialItems("external-colour");
+  const hingesTypes = useMaterialItems("hinges-type");
   const furnitureComponents = useMaterialItems("furniture-component");
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Quote | null>(null);
@@ -88,6 +89,13 @@ export default function QuotesPage() {
 
   const customerName = (id: string | null) => (id ? customers.find((c) => c.id === id)?.name ?? "—" : "—");
   const productTypeName = (id: string) => productTypes.find((p) => p.id === id)?.name ?? "—";
+  const productTypeLabel = (q: Quote) => {
+    const base = productTypeName(q.productTypeId);
+    const hinges = hingesTypes.find((h) => h.id === q.hingesTypeId)?.name;
+    const shutter = externalColours.find((c) => c.id === q.shutterFinishId)?.name;
+    const parts = [hinges, shutter].filter(Boolean);
+    return parts.length > 0 ? `${base} (${parts.join(" + ")})` : base;
+  };
   const finalAmount = (q: Quote) =>
     quoteWaterfall(
       quoteRawTotal(q.units, furnitureItems, hardwareItems),
@@ -102,6 +110,7 @@ export default function QuotesPage() {
       ...q,
       id: `q-${Date.now()}`,
       quoteNumber: quotesStore.nextQuoteNumber(),
+      date: now.slice(0, 10),
       status: "draft",
       revision: 0,
       createdAt: now,
@@ -315,7 +324,7 @@ export default function QuotesPage() {
                         <td className="whitespace-nowrap px-2 py-1 font-number font-medium text-grey-800">{quote.quoteNumber}</td>
                         <td className="whitespace-nowrap px-2 py-1 text-grey-700">{customerName(quote.customerId)}</td>
                         <td className="whitespace-nowrap px-2 py-1 font-number text-grey-500">{formatDate(quote.date)}</td>
-                        <td className="whitespace-nowrap px-2 py-1 text-grey-700">{productTypeName(quote.productTypeId)}</td>
+                        <td className="px-2 py-1 text-grey-700">{productTypeLabel(quote)}</td>
                         <td className="whitespace-nowrap px-2 py-1 font-number font-medium text-grey-800">{formatInr(finalAmount(quote))}</td>
                         <td className="whitespace-nowrap px-2 py-1 font-number text-grey-500">{quote.revision}</td>
                         <td className="whitespace-nowrap px-2 py-1">
