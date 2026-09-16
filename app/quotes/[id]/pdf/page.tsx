@@ -123,6 +123,17 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
       el.style.maxWidth = "960px";
       el.style.overflow = "visible";
 
+      // Rows/list items that must not be sliced across a page boundary —
+      // mirrors the `break-inside-avoid-page` print CSS, which html2canvas's
+      // flat raster capture otherwise ignores entirely.
+      const elRectTop = el.getBoundingClientRect().top;
+      const protectedRects = Array.from(el.querySelectorAll("tr, li"))
+        .map((node) => {
+          const r = (node as HTMLElement).getBoundingClientRect();
+          return { top: r.top - elRectTop, bottom: r.bottom - elRectTop };
+        })
+        .filter((r) => r.bottom > r.top);
+
       const canvas = await html2canvas(el, { scale: 1.5, useCORS: true, logging: false, windowWidth: 960 });
 
       el.style.width = origW;
@@ -133,18 +144,42 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
       const imgH = canvas.height;
       const pdfW = 210; // A4 mm
       const pdfH = 297;
-      const ratio = pdfW / imgW;
-      const scaledH = imgH * ratio;
-      const pages = Math.ceil(scaledH / pdfH);
+      const ratio = pdfW / imgW; // mm per canvas px
+      const scale = imgW / 960; // canvas px per CSS px (960 = forced capture width, html2canvas scale: 1.5)
+      const topMarginMm = 6; // breathing room at the top of every continued page, so a row/border isn't flush against the physical edge
+      const fullPageHeightPx = pdfH / ratio;
+      const continuedPageHeightPx = (pdfH - topMarginMm) / ratio;
 
-      const pdf = new jsPDF("p", "mm", "a4");
-      for (let i = 0; i < pages; i++) {
-        if (i > 0) pdf.addPage();
-        pdf.addImage(
-          canvas.toDataURL("image/jpeg", 0.92),
-          "JPEG", 0, -(i * pdfH), pdfW, scaledH
-        );
+      // Walk down the canvas one page at a time. If the ideal cut point
+      // lands inside a protected row, pull the cut back to that row's top
+      // so the row starts fresh on the next page instead of splitting.
+      const cuts: number[] = [];
+      let cursor = 0;
+      while (cursor < imgH) {
+        const capacity = cuts.length === 0 ? fullPageHeightPx : continuedPageHeightPx;
+        let cut = Math.min(cursor + capacity, imgH);
+        const straddling = protectedRects.find((r) => r.top * scale < cut && r.bottom * scale > cut);
+        if (straddling && straddling.top * scale > cursor) cut = straddling.top * scale;
+        cuts.push(cut);
+        cursor = cut;
       }
+
+      // Shrink the last page to its actual remaining content height instead
+      // of a full 297mm sheet, so the document doesn't end in blank space.
+      const lastIsContinuation = cuts.length > 1;
+      const lastContentMm = (cuts[cuts.length - 1] - (cuts[cuts.length - 2] ?? 0)) * ratio;
+      const lastPageH = Math.min(pdfH, lastContentMm + (lastIsContinuation ? topMarginMm : 0));
+
+      const pdf = new jsPDF("p", "mm", cuts.length === 1 ? [pdfW, lastPageH] : "a4");
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      const scaledH = imgH * ratio;
+      let prevCut = 0;
+      cuts.forEach((cut, i) => {
+        if (i > 0) pdf.addPage(i === cuts.length - 1 ? [pdfW, lastPageH] : "a4");
+        const topOffset = i === 0 ? 0 : topMarginMm;
+        pdf.addImage(dataUrl, "JPEG", 0, topOffset - prevCut * ratio, pdfW, scaledH);
+        prevCut = cut;
+      });
       pdf.save(`${quote?.quoteNumber ?? "quote"}.pdf`);
     } catch (e) {
       console.error("PDF generation failed", e);
