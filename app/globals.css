@@ -342,6 +342,46 @@
   margin: 10mm 12mm;
 }
 
+/* Keep quote table rows and section blocks intact across page breaks so
+   the browser's native print engine (Save as PDF) never splits a row's
+   text mid-sentence. Also flood html/body with the sheet's mauve so any
+   trailing whitespace at the end of the final page reads as background
+   instead of a blank white block — A4 sheet size can't be shrunk from
+   `window.print()`, this is the closest visual fix without JS. */
+@media print {
+  /* Flood the page background so any trailing whitespace at the end of the
+     last page reads as the sheet's own color instead of a blank white
+     block. Two variants because the sheet has two themes:
+     - default (Download flow, mauve)
+     - .pdf-print-mode (Print flow, white). */
+  html:has(.quote-pdf-sheet:not(.pdf-print-mode)),
+  body:has(.quote-pdf-sheet:not(.pdf-print-mode)) {
+    background-color: #9E7676 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  html:has(.quote-pdf-sheet.pdf-print-mode),
+  body:has(.quote-pdf-sheet.pdf-print-mode) {
+    background-color: #ffffff !important;
+  }
+  .quote-pdf-sheet tr,
+  .quote-pdf-sheet li,
+  .quote-pdf-sheet .break-inside-avoid-page {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .quote-pdf-sheet thead {
+    display: table-header-group;
+  }
+  /* Stretch the sheet to fill each page so no visible seam appears between
+     the sheet's mauve and the body's flood-mauve on the final page — even
+     when actual content ends early. */
+  .quote-pdf-sheet {
+    min-height: 100vh;
+    box-sizing: border-box;
+  }
+}
+
 /* Quote PDF — mauve theme for Download, white+black for Print. */
 .quote-pdf-sheet {
   background-color: #9E7676;

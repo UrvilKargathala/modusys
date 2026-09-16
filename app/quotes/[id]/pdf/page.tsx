@@ -109,13 +109,23 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
   const handleDownload = async () => {
     if (downloading || !sheetRef.current) return;
+    // Desktop: use the browser's own print engine (Save as PDF from the
+    // print dialog). It honors the `break-inside: avoid` print CSS rules,
+    // paginates cleanly with no whitespace at the bottom of pages, and
+    // never slices row text mid-sentence. Mobile Safari/PWA can't reliably
+    // trigger Save-as-PDF from print, so mobile falls back to jsPDF below.
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (!isMobile) {
+      window.print();
+      return;
+    }
+
     setDownloading(true);
     try {
       const html2canvas = (await import("html2canvas")).default;
       const { jsPDF } = await import("jspdf");
 
       const el = sheetRef.current;
-      // Force a desktop-width render so nothing is clipped on mobile
       const origW = el.style.width;
       const origMaxW = el.style.maxWidth;
       const origOverflow = el.style.overflow;
@@ -123,18 +133,24 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
       el.style.maxWidth = "960px";
       el.style.overflow = "visible";
 
-      // Rows/list items that must not be sliced across a page boundary —
-      // mirrors the `break-inside-avoid-page` print CSS, which html2canvas's
-      // flat raster capture otherwise ignores entirely.
-      const elRectTop = el.getBoundingClientRect().top;
-      const protectedRects = Array.from(el.querySelectorAll("tr, li"))
-        .map((node) => {
-          const r = (node as HTMLElement).getBoundingClientRect();
-          return { top: r.top - elRectTop, bottom: r.bottom - elRectTop };
-        })
-        .filter((r) => r.bottom > r.top);
-
-      const canvas = await html2canvas(el, { scale: 1.5, useCORS: true, logging: false, windowWidth: 960 });
+      // Measure row boundaries on the actual cloned DOM html2canvas will
+      // rasterize, so cut points and rendered pixels stay in sync.
+      let protectedRects: { top: number; bottom: number }[] = [];
+      const canvas = await html2canvas(el, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        windowWidth: 960,
+        onclone: (_doc, clonedEl) => {
+          const rectsTop = clonedEl.getBoundingClientRect().top;
+          protectedRects = Array.from(clonedEl.querySelectorAll("tr, li"))
+            .map((node) => {
+              const r = (node as HTMLElement).getBoundingClientRect();
+              return { top: r.top - rectsTop, bottom: r.bottom - rectsTop };
+            })
+            .filter((r) => r.bottom > r.top);
+        },
+      });
 
       el.style.width = origW;
       el.style.maxWidth = origMaxW;
@@ -142,42 +158,51 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
       const imgW = canvas.width;
       const imgH = canvas.height;
-      const pdfW = 210; // A4 mm
+      const pdfW = 210;
       const pdfH = 297;
-      const ratio = pdfW / imgW; // mm per canvas px
-      const scale = imgW / 960; // canvas px per CSS px (960 = forced capture width, html2canvas scale: 1.5)
-      const topMarginMm = 6; // breathing room at the top of every continued page, so a row/border isn't flush against the physical edge
+      const ratio = pdfW / imgW;
+      const topMarginMm = 6;
       const fullPageHeightPx = pdfH / ratio;
       const continuedPageHeightPx = (pdfH - topMarginMm) / ratio;
 
-      // Walk down the canvas one page at a time. If the ideal cut point
-      // lands inside a protected row, pull the cut back to that row's top
-      // so the row starts fresh on the next page instead of splitting.
       const cuts: number[] = [];
       let cursor = 0;
       while (cursor < imgH) {
         const capacity = cuts.length === 0 ? fullPageHeightPx : continuedPageHeightPx;
         let cut = Math.min(cursor + capacity, imgH);
-        const straddling = protectedRects.find((r) => r.top * scale < cut && r.bottom * scale > cut);
-        if (straddling && straddling.top * scale > cursor) cut = straddling.top * scale;
+        const straddling = protectedRects.find((r) => r.top < cut && r.bottom > cut);
+        if (straddling && straddling.top > cursor) cut = straddling.top;
         cuts.push(cut);
         cursor = cut;
       }
 
-      // Shrink the last page to its actual remaining content height instead
-      // of a full 297mm sheet, so the document doesn't end in blank space.
       const lastIsContinuation = cuts.length > 1;
       const lastContentMm = (cuts[cuts.length - 1] - (cuts[cuts.length - 2] ?? 0)) * ratio;
       const lastPageH = Math.min(pdfH, lastContentMm + (lastIsContinuation ? topMarginMm : 0));
 
+      const sliceCanvas = document.createElement("canvas");
+      const sliceCtx = sliceCanvas.getContext("2d");
+      if (!sliceCtx) throw new Error("2D context unavailable for slicing");
+
       const pdf = new jsPDF("p", "mm", cuts.length === 1 ? [pdfW, lastPageH] : "a4");
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-      const scaledH = imgH * ratio;
       let prevCut = 0;
       cuts.forEach((cut, i) => {
-        if (i > 0) pdf.addPage(i === cuts.length - 1 ? [pdfW, lastPageH] : "a4");
-        const topOffset = i === 0 ? 0 : topMarginMm;
-        pdf.addImage(dataUrl, "JPEG", 0, topOffset - prevCut * ratio, pdfW, scaledH);
+        const isLast = i === cuts.length - 1;
+        const isFirst = i === 0;
+        const sliceStart = Math.round(prevCut);
+        const sliceEnd = Math.round(cut);
+        const sliceHeightPx = sliceEnd - sliceStart;
+        if (sliceHeightPx <= 0) { prevCut = cut; return; }
+
+        sliceCanvas.width = imgW;
+        sliceCanvas.height = sliceHeightPx;
+        sliceCtx.clearRect(0, 0, imgW, sliceHeightPx);
+        sliceCtx.drawImage(canvas, 0, sliceStart, imgW, sliceHeightPx, 0, 0, imgW, sliceHeightPx);
+        const sliceUrl = sliceCanvas.toDataURL("image/jpeg", 0.92);
+
+        if (!isFirst) pdf.addPage(isLast ? [pdfW, lastPageH] : "a4");
+        const topOffset = isFirst ? 0 : topMarginMm;
+        pdf.addImage(sliceUrl, "JPEG", 0, topOffset, pdfW, sliceHeightPx * ratio);
         prevCut = cut;
       });
       pdf.save(`${quote?.quoteNumber ?? "quote"}.pdf`);
