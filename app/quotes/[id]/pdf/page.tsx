@@ -107,8 +107,25 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
   const sheetRef = useRef<HTMLDivElement>(null);
 
+  // Customer name directly as the filename (fallback to quote number, then
+  // "quote") — sanitized since it lands in a filesystem path.
+  const pdfFileName = () => (customer?.name || quote?.quoteNumber || "quote").replace(/[\\/:*?"<>|]/g, "").trim() || "quote";
+
+  // Most browsers suggest document.title as the Save-as-PDF filename.
+  const printWithFilename = () => {
+    const origTitle = document.title;
+    document.title = pdfFileName();
+    const restoreTitle = () => { document.title = origTitle; };
+    window.addEventListener("afterprint", restoreTitle, { once: true });
+    window.print();
+    // Safety net in case `afterprint` doesn't fire (some browsers/print flows).
+    setTimeout(restoreTitle, 2000);
+  };
+
   const handleDownload = async () => {
     if (downloading || !sheetRef.current) return;
+    const fileName = pdfFileName();
+
     // Desktop: use the browser's own print engine (Save as PDF from the
     // print dialog). It honors the `break-inside: avoid` print CSS rules,
     // paginates cleanly with no whitespace at the bottom of pages, and
@@ -116,7 +133,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
     // trigger Save-as-PDF from print, so mobile falls back to jsPDF below.
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (!isMobile) {
-      window.print();
+      printWithFilename();
       return;
     }
 
@@ -205,7 +222,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         pdf.addImage(sliceUrl, "JPEG", 0, topOffset, pdfW, sliceHeightPx * ratio);
         prevCut = cut;
       });
-      pdf.save(`${quote?.quoteNumber ?? "quote"}.pdf`);
+      pdf.save(`${fileName}.pdf`);
     } catch (e) {
       console.error("PDF generation failed", e);
     } finally {
@@ -360,7 +377,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
       <button
         type="button"
         disabled={downloading}
-        onClick={isDownload ? handleDownload : () => window.print()}
+        onClick={isDownload ? handleDownload : printWithFilename}
         className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-body font-medium text-white shadow-sm disabled:opacity-60 print:hidden"
       >
         {isDownload ? <Download className="h-4 w-4" /> : <Printer className="h-4 w-4" />}
