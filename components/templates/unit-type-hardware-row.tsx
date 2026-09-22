@@ -105,6 +105,7 @@ export function UnitTypeHardwareRow({
     );
     if (candidates.length === 1) {
       const item = candidates[0];
+      const changed = item.id !== current.hardwareItemId;
       return {
         ...patch,
         hardwareItemId: item.id,
@@ -113,6 +114,7 @@ export function UnitTypeHardwareRow({
         brandId: item.brandId,
         description: item.description,
         levelTypeId: current.levelTypeId || item.levelTypeId || current.levelTypeId,
+        ...(changed ? { rateOverride: undefined } : {}),
       };
     }
     // Not unique — clear any stale pin so Unit/Rate go back to "—" until
