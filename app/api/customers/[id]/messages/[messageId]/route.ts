@@ -19,6 +19,24 @@ export async function PATCH(req: Request, { params }: Ctx) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const b = await req.json();
+
+  if (typeof b.removeImageIndex === "number") {
+    const urls = [...existing.imageUrls];
+    const names = [...existing.imageNames];
+    urls.splice(b.removeImageIndex, 1);
+    names.splice(b.removeImageIndex, 1);
+    if (urls.length === 0) {
+      await prisma.message.delete({ where: { id: messageId } });
+      return NextResponse.json({ ok: true, deleted: true });
+    }
+    const message = await prisma.message.update({
+      where: { id: messageId },
+      data: { imageUrls: urls, imageNames: names, imageUrl: urls[0] ?? null, imageName: names[0] ?? null },
+      include: { reactions: true },
+    });
+    return NextResponse.json(serializeMessage(message, auth.user.id));
+  }
+
   const text = String(b.text ?? "").trim();
   if (!text) return NextResponse.json({ error: "text is required" }, { status: 400 });
 

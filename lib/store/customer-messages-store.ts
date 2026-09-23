@@ -282,6 +282,32 @@ export const customerMessagesStore = {
       void fetchMessages(customerId);
     }
   },
+  async removeImage(customerId: string, id: string, imageIndex: number) {
+    const prev = byCustomer.get(customerId) ?? [];
+    byCustomer.set(
+      customerId,
+      prev.map((m) => {
+        if (m.id !== id) return m;
+        const urls = [...(m.imageUrls ?? [])];
+        const names = [...(m.imageNames ?? [])];
+        urls.splice(imageIndex, 1);
+        names.splice(imageIndex, 1);
+        if (urls.length === 0) return { ...m, imageUrls: [], imageNames: [], imageUrl: undefined, imageName: undefined };
+        return { ...m, imageUrls: urls, imageNames: names, imageUrl: urls[0], imageName: names[0] };
+      }).filter((m) => !(m.kind === "image" && (!m.imageUrls || m.imageUrls.length === 0) && !m.imageUrl))
+    );
+    emit();
+    try {
+      const res = await fetch(`/api/customers/${customerId}/messages/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ removeImageIndex: imageIndex }),
+      });
+      if (!res.ok) throw new Error("remove image failed");
+    } catch {
+      void fetchMessages(customerId);
+    }
+  },
   async deleteMessage(customerId: string, id: string, scope: "me" | "everyone" = "everyone") {
     const prev = byCustomer.get(customerId) ?? [];
     byCustomer.set(customerId, prev.filter((m) => m.id !== id));

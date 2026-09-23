@@ -10,6 +10,7 @@ import { CURRENT_USER_ID } from "@/lib/session";
 import { toastStore } from "@/lib/store/toast-store";
 import { ForwardDialog } from "@/components/crm/pipeline/customer-panel/forward-dialog";
 import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "🙏", "🎉"];
 
@@ -229,7 +230,7 @@ function MessageActions({
   }, [open]);
 
   const canCopy = !!message.text || message.kind === "image";
-  const canEdit = isSelf && message.kind === "chat" && !!message.text;
+  const canEdit = isSelf && (message.kind === "chat" || (message.kind === "image" && !!message.text));
   const canDeleteEveryone = isSelf && message.status === "sent";
   const canDeleteMe = message.status === "sent";
   const canReply = !!onReply && message.status !== "pending";
@@ -509,7 +510,7 @@ export function MessageBubble({
           {message.kind === "voice" ? (
             <VoiceBubble message={message} />
           ) : message.kind === "image" ? (
-            <ImageGallery message={message} onReply={onReply} onOpenImage={onOpenImage} />
+            <ImageGallery message={message} onReply={onReply} onOpenImage={onOpenImage} editing={editing} draft={draft} onDraftChange={setDraft} onSaveEdit={saveEdit} onCancelEdit={() => setEditing(false)} />
           ) : message.kind === "pdf" ? (
             <PdfBubble message={message} />
           ) : editing ? (
@@ -693,10 +694,20 @@ function ImageGallery({
   message,
   onReply,
   onOpenImage,
+  editing,
+  draft,
+  onDraftChange,
+  onSaveEdit,
+  onCancelEdit,
 }: {
   message: CustomerMessage;
   onReply?: (imageIndex?: number) => void;
   onOpenImage?: (key: string) => void;
+  editing?: boolean;
+  draft?: string;
+  onDraftChange?: (v: string) => void;
+  onSaveEdit?: () => void;
+  onCancelEdit?: () => void;
 }) {
   const urls =
     message.imageUrls && message.imageUrls.length > 0
@@ -705,8 +716,10 @@ function ImageGallery({
       ? [message.imageUrl]
       : [];
   const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
   if (urls.length === 0) return null;
 
+  const isSelf = message.senderId === CURRENT_USER_ID;
   const multiImage = urls.length > 1;
   const gridCls =
     urls.length === 1
@@ -737,6 +750,19 @@ function ImageGallery({
                 )}
               />
             </button>
+            {isSelf && message.status === "sent" && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteIdx(i);
+                }}
+                className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:bg-error group-hover/img:opacity-100"
+                aria-label={`Remove image ${i + 1}`}
+              >
+                <XIcon className="h-3 w-3" />
+              </button>
+            )}
             {multiImage && onReply && message.status === "sent" && (
               <button
                 type="button"
@@ -749,12 +775,45 @@ function ImageGallery({
           </div>
         ))}
       </div>
-      {message.text && (
+      {editing && onDraftChange && onSaveEdit && onCancelEdit ? (
+        <div className="flex items-center gap-1 px-1 pt-1">
+          <textarea
+            value={draft}
+            onChange={(e) => onDraftChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSaveEdit(); }
+              if (e.key === "Escape") onCancelEdit();
+            }}
+            autoFocus
+            rows={1}
+            className="min-w-40 flex-1 resize-none rounded-md bg-white/60 px-2 py-1 text-sm text-grey-900 outline-none"
+          />
+          <button type="button" aria-label="Save" onClick={onSaveEdit} className="rounded p-1 text-grey-700 hover:bg-white/40">
+            <Check className="h-3.5 w-3.5" />
+          </button>
+          <button type="button" aria-label="Cancel" onClick={onCancelEdit} className="rounded p-1 text-grey-700 hover:bg-white/40">
+            <XIcon className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : message.text ? (
         <p className="px-1 pt-1 text-sm font-body text-grey-800">{message.text}</p>
-      )}
+      ) : null}
       {!onOpenImage && openIdx !== null && (
         <ImageLightbox urls={urls} index={openIdx} onClose={() => setOpenIdx(null)} onNavigate={setOpenIdx} />
       )}
+      <ConfirmDialog
+        open={deleteIdx !== null}
+        onOpenChange={(v) => { if (!v) setDeleteIdx(null); }}
+        title="Delete photo"
+        description="Are you sure you want to delete this photo? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (deleteIdx !== null) {
+            customerMessagesStore.removeImage(message.customerId, message.id, deleteIdx);
+            setDeleteIdx(null);
+          }
+        }}
+      />
     </div>
   );
 }
