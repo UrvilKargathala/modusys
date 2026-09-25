@@ -33,6 +33,7 @@ model Customer {
   birthdayDay    String    @default("")
   birthdayYear   String    @default("")
   architectId    String?
+  siteManagerId  String?
   stage          String    @default("upcoming-inquiry")
   finalOfferLakh Float?
   assignee       String    @default("")

@@ -31,6 +31,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (b[k] !== undefined) data[k] = b[k];
   }
   if (b.architectId !== undefined) data.architectId = b.architectId || null;
+  if (b.siteManagerId !== undefined) data.siteManagerId = b.siteManagerId || null;
   // Keep the display `name` in sync when first/last change.
   if (b.firstName !== undefined || b.lastName !== undefined) {
     const first = (b.firstName ?? "").trim();

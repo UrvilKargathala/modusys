@@ -17,11 +17,28 @@ function emit() {
   for (const listener of listeners) listener();
 }
 
+// A poll that started before a save finished would return the pre-save row and
+// visibly revert the optimistic edit; drop any fetch that overlapped a write.
+let pendingWrites = 0;
+let writeVersion = 0;
+
+function trackWrite<T>(p: Promise<T>): Promise<T> {
+  pendingWrites++;
+  writeVersion++;
+  return p.finally(() => {
+    pendingWrites--;
+    writeVersion++;
+  });
+}
+
 async function refetch() {
+  const version = writeVersion;
   try {
     const res = await fetch("/api/customers", { cache: "no-store" });
     if (!res.ok) return;
-    all = (await res.json()) as Customer[];
+    const data = (await res.json()) as Customer[];
+    if (pendingWrites > 0 || version !== writeVersion) return;
+    all = data;
     emit();
   } catch {
     // keep in-memory on transient failure
@@ -80,11 +97,12 @@ export const customersStore = {
     ensureHydrated();
     all = all.map((c) => (c.id === id ? { ...c, stage: stage as Customer["stage"] } : c));
     emit();
-    return fetch(`/api/customers/${id}`, {
+    return trackWrite(fetch(`/api/customers/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ stage }),
-    }).then((r) => {
+      keepalive: true,
+    })).then((r) => {
       if (!r.ok) throw new Error("stage update failed");
     });
   },
@@ -94,11 +112,12 @@ export const customersStore = {
     ensureHydrated();
     all = all.map((c) => (c.id === id ? { ...c, ...fields } : c));
     emit();
-    fetch(`/api/customers/${id}`, {
+    trackWrite(fetch(`/api/customers/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(fields),
-    }).catch(refetch);
+      keepalive: true,
+    })).catch(refetch);
   },
   deleteCustomer(id: string) {
     ensureHydrated();

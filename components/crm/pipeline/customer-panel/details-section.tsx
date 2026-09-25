@@ -6,6 +6,7 @@ import { EditableField } from "@/components/crm/pipeline/customer-panel/editable
 import { StatusBadge } from "@/components/shared/status-badge";
 import { getCustomerProfile, getCustomerQuotes } from "@/lib/mock/customer-detail";
 import { customersStore } from "@/lib/store/customers-store";
+import { useOrgUsers } from "@/lib/store/users-store";
 import { useArchitects } from "@/lib/store/architects-store";
 import { fullName } from "@/lib/mock/architects";
 import { toastStore } from "@/lib/store/toast-store";
@@ -28,6 +29,8 @@ export function DetailsSection({ customer }: { customer: Customer }) {
   const profile = getCustomerProfile(customer);
   const quotes = getCustomerQuotes(customer);
   const architects = useArchitects();
+  const orgUsers = useOrgUsers();
+  const siteManagers = orgUsers.filter((u) => u.status === "active" || u.id === customer.siteManagerId);
   const architect = customer.architectId ? architects.find((a) => a.id === customer.architectId) : undefined;
   const architectName = architect ? fullName(architect) : null;
 
@@ -64,6 +67,24 @@ export function DetailsSection({ customer }: { customer: Customer }) {
               <span className="text-grey-300">Not associated</span>
             ))}
         </span>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="site-manager" className="text-xs font-body text-grey-500">Site Manager</label>
+        <select
+          id="site-manager"
+          value={customer.siteManagerId ?? ""}
+          onChange={(e) => {
+            customersStore.updateCustomer(customer.id, { siteManagerId: e.target.value });
+            toastStore.show("Saved", "success");
+          }}
+          className="h-9 w-full rounded-lg border border-grey-100 bg-white px-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+        >
+          <option value="">Not assigned</option>
+          {siteManagers.map((u) => (
+            <option key={u.id} value={u.id}>{u.name}</option>
+          ))}
+        </select>
       </div>
 
       <div className="flex flex-col gap-2">

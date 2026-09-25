@@ -70,6 +70,7 @@ export function serializeCustomer(c: Customer) {
     birthdayMonth: c.birthdayMonth,
     birthdayDay: c.birthdayDay,
     architectId: c.architectId ?? "",
+    siteManagerId: c.siteManagerId ?? "",
     createdById: c.createdById ?? "",
     createdAt: c.createdAt.toISOString(),
   };
