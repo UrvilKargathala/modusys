@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ChevronDown, LogOut, UserPlus, KeyRound, UserRound, Download } from "lucide-react";
+import { ChevronDown, LogOut, KeyRound, UserRound, Download } from "lucide-react";
 import { pwaInstallStore, usePwaInstall, isStandalone } from "@/lib/store/pwa-install-store";
 import { cn } from "@/lib/utils";
 import { navigationItems, administrationItems, attendanceItems, canSeeNav } from "@/lib/nav";
@@ -19,7 +19,9 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useNotifications, notificationsStore } from "@/lib/store/notifications-store";
-import { notificationStyle, virtualNotificationStyle, isToday } from "@/lib/notification-style";
+import { virtualReadStore, useReadVirtualIds } from "@/lib/store/virtual-read-store";
+import { NotificationPanel, type NotificationRow } from "@/components/layout/notification-panel";
+import { notificationStyle, virtualNotificationStyle } from "@/lib/notification-style";
 import { taskPanelStore } from "@/lib/store/task-panel-store";
 import { useCurrentUser, signOut } from "@/lib/session";
 import { getRole } from "@/lib/constants/roles";
@@ -30,64 +32,6 @@ import { useOrgUsers } from "@/lib/store/users-store";
 import { customerPanelStore } from "@/lib/store/customer-panel-store";
 import { getVirtualNotifications } from "@/lib/notifications-feed";
 
-
-function timeAgo(iso: string) {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const mins = Math.round(diffMs / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
-}
-
-type NotificationRow = {
-  id: string;
-  message: string;
-  createdAt: string;
-  icon: typeof UserPlus;
-  iconClass: string;
-  bgClass: string;
-  actionNeeded: boolean;
-  isVirtual: boolean;
-  unread: boolean;
-  onClick: () => void;
-};
-
-function NotificationGroup({ label, rows }: { label: string; rows: NotificationRow[] }) {
-  return (
-    <div className="flex flex-col">
-      <span className="px-3 pb-1 pt-2 text-[10px] font-body font-semibold uppercase tracking-wide text-grey-400">
-        {label}
-      </span>
-      {rows.map((n) => (
-        <button
-          key={n.id}
-          type="button"
-          onClick={n.onClick}
-          className={cn(
-            "flex items-start gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-light-600",
-            n.unread && "bg-primary-transparent",
-            // Virtual (live-computed) rows get their own neutral wash so
-            // they never look like an unread real alert that's "stuck".
-            n.isVirtual && "bg-light-600/60"
-          )}
-        >
-          <span className={cn("relative mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full", n.bgClass, n.iconClass)}>
-            <n.icon className="h-3.5 w-3.5" />
-            {n.actionNeeded && (
-              <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-error ring-2 ring-popover" />
-            )}
-          </span>
-          <span className="flex flex-col gap-0.5">
-            <span className="text-sm font-body text-grey-800">{n.message}</span>
-            <span className="text-xs font-number text-grey-400">{timeAgo(n.createdAt)}</span>
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export function TopNavbar() {
   const pathname = usePathname();
@@ -120,7 +64,7 @@ export function TopNavbar() {
     userName
   );
 
-  const unreadCount = myNotifications.filter((n) => !n.read).length + virtualNotifications.length;
+  const readVirtualIds = useReadVirtualIds(currentUser.id);
 
   // Merge real (persisted) and virtual (live-computed) notifications into one
   // timeline so they can be sorted and grouped together, while keeping each
@@ -136,8 +80,8 @@ export function TopNavbar() {
         iconClass: style.iconClass,
         bgClass: style.bgClass,
         actionNeeded: style.actionNeeded,
-        isVirtual: false,
         unread: !n.read,
+        onMarkRead: () => notificationsStore.markRead(n.id),
         onClick: () => {
           notificationsStore.markRead(n.id);
           if (n.type === "leave-requested") router.push("/admin/leaves");
@@ -156,13 +100,10 @@ export function TopNavbar() {
         iconClass: style.iconClass,
         bgClass: style.bgClass,
         actionNeeded: style.actionNeeded,
-        // Virtual notifications have no read state — they're "live truth"
-        // that reappears until the underlying condition resolves — but they
-        // still get their own visual treatment (below) so they don't read
-        // as stuck unread alerts.
-        isVirtual: true,
-        unread: false,
+        unread: !readVirtualIds.has(n.id),
+        onMarkRead: () => virtualReadStore.markRead(currentUser.id, n.id),
         onClick: () => {
+          virtualReadStore.markRead(currentUser.id, n.id);
           if (n.href) router.push(n.href);
           else if (n.customerId) customerPanelStore.open(n.customerId);
         },
@@ -170,8 +111,10 @@ export function TopNavbar() {
     }),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const todayRows = notificationRows.filter((r) => isToday(r.createdAt));
-  const earlierRows = notificationRows.filter((r) => !isToday(r.createdAt));
+  const markAllRead = () => {
+    notificationsStore.markAllRead(currentUser.id);
+    virtualReadStore.markAllRead(currentUser.id, virtualNotifications.map((n) => n.id));
+  };
 
   return (
     <header className="flex h-16 items-center justify-between gap-4 border-b border-grey-100 bg-card px-4 md:px-6">
@@ -268,47 +211,7 @@ export function TopNavbar() {
       <div className="flex shrink-0 items-center gap-2">
         <GlobalSearch />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label="Notifications"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary-100"
-          >
-            <Bell className="h-4 w-4" />
-            {unreadCount > 0 && (
-              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[10px] font-number font-medium text-white">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            )}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80 p-0">
-            <div className="flex items-center justify-between px-3 py-2.5">
-              <span className="font-heading text-sm font-semibold text-grey-900">Notifications</span>
-              {unreadCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => notificationsStore.markAllRead(currentUser.id)}
-                  className="text-xs font-body font-medium text-primary hover:underline"
-                >
-                  Mark all as read
-                </button>
-              )}
-            </div>
-            <DropdownMenuSeparator />
-            <div className="flex max-h-80 flex-col overflow-y-auto">
-              {notificationRows.length === 0 && (
-                <span className="px-3 py-6 text-center text-sm font-body text-grey-400">
-                  No notifications yet.
-                </span>
-              )}
-              {todayRows.length > 0 && (
-                <NotificationGroup label="Today" rows={todayRows} />
-              )}
-              {earlierRows.length > 0 && (
-                <NotificationGroup label="Earlier" rows={earlierRows} />
-              )}
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <NotificationPanel rows={notificationRows} onMarkAllRead={markAllRead} />
 
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-light-600">
