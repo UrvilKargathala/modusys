@@ -1,3 +1,4 @@
+import { getManagedEmployeeIds } from "@/lib/server/managed-employees";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/require-user";
@@ -40,10 +41,11 @@ export async function GET(req: NextRequest) {
 
   const workingDays = weekdaysBetween(fromDate, toDate);
 
+  const managedIds = await getManagedEmployeeIds();
   const employees = await prisma.employee.findMany({
     where: {
       isActive: true,
-      ...(employeeIdParam ? { id: employeeIdParam } : {}),
+      id: { in: employeeIdParam ? managedIds.filter((id) => id === employeeIdParam) : managedIds },
       ...(departmentParam ? { department: departmentParam } : {}),
     },
     select: { id: true, name: true, department: true, employeeNumber: true },

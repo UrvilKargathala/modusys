@@ -1,3 +1,4 @@
+import { getManagedEmployeeIds } from "@/lib/server/managed-employees";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/require-user";
@@ -96,10 +97,12 @@ export default async function AttendancePage({
   });
   const onLeaveByEmployee = new Map(approvedLeaves.map((l) => [l.employeeId, l.leaveType]));
 
+  const managedIds = await getManagedEmployeeIds();
+
   // Fetch both tables in parallel — filter by source at merge time.
   const [attRecords, photoRecords] = await Promise.all([
     prisma.attendanceRecord.findMany({
-      where: { date },
+      where: { date, employeeId: { in: managedIds } },
       include: {
         employee: {
           select: { id: true, name: true, department: true, designation: true },
@@ -108,7 +111,7 @@ export default async function AttendancePage({
       orderBy: { checkIn: "desc" },
     }),
     prisma.photoAttendanceRecord.findMany({
-      where: { date },
+      where: { date, employeeId: { in: managedIds } },
       orderBy: { checkIn: "desc" },
     }),
   ]);
@@ -183,7 +186,7 @@ export default async function AttendancePage({
   else if (statFilter === "late") rows = rows.filter((r) => r.isLate);
   else if (statFilter === "in-office") rows = rows.filter((r) => !r.checkOut);
 
-  const totalEmployees = await prisma.employee.count({ where: { isActive: true } });
+  const totalEmployees = managedIds.length;
   // Present = distinct employees with ANY attendance today (unifi/gps/photo).
   const presentEmployeeIds = new Set(allRows.map((r) => r.employee.id));
   const present = presentEmployeeIds.size;

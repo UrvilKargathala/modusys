@@ -1,3 +1,4 @@
+import { getManagedEmployeeIds } from "@/lib/server/managed-employees";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/require-user";
@@ -61,11 +62,12 @@ export default async function ReportsPage({
 
   const workingDays = weekdaysBetween(fromDate, toDate);
 
+  const managedIds = await getManagedEmployeeIds();
   const employees = await prisma.employee.findMany({
     where: isSuper
       ? {
           isActive: true,
-          ...(sp.employeeId ? { id: sp.employeeId } : {}),
+          id: { in: sp.employeeId ? managedIds.filter((id) => id === sp.employeeId) : managedIds },
           ...(sp.department ? { department: sp.department } : {}),
         }
       : { id: selfEmployee?.id ?? "__none__" },
@@ -77,7 +79,7 @@ export default async function ReportsPage({
     ? Array.from(
         new Set(
           (await prisma.employee.findMany({
-            where: { isActive: true },
+            where: { isActive: true, id: { in: managedIds } },
             select: { department: true },
           }))
             .map((e) => e.department)

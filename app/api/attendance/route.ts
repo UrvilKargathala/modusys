@@ -1,3 +1,4 @@
+import { getManagedEmployeeIds } from "@/lib/server/managed-employees";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { istMidnight } from "@/lib/attendance-config";
@@ -6,8 +7,9 @@ export async function GET(req: NextRequest) {
   const dateParam = req.nextUrl.searchParams.get("date");
   const date = istMidnight(dateParam ?? new Date());
 
+  const managedIds = await getManagedEmployeeIds();
   const records = await prisma.attendanceRecord.findMany({
-    where: { date },
+    where: { date, employeeId: { in: managedIds } },
     include: {
       employee: {
         select: { id: true, name: true, department: true, designation: true, employeeNumber: true },
@@ -16,7 +18,7 @@ export async function GET(req: NextRequest) {
     orderBy: { checkIn: "asc" },
   });
 
-  const totalEmployees = await prisma.employee.count({ where: { isActive: true } });
+  const totalEmployees = managedIds.length;
   const present = records.length;
   const absent = totalEmployees - present;
   const checkedOut = records.filter((r) => r.checkOut).length;

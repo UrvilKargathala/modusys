@@ -1,3 +1,4 @@
+import { getManagedEmployeeIds } from "@/lib/server/managed-employees";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { formatTime, getWorkingHours } from "@/lib/attendance-utils";
@@ -14,8 +15,9 @@ export async function GET(req: NextRequest) {
   const toEndInclusive = istMidnight(to ?? new Date());
   toEndInclusive.setUTCDate(toEndInclusive.getUTCDate() + 1);
 
+  const managedIds = await getManagedEmployeeIds();
   const records = await prisma.attendanceRecord.findMany({
-    where: { date: { gte: fromDate, lt: toEndInclusive } },
+    where: { date: { gte: fromDate, lt: toEndInclusive }, employeeId: { in: managedIds } },
     include: {
       employee: {
         select: { name: true, email: true, department: true, employeeNumber: true },
