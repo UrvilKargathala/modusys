@@ -234,7 +234,9 @@ function CabinetTypeSelect({ value, onChange }: { value: string; onChange: (id: 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const selected = cabinetTypes.find((c) => c.id === value);
-  const results = cabinetTypes.filter((c) => c.name.toLowerCase().includes(query.toLowerCase()));
+  const results = cabinetTypes
+    .filter((c) => c.name.toLowerCase().includes(query.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true }));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -242,7 +244,7 @@ function CabinetTypeSelect({ value, onChange }: { value: string; onChange: (id: 
         {selected ? <span className="truncate">{selected.name}</span> : <span className="truncate text-grey-400 font-normal">Select Cabinet Type</span>}
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 p-2">
+      <PopoverContent align="start" className="w-[min(32rem,calc(100vw-2rem))] p-2">
         <Input autoFocus placeholder="Search cabinet types" value={query} onChange={(e) => setQuery(e.target.value)} className="mb-2" />
         <div className="flex max-h-52 flex-col overflow-y-auto">
           {results.map((c) => (
@@ -255,11 +257,11 @@ function CabinetTypeSelect({ value, onChange }: { value: string; onChange: (id: 
                 setQuery("");
               }}
               className={cn(
-                "flex w-full min-w-0 items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body hover:bg-light-600",
+                "flex w-full min-w-0 items-start justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body hover:bg-light-600",
                 c.id === value ? "text-primary" : "text-grey-800"
               )}
             >
-              <span className="min-w-0 truncate">{c.name}</span>
+              <span className="min-w-0 break-words">{c.name}</span>
               {c.id === value && <Check className="h-3.5 w-3.5 shrink-0" />}
             </button>
           ))}

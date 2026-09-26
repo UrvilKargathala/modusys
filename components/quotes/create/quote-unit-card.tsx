@@ -109,9 +109,10 @@ function UnitTypeSelect({ value, onChange }: { value: string | null; onChange: (
   const [query, setQuery] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const selected = unitTypes.find((u) => u.id === value);
-  const results = unitTypes.filter(
-    (u) => u.name.toLowerCase().includes(query.toLowerCase()) || u.shortCode.toLowerCase().includes(query.toLowerCase())
-  );
+  // A→Z by what's shown in the list ("CODE — Name").
+  const results = unitTypes
+    .filter((u) => u.name.toLowerCase().includes(query.toLowerCase()) || u.shortCode.toLowerCase().includes(query.toLowerCase()))
+    .sort((a, b) => `${a.shortCode} — ${a.name}`.localeCompare(`${b.shortCode} — ${b.name}`, undefined, { sensitivity: "base", numeric: true }));
 
   return (
     <>
@@ -332,6 +333,7 @@ export function QuoteUnitCard({
           <Label>Space</Label>
           <MaterialReferenceSelect
             category="space"
+            sorted
             value={unit.spaceId ?? ""}
             onChange={(id) => onChange({ spaceId: id })}
           />

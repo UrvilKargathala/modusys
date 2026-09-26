@@ -103,7 +103,7 @@ function CreateQuotePage() {
     if (!quote.siteEngineerId) missing.push("Site Engineer");
     if (!quote.productTypeId) missing.push("Product Type");
     if (!quote.materialDescriptionId) missing.push("Material Description");
-    if (!quote.shutterFinishId) missing.push("Shutter Finish");
+    if (!quote.shutterFinishId) missing.push("Variant ID");
     if (!quote.handleTypeId) missing.push("Handle");
     if (!quote.hingesTypeId) missing.push("Hinges");
     if (!quote.tandemDrawerTypeId) missing.push("Tandem Drawer Type");

@@ -21,6 +21,8 @@ export function MaterialReferenceSelect({
   bold = false,
   triggerClassName,
   disabled = false,
+  wide = false,
+  sorted = false,
 }: {
   category: MaterialCategoryKey;
   value: string;
@@ -29,6 +31,10 @@ export function MaterialReferenceSelect({
   bold?: boolean;
   triggerClassName?: string;
   disabled?: boolean;
+  // Wide: roomy list that wraps long names instead of cutting them off.
+  wide?: boolean;
+  // Sorted: A→Z by name (numbers first) instead of Material Library order.
+  sorted?: boolean;
 }) {
   const meta = getMaterialCategory(category);
   const items = useMaterialItems(category);
@@ -37,9 +43,12 @@ export function MaterialReferenceSelect({
   const [addOpen, setAddOpen] = useState(false);
 
   const selected = items.find((i) => i.id === value);
-  const results = items.filter(
+  const matches = items.filter(
     (i) => i.name.toLowerCase().includes(query.toLowerCase()) || i.description.toLowerCase().includes(query.toLowerCase())
   );
+  const results = sorted
+    ? [...matches].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true }))
+    : matches;
 
   return (
     <>
@@ -65,7 +74,7 @@ export function MaterialReferenceSelect({
           )}
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-72 p-2">
+        <PopoverContent align="start" className={cn("p-2", wide ? "w-[min(44rem,calc(100vw-2rem))]" : "w-72")}>
           <Input
             autoFocus
             placeholder={`Search ${meta.label.toLowerCase()}`}
@@ -73,7 +82,7 @@ export function MaterialReferenceSelect({
             onChange={(e) => setQuery(e.target.value)}
             className="mb-2 font-number"
           />
-          <div className="flex max-h-52 flex-col overflow-y-auto">
+          <div className={cn("flex flex-col overflow-y-auto", wide ? "max-h-80" : "max-h-52")}>
             {results.map((i) => (
               <button
                 key={i.id}
@@ -84,13 +93,14 @@ export function MaterialReferenceSelect({
                   setQuery("");
                 }}
                 className={cn(
-                  "flex w-full min-w-0 items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body hover:bg-light-600",
+                  "flex w-full min-w-0 justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body hover:bg-light-600",
+                  wide ? "items-start" : "items-center",
                   i.id === value ? "text-primary" : "text-grey-800"
                 )}
               >
                 <span
                   title={nameOnly || !i.description ? i.name : `${i.name} — ${i.description}`}
-                  className="min-w-0 truncate font-number"
+                  className={cn("min-w-0 font-number", wide ? "break-words" : "truncate")}
                 >
                   {i.name}
                   {!nameOnly && i.description && <span className="text-grey-400"> — {i.description}</span>}

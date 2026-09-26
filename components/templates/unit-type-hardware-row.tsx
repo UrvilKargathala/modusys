@@ -77,7 +77,7 @@ export function UnitTypeHardwareRow({
   // Price List.
   const brandOptions = useMemo(() => {
     const ids = new Set(itemsForCategory.map((h) => h.brandId).filter(Boolean));
-    return brands.filter((b) => ids.has(b.id));
+    return brands.filter((b) => ids.has(b.id)).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true }));
   }, [itemsForCategory, brands]);
 
   // Distinct product descriptions from the (category+brand-filtered) HPL.
@@ -256,6 +256,8 @@ export function UnitTypeHardwareRow({
           <Label>Category</Label>
           <MaterialReferenceSelect
             category="category"
+            wide
+            sorted
             value={value.categoryId}
             onChange={handleCategoryChange}
             triggerClassName="bg-[#F0E4E4]"
@@ -394,7 +396,9 @@ function DescriptionCombobox({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [addOpen, setAddOpen] = useState(false);
-  const filtered = options.filter((o) => o.toLowerCase().includes(query.toLowerCase()));
+  const filtered = options
+    .filter((o) => o.toLowerCase().includes(query.toLowerCase()))
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }));
 
   return (
     <>
@@ -411,7 +415,7 @@ function DescriptionCombobox({
           </span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-80 p-2">
+        <PopoverContent align="start" className="w-[min(44rem,calc(100vw-2rem))] p-2">
           <Input
             autoFocus
             placeholder="Search description"
@@ -430,11 +434,11 @@ function DescriptionCombobox({
                   setQuery("");
                 }}
                 className={cn(
-                  "flex w-full min-w-0 items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body hover:bg-light-600",
+                  "flex w-full min-w-0 items-start justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body hover:bg-light-600",
                   d === value ? "text-primary" : "text-grey-800"
                 )}
               >
-                <span title={d} className="min-w-0 truncate">{d}</span>
+                <span title={d} className="min-w-0 break-words">{d}</span>
                 {d === value && <Check className="h-3.5 w-3.5 shrink-0" />}
               </button>
             ))}

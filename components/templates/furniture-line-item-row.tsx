@@ -186,6 +186,8 @@ export function FurnitureLineItemRow({
             <Label className="whitespace-nowrap">Component Name</Label>
             <MaterialReferenceSelect
               category="furniture-component"
+              wide
+              sorted
               value={value.componentTypeId ?? ""}
               onChange={(id) => requestMaterialChange("componentTypeId", id)}
               triggerClassName="bg-[#F0E4E4]"
@@ -244,6 +246,8 @@ export function FurnitureLineItemRow({
           <Label>Raw Material</Label>
           <MaterialReferenceSelect
             category="raw-material-type"
+            wide
+            sorted
             value={value.rawMaterialTypeId}
             onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)}
             triggerClassName="bg-[#F0E4E4]"
@@ -253,6 +257,8 @@ export function FurnitureLineItemRow({
           <Label>External Colour</Label>
           <MaterialReferenceSelect
             category="external-colour"
+            wide
+            sorted
             value={value.externalColourId}
             onChange={(id) => requestMaterialChange("externalColourId", id)}
             triggerClassName="bg-[#F0E4E4]"
@@ -262,6 +268,8 @@ export function FurnitureLineItemRow({
           <Label>Internal Colour</Label>
           <MaterialReferenceSelect
             category="internal-colour"
+            wide
+            sorted
             value={value.internalColourId}
             onChange={(id) => requestMaterialChange("internalColourId", id)}
             triggerClassName="bg-[#F0E4E4]"
