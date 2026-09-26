@@ -8,6 +8,7 @@ import { parseCsv, downloadCsv } from "@/lib/csv";
 import { pricingListStore, type NewFurniturePriceInput, type NewHardwarePriceInput } from "@/lib/store/pricing-list-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
 import { rateAfterDiscount } from "@/lib/mock/pricing-list";
+import { normalizeVariantId, suggestVariantId, variantIdFormatError } from "@/lib/variant-id";
 import type { MaterialItem, MaterialCategoryKey } from "@/lib/mock/material-spec";
 
 type ImportMode = "upsert" | "insert-only" | "update-only";
@@ -24,8 +25,9 @@ const importModeHelp: Record<ImportMode, string> = {
 const HARDWARE_HEADER = ["Article No", "Category", "Brand", "Description", "Level Type", "Unit", "MRP", "Discount %", "Rate After Discount"];
 const HARDWARE_TEMPLATE_ROW = ["BLM-CLIP-110", "Hinges", "Blum", "Clip Top Soft-Close Hinge, 110°, full overlay", "Primary", "Pcs", "420", "15", "357.00"];
 
-const FURNITURE_HEADER = ["Thickness", "Raw Material Type", "Internal Colour", "External Colour", "Rate"];
-const FURNITURE_TEMPLATE_ROW = ["18mm", "BWP Ply", "White", "Matte Charcoal", "145"];
+// Variant ID is the last column so older 5-column files still import (a blank ID is generated from the row).
+const FURNITURE_HEADER = ["Thickness", "Raw Material Type", "Internal Colour", "External Colour", "Rate", "Variant ID"];
+const FURNITURE_TEMPLATE_ROW = ["18mm", "BWP Ply", "White", "Matte Charcoal", "145", "18MM-BWP-WHITE-MATTE-CHARCOAL"];
 
 // Resolve a Material Library entry by name, creating it on the fly (same
 // escape hatch every "+ Add new" picker in this app already offers) so an
@@ -92,6 +94,7 @@ export function SimpleCsvPanel({ label, kind }: { label: string; kind: "furnitur
           nameOf(materialItems, i.internalColourId),
           nameOf(materialItems, i.externalColourId),
           String(i.rate),
+          i.variantId,
         ]),
       ];
       downloadCsv(`${label.toLowerCase().replace(/\s+/g, "-")}.csv`, rows);
@@ -143,13 +146,20 @@ export function SimpleCsvPanel({ label, kind }: { label: string; kind: "furnitur
     let created = 0, updated = 0, skipped = 0, errored = 0;
 
     for (const row of dataRows) {
-      const [thickness, rawMaterial, internalColour, externalColour, rateStr] = row;
+      const [thickness, rawMaterial, internalColour, externalColour, rateStr, variantCell] = row;
       const rate = Number(rateStr);
       if (!thickness?.trim() || !rawMaterial?.trim() || !internalColour?.trim() || !externalColour?.trim() || !Number.isFinite(rate)) {
         errored++;
         continue;
       }
+      // A filled Variant ID must be valid; blank means "generate one from the row".
+      const providedVariant = normalizeVariantId(variantCell ?? "");
+      if (providedVariant && variantIdFormatError(providedVariant)) {
+        errored++;
+        continue;
+      }
       const input: NewFurniturePriceInput = {
+        variantId: providedVariant || suggestVariantId([thickness, rawMaterial, internalColour, externalColour]),
         thicknessId: resolveOrCreateMaterialId("thickness", thickness, materialItems, createdThisRun),
         rawMaterialTypeId: resolveOrCreateMaterialId("raw-material-type", rawMaterial, materialItems, createdThisRun),
         internalColourId: resolveOrCreateMaterialId("internal-colour", internalColour, materialItems, createdThisRun),
@@ -159,10 +169,14 @@ export function SimpleCsvPanel({ label, kind }: { label: string; kind: "furnitur
       const match = pricingListStore.findDuplicateFurniture(input);
       if (match) {
         if (mode === "insert-only") { skipped++; continue; }
+        // Keep the row's current ID unless the file supplies a different, free one.
+        if (!providedVariant) input.variantId = match.variantId;
+        else if (pricingListStore.isVariantIdTaken(providedVariant, match.id)) { errored++; continue; }
         pricingListStore.updateFurnitureItem(match.id, input);
         updated++;
       } else {
         if (mode === "update-only") { skipped++; continue; }
+        if (providedVariant && pricingListStore.isVariantIdTaken(providedVariant)) { errored++; continue; }
         pricingListStore.createFurnitureItem(input);
         created++;
       }

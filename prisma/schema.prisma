@@ -304,6 +304,7 @@ model FurniturePriceItem {
   internalColourId  String
   externalColourId  String
   rate              Float
+  variantId         String   @default("")
   deleted           Boolean  @default(false)
   createdAt         DateTime @default(now())
 }

@@ -1,4 +1,5 @@
 import { mockMaterialItems, type MaterialCategoryKey } from "@/lib/mock/material-spec";
+import { suggestVariantId } from "@/lib/variant-id";
 
 function findMaterialId(category: MaterialCategoryKey, name: string): string {
   const found = mockMaterialItems.find((m) => m.category === category && m.name === name);
@@ -13,6 +14,7 @@ export type FurniturePriceItem = {
   internalColourId: string;
   externalColourId: string;
   rate: number; // ₹ per sq ft
+  variantId: string; // letters/numbers/dashes, unique among live rows
   deleted?: boolean;
   createdAt: string;
 };
@@ -27,6 +29,7 @@ function furnitureItem(thickness: string, rawMaterialType: string, internalColou
     internalColourId: findMaterialId("internal-colour", internalColour),
     externalColourId: findMaterialId("external-colour", externalColour),
     rate,
+    variantId: suggestVariantId([thickness, rawMaterialType, internalColour, externalColour]),
     createdAt: new Date(Date.now() - furnitureSeedId * 86_400_000).toISOString(),
   };
 }

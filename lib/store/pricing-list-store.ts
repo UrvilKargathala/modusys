@@ -8,6 +8,7 @@ import {
   type HardwarePriceItem,
 } from "@/lib/mock/pricing-list";
 import { fetchJson, makeDebouncedPut } from "@/lib/store/api-sync";
+import { makeUniqueVariantId, normalizeVariantId } from "@/lib/variant-id";
 
 // Two flat arrays backed by the shared DB via /api/pricing/furniture and
 // /api/pricing/hardware (bulk-PUT persistence). Every mutation still funnels
@@ -85,9 +86,21 @@ export const pricingListStore = {
       ) ?? null
     );
   },
+  // Uppercase Variant IDs held by live rows, optionally ignoring one row (its own).
+  takenVariantIds(excludeId?: string): Set<string> {
+    ensureHydrated();
+    return new Set(
+      furnitureItems.filter((i) => !i.deleted && i.id !== excludeId && i.variantId).map((i) => normalizeVariantId(i.variantId))
+    );
+  },
+  isVariantIdTaken(variantId: string, excludeId?: string) {
+    return pricingListStore.takenVariantIds(excludeId).has(normalizeVariantId(variantId));
+  },
   createFurnitureItem(input: NewFurniturePriceInput) {
     ensureHydrated();
-    const created: FurniturePriceItem = { ...input, id: `fpl-new-${Date.now()}-${++idCounter}`, createdAt: new Date().toISOString() };
+    // Duplicate/import paths can hand in an ID that's already used — suffix it (-2, -3…) instead of failing.
+    const variantId = makeUniqueVariantId(input.variantId, pricingListStore.takenVariantIds());
+    const created: FurniturePriceItem = { ...input, variantId, id: `fpl-new-${Date.now()}-${++idCounter}`, createdAt: new Date().toISOString() };
     furnitureItems = [...furnitureItems, created];
     persist();
     emit();
@@ -107,7 +120,10 @@ export const pricingListStore = {
   },
   restoreFurnitureItem(id: string) {
     ensureHydrated();
-    furnitureItems = furnitureItems.map((i) => (i.id === id ? { ...i, deleted: false } : i));
+    const taken = pricingListStore.takenVariantIds(id);
+    furnitureItems = furnitureItems.map((i) =>
+      i.id === id ? { ...i, deleted: false, variantId: makeUniqueVariantId(i.variantId, taken) } : i
+    );
     persist();
     emit();
   },

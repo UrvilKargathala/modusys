@@ -49,15 +49,18 @@ export function FurniturePriceTable() {
     return items.filter((i) => {
       if (filterDimension !== "all" && filterValue && i[filterDimension] !== filterValue) return false;
       if (!q) return true;
-      return [i.thicknessId, i.rawMaterialTypeId, i.internalColourId, i.externalColourId]
-        .some((id) => materialName(id).toLowerCase().includes(q));
+      return (
+        i.variantId.toLowerCase().includes(q) ||
+        [i.thicknessId, i.rawMaterialTypeId, i.internalColourId, i.externalColourId].some((id) => materialName(id).toLowerCase().includes(q))
+      );
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, filterDimension, filterValue, search]);
 
-  const { header, sortRows } = useTableSort<"thickness" | "rawMaterial" | "internal" | "external" | "rate">("thickness");
+  const { header, sortRows } = useTableSort<"variantId" | "thickness" | "rawMaterial" | "internal" | "external" | "rate">("thickness");
   const sorted = sortRows(filtered, (i, key) =>
-    key === "thickness" ? materialName(i.thicknessId)
+    key === "variantId" ? i.variantId
+    : key === "thickness" ? materialName(i.thicknessId)
     : key === "rawMaterial" ? materialName(i.rawMaterialTypeId)
     : key === "internal" ? materialName(i.internalColourId)
     : key === "external" ? materialName(i.externalColourId)
@@ -141,6 +144,7 @@ export function FurniturePriceTable() {
             <thead className="bg-[#DACCCC]">
               <tr>
                 <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">SR No</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("variantId", "Variant ID")}</th>
                 <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("thickness", "Thickness")}</th>
                 <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("rawMaterial", "Raw Material Type")}</th>
                 <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("internal", "Internal Colours and Description")}</th>
@@ -153,6 +157,7 @@ export function FurniturePriceTable() {
               {paged.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number font-medium text-grey-900">{i.variantId || <span className="text-grey-300">—</span>}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body font-medium text-grey-900">{materialName(i.thicknessId)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-900">{materialName(i.rawMaterialTypeId)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{materialName(i.internalColourId)}</td>

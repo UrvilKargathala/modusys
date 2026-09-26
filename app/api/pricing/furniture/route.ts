@@ -3,6 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { replaceCollection, toDate } from "@/lib/server/bulk";
 import { requireUser } from "@/lib/server/require-user";
 import { logAudit } from "@/lib/server/audit";
+import { normalizeVariantId, variantIdFormatError } from "@/lib/variant-id";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export async function GET() {
   return NextResponse.json(items.map((i) => ({
     id: i.id, thicknessId: i.thicknessId, rawMaterialTypeId: i.rawMaterialTypeId,
     internalColourId: i.internalColourId, externalColourId: i.externalColourId,
-    rate: i.rate, deleted: i.deleted, createdAt: i.createdAt.toISOString(),
+    rate: i.rate, variantId: i.variantId, deleted: i.deleted, createdAt: i.createdAt.toISOString(),
   })));
 }
 
@@ -32,8 +33,19 @@ export async function PUT(req: Request) {
   const mapped = rows.map((r) => ({
     id: String(r.id), thicknessId: String(r.thicknessId), rawMaterialTypeId: String(r.rawMaterialTypeId),
     internalColourId: String(r.internalColourId), externalColourId: String(r.externalColourId),
-    rate: Number(r.rate), deleted: Boolean(r.deleted), createdAt: toDate(r.createdAt),
+    rate: Number(r.rate), variantId: normalizeVariantId(String(r.variantId ?? "")),
+    deleted: Boolean(r.deleted), createdAt: toDate(r.createdAt),
   }));
+
+  // Live rows: a filled Variant ID must be valid and unique. Blank is tolerated
+  // here so legacy rows never block a save; the UI entry points require it.
+  const seen = new Set<string>();
+  for (const r of mapped) {
+    if (r.deleted || !r.variantId) continue;
+    const err = variantIdFormatError(r.variantId) ?? (seen.has(r.variantId) ? `Variant ID "${r.variantId}" is used more than once` : null);
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
+    seen.add(r.variantId);
+  }
   await replaceCollection(prisma.furniturePriceItem, mapped);
 
   const newMap = new Map(mapped.map((r) => [r.id, r]));

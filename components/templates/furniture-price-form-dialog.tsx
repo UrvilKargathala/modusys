@@ -15,10 +15,19 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { pricingListStore, type NewFurniturePriceInput } from "@/lib/store/pricing-list-store";
+import { useMaterialItems } from "@/lib/store/material-spec-store";
+import {
+  makeUniqueVariantId,
+  normalizeVariantId,
+  sanitizeVariantIdInput,
+  suggestVariantId,
+  variantIdFormatError,
+  VARIANT_ID_MAX,
+} from "@/lib/variant-id";
 import type { FurniturePriceItem } from "@/lib/mock/pricing-list";
 
 function emptyValues(): NewFurniturePriceInput {
-  return { thicknessId: "", rawMaterialTypeId: "", internalColourId: "", externalColourId: "", rate: 0 };
+  return { thicknessId: "", rawMaterialTypeId: "", internalColourId: "", externalColourId: "", rate: 0, variantId: "" };
 }
 
 export function FurniturePriceFormDialog({
@@ -43,18 +52,45 @@ export function FurniturePriceFormDialog({
   const isEdit = !!item;
   const [values, setValues] = useState<NewFurniturePriceInput>(emptyValues());
   const [duplicate, setDuplicate] = useState<FurniturePriceItem | null>(null);
+  const [variantTouched, setVariantTouched] = useState(false);
+  const thicknesses = useMaterialItems("thickness");
+  const rawMaterialTypes = useMaterialItems("raw-material-type");
+  const internalColours = useMaterialItems("internal-colour");
+  const externalColours = useMaterialItems("external-colour");
 
   useEffect(() => {
     if (!open) return;
     setValues(
       item
-        ? { thicknessId: item.thicknessId, rawMaterialTypeId: item.rawMaterialTypeId, internalColourId: item.internalColourId, externalColourId: item.externalColourId, rate: item.rate }
+        ? { thicknessId: item.thicknessId, rawMaterialTypeId: item.rawMaterialTypeId, internalColourId: item.internalColourId, externalColourId: item.externalColourId, rate: item.rate, variantId: item.variantId }
         : { ...emptyValues(), ...initialValues }
     );
     setDuplicate(null);
+    setVariantTouched(false);
   }, [open, item, initialValues]);
 
-  const complete = values.thicknessId && values.rawMaterialTypeId && values.internalColourId && values.externalColourId && values.rate > 0;
+  // Add mode: until the user types their own, the ID follows the chosen materials
+  // (derived at render time, not stored, so it updates as they pick).
+  const nameOf = (list: { id: string; name: string }[], id: string) => list.find((m) => m.id === id)?.name ?? "";
+  const materialsPicked = !!(values.thicknessId && values.rawMaterialTypeId && values.internalColourId && values.externalColourId);
+  const suggestion = materialsPicked
+    ? makeUniqueVariantId(
+        suggestVariantId([
+          nameOf(thicknesses, values.thicknessId),
+          nameOf(rawMaterialTypes, values.rawMaterialTypeId),
+          nameOf(internalColours, values.internalColourId),
+          nameOf(externalColours, values.externalColourId),
+        ]),
+        pricingListStore.takenVariantIds()
+      )
+    : "";
+  const variantId = isEdit || variantTouched ? values.variantId : suggestion;
+  const variantError =
+    variantIdFormatError(variantId) ??
+    (pricingListStore.isVariantIdTaken(variantId, item?.id) ? "Already used by another price row" : null);
+  const showVariantError = !!variantError && (isEdit || variantTouched);
+
+  const complete = materialsPicked && values.rate > 0 && !variantError;
 
   const submit = () => {
     const existing = pricingListStore.findDuplicateFurniture(values, item?.id);
@@ -62,7 +98,7 @@ export function FurniturePriceFormDialog({
       setDuplicate(existing);
       return;
     }
-    onSubmit(values);
+    onSubmit({ ...values, variantId: normalizeVariantId(variantId) });
     onOpenChange(false);
   };
 
@@ -109,6 +145,28 @@ export function FurniturePriceFormDialog({
               value={values.externalColourId}
               onChange={(id) => setValues((v) => ({ ...v, externalColourId: id }))}
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="fp-variant">Variant ID</Label>
+            <Input
+              id="fp-variant"
+              className="font-number"
+              value={variantId}
+              maxLength={VARIANT_ID_MAX}
+              placeholder="18MM-BWP-PLY-WHITE"
+              autoComplete="off"
+              aria-invalid={showVariantError}
+              onChange={(e) => {
+                setVariantTouched(true);
+                setValues((v) => ({ ...v, variantId: sanitizeVariantIdInput(e.target.value) }));
+              }}
+            />
+            {showVariantError ? (
+              <span className="text-xs font-body text-error">{variantError}</span>
+            ) : (
+              <span className="text-xs font-body text-grey-400">Letters, numbers and dashes only. Must be unique.</span>
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">

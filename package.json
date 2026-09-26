@@ -12,7 +12,8 @@
     "seed-team-users": "tsx scripts/seed-team-users.ts",
     "migrate-attendance-dates-to-ist": "tsx scripts/migrate-attendance-dates-to-ist.ts",
     "link-users-employees": "tsx scripts/link-users-employees.ts",
-    "backfill-attendance-stats": "tsx scripts/backfill-attendance-stats.ts"
+    "backfill-attendance-stats": "tsx scripts/backfill-attendance-stats.ts",
+    "backfill-furniture-variant-ids": "tsx scripts/backfill-furniture-variant-ids.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
