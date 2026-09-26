@@ -5,6 +5,7 @@ import { Loader2, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { AdminPhotoThumb } from "@/components/attendance/admin-photo-thumb";
 import { toastStore } from "@/lib/store/toast-store";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 type Photo = { recordId: string; side: "checkIn" | "checkOut"; date: string; at: string };
 
@@ -16,6 +17,7 @@ export function PhotoPrivacyManager() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Photo | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -30,7 +32,6 @@ export function PhotoPrivacyManager() {
   useEffect(() => { load(); }, [load]);
 
   async function deleteOne(p: Photo) {
-    if (!confirm("Delete this photo? This can't be undone.")) return;
     setBusy(true);
     try {
       const r = await fetch(`/api/attendance/my-photos/${p.recordId}?side=${p.side}`, { method: "DELETE" });
@@ -55,6 +56,7 @@ export function PhotoPrivacyManager() {
   }
 
   return (
+    <>
     <Card className="flex flex-col divide-y divide-grey-100 p-0">
       {photos.length === 0 ? (
         <div className="p-10 text-center text-sm font-body text-grey-400">
@@ -74,7 +76,7 @@ export function PhotoPrivacyManager() {
             </div>
             <button
               type="button"
-              onClick={() => deleteOne(p)}
+              onClick={() => setDeleteTarget(p)}
               disabled={busy}
               aria-label="Delete photo"
               className="rounded p-1.5 text-error hover:bg-error-transparent"
@@ -85,5 +87,14 @@ export function PhotoPrivacyManager() {
         ))
       )}
     </Card>
+    <ConfirmDialog
+      open={deleteTarget !== null}
+      onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}
+      title="Delete photo"
+      description="Are you sure you want to delete this attendance photo? This action cannot be undone."
+      confirmLabel="Delete"
+      onConfirm={() => { if (deleteTarget) void deleteOne(deleteTarget); }}
+    />
+    </>
   );
 }

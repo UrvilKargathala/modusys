@@ -217,6 +217,7 @@ function MessageActions({
   const [showInfo, setShowInfo] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [showForward, setShowForward] = useState(false);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const orgUsers = useOrgUsers();
 
@@ -273,11 +274,7 @@ function MessageActions({
   };
 
   const delForEveryone = () => {
-    if (!confirm("Delete this message for everyone?")) {
-      setOpen(false);
-      return;
-    }
-    customerMessagesStore.deleteMessage(message.customerId, message.id, "everyone");
+    setShowDeleteAll(true);
     setOpen(false);
   };
 
@@ -419,6 +416,14 @@ function MessageActions({
       )}
       {showInfo && <MessageInfo message={message} orgUsers={orgUsers} onClose={() => setShowInfo(false)} />}
       {showForward && <ForwardDialog customerId={message.customerId} messageId={message.id} onClose={() => setShowForward(false)} />}
+      <ConfirmDialog
+        open={showDeleteAll}
+        onOpenChange={setShowDeleteAll}
+        title="Delete message"
+        description="Delete this message for everyone? This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => customerMessagesStore.deleteMessage(message.customerId, message.id, "everyone")}
+      />
     </div>
   );
 }

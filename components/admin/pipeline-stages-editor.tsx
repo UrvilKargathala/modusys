@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toastStore } from "@/lib/store/toast-store";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { pipelineStages, stageColorTokens, type PipelineStageColor } from "@/lib/constants/pipelineStages";
 import { customPipelineStagesStore, type CustomStageRow } from "@/lib/store/custom-pipeline-stages-store";
 
@@ -19,6 +20,7 @@ export function PipelineStagesEditor() {
   const [rows, setRows] = useState<CustomStageRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [deleteKey, setDeleteKey] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("");
   const [newColor, setNewColor] = useState<PipelineStageColor>("grey");
   const [adding, setAdding] = useState(false);
@@ -80,7 +82,6 @@ export function PipelineStagesEditor() {
   }
 
   async function remove(key: string) {
-    if (!confirm("Delete this stage? This can't be undone.")) return;
     setBusyKey(key);
     try {
       const r = await fetch(`/api/pipeline-stages/${encodeURIComponent(key)}`, { method: "DELETE" });
@@ -221,7 +222,7 @@ export function PipelineStagesEditor() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => remove(s.key)}
+                    onClick={() => setDeleteKey(s.key)}
                     disabled={busyKey === s.key}
                     title="Delete"
                     className="rounded p-1.5 text-error hover:bg-error-transparent"
@@ -234,6 +235,14 @@ export function PipelineStagesEditor() {
           </ul>
         )}
       </Card>
+      <ConfirmDialog
+        open={deleteKey !== null}
+        onOpenChange={(v) => { if (!v) setDeleteKey(null); }}
+        title="Delete stage"
+        description={`Are you sure you want to delete the stage "${rows.find((r) => r.key === deleteKey)?.label ?? "this stage"}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        onConfirm={() => { if (deleteKey) void remove(deleteKey); }}
+      />
     </div>
   );
 }

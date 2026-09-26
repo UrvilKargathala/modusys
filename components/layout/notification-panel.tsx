@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { notificationPanelStore, useNotificationPanelOpen } from "@/lib/store/notification-panel-store";
 import { Bell, Check, CheckCheck, BellOff, type LucideIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { isToday } from "@/lib/notification-style";
@@ -28,7 +29,7 @@ function timeAgo(iso: string) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-function Row({ n, onOpen }: { n: NotificationRow; onOpen: () => void }) {
+export function NotificationRowItem({ n, onOpen }: { n: NotificationRow; onOpen: () => void }) {
   return (
     <div
       className={cn(
@@ -92,7 +93,7 @@ function Group({ label, rows, onOpen }: { label: string; rows: NotificationRow[]
         {label}
       </span>
       {rows.map((n) => (
-        <Row key={n.id} n={n} onOpen={() => onOpen(n)} />
+        <NotificationRowItem key={n.id} n={n} onOpen={() => onOpen(n)} />
       ))}
     </div>
   );
@@ -105,7 +106,8 @@ export function NotificationPanel({
   rows: NotificationRow[];
   onMarkAllRead: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const open = useNotificationPanelOpen();
+  const setOpen = notificationPanelStore.set;
   const [tab, setTab] = useState<"all" | "unread">("all");
   const unreadCount = rows.filter((r) => r.unread).length;
   const shown = tab === "unread" ? rows.filter((r) => r.unread) : rows;

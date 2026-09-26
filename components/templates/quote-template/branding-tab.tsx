@@ -5,6 +5,7 @@ import { Image as ImageIcon, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PdfField } from "@/components/templates/quote-template/pdf-field";
+import { toastStore } from "@/lib/store/toast-store";
 import { quoteTemplateStore, useQuoteTemplateSettings } from "@/lib/store/quote-template-store";
 
 export function BrandingTab({ disabled }: { disabled: boolean }) {
@@ -16,7 +17,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
 
   const handleLogoFile = (file: File) => {
     if (file.size > 300 * 1024) {
-      window.alert("Logo must be under 300KB.");
+      toastStore.show("Logo must be under 300KB.", "error");
       return;
     }
     const reader = new FileReader();
