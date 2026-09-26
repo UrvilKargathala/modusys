@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
+import { Fragment, use, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Printer, Download } from "lucide-react";
 import { useQuotes } from "@/lib/store/quotes-store";
@@ -102,6 +102,13 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   const settings = useQuoteTemplateSettings();
   const searchParams = useSearchParams();
   const isDownload = searchParams.get("download") === "1";
+  // ?view=unit-wise: same sheet, but Material Specification + Unit Details are replaced by a per-unit price table.
+  const isUnitWise = searchParams.get("view") === "unit-wise";
+  // ?view=unit-details: header + client details + the full Unit Details table (with each unit's marked-up Amount) only.
+  const isUnitDetails = searchParams.get("view") === "unit-details";
+  // ?view=space-pricing / space-details: the same two layouts, but units are grouped under their Space (room) with a per-space total.
+  const isSpacePricing = searchParams.get("view") === "space-pricing";
+  const isSpaceDetails = searchParams.get("view") === "space-details";
   const [printed, setPrinted] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -109,7 +116,10 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
 
   // Customer name directly as the filename (fallback to quote number, then
   // "quote") — sanitized since it lands in a filesystem path.
-  const pdfFileName = () => (customer?.name || quote?.quoteNumber || "quote").replace(/[\\/:*?"<>|]/g, "").trim() || "quote";
+  const pdfFileName = () => {
+    const base = (customer?.name || quote?.quoteNumber || "quote").replace(/[\\/:*?"<>|]/g, "").trim() || "quote";
+    return isUnitWise ? `${base} - Unit Wise` : isUnitDetails ? `${base} - Unit Wise Details` : isSpacePricing ? `${base} - Space Wise Pricing` : isSpaceDetails ? `${base} - Space Wise Details` : base;
+  };
 
   // Most browsers suggest document.title as the Save-as-PDF filename.
   const printWithFilename = () => {
@@ -235,6 +245,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   const hingesTypes = useMaterialItems("hinges-type");
   const tandemDrawerTypes = useMaterialItems("tandem-drawer-type");
   const externalColours = useMaterialItems("external-colour");
+  const internalColours = useMaterialItems("internal-colour");
   const rawMaterialDescriptions = useMaterialItems("raw-material-description");
   const clientResponsibilities = useMaterialItems("client-responsibility");
   const furnitureComponents = useMaterialItems("furniture-component");
@@ -367,8 +378,17 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
       cabinet.hardware.filter((i) => !isSecondary(i.levelTypeId)).map((i) => hardwareRow(i, unit))
     );
     const rows: DetailRow[] = [...carcassRows, ...externalFinishRows, ...panelRows, ...hardwareRows];
-    return { index, headerRow, rows, cost: unitTotal(unit, furnitureItems, hardwareItems) };
+    return { index, headerRow, rows, cost: unitTotal(unit, furnitureItems, hardwareItems), qty: Math.max(1, unit.qty || 1), spaceName: spaceName ?? "", unitLabel: baseLabel };
   });
+
+  // Units grouped under their Space, in order of first appearance; units with no Space go last.
+  const spaceGroups = (() => {
+    const bySpace = new Map<string, typeof cabinetGroups>();
+    for (const g of cabinetGroups) bySpace.set(g.spaceName, [...(bySpace.get(g.spaceName) ?? []), g]);
+    return [...bySpace.entries()]
+      .sort((a, b) => Number(a[0] === "") - Number(b[0] === ""))
+      .map(([name, groups]) => ({ name: name || "No Space", groups, cost: groups.reduce((sum, g) => sum + g.cost, 0) }));
+  })();
 
   return (
     // data-pdf-ready: the server-side PDF route (Puppeteer) waits on this so
@@ -423,29 +443,237 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </div>
         </div>
 
+        {isUnitWise ? (
+          <>
+        <SectionLabel>Unit Wise Pricing</SectionLabel>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px] table-fixed border-collapse text-[11px] print:min-w-0">
+            <colgroup>
+              <col style={{ width: "6%" }} />
+              <col style={{ width: "32%" }} />
+              <col style={{ width: "9%" }} />
+              <col style={{ width: "9%" }} />
+              <col style={{ width: "9%" }} />
+              <col style={{ width: "6%" }} />
+              <col style={{ width: "14%" }} />
+              <col style={{ width: "15%" }} />
+            </colgroup>
+            <thead>
+              <tr className="pdf-cream-dim text-left">
+                <th className="px-2.5 py-2 font-bold">No</th>
+                <th className="px-2.5 py-2 font-bold">Unit</th>
+                <th className="px-2.5 py-2 text-right font-bold">Width</th>
+                <th className="px-2.5 py-2 text-right font-bold">Depth</th>
+                <th className="px-2.5 py-2 text-right font-bold">Height</th>
+                <th className="px-2.5 py-2 text-right font-bold">Qty</th>
+                <th className="px-2.5 py-2 text-right font-bold">Price (each)</th>
+                <th className="px-2.5 py-2 text-right font-bold">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="leading-snug">
+              {cabinetGroups.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="pdf-cream-dim py-3 text-center">
+                    No units added to this quote.
+                  </td>
+                </tr>
+              ) : (
+                cabinetGroups.map((group) => {
+                  // Same markup the quote total uses, so the Amount column sums to the Total below.
+                  const amount = group.cost * quote.markupMultiplier;
+                  return (
+                    <tr key={group.index} className="pdf-cream pdf-border break-inside-avoid-page border-t">
+                      <td className="whitespace-nowrap px-2.5 py-2 font-number">{group.index}</td>
+                      <td className="px-2.5 py-2 font-semibold">{group.headerRow.product}</td>
+                      <td className="whitespace-nowrap px-2.5 py-2 text-right font-number">{group.headerRow.width}</td>
+                      <td className="whitespace-nowrap px-2.5 py-2 text-right font-number">{group.headerRow.depth}</td>
+                      <td className="whitespace-nowrap px-2.5 py-2 text-right font-number">{group.headerRow.height}</td>
+                      <td className="whitespace-nowrap px-2.5 py-2 text-right font-number">{group.qty}</td>
+                      <td className="whitespace-nowrap px-2.5 py-2 text-right font-number">{formatInr(amount / group.qty)}</td>
+                      <td className="whitespace-nowrap px-2.5 py-2 text-right font-number font-semibold">{formatInr(amount)}</td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+          </>
+        ) : isSpacePricing ? (
+          <>
+        <SectionLabel>Space Wise Pricing</SectionLabel>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px] table-fixed border-collapse text-[11px] print:min-w-0">
+            <colgroup>
+              {[6, 16, 29, 9, 9, 9, 6, 16].map((w, i) => (
+                <col key={i} style={{ width: `${w}%` }} />
+              ))}
+            </colgroup>
+            <thead>
+              <tr className="pdf-cream-dim text-left">
+                <th className="px-2.5 py-2 font-bold">No</th>
+                <th className="px-2.5 py-2 font-bold">Space</th>
+                <th className="px-2.5 py-2 font-bold">Unit</th>
+                <th className="px-2.5 py-2 text-right font-bold">Width</th>
+                <th className="px-2.5 py-2 text-right font-bold">Depth</th>
+                <th className="px-2.5 py-2 text-right font-bold">Height</th>
+                <th className="px-2.5 py-2 text-right font-bold">Qty</th>
+                <th className="px-2.5 py-2 text-right font-bold">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="leading-snug">
+              {spaceGroups.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="pdf-cream-dim py-3 text-center">
+                    No units added to this quote.
+                  </td>
+                </tr>
+              ) : (
+                spaceGroups.map((space, si) => (
+                  <Fragment key={space.name}>
+                    <tr className="pdf-cream pdf-heading pdf-border break-inside-avoid-page border-t font-semibold">
+                      <td className="whitespace-nowrap px-2.5 py-2 font-number">{si + 1}</td>
+                      <td className="px-2.5 py-2">{space.name}</td>
+                      <td className="pdf-cream-dim px-2.5 py-2 font-normal">
+                        <span className="font-number">{space.groups.length}</span> {space.groups.length === 1 ? "unit" : "units"}
+                      </td>
+                      <td colSpan={4} />
+                      <td className="whitespace-nowrap px-2.5 py-2 text-right font-number">{formatInr(space.cost * quote.markupMultiplier)}</td>
+                    </tr>
+                    {space.groups.map((group, ui) => {
+                      const amount = group.cost * quote.markupMultiplier;
+                      return (
+                        <tr key={group.index} className="pdf-cream break-inside-avoid-page">
+                          <td className="whitespace-nowrap px-2.5 py-1.5 font-number">{si + 1}.{ui + 1}</td>
+                          <td className="px-2.5 py-1.5" />
+                          <td className="px-2.5 py-1.5">{group.unitLabel}</td>
+                          <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.width}</td>
+                          <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.depth}</td>
+                          <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.height}</td>
+                          <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.qty}</td>
+                          <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{formatInr(amount)}</td>
+                        </tr>
+                      );
+                    })}
+                  </Fragment>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+          </>
+        ) : isSpaceDetails ? (
+          <>
+        <SectionLabel>Space Wise Details</SectionLabel>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px] table-fixed border-collapse text-[11px] print:min-w-0">
+            <colgroup>
+              {[5, 11, 9, 12, 21, 7, 7, 7, 5, 5, 11].map((w, i) => (
+                <col key={i} style={{ width: `${w}%` }} />
+              ))}
+            </colgroup>
+            <thead>
+              <tr className="pdf-cream-dim text-left">
+                <th className="px-2.5 py-2 font-bold">No</th>
+                <th className="px-2.5 py-2 font-bold">Space</th>
+                <th className="px-2.5 py-2 font-bold">Brand</th>
+                <th className="px-2.5 py-2 font-bold">Product</th>
+                <th className="px-2.5 py-2 font-bold">Material Description</th>
+                <th className="px-2.5 py-2 text-right font-bold">Width</th>
+                <th className="px-2.5 py-2 text-right font-bold">Depth</th>
+                <th className="px-2.5 py-2 text-right font-bold">Height</th>
+                <th className="px-2.5 py-2 text-right font-bold">Qty</th>
+                <th className="px-2.5 py-2 font-bold">Unit</th>
+                <th className="px-2.5 py-2 text-right font-bold">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="leading-snug">
+              {spaceGroups.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="pdf-cream-dim py-3 text-center">
+                    No units added to this quote.
+                  </td>
+                </tr>
+              ) : (
+                spaceGroups.map((space, si) => (
+                  <Fragment key={space.name}>
+                    <tr className="pdf-cream pdf-heading pdf-border break-inside-avoid-page border-t font-semibold">
+                      <td className="whitespace-nowrap px-2.5 py-2 font-number">{si + 1}</td>
+                      <td className="px-2.5 py-2">{space.name}</td>
+                      <td colSpan={8} className="pdf-cream-dim px-2.5 py-2 font-normal">
+                        <span className="font-number">{space.groups.length}</span> {space.groups.length === 1 ? "unit" : "units"}
+                      </td>
+                      <td className="whitespace-nowrap px-2.5 py-2 text-right font-number">{formatInr(space.cost * quote.markupMultiplier)}</td>
+                    </tr>
+                    {space.groups.map((group, ui) => (
+                      <Fragment key={group.index}>
+                        <tr className="pdf-cream pdf-heading pdf-border break-inside-avoid-page border-t font-semibold">
+                          <td className="whitespace-nowrap px-2.5 py-1.5 font-number">{si + 1}.{ui + 1}</td>
+                          <td className="px-2.5 py-1.5" />
+                          <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.brand}</td>
+                          <td colSpan={2} className="px-2.5 py-1.5">{group.unitLabel}</td>
+                          <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.width}</td>
+                          <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.depth}</td>
+                          <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.height}</td>
+                          <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.qty}</td>
+                          <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.unit}</td>
+                          <td className="px-2.5 py-1.5" />
+                        </tr>
+                        {group.rows.map((row, i) => (
+                          <tr key={`${group.index}-${i}`} className="pdf-cream-body break-inside-avoid-page">
+                            <td className="px-2.5 py-1" />
+                            <td className="px-2.5 py-1" />
+                            <td className="px-2.5 py-1">{row.brand}</td>
+                            <td className="px-2.5 py-1">{row.product}</td>
+                            <td className="px-2.5 py-1">{row.description}</td>
+                            <td className="whitespace-nowrap px-2.5 py-1 text-right font-number">{row.width}</td>
+                            <td className="whitespace-nowrap px-2.5 py-1 text-right font-number">{row.depth}</td>
+                            <td className="whitespace-nowrap px-2.5 py-1 text-right font-number">{row.height}</td>
+                            <td className="whitespace-nowrap px-2.5 py-1 text-right font-number">{row.qty}</td>
+                            <td className="whitespace-nowrap px-2.5 py-1">{row.unit}</td>
+                            <td className="px-2.5 py-1" />
+                          </tr>
+                        ))}
+                      </Fragment>
+                    ))}
+                  </Fragment>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+          </>
+        ) : (
+          <>
+        {!isUnitDetails && (
+          <>
         <SectionLabel>Material Specification</SectionLabel>
         <div className="flex flex-col gap-1.5 p-3 pt-2 text-[11px]">
           <Field label="Product Type" value={numFont([nameOf(productTypes, quote.productTypeId), nameOf(externalColours, quote.shutterFinishId), nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId)].filter((v) => v !== "—").join(" + "))} />
-          <Field label="Internal Finish" value={numFont(descOf(rawMaterialDescriptions, quote.materialDescriptionId))} />
-          <Field label="External Finish" value={numFont(descOf(externalColours, quote.shutterFinishId))} />
+          {/* From the Shutter Finish details (Variant ID). Quotes saved before those existed fall back to the old sources. */}
+          <Field
+            label="Internal Finish"
+            value={numFont(
+              quote.shutterFinishInternalColourId
+                ? descOf(internalColours, quote.shutterFinishInternalColourId)
+                : descOf(rawMaterialDescriptions, quote.materialDescriptionId)
+            )}
+          />
+          <Field label="External Finish" value={numFont(descOf(externalColours, quote.shutterFinishExternalColourId || quote.shutterFinishId))} />
           <Field label="Tandem Runner" value={numFont(nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId))} />
           <Field label="Hinges" value={numFont(descOf(hingesTypes, quote.hingesTypeId))} />
           <Field label="Handle" value={numFont(descOf(handleTypes, quote.handleTypeId))} />
         </div>
+          </>
+        )}
 
         <SectionLabel>Unit Details</SectionLabel>
         <div className="overflow-x-auto">
         <table className="w-full min-w-[700px] table-fixed border-collapse text-[11px] print:min-w-0">
           <colgroup>
-            <col style={{ width: "5%" }} />
-            <col style={{ width: "11%" }} />
-            <col style={{ width: "13%" }} />
-            <col style={{ width: "28%" }} />
-            <col style={{ width: "9%" }} />
-            <col style={{ width: "9%" }} />
-            <col style={{ width: "9%" }} />
-            <col style={{ width: "6%" }} />
-            <col style={{ width: "10%" }} />
+            {(isUnitDetails ? [5, 10, 12, 25, 8, 8, 8, 5, 6, 13] : [5, 11, 13, 28, 9, 9, 9, 6, 10]).map((w, i) => (
+              <col key={i} style={{ width: `${w}%` }} />
+            ))}
           </colgroup>
           <thead>
             <tr className="pdf-cream-dim text-left">
@@ -458,12 +686,13 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
               <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-2 text-right font-bold">Height</th>
               <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-2 text-right font-bold">Qty</th>
               <th className="overflow-hidden text-ellipsis whitespace-nowrap px-2.5 py-2 font-bold">Unit</th>
+              {isUnitDetails && <th className="px-2.5 py-2 text-right font-bold">Amount</th>}
             </tr>
           </thead>
           <tbody className="leading-snug">
             {cabinetGroups.length === 0 ? (
               <tr>
-                <td colSpan={9} className="pdf-cream-dim py-3 text-center">
+                <td colSpan={isUnitDetails ? 10 : 9} className="pdf-cream-dim py-3 text-center">
                   No units added to this quote.
                 </td>
               </tr>
@@ -479,6 +708,9 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                     <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.height}</td>
                     <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.qty}</td>
                     <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.unit}</td>
+                    {isUnitDetails && (
+                      <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{formatInr(group.cost * quote.markupMultiplier)}</td>
+                    )}
                   </tr>
                   {group.rows.map((row, i) => (
                     <tr key={`${group.index}-${i}`} className="pdf-cream-body break-inside-avoid-page">
@@ -491,6 +723,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                       <td className="whitespace-nowrap px-2.5 py-1 text-right font-number">{row.height}</td>
                       <td className="whitespace-nowrap px-2.5 py-1 text-right font-number">{row.qty}</td>
                       <td className="whitespace-nowrap px-2.5 py-1">{row.unit}</td>
+                      {isUnitDetails && <td />}
                     </tr>
                   ))}
                 </>
@@ -499,7 +732,11 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </tbody>
         </table>
         </div>
+          </>
+        )}
 
+        {!isUnitDetails && !isSpaceDetails && (
+          <>
         <div className="pdf-border mt-2 border-t" />
         <div className="mt-3 flex flex-col items-end break-inside-avoid-page">
           <div className="w-full max-w-sm">
@@ -537,7 +774,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </div>
         </div>
 
-        {quote.finishOptions.length > 0 && (
+        {!isUnitWise && !isSpacePricing && quote.finishOptions.length > 0 && (
           <>
             <SectionLabel>Finish Options</SectionLabel>
             <table className="w-full border-collapse text-xs">
@@ -633,6 +870,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </div>
           <span className="pdf-heading font-medium">{signature.signatureTitle}</span>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

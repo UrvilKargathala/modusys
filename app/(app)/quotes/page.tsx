@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
-import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, Printer, ArrowUpDown, ArrowUp, ArrowDown, Upload, FileArchive } from "lucide-react";
+import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, Printer, ArrowUpDown, ArrowUp, ArrowDown, Upload, FileArchive, ListOrdered, LayoutList, LayoutGrid, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -144,8 +144,14 @@ export default function QuotesPage() {
     ]);
   };
 
-  const openPdf = (q: Quote, mode: "download" | "print") => {
-    const url = mode === "download" ? `/quotes/${q.id}/pdf?download=1` : `/quotes/${q.id}/pdf`;
+  const openPdf = (q: Quote, mode: "download" | "print" | "unit-wise" | "unit-details" | "space-pricing" | "space-details") => {
+    const url =
+      mode === "download" ? `/quotes/${q.id}/pdf?download=1`
+      : mode === "unit-wise" ? `/quotes/${q.id}/pdf?view=unit-wise&download=1`
+      : mode === "unit-details" ? `/quotes/${q.id}/pdf?view=unit-details&download=1`
+      : mode === "space-pricing" ? `/quotes/${q.id}/pdf?view=space-pricing&download=1`
+      : mode === "space-details" ? `/quotes/${q.id}/pdf?view=space-details&download=1`
+      : `/quotes/${q.id}/pdf`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -381,7 +387,7 @@ export default function QuotesPage() {
                               >
                                 <PdfIcon className="h-4 w-4" />
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="min-w-36">
+                              <DropdownMenuContent align="end" className="w-auto min-w-52">
                                 <DropdownMenuItem
                                   onClick={() => openPdf(quote, "download")}
                                   className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
@@ -395,6 +401,34 @@ export default function QuotesPage() {
                                 >
                                   <Printer className="h-4 w-4 shrink-0 text-grey-400" />
                                   Print
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openPdf(quote, "unit-wise")}
+                                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                                >
+                                  <ListOrdered className="h-4 w-4 shrink-0 text-grey-400" />
+                                  Unit Wise Pricing
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openPdf(quote, "unit-details")}
+                                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                                >
+                                  <LayoutList className="h-4 w-4 shrink-0 text-grey-400" />
+                                  Unit Wise Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openPdf(quote, "space-pricing")}
+                                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                                >
+                                  <LayoutGrid className="h-4 w-4 shrink-0 text-grey-400" />
+                                  Space Wise Pricing
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openPdf(quote, "space-details")}
+                                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                                >
+                                  <Layers className="h-4 w-4 shrink-0 text-grey-400" />
+                                  Space Wise Details
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
