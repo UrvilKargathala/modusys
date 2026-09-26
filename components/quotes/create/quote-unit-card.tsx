@@ -419,7 +419,7 @@ export function QuoteUnitCard({
       )}
 
       <AlertDialog open={pendingUnitTypeId !== null} onOpenChange={(open) => !open && setPendingUnitTypeId(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="data-[size=default]:sm:max-w-xl">
           <AlertDialogHeader>
             <AlertDialogTitle>This unit was already Auto Populated</AlertDialogTitle>
             <AlertDialogDescription>
@@ -428,7 +428,7 @@ export function QuoteUnitCard({
               reference without touching what's already here.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2">
+          <AlertDialogFooter className="flex-wrap gap-2">
             <AlertDialogCancel onClick={() => setPendingUnitTypeId(null)}>Cancel</AlertDialogCancel>
             <Button
               type="button"
