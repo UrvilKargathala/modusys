@@ -115,6 +115,7 @@ export function MaterialSpecificationSection({
             <Field label="Thickness">
               <MaterialReferenceSelect
                 category="thickness"
+                sorted
                 value={quote.shutterFinishThicknessId}
                 onChange={(id) => confirmChange("Shutter Finish Thickness", { shutterFinishThicknessId: id })}
               />
