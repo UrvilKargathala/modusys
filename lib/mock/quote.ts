@@ -34,6 +34,7 @@ export type QuoteUnit = {
   autoPopulated: boolean;
   collapsed: boolean;
   cabinets: QuoteCabinet[];
+  remark: string;
 };
 
 export type Quote = {
@@ -91,6 +92,7 @@ export function blankQuoteUnit(): QuoteUnit {
     autoPopulated: false,
     collapsed: false,
     cabinets: [],
+    remark: "",
   };
 }
 

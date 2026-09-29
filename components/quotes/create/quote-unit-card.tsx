@@ -283,6 +283,32 @@ export function QuoteUnitCard({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn("flex flex-col gap-4 rounded-xl border border-[#D9C8C9] bg-[#D9C8C9] p-4", isDragging && "opacity-50")}
     >
+      <div className="flex w-full flex-wrap items-center justify-end gap-3">
+        <span className="text-sm font-body text-grey-500">Total: <span className="font-number">{totalSqFt.toFixed(2)} sq.ft</span></span>
+        <span className="text-sm font-body font-semibold text-grey-900">Amount: <span className="font-number">₹{total.toFixed(2)}</span></span>
+        <button
+          type="button"
+          aria-label="Duplicate unit"
+          title="Duplicate this unit"
+          onClick={onDuplicate}
+          className="rounded-md p-1.5 text-grey-400 hover:bg-primary-transparent hover:text-primary"
+        >
+          <Copy className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          aria-label="Remove unit"
+          onClick={() => setDeleteOpen(true)}
+          className="rounded-md p-1.5 text-grey-400 hover:bg-error-transparent hover:text-error"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+        <Button type="button" disabled={!selectedUnitType} onClick={() => selectedUnitType && runAutoPopulate(selectedUnitType)}>
+          <Sparkles className="h-4 w-4" />
+          Auto Populate
+        </Button>
+      </div>
+
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="flex items-center gap-2 sm:contents">
           <button
@@ -307,26 +333,6 @@ export function QuoteUnitCard({
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-transparent text-sm font-number font-semibold text-primary">
             {index + 1}
           </div>
-
-          <div className="ml-auto flex items-center gap-1 sm:hidden">
-            <button
-              type="button"
-              aria-label="Duplicate unit"
-              title="Duplicate this unit"
-              onClick={onDuplicate}
-              className="rounded-md p-1.5 text-grey-400 hover:bg-primary-transparent hover:text-primary"
-            >
-              <Copy className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              aria-label="Remove unit"
-              onClick={() => setDeleteOpen(true)}
-              className="rounded-md p-1.5 text-grey-400 hover:bg-error-transparent hover:text-error"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
         </div>
 
         <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-24">
@@ -339,9 +345,20 @@ export function QuoteUnitCard({
           />
         </div>
 
-        <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:min-w-56 sm:flex-1">
+        <div className="flex w-full flex-col gap-1.5 sm:w-[26rem]">
           <Label>Unit Type</Label>
           <UnitTypeSelect value={unit.unitTypeId} onChange={handleUnitTypeChange} />
+        </div>
+
+        <div className="flex w-full flex-col gap-1.5 sm:w-56">
+          <Label htmlFor={`remark-${unit.id}`}>Remarks</Label>
+          <Input
+            id={`remark-${unit.id}`}
+            className="bg-card"
+            placeholder="Internal note for this unit"
+            value={unit.remark ?? ""}
+            onChange={(e) => onChange({ remark: e.target.value })}
+          />
         </div>
 
         <div className="grid grid-cols-4 gap-2 sm:contents">
@@ -361,34 +378,6 @@ export function QuoteUnitCard({
             <Label htmlFor={`qty-${unit.id}`}>Qty</Label>
             <Input className="bg-card font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" id={`qty-${unit.id}`} type="number" min={1} value={unit.qty || ""} onChange={(e) => onChange({ qty: Number(e.target.value) })} />
           </div>
-        </div>
-
-        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
-          <div className="flex items-center justify-end gap-3">
-            <span className="text-sm font-body text-grey-500">Total: <span className="font-number">{totalSqFt.toFixed(2)} sq.ft</span></span>
-            <span className="text-sm font-body font-semibold text-grey-900">Amount: <span className="font-number">₹{total.toFixed(2)}</span></span>
-            <button
-              type="button"
-              aria-label="Duplicate unit"
-              title="Duplicate this unit"
-              onClick={onDuplicate}
-              className="hidden rounded-md p-1.5 text-grey-400 hover:bg-primary-transparent hover:text-primary sm:inline-flex"
-            >
-              <Copy className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              aria-label="Remove unit"
-              onClick={() => setDeleteOpen(true)}
-              className="hidden rounded-md p-1.5 text-grey-400 hover:bg-error-transparent hover:text-error sm:inline-flex"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-          <Button type="button" disabled={!selectedUnitType} onClick={() => selectedUnitType && runAutoPopulate(selectedUnitType)} className="w-full sm:w-auto">
-            <Sparkles className="h-4 w-4" />
-            Auto Populate
-          </Button>
         </div>
       </div>
 
