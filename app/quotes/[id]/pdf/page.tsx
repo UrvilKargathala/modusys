@@ -805,6 +805,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
             </table>
           </>
         )}
+          </>
+        )}
 
         <div className="pdf-border mt-2 border-t" />
         {quote.remark && (
@@ -870,8 +872,6 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </div>
           <span className="pdf-heading font-medium">{signature.signatureTitle}</span>
         </div>
-          </>
-        )}
       </div>
     </div>
   );
