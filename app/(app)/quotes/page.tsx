@@ -20,6 +20,7 @@ import { downloadQuoteExportZip } from "@/lib/quote-export-zip";
 import { formatInr } from "@/lib/format";
 import { toastStore } from "@/lib/store/toast-store";
 import { statusConfig, type StatusKey } from "@/lib/status";
+import { StatusPicker } from "@/components/quotes/create/status-picker";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
@@ -81,6 +82,7 @@ export default function QuotesPage() {
   const hingesTypes = useMaterialItems("hinges-type");
   const furnitureComponents = useMaterialItems("furniture-component");
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusKey | "all">("all");
   const [deleteTarget, setDeleteTarget] = useState<Quote | null>(null);
   type SortKey = "quoteNumber" | "customer" | "date" | "productType" | "finalAmount" | "revision" | "status";
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
@@ -156,16 +158,21 @@ export default function QuotesPage() {
   };
 
   const importRef = useRef<HTMLInputElement>(null);
-  const exportAll = () => {
+  const exportAllExcel = () => {
     const rows = filtered.length > 0 ? filtered : quotes;
     const stamp = new Date().toISOString().split("T")[0];
-    const json = JSON.stringify({ exportedAt: new Date().toISOString(), count: rows.length, quotes: rows }, null, 2);
-    const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `modusys-quotes-${stamp}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`modusys-quotes-${stamp}.csv`, [
+      ["Quote No.", "Customer", "Date", "Product Type", "Final Amount", "Status", "Revision"],
+      ...rows.map((q) => [
+        q.quoteNumber,
+        customerName(q.customerId),
+        formatDate(q.date),
+        productTypeName(q.productTypeId),
+        finalAmount(q),
+        statusConfig[q.status as StatusKey]?.label ?? q.status,
+        q.revision,
+      ]),
+    ]);
     toastStore.show(`Exported ${rows.length} quote${rows.length === 1 ? "" : "s"}`);
   };
   const onImportFile = async (file: File) => {
@@ -197,13 +204,14 @@ export default function QuotesPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const base = !q
-      ? quotes
-      : quotes.filter(
-          (quote) =>
-            quote.quoteNumber.toLowerCase().includes(q) ||
-            customerName(quote.customerId).toLowerCase().includes(q)
-        );
+    const base = quotes
+      .filter((quote) => statusFilter === "all" || quote.status === statusFilter)
+      .filter(
+        (quote) =>
+          !q ||
+          quote.quoteNumber.toLowerCase().includes(q) ||
+          customerName(quote.customerId).toLowerCase().includes(q)
+      );
     if (!sort) return base;
     const dir = sort.dir === "asc" ? 1 : -1;
     const val = (q: Quote): string | number => {
@@ -224,7 +232,7 @@ export default function QuotesPage() {
       return 0;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quotes, customers, search, sort, productTypes, furnitureItems, hardwareItems]);
+  }, [quotes, customers, search, statusFilter, sort, productTypes, furnitureItems, hardwareItems]);
 
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(filtered);
 
@@ -268,7 +276,7 @@ export default function QuotesPage() {
               />
             </div>
           )}
-          <Button type="button" variant="outline" onClick={exportAll}>
+          <Button type="button" variant="outline" onClick={exportAllExcel}>
             <Download className="h-4 w-4" />
             Export
           </Button>
@@ -300,6 +308,35 @@ export default function QuotesPage() {
         <EmptyState icon={FileStack} message='No quotes yet. Click "Create New Quote" to price your first quote.' />
       ) : (
         <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setStatusFilter("all")}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-body font-medium transition-colors",
+                statusFilter === "all"
+                  ? "border-primary bg-primary-transparent text-primary"
+                  : "border-grey-100 text-grey-500 hover:bg-light-600"
+              )}
+            >
+              All
+            </button>
+            {(Object.keys(statusConfig) as StatusKey[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setStatusFilter(key)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-body font-medium transition-colors",
+                  statusFilter === key
+                    ? cn(statusConfig[key].bg, statusConfig[key].color, "border-current")
+                    : "border-grey-100 text-grey-500 hover:bg-light-600"
+                )}
+              >
+                {statusConfig[key].label}
+              </button>
+            ))}
+          </div>
           <div className="overflow-x-auto rounded-lg border border-grey-100 bg-card">
             <table className="w-full text-[13px] font-body">
               <thead>
@@ -318,13 +355,12 @@ export default function QuotesPage() {
                 {filtered.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-8 text-center text-grey-400">
-                      No quotes match your search.
+                      No quotes match your filters.
                     </td>
                   </tr>
                 ) : (
                   paged.map((quote) => {
                     const status = quote.status as StatusKey;
-                    const cfg = statusConfig[status] ?? statusConfig.draft;
                     return (
                       <tr key={quote.id} className="border-b border-grey-100 last:border-0 hover:bg-light-600/60">
                         <td className="whitespace-nowrap px-2 py-1 font-number font-medium text-grey-800">{quote.quoteNumber}</td>
@@ -334,9 +370,14 @@ export default function QuotesPage() {
                         <td className="whitespace-nowrap px-2 py-1 font-number font-medium text-grey-800">{formatInr(finalAmount(quote))}</td>
                         <td className="whitespace-nowrap px-2 py-1 font-number text-grey-500">{quote.revision}</td>
                         <td className="whitespace-nowrap px-2 py-1">
-                          <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium", cfg.bg, cfg.color)}>
-                            {cfg.label}
-                          </span>
+                          <StatusPicker
+                            value={status}
+                            onChange={(next) => {
+                              quotesStore.saveQuote({ ...quote, status: next });
+                              toastStore.show(`${quote.quoteNumber} marked ${statusConfig[next].label}`, "success");
+                            }}
+                            className="h-7 w-auto px-2 py-0 text-xs"
+                          />
                         </td>
                         <td className="whitespace-nowrap px-2 py-1">
                           <div className="flex items-center justify-end gap-1">

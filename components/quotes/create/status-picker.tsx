@@ -13,7 +13,15 @@ const statusOptions: StatusKey[] = ["draft", "approved", "in-production", "compl
 // need real DOM elements — same Popover + button-list pattern as
 // CustomerPicker/MaterialReferenceSelect, just with each row showing its
 // statusConfig badge colors instead of plain text.
-export function StatusPicker({ value, onChange }: { value: StatusKey; onChange: (status: StatusKey) => void }) {
+export function StatusPicker({
+  value,
+  onChange,
+  className,
+}: {
+  value: StatusKey;
+  onChange: (status: StatusKey) => void;
+  className?: string;
+}) {
   const [open, setOpen] = useState(false);
   const cfg = statusConfig[value];
 
@@ -23,7 +31,8 @@ export function StatusPicker({ value, onChange }: { value: StatusKey; onChange: 
         className={cn(
           "flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-grey-100 px-3 text-sm font-body font-medium outline-none focus:border-primary",
           cfg.bg,
-          cfg.color
+          cfg.color,
+          className
         )}
       >
         {cfg.label}
