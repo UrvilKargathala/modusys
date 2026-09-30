@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { serializeMessage } from "@/lib/server/serialize";
 import { requireUser } from "@/lib/server/require-user";
+import { headObject } from "@/lib/server/s3";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export async function GET(_req: Request, { params }: Ctx) {
 
 // Handles every message kind — kind defaults to "chat" for the normal text
 // composer, "system" for stage-change events, and "voice" | "image" | "pdf"
-// once the attachment has already been uploaded via ./upload.
+// once the attachment has already been uploaded to Garage via ./presign.
 export async function POST(req: Request, { params }: Ctx) {
   const auth = await requireUser();
   if (auth.response) return auth.response;
@@ -30,19 +31,26 @@ export async function POST(req: Request, { params }: Ctx) {
   const b = await req.json();
   const kind = ["chat", "system", "voice", "image", "pdf"].includes(b.kind) ? b.kind : "chat";
 
-  // Multi-image sends supply imageUrls[]; for a single image the client can
-  // still send scalar imageUrl (legacy path) — normalise here so the row has
-  // both populated and downstream renderers can trust either.
-  const imageUrls: string[] = Array.isArray(b.imageUrls)
-    ? b.imageUrls.filter((s: unknown): s is string => typeof s === "string" && s.length > 0)
-    : b.imageUrl
-    ? [b.imageUrl]
+  // Attachments arrive as storage keys (audioKey / imageKeys[] / pdfKey), never URLs.
+  // Display names stay in imageNames[] / pdfName — they are not parsed from keys.
+  const imageKeys: string[] = Array.isArray(b.imageKeys)
+    ? b.imageKeys.filter((s: unknown): s is string => typeof s === "string" && s.length > 0)
     : [];
   const imageNames: string[] = Array.isArray(b.imageNames)
     ? b.imageNames.filter((s: unknown): s is string => typeof s === "string")
-    : b.imageName
-    ? [b.imageName]
     : [];
+  const audioKey = typeof b.audioKey === "string" && b.audioKey ? b.audioKey : undefined;
+  const pdfKey = typeof b.pdfKey === "string" && b.pdfKey ? b.pdfKey : undefined;
+
+  // Keys are minted server-side under crm/<customerId>/, and every one must really exist (E3, E4).
+  const keys = [...imageKeys, ...(audioKey ? [audioKey] : []), ...(pdfKey ? [pdfKey] : [])];
+  if (keys.some((k) => !k.startsWith(`crm/${customerId}/`))) {
+    return NextResponse.json({ error: "Invalid attachment key" }, { status: 400 });
+  }
+  const found = await Promise.all(keys.map((k) => headObject(k).then(() => true, () => false)));
+  if (found.includes(false)) {
+    return NextResponse.json({ error: "Attachment not found in storage" }, { status: 400 });
+  }
 
   const message = await prisma.message.create({
     data: {
@@ -51,13 +59,12 @@ export async function POST(req: Request, { params }: Ctx) {
       senderId: kind === "system" ? null : auth.user.id,
       text: b.text ?? undefined,
       mentionedUserIds: Array.isArray(b.mentionedUserIds) ? b.mentionedUserIds : [],
-      audioUrl: b.audioUrl ?? undefined,
+      audioKey,
       durationSec: b.durationSec ?? undefined,
-      imageUrl: imageUrls[0] ?? undefined,
+      imageKeys,
       imageName: imageNames[0] ?? undefined,
-      imageUrls,
       imageNames,
-      pdfUrl: b.pdfUrl ?? undefined,
+      pdfKey,
       pdfName: b.pdfName ?? undefined,
       pdfSize: b.pdfSize ?? undefined,
       replyToMessageId: typeof b.replyToMessageId === "string" ? b.replyToMessageId : undefined,

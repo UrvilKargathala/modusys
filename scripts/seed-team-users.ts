@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
+import { makeDbAdapter } from "../lib/db-adapter";
 import bcrypt from "bcryptjs";
 import { roleKeys, type RoleKey } from "../lib/constants/roles";
 
@@ -52,7 +52,7 @@ async function main() {
     }
   }
 
-  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
+  const adapter = makeDbAdapter(process.env.DATABASE_URL);
   const prisma = new PrismaClient({ adapter });
   const passwordHash = await hashPassword(tempPassword);
 

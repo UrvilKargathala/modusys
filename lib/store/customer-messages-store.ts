@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { uploadToStorage } from "@/lib/upload-to-storage";
 
 export type CustomerMessage = {
   id: string;
@@ -61,21 +62,11 @@ function ensureHydrated(customerId: string) {
   void fetchMessages(customerId);
 }
 
-async function uploadFile(customerId: string, file: File | Blob): Promise<string> {
-  // Client-direct upload to Vercel Blob — bypasses the ~4.5 MB serverless
-  // request-body cap so real 20 MB PDFs/images work in production. The
-  // /upload endpoint only issues signed tokens after auth + type/size checks.
-  const { upload } = await import("@vercel/blob/client");
-  const mime = file.type || "application/octet-stream";
-  const ext = mime.split("/")[1] || "bin";
-  const filename = file instanceof File ? file.name : `${Date.now()}.${ext}`;
-  const pathname = `crm/${customerId}/${Date.now()}-${filename}`;
-  const blob = await upload(pathname, file, {
-    access: "public",
-    contentType: mime,
-    handleUploadUrl: `/api/customers/${customerId}/messages/upload`,
-  });
-  return blob.url;
+// Client-direct upload to Garage via a presigned PUT — bypasses the serverless request-body cap
+// so real 20 MB PDFs/images work. The /presign endpoint checks auth + type/size and mints the
+// key server-side. Returns the storage key to save on the message row.
+function uploadFile(customerId: string, file: File | Blob): Promise<string> {
+  return uploadToStorage(`/api/customers/${customerId}/messages/presign`, file);
 }
 
 function insertOptimistic(customerId: string, optimistic: CustomerMessage) {
@@ -183,8 +174,8 @@ export const customerMessagesStore = {
       status: "pending",
     });
     try {
-      const audioUrl = await uploadFile(customerId, blob);
-      await postAndReplace(customerId, tempId, { kind: "voice", audioUrl, durationSec });
+      const audioKey = await uploadFile(customerId, blob);
+      await postAndReplace(customerId, tempId, { kind: "voice", audioKey, durationSec });
     } catch {
       markError(customerId, tempId);
     }
@@ -215,10 +206,10 @@ export const customerMessagesStore = {
       status: "pending",
     });
     try {
-      const imageUrls = await Promise.all(files.map((f) => uploadFile(customerId, f)));
+      const imageKeys = await Promise.all(files.map((f) => uploadFile(customerId, f)));
       await postAndReplace(customerId, tempId, {
         kind: "image",
-        imageUrls,
+        imageKeys,
         imageNames: files.map((f) => f.name),
         text: caption?.trim() || undefined,
       });
@@ -239,8 +230,8 @@ export const customerMessagesStore = {
       status: "pending",
     });
     try {
-      const imageUrl = await uploadFile(customerId, file);
-      await postAndReplace(customerId, tempId, { kind: "image", imageUrl, imageName: file.name });
+      const imageKey = await uploadFile(customerId, file);
+      await postAndReplace(customerId, tempId, { kind: "image", imageKeys: [imageKey], imageNames: [file.name] });
     } catch {
       markError(customerId, tempId);
     }
@@ -258,8 +249,8 @@ export const customerMessagesStore = {
       status: "pending",
     });
     try {
-      const pdfUrl = await uploadFile(customerId, file);
-      await postAndReplace(customerId, tempId, { kind: "pdf", pdfUrl, pdfName: file.name, pdfSize: file.size });
+      const pdfKey = await uploadFile(customerId, file);
+      await postAndReplace(customerId, tempId, { kind: "pdf", pdfKey, pdfName: file.name, pdfSize: file.size });
     } catch {
       markError(customerId, tempId);
     }

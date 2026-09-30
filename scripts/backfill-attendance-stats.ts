@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
+import { makeDbAdapter } from "../lib/db-adapter";
 import {
   workingMinutes,
   computeDayStatus,
@@ -55,7 +55,7 @@ function statsFor(checkIn: Date, checkOut: Date | null): StatUpdate {
 
 async function main() {
   const apply = process.argv.includes("--apply");
-  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! });
+  const adapter = makeDbAdapter(process.env.DATABASE_URL!);
   const prisma = new PrismaClient({ adapter });
 
   const records = await prisma.attendanceRecord.findMany({

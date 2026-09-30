@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "crypto";
 import type { Customer, Architect, User, ArchitectPartner, Message, MediaAttachment, MessageReaction } from "@prisma/client";
 import type { ArchitectSiteEngineer } from "@/lib/mock/architects";
 
@@ -96,7 +97,37 @@ function groupReactions(reactions: MessageReaction[] | undefined, currentUserId:
   }));
 }
 
+type PhotoCols = {
+  id: string;
+  checkInPhotoUrl: string | null;
+  checkOutPhotoUrl: string | null;
+  checkInPhotoKey: string | null;
+  checkOutPhotoKey: string | null;
+};
+
+// Attendance rows carry a storage key (new) and a legacy Blob URL (old, kept for rollback).
+// The browser must see neither: it only needs to know whether a photo exists, and it renders
+// the photo through /api/files/att_<id>. So the *PhotoUrl fields become broker addresses (or
+// null) and the raw key columns are dropped.
+export function withAttendancePhotos<T extends PhotoCols>(r: T) {
+  return {
+    ...r,
+    checkInPhotoUrl: r.checkInPhotoKey ? `/api/files/att_${r.id}?side=checkIn` : null,
+    checkOutPhotoUrl: r.checkOutPhotoKey ? `/api/files/att_${r.id}?side=checkOut` : null,
+    checkInPhotoKey: undefined,
+    checkOutPhotoKey: undefined,
+  };
+}
+
+// Files live in a private Garage bucket. The browser never sees a storage URL — it gets a
+// permanent, login-gated address on our own app (see app/api/files/[ref]/route.ts).
+// Images are addressed by position, and positions shift when one is removed, so the address
+// carries a short hash of the key (`v`, ignored by the broker) to keep the 1h browser cache honest.
+const messageImageUrl = (id: string, key: string, i: number) =>
+  `/api/files/msg_${id}?i=${i}&v=${createHash("sha1").update(key).digest("hex").slice(0, 8)}`;
+
 export function serializeMessage(m: MessageWithReactions, currentUserId: string) {
+  const imageUrls = m.imageKeys.map((key, i) => messageImageUrl(m.id, key, i));
   return {
     id: m.id,
     customerId: m.customerId,
@@ -104,13 +135,13 @@ export function serializeMessage(m: MessageWithReactions, currentUserId: string)
     senderId: m.senderId,
     text: m.text ?? undefined,
     mentionedUserIds: m.mentionedUserIds,
-    audioUrl: m.audioUrl ?? undefined,
+    audioUrl: m.audioKey ? `/api/files/msg_${m.id}` : undefined,
     durationSec: m.durationSec ?? undefined,
-    imageUrl: m.imageUrl ?? undefined,
+    imageUrl: imageUrls[0],
     imageName: m.imageName ?? undefined,
-    imageUrls: m.imageUrls,
+    imageUrls,
     imageNames: m.imageNames,
-    pdfUrl: m.pdfUrl ?? undefined,
+    pdfUrl: m.pdfKey ? `/api/files/msg_${m.id}` : undefined,
     pdfName: m.pdfName ?? undefined,
     pdfSize: m.pdfSize ?? undefined,
     replyToMessageId: m.replyToMessageId ?? undefined,
@@ -130,7 +161,7 @@ export function serializeMediaAttachment(m: MediaAttachment) {
     customerId: m.customerId,
     type: m.type as "image" | "video" | "document",
     name: m.name,
-    url: m.url,
+    url: `/api/files/media_${m.id}`,
     sizeBytes: m.sizeBytes,
     durationSec: m.durationSec ?? undefined,
     uploadedAt: m.uploadedAt.toISOString(),

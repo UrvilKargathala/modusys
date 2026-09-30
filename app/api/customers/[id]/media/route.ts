@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { serializeMediaAttachment } from "@/lib/server/serialize";
 import { requireUser } from "@/lib/server/require-user";
+import { headObject } from "@/lib/server/s3";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,27 +21,34 @@ export async function GET(_req: Request, { params }: Ctx) {
 }
 
 // Creates the DB record after the client has already uploaded the file
-// straight to Vercel Blob via ./upload (client-direct upload, same pattern
-// as the chat attachment flow — bypasses the ~4.5MB serverless body cap).
+// straight to Garage via a presigned PUT from ./presign (bypasses the serverless body cap).
+// The row stores the storage key in `pathname`; `url` is legacy and stays empty for new rows.
 export async function POST(req: Request, { params }: Ctx) {
   const auth = await requireUser();
   if (auth.response) return auth.response;
   const { id: customerId } = await params;
   const b = await req.json();
 
-  const type = ["image", "video", "document"].includes(b.type) ? b.type : "document";
-  if (typeof b.url !== "string" || typeof b.pathname !== "string" || typeof b.name !== "string") {
-    return NextResponse.json({ error: "url, pathname and name are required" }, { status: 400 });
+  const key = typeof b.key === "string" ? b.key : "";
+  // Keys are minted server-side under customers/<id>/ — reject anything else (E4).
+  if (!key.startsWith(`customers/${customerId}/`) || typeof b.name !== "string") {
+    return NextResponse.json({ error: "key and name are required" }, { status: 400 });
   }
+
+  // Confirm the bytes actually landed (E3) and trust storage, not the client, for type and size.
+  const head = await headObject(key).catch(() => null);
+  if (!head) return NextResponse.json({ error: "File not found in storage" }, { status: 400 });
+  const contentType = head.ContentType ?? "";
+  const type = contentType.startsWith("image/") ? "image" : contentType.startsWith("video/") ? "video" : "document";
 
   const media = await prisma.mediaAttachment.create({
     data: {
       customerId,
       type,
       name: b.name,
-      url: b.url,
-      pathname: b.pathname,
-      sizeBytes: typeof b.sizeBytes === "number" ? b.sizeBytes : 0,
+      url: "",
+      pathname: key,
+      sizeBytes: head.ContentLength ?? 0,
       durationSec: typeof b.durationSec === "number" ? b.durationSec : undefined,
       uploadedById: auth.user.id,
     },

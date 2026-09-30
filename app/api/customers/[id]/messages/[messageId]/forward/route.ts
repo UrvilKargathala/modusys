@@ -34,13 +34,14 @@ export async function POST(req: Request, { params }: Ctx) {
           kind: source.kind,
           senderId: auth.user.id,
           text: source.text ?? undefined,
-          audioUrl: source.audioUrl ?? undefined,
+          // Forwarding copies the file KEYS, not the bytes — zero storage operations, so it stays
+          // instant. The copy and the original now share objects; deletes are guarded (§8.4).
+          audioKey: source.audioKey ?? undefined,
           durationSec: source.durationSec ?? undefined,
-          imageUrl: source.imageUrl ?? undefined,
+          imageKeys: source.imageKeys,
           imageName: source.imageName ?? undefined,
-          imageUrls: source.imageUrls,
           imageNames: source.imageNames,
-          pdfUrl: source.pdfUrl ?? undefined,
+          pdfKey: source.pdfKey ?? undefined,
           pdfName: source.pdfName ?? undefined,
           pdfSize: source.pdfSize ?? undefined,
           forwardedFromId: source.id,

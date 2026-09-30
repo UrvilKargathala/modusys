@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { uploadToStorage } from "@/lib/upload-to-storage";
 
 export type MediaType = "image" | "video" | "document";
 
@@ -99,25 +100,14 @@ export const customerMediaStore = {
     emit();
 
     try {
-      const { upload } = await import("@vercel/blob/client");
-      const pathname = `customers/${customerId}/${Date.now()}-${file.name}`;
-      const blob = await upload(pathname, file, {
-        access: "public",
-        contentType: file.type || "application/octet-stream",
-        handleUploadUrl: `/api/customers/${customerId}/media/upload`,
-        onUploadProgress: ({ percentage }) => setItem(customerId, tempId, { progress: percentage }),
-      });
+      const key = await uploadToStorage(`/api/customers/${customerId}/media/presign`, file, (percent) =>
+        setItem(customerId, tempId, { progress: percent })
+      );
 
       const res = await fetch(`/api/customers/${customerId}/media`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type,
-          name: file.name,
-          url: blob.url,
-          pathname: blob.pathname,
-          sizeBytes: file.size,
-        }),
+        body: JSON.stringify({ name: file.name, key }),
       });
       if (!res.ok) throw new Error("save failed");
       const saved = (await res.json()) as MediaAttachment;

@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { readFileSync } from "fs";
 import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
+import { makeDbAdapter } from "../lib/db-adapter";
 
 const CSV_PATH = process.argv[2];
 if (!CSV_PATH) {
@@ -55,7 +55,7 @@ async function main() {
   const rows = parseCsv(raw);
   console.log(`Parsed ${rows.length} rows from CSV`);
 
-  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
+  const adapter = makeDbAdapter(process.env.DATABASE_URL);
   const prisma = new PrismaClient({ adapter });
 
   try {

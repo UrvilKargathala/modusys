@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
+import { makeDbAdapter } from "../lib/db-adapter";
 import { mockCustomers } from "../lib/mock/pipeline";
 import { getCustomerProfile } from "../lib/mock/customer-detail";
 import { mockArchitects } from "../lib/mock/architects";
@@ -15,7 +15,7 @@ import { mockQuoteTemplateSettings } from "../lib/mock/quote-template";
 // the migration doesn't leave an empty shell. Idempotent: clears the three
 // tables first, then re-inserts. Preserves the app's original string ids
 // (u1.., arch-1.., cust-1..) so any references stay stable.
-const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! });
+const adapter = makeDbAdapter(process.env.DATABASE_URL!);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {

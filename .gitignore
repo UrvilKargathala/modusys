@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# migration script output (checkpoints, logs, audit reports)
+/.migration/

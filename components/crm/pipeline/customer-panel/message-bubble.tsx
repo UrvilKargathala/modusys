@@ -260,7 +260,7 @@ function MessageActions({
   const copy = async () => {
     try {
       if (message.text) await navigator.clipboard.writeText(message.text);
-      else if (message.imageUrl) await navigator.clipboard.writeText(message.imageUrl);
+      else if (message.imageUrl) await navigator.clipboard.writeText(new URL(message.imageUrl, window.location.origin).href);
       toastStore.show("Copied");
     } catch {
       toastStore.show("Copy failed", "error");
@@ -290,8 +290,8 @@ function MessageActions({
       for (let i = 0; i < downloadUrls.length; i++) {
         const { url, name } = downloadUrls[i];
         if (isMobile) {
-          const fname = name || url.substring(url.lastIndexOf("/") + 1) || "download";
-          const res = await fetch(`/api/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(fname)}`);
+          const fname = name || "download";
+          const res = await fetch(`${url}${url.includes("?") ? "&" : "?"}download=1`);
           const blob = await res.blob();
           const file = new File([blob], fname, { type: blob.type || "application/octet-stream" });
           if (navigator.share && navigator.canShare?.({ files: [file] })) {
@@ -308,7 +308,7 @@ function MessageActions({
           const objectUrl = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = objectUrl;
-          a.download = name || url.substring(url.lastIndexOf("/") + 1) || "download";
+          a.download = name || "download";
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -646,7 +646,7 @@ function PdfBubble({ message }: { message: CustomerMessage }) {
                     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                     try {
                       if (isMobile) {
-                        const res = await fetch(`/api/download?url=${encodeURIComponent(message.pdfUrl!)}&name=${encodeURIComponent(fname)}`);
+                        const res = await fetch(`${message.pdfUrl!}?download=1`);
                         const blob = await res.blob();
                         const file = new File([blob], fname, { type: "application/pdf" });
                         if (navigator.share && navigator.canShare?.({ files: [file] })) {

@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
+import { makeDbAdapter } from "../lib/db-adapter";
 import { makeUniqueVariantId, normalizeVariantId, suggestVariantId } from "../lib/variant-id";
 
 // One-shot backfill: gives every Furniture Price List row that has no Variant ID
@@ -16,7 +16,7 @@ const apply = process.argv.includes("--apply");
 async function main() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is not set");
-  const prisma = new PrismaClient({ adapter: new PrismaNeon({ connectionString }) });
+  const prisma = new PrismaClient({ adapter: makeDbAdapter(connectionString) });
 
   const [rows, materials] = await Promise.all([
     prisma.furniturePriceItem.findMany({ orderBy: { createdAt: "asc" } }),

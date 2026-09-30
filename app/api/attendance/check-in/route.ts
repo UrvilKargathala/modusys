@@ -4,6 +4,8 @@ import { getCurrentEmployee } from "@/lib/server/current-employee";
 import { reverseGeocode } from "@/lib/server/reverse-geocode";
 import { rateLimit, validCoords } from "@/lib/server/rate-limit";
 import { istMidnight, computeLateMinutes } from "@/lib/attendance-config";
+import { headObject } from "@/lib/server/s3";
+import { withAttendancePhotos } from "@/lib/server/serialize";
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,7 +33,7 @@ export async function POST(req: NextRequest) {
     const hasCoords = body?.latitude != null && body?.longitude != null;
     const latitude = hasCoords ? Number(body.latitude) : null;
     const longitude = hasCoords ? Number(body.longitude) : null;
-    const photoUrl = typeof body?.photoUrl === "string" ? body.photoUrl.trim() : "";
+    const photoKey = typeof body?.photoKey === "string" ? body.photoKey.trim() : "";
     const photoConsent = body?.photoConsent === true;
     const note = typeof body?.note === "string" ? body.note.trim() || null : null;
     const timezone =
@@ -40,14 +42,19 @@ export async function POST(req: NextRequest) {
     if (hasCoords && !validCoords(latitude!, longitude!)) {
       return NextResponse.json({ error: "Invalid location. Try again with GPS on." }, { status: 400 });
     }
-    if (!photoUrl) {
+    if (!photoKey) {
       return NextResponse.json({ error: "Selfie is required." }, { status: 400 });
     }
-    if (!photoUrl.includes(".public.blob.vercel-storage.com")) {
-      return NextResponse.json({ error: "Invalid photo URL." }, { status: 400 });
+    // Keys are minted by /api/attendance/upload-photo under the caller's own folder — nothing else is accepted.
+    if (!photoKey.startsWith(`attendance/${employee.id}/`) || !/\.(jpe?g|png)$/i.test(photoKey)) {
+      return NextResponse.json({ error: "Invalid photo." }, { status: 400 });
     }
     if (!photoConsent) {
       return NextResponse.json({ error: "Photo consent is required." }, { status: 400 });
+    }
+    // Confirm the selfie really landed in storage before recording the check-in (E3).
+    if (!(await headObject(photoKey).catch(() => null))) {
+      return NextResponse.json({ error: "Photo upload not found. Please retake and try again." }, { status: 400 });
     }
 
     const now = new Date();
@@ -72,7 +79,7 @@ export async function POST(req: NextRequest) {
         checkInLng: longitude,
         checkInAddress: address,
         checkInNote: note,
-        checkInPhotoUrl: photoUrl,
+        checkInPhotoKey: photoKey,
         checkInPhotoConsent: photoConsent,
         checkInSource: "gps+photo",
         source: "gps+photo",
@@ -83,7 +90,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ ok: true, record });
+    return NextResponse.json({ ok: true, record: withAttendancePhotos(record) });
   } catch (error) {
     console.error("[Modusys] check-in error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

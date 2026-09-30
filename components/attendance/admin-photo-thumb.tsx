@@ -3,8 +3,8 @@
 import { useState } from "react";
 
 // Small thumbnail used in the admin attendance table. Loads the photo via
-// the /api/attendance/photo/[recordId]/[type] broker (which 302's to the
-// blob URL after role check). Click opens a fullscreen lightbox.
+// the /api/files/att_<recordId> broker (owner or super-admin only, streamed
+// from private storage). Click opens a fullscreen lightbox.
 export function AdminPhotoThumb({
   recordId,
   side,
@@ -15,7 +15,7 @@ export function AdminPhotoThumb({
   title?: string;
 }) {
   const [big, setBig] = useState(false);
-  const src = `/api/attendance/photo/${recordId}/${side}`;
+  const src = `/api/files/att_${recordId}?side=${side}`;
   return (
     <>
       <button

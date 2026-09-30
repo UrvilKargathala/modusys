@@ -2,6 +2,7 @@ import { getManagedEmployeeIds } from "@/lib/server/managed-employees";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { istMidnight } from "@/lib/attendance-config";
+import { withAttendancePhotos } from "@/lib/server/serialize";
 
 export async function GET(req: NextRequest) {
   const dateParam = req.nextUrl.searchParams.get("date");
@@ -27,6 +28,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     date: date.toISOString(),
     summary: { totalEmployees, present, absent, checkedOut, stillIn },
-    records,
+    records: records.map(withAttendancePhotos),
   });
 }

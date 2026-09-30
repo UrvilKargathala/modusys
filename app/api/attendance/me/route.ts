@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getCurrentEmployee } from "@/lib/server/current-employee";
 import { istMidnight } from "@/lib/attendance-config";
+import { withAttendancePhotos } from "@/lib/server/serialize";
 
 export const dynamic = "force-dynamic";
 
@@ -18,5 +19,5 @@ export async function GET() {
     where: { employeeId_date: { employeeId: employee.id, date: today } },
   });
 
-  return NextResponse.json({ employee, today: record });
+  return NextResponse.json({ employee, today: record ? withAttendancePhotos(record) : null });
 }

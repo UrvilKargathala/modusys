@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { del } from "@vercel/blob";
 import { prisma } from "@/lib/server/prisma";
 import { requireUser } from "@/lib/server/require-user";
+import { deleteKey } from "@/lib/server/s3";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,14 +18,14 @@ export async function DELETE(_req: Request, { params }: Ctx) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Best-effort blob delete — the DB row is the source of truth for the
-  // gallery, so a stale/already-gone blob shouldn't block removing it.
-  try {
-    await del(media.pathname);
-  } catch {
-    // ignore
-  }
-
+  // The DB row is the source of truth for the gallery; storage delete is best-effort after it,
+  // so a missing object can't block removing the item. Gallery files are single-owner (never
+  // shared by forwarding), so this is a direct delete — no reference count needed.
   await prisma.mediaAttachment.delete({ where: { id: mediaId } });
+  try {
+    await deleteKey(media.pathname);
+  } catch (e) {
+    console.warn("[storage] gallery deleteKey failed", (e as { name?: string })?.name);
+  }
   return NextResponse.json({ ok: true });
 }

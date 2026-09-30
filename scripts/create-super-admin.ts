@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
+import { makeDbAdapter } from "../lib/db-adapter";
 import bcrypt from "bcryptjs";
 
 // Same algorithm + cost factor as lib/server/password.ts (used by the real
@@ -48,7 +48,7 @@ async function main() {
     process.exit(1);
   }
 
-  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
+  const adapter = makeDbAdapter(process.env.DATABASE_URL);
   const prisma = new PrismaClient({ adapter });
 
   try {

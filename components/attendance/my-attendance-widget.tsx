@@ -168,7 +168,7 @@ export function MyAttendanceWidget() {
     const res = await fetch("/api/attendance/upload-photo", { method: "POST", body: form });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.error || "Photo upload failed");
-    return json.url;
+    return json.key as string;
   }
 
   async function submit() {
@@ -179,7 +179,7 @@ export function MyAttendanceWidget() {
     setError(null);
     try {
       const side = flow === "in" ? "checkIn" : "checkOut";
-      const photoUrl = await uploadPhoto(photoBlob, side);
+      const photoKey = await uploadPhoto(photoBlob, side);
       const url = flow === "in" ? "/api/attendance/check-in" : "/api/attendance/check-out";
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata";
       const res = await fetch(url, {
@@ -188,7 +188,7 @@ export function MyAttendanceWidget() {
         body: JSON.stringify({
           latitude: coords?.lat,
           longitude: coords?.lng,
-          photoUrl,
+          photoKey,
           // Taking and submitting the selfie is the consent action — no
           // separate checkbox in the simplified 2-step flow.
           photoConsent: true,
@@ -581,7 +581,7 @@ function SuccessStep({ flow }: { flow: Flow }) {
 
 function Thumb({ recordId, side, label }: { recordId: string; side: "checkIn" | "checkOut"; label?: string }) {
   const [big, setBig] = useState(false);
-  const src = `/api/attendance/photo/${recordId}/${side}`;
+  const src = `/api/files/att_${recordId}?side=${side}`;
   return (
     <>
       <button

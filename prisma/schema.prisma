@@ -87,6 +87,8 @@ model Message {
   mentionedUserIds String[] @default([])
 
   audioUrl    String?
+  // Garage/S3 object keys (Blob→Garage migration). Legacy *Url columns stay until day-14 decommission.
+  audioKey    String?
   durationSec Int?
 
   // Legacy single-image fields — pre-gallery messages still read from here.
@@ -96,8 +98,10 @@ model Message {
   imageName  String?
   imageUrls  String[] @default([])
   imageNames String[] @default([])
+  imageKeys  String[] @default([])
 
   pdfUrl  String?
+  pdfKey  String?
   pdfName String?
   pdfSize Int?
 
@@ -555,6 +559,9 @@ model AttendanceRecord {
   // later cleanup migration.)
   checkInPhotoUrl      String?
   checkOutPhotoUrl     String?
+  // Garage/S3 keys (Blob→Garage migration). Legacy *PhotoUrl columns stay until day-14 decommission.
+  checkInPhotoKey      String?
+  checkOutPhotoKey     String?
   checkInPhotoConsent  Boolean  @default(false)
   checkOutPhotoConsent Boolean  @default(false)
   // IANA timezone the record was captured in — Modusys is India, so this is
@@ -660,6 +667,8 @@ model PhotoAttendanceRecord {
   checkOut             DateTime?
   checkInPhotoUrl      String
   checkOutPhotoUrl     String?
+  checkInPhotoKey      String?
+  checkOutPhotoKey     String?
   checkInPhotoConsent  Boolean   @default(true)
   checkOutPhotoConsent Boolean   @default(false)
   checkInNote          String?

@@ -14,25 +14,25 @@ export async function GET() {
   const rows = await prisma.photoAttendanceRecord.findMany({
     where: {
       employeeId: employee.id,
-      OR: [{ checkInPhotoUrl: { not: "" } }, { checkOutPhotoUrl: { not: null } }],
+      OR: [{ checkInPhotoKey: { not: null } }, { checkOutPhotoKey: { not: null } }],
     },
     select: {
       id: true,
       date: true,
       checkIn: true,
       checkOut: true,
-      checkInPhotoUrl: true,
-      checkOutPhotoUrl: true,
+      checkInPhotoKey: true,
+      checkOutPhotoKey: true,
     },
     orderBy: { date: "desc" },
   });
 
   const photos: Array<{ recordId: string; side: "checkIn" | "checkOut"; date: string; at: string }> = [];
   for (const r of rows) {
-    if (r.checkInPhotoUrl) {
+    if (r.checkInPhotoKey) {
       photos.push({ recordId: r.id, side: "checkIn", date: r.date.toISOString().slice(0, 10), at: r.checkIn.toISOString() });
     }
-    if (r.checkOutPhotoUrl && r.checkOut) {
+    if (r.checkOutPhotoKey && r.checkOut) {
       photos.push({ recordId: r.id, side: "checkOut", date: r.date.toISOString().slice(0, 10), at: r.checkOut.toISOString() });
     }
   }

@@ -1,17 +1,18 @@
 import "server-only";
 import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
+import { makeDbAdapter } from "@/lib/db-adapter";
 
 // Server-only Prisma singleton (guarded by "server-only" so it can never be
 // imported into a client component and leak DATABASE_URL into the bundle).
-// Prisma 7 requires a driver adapter for the runtime connection — Neon's
-// serverless adapter, which works well in Next.js serverless functions.
+// Prisma 7 requires a driver adapter for the runtime connection. Which one is chosen
+// from the DATABASE_URL host in lib/db-adapter.ts (Neon's serverless driver for Neon,
+// plain `pg` for the server's own Postgres).
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createClient() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is not set");
-  const adapter = new PrismaNeon({ connectionString });
+  const adapter = makeDbAdapter(connectionString);
   return new PrismaClient({ adapter });
 }
 

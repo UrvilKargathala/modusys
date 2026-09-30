@@ -36,6 +36,12 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  // Uploaded files (photos, PDFs, voice notes, videos) are served by the app itself at
+  // /api/files/*. Never put them in this offline cache: it would grow without limit (100 MB
+  // videos), keep private files on the device after sign-out, and keep serving deleted ones.
+  // The browser's normal private HTTP cache already handles repeat views.
+  if (url.pathname.startsWith("/api/files/")) return;
+
   // Navigations (loading a page) — network first, cached page as fallback,
   // /offline as the last resort so the app never shows a bare browser error.
   if (request.mode === "navigate") {

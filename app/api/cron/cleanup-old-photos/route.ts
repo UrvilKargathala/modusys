@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
-import { del } from "@vercel/blob";
+import { deleteKey } from "@/lib/server/s3";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,15 +19,16 @@ export async function GET(req: NextRequest) {
   const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const rows = await prisma.photoAttendanceRecord.findMany({
     where: { date: { lt: cutoff } },
-    select: { id: true, checkInPhotoUrl: true, checkOutPhotoUrl: true },
+    select: { id: true, checkInPhotoKey: true, checkOutPhotoKey: true },
   });
 
   let deletedBlobs = 0;
   for (const r of rows) {
-    for (const url of [r.checkInPhotoUrl, r.checkOutPhotoUrl]) {
-      if (!url) continue;
+    // Both sides of the record — a missed check-out photo would be orphaned once the row is gone.
+    for (const key of [r.checkInPhotoKey, r.checkOutPhotoKey]) {
+      if (!key) continue;
       try {
-        await del(url);
+        await deleteKey(key);
         deletedBlobs++;
       } catch {
         /* keep going — the DB delete still runs */

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { getCurrentEmployee } from "@/lib/server/current-employee";
 import { logAudit } from "@/lib/server/audit";
-import { del } from "@vercel/blob";
+import { deleteKey } from "@/lib/server/s3";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,26 +27,27 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ recordId
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const photoUrl = side === "checkOut" ? record.checkOutPhotoUrl : record.checkInPhotoUrl;
-  if (!photoUrl) return NextResponse.json({ error: "No photo on that side" }, { status: 404 });
+  const photoKey = side === "checkOut" ? record.checkOutPhotoKey : record.checkInPhotoKey;
+  if (!photoKey) return NextResponse.json({ error: "No photo on that side" }, { status: 404 });
 
   try {
-    await del(photoUrl);
+    await deleteKey(photoKey);
   } catch {
     /* keep going — DB must clear */
   }
   if (side === "checkOut") {
+    // Clear the legacy URL too, so no dead Blob address is left behind on this side.
     await prisma.photoAttendanceRecord.update({
       where: { id: recordId },
-      data: { checkOutPhotoUrl: null },
+      data: { checkOutPhotoKey: null, checkOutPhotoUrl: null },
     });
   } else {
     // Deleting the check-in photo — since the whole row exists ONLY because
     // there's a check-in photo, drop the row entirely (and any checkOut photo
-    // that was tied to it — best-effort blob delete first).
-    if (record.checkOutPhotoUrl) {
+    // that was tied to it — best-effort storage delete first).
+    if (record.checkOutPhotoKey) {
       try {
-        await del(record.checkOutPhotoUrl);
+        await deleteKey(record.checkOutPhotoKey);
       } catch {
         /* ignore */
       }

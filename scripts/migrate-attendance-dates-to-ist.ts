@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
+import { makeDbAdapter } from "../lib/db-adapter";
 import { istMidnight, istDateString } from "../lib/attendance-config";
 
 // One-shot rebucket:
@@ -24,7 +24,7 @@ async function main() {
     process.exit(1);
   }
 
-  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
+  const adapter = makeDbAdapter(process.env.DATABASE_URL);
   const prisma = new PrismaClient({ adapter });
 
   let attRead = 0, attFixed = 0;

@@ -25,6 +25,13 @@ import {
   DoorOpen,
   type LucideIcon,
 } from "lucide-react";
+import { withAttendancePhotos } from "@/lib/server/serialize";
+
+// The table only needs to know whether each side has a photo; it renders via /api/files/att_<id>.
+const photoFlags = (r: Parameters<typeof withAttendancePhotos>[0]) => {
+  const { checkInPhotoUrl, checkOutPhotoUrl } = withAttendancePhotos(r);
+  return { checkInPhotoUrl, checkOutPhotoUrl };
+};
 
 // Unified row across AttendanceRecord (unifi face-scan + new remote gps+photo
 // check-ins) and legacy PhotoAttendanceRecord (selfie-only records from
@@ -47,7 +54,7 @@ type Row = {
   checkInAddress: string | null;
   credentialType: string | null;
   note: string | null;
-  // The id used by the photo broker (/api/attendance/photo/[id]/[type]).
+  // The id used by the photo broker (/api/files/att_<id>?side=).
   // For AttendanceRecord rows it's the record's own id; for legacy
   // PhotoAttendanceRecord rows it's that record's id — the broker tries both
   // tables in order so either resolves correctly.
@@ -143,9 +150,8 @@ export default async function AttendancePage({
       checkInAddress: r.checkInAddress,
       credentialType: r.credentialType,
       note: r.checkInNote || r.checkOutNote,
-      photoRecordId: r.checkInPhotoUrl || r.checkOutPhotoUrl ? r.id : null,
-      checkInPhotoUrl: r.checkInPhotoUrl,
-      checkOutPhotoUrl: r.checkOutPhotoUrl,
+      photoRecordId: r.checkInPhotoKey || r.checkOutPhotoKey ? r.id : null,
+      ...photoFlags(r),
       workingMinutes: r.workingMinutes,
       dayStatus: r.dayStatus,
       isLate: r.isLate,
@@ -166,8 +172,7 @@ export default async function AttendancePage({
       credentialType: null,
       note: r.checkInNote || r.checkOutNote,
       photoRecordId: r.id,
-      checkInPhotoUrl: r.checkInPhotoUrl,
-      checkOutPhotoUrl: r.checkOutPhotoUrl,
+      ...photoFlags(r),
       // Legacy PhotoAttendanceRecord rows never carried these stats.
       workingMinutes: null,
       dayStatus: null,

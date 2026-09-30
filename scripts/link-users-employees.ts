@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
+import { makeDbAdapter } from "../lib/db-adapter";
 
 // One-shot User ↔ Employee auto-linker. Matches by:
 //   1. Exact email (case-insensitive) — strongest signal.
@@ -18,7 +18,7 @@ async function main() {
     console.error("Refusing: DATABASE_URL is not set.");
     process.exit(1);
   }
-  const p = new PrismaClient({ adapter: new PrismaNeon({ connectionString: process.env.DATABASE_URL }) });
+  const p = new PrismaClient({ adapter: makeDbAdapter(process.env.DATABASE_URL) });
   const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
 
   try {
