@@ -24,7 +24,11 @@ import { mkdir, writeFile } from "fs/promises";
 // Exit codes: 0 clean · 1 blocking problem / bad usage · 2 applied or audited, but some references are MISSING.
 
 const META_PREFIX = "_migration/";
-const CHUNK = 200;
+// Each chunk is one all-or-nothing transaction, and Prisma cancels any transaction that runs past 5 s.
+// Over the internet to Neon an update costs ~30 ms, so 200 per chunk timed out (found on the production
+// run; invisible on staging where the database is local). 20 per chunk is usually ~0.6 s, but one latency spike
+// still pushed a chunk to 5.5 s, so a failed chunk is retried (safe: it just re-sets the same values).
+const CHUNK = 20;
 
 // A Blob URL path IS the object key (uploads used addRandomSuffix:false / the same key was copied).
 // Try the decoded path first, then the raw path, so spaces and unicode match either way.
@@ -206,7 +210,19 @@ async function main() {
     console.log(`\nDry run — nothing written. Re-run with --apply to write ${writes.length} row update(s).`);
   } else {
     for (let i = 0; i < writes.length; i += CHUNK) {
-      await prisma.$transaction(writes.slice(i, i + CHUNK).map((w) => w() as never));
+      const batch = writes.slice(i, i + CHUNK);
+      // A latency spike to the database can push one batch past Prisma's 5 s transaction limit (seen on the
+      // production run). The batch rolls back whole, and re-setting the same values is harmless, so retry it.
+      for (let attempt = 1; ; attempt++) {
+        try {
+          await prisma.$transaction(batch.map((w) => w() as never));
+          break;
+        } catch (e) {
+          if (attempt >= 3) throw e;
+          console.log(`  batch at ${i} failed (attempt ${attempt}), retrying…`);
+          await new Promise((r) => setTimeout(r, 1500 * attempt));
+        }
+      }
       console.log(`  wrote ${Math.min(i + CHUNK, writes.length)}/${writes.length}`);
     }
     console.log(`\nApplied ${writes.length} update(s). Re-run without --apply: it should now report 0 to fill.`);
