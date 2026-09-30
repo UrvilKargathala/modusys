@@ -82,12 +82,12 @@ export function ArchitectsTable() {
           <NameCell architect={row.original} isDuplicate={duplicateNames.has(fullName(row.original).toLowerCase())} />
         ),
       },
-      { accessorKey: "company", header: "Company" },
+      { accessorKey: "company", header: "Company", cell: ({ row }) => <span className="text-sm">{row.original.company}</span> },
       {
         id: "mobile",
         accessorFn: (a) => a.mobile,
         header: "Mobile",
-        cell: ({ row }) => <span className="font-number">{row.original.mobile || "—"}</span>,
+        cell: ({ row }) => <span className="font-number text-sm">{row.original.mobile || "—"}</span>,
       },
       {
         id: "actions",

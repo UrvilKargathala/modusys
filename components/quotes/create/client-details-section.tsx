@@ -95,6 +95,7 @@ export function ClientDetailsSection({
           <Field label="Property Type" required>
             <MaterialReferenceSelect
               category="property-type"
+              sorted
               value={quote.propertyTypeId}
               onChange={(id) => confirmChange("Property Type", { propertyTypeId: id })}
             />
@@ -110,6 +111,7 @@ export function ClientDetailsSection({
           <Field label="Designer" required>
             <MaterialReferenceSelect
               category="designer"
+              sorted
               value={quote.designerId}
               onChange={(id) => confirmChange("Designer", { designerId: id })}
             />
@@ -118,6 +120,7 @@ export function ClientDetailsSection({
           <Field label="Site Engineer" required>
             <MaterialReferenceSelect
               category="site-engineer"
+              sorted
               value={quote.siteEngineerId}
               onChange={(id) => confirmChange("Site Engineer", { siteEngineerId: id })}
             />

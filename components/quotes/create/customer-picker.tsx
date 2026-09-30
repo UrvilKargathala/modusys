@@ -20,7 +20,9 @@ export function CustomerPicker({ value, onChange }: { value: string; onChange: (
   const [addOpen, setAddOpen] = useState(false);
 
   const selected = customers.find((c) => c.id === value);
-  const results = customers.filter((c) => c.name.toLowerCase().includes(query.toLowerCase()));
+  const results = customers
+    .filter((c) => c.name.toLowerCase().includes(query.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true }));
 
   return (
     <>

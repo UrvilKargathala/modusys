@@ -17,7 +17,9 @@ export function ArchitectPicker({ value, onChange }: { value: string; onChange: 
 
   const selected = architects.find((a) => a.id === value);
   const fullName = (a: { firstName: string; lastName: string }) => `${a.firstName} ${a.lastName}`.trim();
-  const results = architects.filter((a) => fullName(a).toLowerCase().includes(query.toLowerCase()));
+  const results = architects
+    .filter((a) => fullName(a).toLowerCase().includes(query.toLowerCase()))
+    .sort((a, b) => fullName(a).localeCompare(fullName(b), undefined, { sensitivity: "base", numeric: true }));
 
   return (
     <>

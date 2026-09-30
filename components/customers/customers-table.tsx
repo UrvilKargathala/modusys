@@ -66,7 +66,7 @@ export function CustomersTable() {
   const columns = useMemo<ColumnDef<Customer>[]>(
     () => [
       { accessorKey: "name", header: "Name", cell: ({ row }) => <NameCell customer={row.original} /> },
-      { accessorKey: "address", header: "Address" },
+      { accessorKey: "address", header: "Address", cell: ({ row }) => <span className="text-sm">{row.original.address}</span> },
       {
         accessorKey: "stage",
         header: "Stage",

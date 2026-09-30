@@ -18,7 +18,9 @@ export function UserPicker({ value, onChange }: { value: string; onChange: (user
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const selected = users.find((u) => u.id === value);
-  const results = users.filter((u) => u.name.toLowerCase().includes(query.toLowerCase()));
+  const results = users
+    .filter((u) => u.name.toLowerCase().includes(query.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true }));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
