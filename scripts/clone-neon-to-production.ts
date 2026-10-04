@@ -272,7 +272,7 @@ async function main() {
   // host/credentials pointed at the new database (peer-socket servers: run as postgres OS user).
   const targetUrl = process.env.TARGET_DATABASE_URL ?? withDb(adminUrl!, targetDb);
   try {
-    await run("pg_restore", "pg_restore", ["-j", jobs, "--no-owner", `--role=${appRole}`, "-d", targetUrl, dumpPath]);
+    await run("pg_restore", "pg_restore", ["-j", jobs, "--no-owner", "--no-privileges", `--role=${appRole}`, "-d", targetUrl, dumpPath]);
   } catch (e) {
     fail({ ...classify("pg_restore", e), reason: `${classify("pg_restore", e).reason} Resume: re-run --apply --use-dump ${dumpPath} (target is dropped + recreated, never half-restored).` }, logPath);
   }
