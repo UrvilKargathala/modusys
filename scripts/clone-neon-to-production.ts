@@ -77,7 +77,8 @@ function withDb(url: string, db: string): string {
 
 function classify(tool: string, e: unknown): Failure {
   const err = e as { message?: string; stderr?: string; code?: number | string; stdout?: string };
-  const out = String(err?.stderr ?? err?.message ?? e ?? "");
+  // Never let a connection string (with its password) reach the console or the log.
+  const out = String(err?.stderr ?? err?.message ?? e ?? "").replace(/postgres(?:ql)?:\/\/[^@\s"']*@/gi, "postgresql://<redacted>@");
   const first = out.split("\n").filter(Boolean).slice(0, 4).join(" | ");
   if (/could not connect|connection refused|ENOTFOUND|ETIMEDOUT|EAI_AGAIN|getaddrinfo/i.test(out)) {
     return { phase: tool, code: "CONNECT", message: first, reason: "database host unreachable — VPN/tailnet down, wrong host, or firewall. Nothing was written; fix connectivity and re-run." };
@@ -115,9 +116,9 @@ async function run(tool: string, cmd: string, args: string[], extraEnv?: Record<
 }
 
 async function psql(url: string, sql: string, db?: string): Promise<string> {
-  const args = [url];
-  if (db) args.push("-d", db);
-  args.push("-v", "ON_ERROR_STOP=1", "-tA", "-c", sql);
+  // Pick the database inside the URL. Passing both a URL and `-d` makes psql read the URL as a
+  // USER name and fall back to the local socket (and echo the whole URL, password included, in the error).
+  const args = [db ? withDb(url, db) : url, "-v", "ON_ERROR_STOP=1", "-tA", "-c", sql];
   return run("psql", "psql", args);
 }
 
@@ -291,7 +292,7 @@ async function main() {
       const [s, g] = await Promise.all([
         run("verify", "psql", [neonUrl, "-tA", "-c", `SELECT COUNT(*) FROM "${t}";`]),
         run("verify", "psql", [targetUrl, "-tA", "-c", `SELECT COUNT(*) FROM "${t}";`]).catch(() =>
-          run("verify", "psql", [adminUrl!, "-d", targetDb, "-tA", "-c", `SELECT COUNT(*) FROM "${t}";`])),
+          run("verify", "psql", [withDb(adminUrl!, targetDb), "-tA", "-c", `SELECT COUNT(*) FROM "${t}";`])),
       ]);
       const sv = Number(s.trim()), gv = Number(g.trim());
       counts[t] = { source: sv, target: gv };
@@ -306,7 +307,7 @@ async function main() {
     }
   }
   try {
-    const mig = await run("verify", "psql", [adminUrl!, "-d", targetDb, "-tA", "-c", `SELECT COUNT(*) FROM "_prisma_migrations";`]);
+    const mig = await run("verify", "psql", [withDb(adminUrl!, targetDb), "-tA", "-c", `SELECT COUNT(*) FROM "_prisma_migrations";`]);
     console.log(`  _prisma_migrations=${mig.trim()} (expect 32 + branch additions)`);
   } catch (e) {
     const c = classify("verify", e);
@@ -318,7 +319,7 @@ async function main() {
   // Fix path (deliberately manual, passwords must never flow through this script):
   //   TARGET_DATABASE_URL=<new-db> npx tsx scripts/create-super-admin.ts
   try {
-    const sa = await run("verify", "psql", [adminUrl!, "-d", targetDb, "-tA", "-c",
+    const sa = await run("verify", "psql", [withDb(adminUrl!, targetDb), "-tA", "-c",
       `SELECT COUNT(*) FROM "User" WHERE role='super-admin' AND status='active';`]);
     console.log(`  active super-admins=${sa.trim()}`);
     if (Number(sa.trim()) < 1) {
