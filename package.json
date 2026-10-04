@@ -14,7 +14,8 @@
     "link-users-employees": "tsx scripts/link-users-employees.ts",
     "backfill-attendance-stats": "tsx scripts/backfill-attendance-stats.ts",
     "backfill-furniture-variant-ids": "tsx scripts/backfill-furniture-variant-ids.ts",
-    "sync-neon-delta": "tsx scripts/sync-neon-delta.ts"
+    "sync-neon-delta": "tsx scripts/sync-neon-delta.ts",
+    "clone-neon-to-production": "tsx scripts/clone-neon-to-production.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1143.0",
