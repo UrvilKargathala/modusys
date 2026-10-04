@@ -55,8 +55,9 @@ const TABLES = [
 ];
 
 const argv = process.argv.slice(2);
-const flag = (n: string) => argv.includes(`--${n}`);
-const opt = (n: string) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : undefined; };
+// Callers pass the full flag ("--apply"); the helpers used to prepend "--" again, so no flag ever matched.
+const flag = (n: string) => argv.includes(n);
+const opt = (n: string) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : undefined; };
 
 function redact(url: string): string {
   try {
@@ -134,7 +135,7 @@ async function saveState(s: State, logPath: string) {
   await appendFile(logPath, JSON.stringify({ ts: s.updatedAt, state: s.phase, snapshotAt: s.snapshotAt }) + "\n");
 }
 
-function fail(f: Failure, logPath: string): void {
+function fail(f: Failure, logPath: string): never {
   const line = `\nFAILED [${f.phase}] code=${f.code}\n  error="${f.message}"\n  reason: ${f.reason}\n  log: ${logPath}\n`;
   console.error(line);
   appendFile(logPath, JSON.stringify({ ts: new Date().toISOString(), ...f }) + "\n").catch(() => undefined);
@@ -232,7 +233,7 @@ async function main() {
   const sha = await new Promise<string>((resolve, reject) => {
     const h = createHash("sha256");
     const s = createReadStream(dumpPath);
-    s.on("data", (d: Buffer) => h.update(d));
+    s.on("data", (d: Buffer | string) => { h.update(d); });
     s.on("end", () => resolve(h.digest("hex")));
     s.on("error", reject);
   });
