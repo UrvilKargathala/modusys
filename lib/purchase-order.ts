@@ -88,6 +88,8 @@ export function lineAmount(l: Pick<PurchaseOrderLine, "group" | "rate" | "sqft" 
 
 // Company is in Gujarat: same-state vendor → 9% state + 9% central, otherwise 18% IGST.
 export const COMPANY_STATE = "Gujarat";
+// Printed in the PO header; the Quote Template settings have no GST field.
+export const COMPANY_GST = "24AAZFT9177A1ZM";
 export function gstModeFor(vendorState: string): GstMode {
   return vendorState.trim().toLowerCase() === COMPANY_STATE.toLowerCase() ? "intra" : "inter";
 }

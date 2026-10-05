@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,6 +105,17 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={dirty}
+            title={dirty ? "Save your changes first — the PDF shows the saved version" : undefined}
+            onClick={() => window.open(`/purchase-orders/${id}/pdf`, "_blank")}
+          >
+            <FileText className="h-4 w-4" />
+            Export PDF
+          </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
             <Trash2 className="h-4 w-4" />
             Delete
