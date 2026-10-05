@@ -1,5 +1,5 @@
-import { PlaceholderPage } from "@/components/shared/placeholder-page";
+import { PurchaseOrdersView } from "@/components/purchase-orders/purchase-orders-view";
 
-export default function UpurchaseUordersPage() {
-  return <PlaceholderPage title="Purchase Orders" />;
+export default function PurchaseOrdersPage() {
+  return <PurchaseOrdersView />;
 }

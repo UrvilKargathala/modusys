@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "crypto";
-import type { Customer, Architect, User, ArchitectPartner, Message, MediaAttachment, MessageReaction } from "@prisma/client";
+import type { Customer, Architect, User, ArchitectPartner, Message, MediaAttachment, MessageReaction, Vendor, PurchaseOrder, PurchaseOrderLine } from "@prisma/client";
+import type { VendorContact, PoGroup, GstMode } from "@/lib/purchase-order";
 import type { ArchitectSiteEngineer } from "@/lib/mock/architects";
 
 // DB rows carry Date objects and a merged/relational shape; the existing app
@@ -166,5 +167,60 @@ export function serializeMediaAttachment(m: MediaAttachment) {
     durationSec: m.durationSec ?? undefined,
     uploadedAt: m.uploadedAt.toISOString(),
     status: "done" as const,
+  };
+}
+
+export function serializeVendor(v: Vendor) {
+  return {
+    id: v.id,
+    name: v.name,
+    address: v.address,
+    city: v.city,
+    state: v.state,
+    gst: v.gst,
+    contacts: (v.contacts as VendorContact[] | null) ?? [],
+    createdAt: v.createdAt.toISOString(),
+  };
+}
+
+export function serializePurchaseOrder(po: PurchaseOrder & { lines: PurchaseOrderLine[] }, vendorName = "") {
+  return {
+    id: po.id,
+    poNumber: po.poNumber,
+    poDate: po.poDate,
+    requiredDate: po.requiredDate,
+    vendorId: po.vendorId,
+    vendorName,
+    quoteId: po.quoteId,
+    customerId: po.customerId,
+    discountPct: po.discountPct,
+    gstMode: po.gstMode as GstMode,
+    roundOff: po.roundOff,
+    remarks: po.remarks,
+    createdAt: po.createdAt.toISOString(),
+    lines: [...po.lines]
+      .sort((a, b) => a.position - b.position)
+      .map((l) => ({
+        id: l.id,
+        group: l.group as PoGroup,
+        srNo: l.srNo,
+        position: l.position,
+        description: l.description,
+        designType: l.designType,
+        width: l.width,
+        depth: l.depth,
+        height: l.height,
+        qty: l.qty,
+        sqft: l.sqft,
+        internalColour: l.internalColour,
+        externalColour: l.externalColour,
+        material: l.material,
+        articleNo: l.articleNo,
+        brand: l.brand,
+        category: l.category,
+        unit: l.unit,
+        rate: l.rate,
+        remarks: l.remarks,
+      })),
   };
 }
