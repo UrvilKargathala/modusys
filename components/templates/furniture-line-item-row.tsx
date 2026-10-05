@@ -1,5 +1,6 @@
 "use client";
 
+import { evaluateFormula } from "@/lib/quote-pricing";
 import { useMemo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -39,6 +40,7 @@ export function FurnitureLineItemRow({
   compact,
   rateReadOnly,
   collapsible,
+  unitDims,
 }: {
   value: FurnitureLineItem;
   onChange: (patch: Partial<FurnitureLineItem>) => void;
@@ -54,6 +56,9 @@ export function FurnitureLineItemRow({
   // Type builders) never have, so this stays optional and Templates simply
   // omits it.
   totalSqFt?: number;
+  // Quotes-only — when set, typing a formula like "w-10" collapses to the
+  // concrete number (on blur/tab) for this Unit's dimensions.
+  unitDims?: { W: number; D: number; H: number };
   compact?: boolean;
   // Templates want Rate locked to the Price List — edits happen there, not
   // here. Quotes keep it editable so users can override per line.
@@ -80,6 +85,14 @@ export function FurnitureLineItemRow({
     } else {
       onChange(patch);
     }
+  };
+
+  // Quotes only: collapse a W/D/H formula ("w-10") to its number on blur.
+  // Invalid or non-positive results keep what was typed rather than wiping it.
+  const resolveOnBlur = (field: "widthFormula" | "heightFormula") => {
+    if (!unitDims || !/[WDH]/i.test(value[field])) return;
+    const n = Math.round(evaluateFormula(value[field], unitDims));
+    if (n > 0) handleFieldChange({ [field]: String(n) });
   };
 
   // Thickness/Raw Material/Internal/External Colour drive the price-list
@@ -201,6 +214,7 @@ export function FurnitureLineItemRow({
             placeholder="e.g. (W-95)/2"
             value={value.widthFormula}
             onChange={(e) => handleFieldChange({ widthFormula: e.target.value })}
+            onBlur={() => resolveOnBlur("widthFormula")}
             className="font-number bg-[#F0E4E4]"
           />
         </div>
@@ -211,6 +225,7 @@ export function FurnitureLineItemRow({
             placeholder="e.g. H-20"
             value={value.heightFormula}
             onChange={(e) => handleFieldChange({ heightFormula: e.target.value })}
+            onBlur={() => resolveOnBlur("heightFormula")}
             className="font-number bg-[#F0E4E4]"
           />
         </div>

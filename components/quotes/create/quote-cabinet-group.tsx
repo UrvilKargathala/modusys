@@ -141,6 +141,7 @@ export function FurnitureGroup({
                     showComponentName={showComponentName}
                     showLevelType={showLevelType}
                     totalSqFt={totalSqFt}
+                    unitDims={{ W: unit.width, D: unit.depth, H: unit.height }}
 
                     onChange={(patch) => onChange(items.map((i) => (i.id === item.id ? { ...i, ...patch } : i)))}
                     onRemove={() => onChange(items.filter((i) => i.id !== item.id))}
