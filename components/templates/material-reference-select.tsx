@@ -42,6 +42,9 @@ export function MaterialReferenceSelect({
   const [query, setQuery] = useState("");
   const [addOpen, setAddOpen] = useState(false);
 
+  // Purchase Material Library entries keep Brand in `description` and Colour Code in `name`; show Brand first.
+  const parts = (i: { name: string; description: string }) =>
+    meta.brandAndCode ? { main: i.description, sub: i.name } : { main: i.name, sub: i.description };
   const selected = items.find((i) => i.id === value);
   const matches = items.filter(
     (i) => i.name.toLowerCase().includes(query.toLowerCase()) || i.description.toLowerCase().includes(query.toLowerCase())
@@ -63,11 +66,11 @@ export function MaterialReferenceSelect({
         >
           {selected ? (
             <span
-              title={nameOnly || !selected.description ? selected.name : `${selected.name} — ${selected.description}`}
+              title={nameOnly || !parts(selected).sub ? parts(selected).main : `${parts(selected).main} — ${parts(selected).sub}`}
               className={cn("min-w-0 truncate font-number", bold && "font-semibold")}
             >
-              {selected.name}
-              {!nameOnly && selected.description && <span className="text-grey-400"> — {selected.description}</span>}
+              {parts(selected).main}
+              {!nameOnly && parts(selected).sub && <span className="text-grey-400"> — {parts(selected).sub}</span>}
             </span>
           ) : (
             <span className="min-w-0 truncate text-grey-400">Select {meta.label.toLowerCase()}</span>
@@ -99,11 +102,11 @@ export function MaterialReferenceSelect({
                 )}
               >
                 <span
-                  title={nameOnly || !i.description ? i.name : `${i.name} — ${i.description}`}
+                  title={nameOnly || !parts(i).sub ? parts(i).main : `${parts(i).main} — ${parts(i).sub}`}
                   className={cn("min-w-0 font-number", wide ? "break-words" : "truncate")}
                 >
-                  {i.name}
-                  {!nameOnly && i.description && <span className="text-grey-400"> — {i.description}</span>}
+                  {parts(i).main}
+                  {!nameOnly && parts(i).sub && <span className="text-grey-400"> — {parts(i).sub}</span>}
                 </span>
                 {i.id === value && <Check className="h-3.5 w-3.5 shrink-0" />}
               </button>

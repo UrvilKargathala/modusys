@@ -20,6 +20,9 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
   const canDelete = currentUser.role === "super-admin";
 
   const items = useMaterialItems(category.key);
+  // Brand + Colour Code entries keep Brand in `description` and Colour Code in `name`.
+  const brandCode = !!category.brandAndCode;
+  const showSrNo = category.group === "library" || brandCode;
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ key: "name" | "description"; asc: boolean }>({ key: "name", asc: true });
   const [addOpen, setAddOpen] = useState(false);
@@ -99,21 +102,34 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
           <table className="w-full text-left">
             <thead className="bg-[#DACCCC]">
               <tr>
-                {category.group === "library" && (
+                {showSrNo && (
                   <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">SR No</th>
+                )}
+                {brandCode && (
+                  <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("description")}
+                      className="flex items-center gap-1 uppercase tracking-wide hover:text-grey-700"
+                      aria-label="Sort by brand"
+                    >
+                      Brand
+                      {sortIcon("description")}
+                    </button>
+                  </th>
                 )}
                 <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
                   <button
                     type="button"
                     onClick={() => toggleSort("name")}
                     className="flex items-center gap-1 uppercase tracking-wide hover:text-grey-700"
-                    aria-label="Sort by name"
+                    aria-label={brandCode ? "Sort by colour code" : "Sort by name"}
                   >
-                    {category.longDescription ? "Value" : "Name"}
+                    {brandCode ? "Colour Code" : category.longDescription ? "Value" : "Name"}
                     {sortIcon("name")}
                   </button>
                 </th>
-                {!category.longDescription && !category.noDescription && (
+                {!brandCode && !category.longDescription && !category.noDescription && (
                   <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
                     <button
                       type="button"
@@ -134,16 +150,17 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
             <tbody>
               {paged.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
-                  {category.group === "library" && (
+                  {showSrNo && (
                     <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
                   )}
+                  {brandCode && <td className="px-4 py-3 text-[13px] font-body text-grey-900">{i.description || "—"}</td>}
                   <td className="px-4 py-3 text-[13px] font-body text-grey-900">
                     {i.name}
                     {category.longDescription && i.description && (
                       <p className="mt-0.5 text-xs font-body text-grey-400">{i.description}</p>
                     )}
                   </td>
-                  {!category.longDescription && !category.noDescription && (
+                  {!brandCode && !category.longDescription && !category.noDescription && (
                     <td className="px-4 py-3 text-[13px] font-body text-grey-500">{i.description || "—"}</td>
                   )}
                   <td className="px-4 py-3">

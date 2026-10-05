@@ -1,4 +1,4 @@
-export type MaterialCategoryGroup = "specification" | "library";
+export type MaterialCategoryGroup = "specification" | "library" | "purchase-library";
 
 export type MaterialCategoryKey =
   // Material Specification
@@ -22,7 +22,10 @@ export type MaterialCategoryKey =
   | "category"
   | "brand"
   | "unit"
-  | "level-type";
+  | "level-type"
+  // Purchase Material Library — colours bought from vendors
+  | "purchase-internal"
+  | "purchase-external";
 
 export type MaterialCategory = {
   key: MaterialCategoryKey;
@@ -34,6 +37,9 @@ export type MaterialCategory = {
   longDescription?: boolean;
   // Category/Brand are name-only lookups — no description field.
   noDescription?: boolean;
+  // Purchase Material Library: each entry is a Brand + Colour Code pair
+  // (stored as description + name, so no DB change is needed).
+  brandAndCode?: boolean;
 };
 
 export const materialCategories: MaterialCategory[] = [
@@ -60,6 +66,8 @@ export const materialCategories: MaterialCategory[] = [
   { key: "brand", group: "library", label: "Brand", noDescription: true },
   { key: "unit", group: "library", label: "Unit", noDescription: true },
   { key: "level-type", group: "library", label: "Level Type", noDescription: true },
+  { key: "purchase-internal", group: "purchase-library", label: "Internal", brandAndCode: true },
+  { key: "purchase-external", group: "purchase-library", label: "External", brandAndCode: true },
 ];
 
 export function getMaterialCategory(key: MaterialCategoryKey) {

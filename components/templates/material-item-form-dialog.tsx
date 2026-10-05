@@ -57,7 +57,34 @@ export function MaterialItemFormDialog({
     reset(item ? { name: item.name, description: item.description } : { name: "", description: "" });
   }, [open, item, reset]);
 
+  const brandCode = !!category.brandAndCode;
+
   const submit = (values: ItemFormValues) => {
+    if (brandCode) {
+      // Brand is required here, and the same Colour Code may exist under another brand —
+      // so uniqueness is the Brand + Colour Code pair.
+      if (!values.description.trim()) {
+        setError("description", { message: "Brand is required" });
+        return;
+      }
+      const taken = materialSpecStore
+        .getSnapshot()
+        .some(
+          (i) =>
+            i.category === category.key &&
+            !i.deleted &&
+            i.id !== item?.id &&
+            i.name.trim().toLowerCase() === values.name.trim().toLowerCase() &&
+            i.description.trim().toLowerCase() === values.description.trim().toLowerCase()
+        );
+      if (taken) {
+        setError("name", { message: "This brand and colour code already exist." });
+        return;
+      }
+      onSubmit({ name: values.name.trim(), description: values.description.trim() });
+      onOpenChange(false);
+      return;
+    }
     if (materialSpecStore.isNameTaken(category.key, values.name, item?.id)) {
       setError("name", { message: `This ${category.label.toLowerCase()} name already exists.` });
       return;
@@ -77,13 +104,25 @@ export function MaterialItemFormDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(submit)} noValidate className="flex flex-col gap-4">
+          {brandCode && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="mi-brand">Brand *</Label>
+              <Input id="mi-brand" placeholder="e.g. Dorby Laminate" {...register("description")} />
+              {errors.description && <span className="text-xs font-body text-error">{errors.description.message}</span>}
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="mi-name">Name *</Label>
-            <Input id="mi-name" placeholder="e.g. Profile Handle — Aluminium" {...register("name")} />
-            {errors.name && <span className="text-xs font-body text-error">{errors.name.message}</span>}
+            <Label htmlFor="mi-name">{brandCode ? "Colour Code *" : "Name *"}</Label>
+            <Input id="mi-name" placeholder={brandCode ? "e.g. EW 79520" : "e.g. Profile Handle — Aluminium"} {...register("name")} />
+            {errors.name && (
+              <span className="text-xs font-body text-error">
+                {brandCode && errors.name.message === "Name is required" ? "Colour code is required" : errors.name.message}
+              </span>
+            )}
           </div>
 
-          {!category.noDescription && (
+          {!brandCode && !category.noDescription && (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="mi-description">
                 Description {category.longDescription ? "" : "(optional)"}
