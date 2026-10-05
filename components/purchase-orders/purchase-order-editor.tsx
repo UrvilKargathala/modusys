@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
+import { PoCabinetCard } from "@/components/purchase-orders/po-cabinet-card";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { useVendors } from "@/lib/store/vendors-store";
@@ -16,7 +16,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
-import { PO_GROUPS, gstModeFor, poTotals, type GstMode, type PurchaseOrder } from "@/lib/purchase-order";
+import { gstModeFor, poTotals, type GstMode, type PurchaseOrder } from "@/lib/purchase-order";
 
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
 const card = "flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-5 shadow-sm";
@@ -50,6 +50,15 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
 
   const dirty = useMemo(() => !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved), [draft, saved]);
   const totals = useMemo(() => (draft ? poTotals(draft) : null), [draft]);
+  // Cabinets in quote order; internal/external lists are what the rows actually use.
+  const cabinetNos = useMemo(() => (draft ? [...new Set(draft.lines.map((l) => l.srNo))].sort((a, b) => a - b) : []), [draft]);
+  const usedFinishes = useMemo(() => {
+    const distinct = (xs: string[]) => [...new Set(xs.filter(Boolean))];
+    return {
+      internal: distinct(draft?.lines.map((l) => l.internalColour) ?? []),
+      external: distinct(draft?.lines.map((l) => l.externalColour) ?? []),
+    };
+  }, [draft]);
 
   if (!draft || !totals) {
     return purchaseOrdersStore.isLoaded() && !saved ? (
@@ -69,8 +78,6 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const quote = quotes.find((q) => q.id === draft.quoteId);
   const set = (fields: Partial<PurchaseOrder>) => setDraft({ ...draft, ...fields });
   const setMaterial = (fields: Partial<PurchaseOrder["material"]>) => set({ material: { ...draft.material, ...fields } });
-  const csv = (xs: string[]) => xs.join(", ");
-  const parseCsv = (v: string) => v.split(",").map((s) => s.trim()).filter(Boolean);
 
   const save = async () => {
     if (!draft.poNumber.trim()) {
@@ -80,6 +87,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     setSaving(true);
     try {
       const { id: _id, createdAt: _c, vendorName: _v, ...fields } = draft;
+      // The PO's internal/external lists mirror the finishes picked on the rows.
+      fields.material = { ...fields.material, internalColours: usedFinishes.internal, externalColours: usedFinishes.external };
       const next = await purchaseOrdersStore.update(id, fields);
       setDraft(structuredClone(next));
       toastStore.show("Purchase order saved", "success");
@@ -192,26 +201,23 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             <Label>Other Raw Material</Label>
             <Input value={draft.material.otherRawMaterial} onChange={(e) => setMaterial({ otherRawMaterial: e.target.value })} />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Internal Colours (comma separated)</Label>
-            <Input defaultValue={csv(draft.material.internalColours)} onBlur={(e) => setMaterial({ internalColours: parseCsv(e.target.value) })} />
+          <div className="flex flex-col gap-1">
+            <Label>Internal Brand & Colour</Label>
+            <p className="text-sm font-body text-grey-700">{usedFinishes.internal.join(", ") || "Pick on the cabinet rows below"}</p>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>External Colours (comma separated)</Label>
-            <Input defaultValue={csv(draft.material.externalColours)} onBlur={(e) => setMaterial({ externalColours: parseCsv(e.target.value) })} />
+          <div className="flex flex-col gap-1">
+            <Label>External Brand & Colour</Label>
+            <p className="text-sm font-body text-grey-700">{usedFinishes.external.join(", ") || "Pick on the cabinet rows below"}</p>
           </div>
         </div>
       </div>
 
       <div className={card}>
-        {PO_GROUPS.map((g) => (
-          <PoLinesTable
-            key={g.key}
-            group={g.key}
-            title={`${g.code}. ${g.label}`}
-            lines={draft.lines}
-            onChange={(lines) => set({ lines })}
-          />
+        <h2 className="font-heading text-base font-semibold text-grey-900">
+          Cabinets <span className="font-number text-sm font-normal text-grey-500">({cabinetNos.length})</span>
+        </h2>
+        {cabinetNos.map((no) => (
+          <PoCabinetCard key={no} srNo={no} lines={draft.lines} cabinet={draft.material.cabinets?.[String(no)]} onChange={(lines) => set({ lines })} />
         ))}
       </div>
 

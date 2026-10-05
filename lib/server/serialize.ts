@@ -194,7 +194,7 @@ export function serializePurchaseOrder(po: PurchaseOrder & { lines: PurchaseOrde
     quoteId: po.quoteId,
     customerId: po.customerId,
     discountPct: po.discountPct,
-    material: { shutterRawMaterial: "", otherRawMaterial: "", internalColours: [], externalColours: [], ...((po.material as Partial<PoMaterial> | null) ?? {}) },
+    material: { shutterRawMaterial: "", otherRawMaterial: "", internalColours: [], externalColours: [], cabinets: {}, ...((po.material as Partial<PoMaterial> | null) ?? {}) },
     gstMode: po.gstMode as GstMode,
     roundOff: po.roundOff,
     remarks: po.remarks,

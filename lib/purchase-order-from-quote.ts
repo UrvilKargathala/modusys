@@ -3,7 +3,7 @@ import type { MaterialItem } from "@/lib/mock/material-spec";
 import type { HardwarePriceItem } from "@/lib/mock/pricing-list";
 import type { UnitType, FurnitureLineItem } from "@/lib/mock/unit-type";
 import { carcassUnitFor, evaluateFormula } from "@/lib/quote-pricing";
-import { panelSqft, type PoGroup, type PoMaterial, type PurchaseOrderLine } from "@/lib/purchase-order";
+import { panelSqft, type PoCabinet, type PoGroup, type PoMaterial, type PurchaseOrderLine } from "@/lib/purchase-order";
 
 export type PoLineDraft = Omit<PurchaseOrderLine, "id">;
 
@@ -18,7 +18,10 @@ const unitQty = (u: { qty: number }) => Math.max(1, u.qty || 1);
 // (same as the quote's own totals: unitTotal/unitSqFt scale by unit qty), so a
 // PO always agrees with the quote. Rate is left at 0 — typed manually.
 // srNo = running cabinet number in quote order; designType = unit type short
-// code + running number per code (one per unit).
+// code + running number per code (one per unit). Each cabinet's name and W/D/H are
+// kept in material.cabinets (keyed by srNo) so the PO can show a header per cabinet
+// like the quote does. Purchase internal/external finishes start blank — they are
+// picked from the Purchase Material Library, not copied from the quote's sales colours.
 export function buildPoFromQuote(quote: Quote, { materials, unitTypes, hardwareItems }: Ctx): { material: PoMaterial; lines: PoLineDraft[] } {
   const name = (id?: string) => (id ? materials.find((m) => m.id === id)?.name ?? "" : "");
   const thickness = (id?: string) => parseFloat(name(id)) || 0;
@@ -56,8 +59,8 @@ export function buildPoFromQuote(quote: Quote, { materials, unitTypes, hardwareI
       height,
       qty,
       sqft: panelSqft(width, height, qty),
-      internalColour: name(item.internalColourId),
-      externalColour: name(item.externalColourId),
+      internalColour: "",
+      externalColour: "",
       material: name(item.rawMaterialTypeId),
       articleNo: "",
       brand: "",
@@ -100,14 +103,29 @@ export function buildPoFromQuote(quote: Quote, { materials, unitTypes, hardwareI
     }
   }
 
+  const cabinetInfo: Record<string, PoCabinet> = {};
+  for (const c of cabinets) {
+    const dims = carcassUnitFor(c.cabinet, c.unit);
+    cabinetInfo[String(c.srNo)] = {
+      label: c.cabinet.label,
+      unitName: unitTypes.find((u) => u.id === c.unit.unitTypeId)?.name ?? "",
+      space: name(c.unit.spaceId),
+      width: dims.width,
+      depth: dims.depth,
+      height: dims.height,
+      qty: dims.qty,
+    };
+  }
+
   const distinct = (xs: string[]) => [...new Set(xs.filter(Boolean))];
   const shutters = lines.filter((l) => l.group === "shutter");
   const others = lines.filter((l) => l.group !== "shutter" && l.group !== "hardware");
   const material: PoMaterial = {
     shutterRawMaterial: name(quote.shutterFinishRawMaterialId) || distinct(shutters.map((l) => l.material))[0] || "",
     otherRawMaterial: distinct(others.map((l) => l.material))[0] ?? "",
-    internalColours: distinct(lines.map((l) => l.internalColour)),
-    externalColours: distinct(lines.map((l) => l.externalColour)),
+    internalColours: [],
+    externalColours: [],
+    cabinets: cabinetInfo,
   };
   return { material, lines };
 }

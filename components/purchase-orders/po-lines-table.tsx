@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/format";
+import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { lineAmount, panelSqft, type PoGroup, type PurchaseOrderLine } from "@/lib/purchase-order";
 
 const cell =
@@ -22,8 +23,8 @@ const PANEL_COLS: Col[] = [
   { key: "height", label: "Height", width: "w-20" },
   { key: "qty", label: "Qty", width: "w-16" },
   { key: "sqft", label: "Sq.Ft", width: "w-20" },
-  { key: "internalColour", label: "Internal", width: "w-40" },
-  { key: "externalColour", label: "External", width: "w-40" },
+  { key: "internalColour", label: "Internal Brand & Colour", width: "w-56" },
+  { key: "externalColour", label: "External Brand & Colour", width: "w-56" },
   { key: "material", label: "Material", width: "w-28" },
   { key: "rate", label: "Rate", width: "w-24" },
   { key: "amount", label: "Amount", width: "w-28" },
@@ -46,21 +47,25 @@ const HW_COLS: Col[] = [
 
 const TEXT_KEYS = new Set(["description", "designType", "internalColour", "externalColour", "material", "articleNo", "brand", "category", "unit", "remarks"]);
 
+// srNo given = shown inside that cabinet's card: only its rows, and the Sr / Design columns
+// are dropped (the cabinet header already shows them).
 export function PoLinesTable({
   group,
   title,
   lines,
+  srNo,
   onChange,
 }: {
   group: PoGroup;
   title: string;
   lines: PurchaseOrderLine[];
+  srNo?: number;
   onChange: (lines: PurchaseOrderLine[]) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const hardware = group === "hardware";
-  const cols = hardware ? HW_COLS : PANEL_COLS;
-  const mine = lines.filter((l) => l.group === group);
+  const cols = (hardware ? HW_COLS : PANEL_COLS).filter((c) => srNo === undefined || (c.key !== "srNo" && c.key !== "designType"));
+  const mine = lines.filter((l) => l.group === group && (srNo === undefined || l.srNo === srNo));
   const total = mine.reduce((s, l) => s + lineAmount(l), 0);
 
   const patch = (id: string, fields: Partial<PurchaseOrderLine>) =>
@@ -79,9 +84,9 @@ export function PoLinesTable({
       {
         id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         group,
-        srNo: mine[mine.length - 1]?.srNo ?? 0,
+        srNo: srNo ?? mine[mine.length - 1]?.srNo ?? 0,
         position: lines.length,
-        description: "", designType: "", width: 0, depth: 0, height: 0, qty: 1, sqft: 0,
+        description: "", designType: srNo === undefined ? "" : (lines.find((l) => l.srNo === srNo)?.designType ?? ""), width: 0, depth: 0, height: 0, qty: 1, sqft: 0,
         internalColour: "", externalColour: "", material: "", articleNo: "", brand: "", category: "", unit: "", rate: 0, remarks: "",
       },
     ]);
@@ -134,6 +139,12 @@ export function PoLinesTable({
                         <span className="block px-2 text-right font-number text-sm text-grey-900">{formatInr(lineAmount(l))}</span>
                       ) : c.key === "sqft" ? (
                         <span className="block px-2 text-right font-number text-sm text-grey-700">{l.sqft.toFixed(2)}</span>
+                      ) : c.key === "internalColour" || c.key === "externalColour" ? (
+                        <PoFinishSelect
+                          kind={c.key === "internalColour" ? "internal" : "external"}
+                          value={l[c.key]}
+                          onChange={(label) => patch(l.id, { [c.key]: label })}
+                        />
                       ) : TEXT_KEYS.has(c.key) ? (
                         <input
                           className={cell}

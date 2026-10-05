@@ -72,14 +72,28 @@ export function panelSqft(width: number, height: number, qty: number): number {
 }
 
 // The Material Description block of the sheet, snapshotted as text.
+// Cabinet header shown above a cabinet's lines, keyed by cabinet no (the lines' srNo).
+// Snapshot of the quote's unit + cabinet; kept inside the PO's `material` JSON so no extra table/column is needed.
+export type PoCabinet = {
+  label: string; // e.g. "Standard Cabinet"
+  unitName: string; // unit type name
+  space: string; // e.g. "Kitchen"
+  width: number;
+  depth: number;
+  height: number;
+  qty: number;
+};
+
 export type PoMaterial = {
   shutterRawMaterial: string;
   otherRawMaterial: string;
+  // Derived from the lines' purchase internal/external finishes on save.
   internalColours: string[];
   externalColours: string[];
+  cabinets: Record<string, PoCabinet>;
 };
 
-export const blankMaterial = (): PoMaterial => ({ shutterRawMaterial: "", otherRawMaterial: "", internalColours: [], externalColours: [] });
+export const blankMaterial = (): PoMaterial => ({ shutterRawMaterial: "", otherRawMaterial: "", internalColours: [], externalColours: [], cabinets: {} });
 
 // Panels are bought by area, hardware by piece.
 export function lineAmount(l: Pick<PurchaseOrderLine, "group" | "rate" | "sqft" | "qty">): number {
