@@ -10,11 +10,13 @@ export type PoLineDraft = Omit<PurchaseOrderLine, "id">;
 type Ctx = { materials: MaterialItem[]; unitTypes: UnitType[]; hardwareItems: HardwarePriceItem[] };
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
+const unitQty = (u: { qty: number }) => Math.max(1, u.qty || 1);
 
 // Snapshot of a quote's cut-list as PO lines (one row per panel, grouped
 // A Carcass / B Shutter / C Other Panel / D Hardware). Each row already holds
-// mm dimensions baked from the formulas and a qty that includes the unit's qty,
-// so the row's own qty is used as-is. Rate is left at 0 — typed manually.
+// mm dimensions baked from the formulas. Row qty is multiplied by the unit's qty
+// (same as the quote's own totals: unitTotal/unitSqFt scale by unit qty), so a
+// PO always agrees with the quote. Rate is left at 0 — typed manually.
 // srNo = running cabinet number in quote order; designType = unit type short
 // code + running number per code (one per unit).
 export function buildPoFromQuote(quote: Quote, { materials, unitTypes, hardwareItems }: Ctx): { material: PoMaterial; lines: PoLineDraft[] } {
@@ -39,6 +41,7 @@ export function buildPoFromQuote(quote: Quote, { materials, unitTypes, hardwareI
   const lines: PoLineDraft[] = [];
   const panelRow = (group: PoGroup, item: FurnitureLineItem, dims: { width: number; depth: number; height: number }, c: (typeof cabinets)[number], fallback: string) => {
     const vars = { W: dims.width, D: dims.depth, H: dims.height };
+    const qty = item.qty * unitQty(c.unit);
     const width = Math.round(evaluateFormula(item.widthFormula, vars));
     const height = Math.round(evaluateFormula(item.heightFormula, vars));
     if (!width || !height) return; // an empty row has nothing to cut
@@ -51,8 +54,8 @@ export function buildPoFromQuote(quote: Quote, { materials, unitTypes, hardwareI
       width,
       depth: thickness(item.thicknessId),
       height,
-      qty: item.qty,
-      sqft: panelSqft(width, height, item.qty),
+      qty,
+      sqft: panelSqft(width, height, qty),
       internalColour: name(item.internalColourId),
       externalColour: name(item.externalColourId),
       material: name(item.rawMaterialTypeId),
@@ -71,7 +74,7 @@ export function buildPoFromQuote(quote: Quote, { materials, unitTypes, hardwareI
   for (const c of cabinets) {
     for (const h of c.cabinet.hardware) {
       const matched = hardwareItems.find((x) => x.id === h.hardwareItemId);
-      const qty = Math.round(evaluateFormula(h.qtyFormula, { W: c.unit.width, D: c.unit.depth, H: c.unit.height }));
+      const qty = Math.round(evaluateFormula(h.qtyFormula, { W: c.unit.width, D: c.unit.depth, H: c.unit.height })) * unitQty(c.unit);
       if (!qty) continue;
       lines.push({
         group: "hardware",
