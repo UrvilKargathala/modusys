@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { QuotePoActions } from "@/components/purchase-orders/quote-po-actions";
 import { ClientDetailsSection } from "@/components/quotes/create/client-details-section";
 import { MaterialSpecificationSection } from "@/components/quotes/create/material-specification-section";
 import { UnitsSection } from "@/components/quotes/create/units-section";
@@ -151,7 +152,8 @@ function CreateQuotePage() {
 
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <h1 className="font-heading text-2xl font-semibold text-grey-900">{title}</h1>
-          <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            {editId && <QuotePoActions quoteId={editId} />}
             {readonly ? (
               <Button type="button" variant="outline" onClick={() => router.push(`/quotes/new?id=${quote.id}`)}>
                 Edit

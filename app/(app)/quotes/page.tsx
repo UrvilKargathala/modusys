@@ -22,6 +22,7 @@ import { toastStore } from "@/lib/store/toast-store";
 import { statusConfig, type StatusKey } from "@/lib/status";
 import { StatusPicker } from "@/components/quotes/create/status-picker";
 import { CreatePoDialog } from "@/components/purchase-orders/create-po-dialog";
+import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { getCurrentUser } from "@/lib/session";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
@@ -87,6 +88,12 @@ export default function QuotesPage() {
   const [statusFilter, setStatusFilter] = useState<StatusKey | "all">("all");
   const [deleteTarget, setDeleteTarget] = useState<Quote | null>(null);
   const [poQuote, setPoQuote] = useState<Quote | null>(null);
+  const poList = usePurchaseOrders();
+  const poCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of poList) if (p.quoteId) m.set(p.quoteId, (m.get(p.quoteId) ?? 0) + 1);
+    return m;
+  }, [poList]);
   const role = getCurrentUser().role;
   const canCreatePo = role === "super-admin" || role === "admin";
   type SortKey = "quoteNumber" | "customer" | "date" | "productType" | "finalAmount" | "revision" | "status";
@@ -413,9 +420,18 @@ export default function QuotesPage() {
                                   onClick={() => setPoQuote(quote)}
                                   className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
                                 >
-                                  <ShoppingCart className="h-4 w-4" />
+                                  <span className="relative inline-flex">
+                                    <ShoppingCart className="h-4 w-4" />
+                                    {(poCounts.get(quote.id) ?? 0) > 0 && (
+                                      <span className="absolute -right-2 -top-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-0.5 font-number text-[9px] leading-none text-white">
+                                        {poCounts.get(quote.id)}
+                                      </span>
+                                    )}
+                                  </span>
                                 </TooltipTrigger>
-                                <TooltipContent>Create Purchase Order</TooltipContent>
+                                <TooltipContent>
+                                  {(poCounts.get(quote.id) ?? 0) > 0 ? `Create Purchase Order (${poCounts.get(quote.id)} already made)` : "Create Purchase Order"}
+                                </TooltipContent>
                               </Tooltip>
                             )}
                             <Tooltip>

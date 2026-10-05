@@ -22,6 +22,7 @@ function View() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab") === "vendors" ? "vendors" : "orders";
+  const quoteFilter = searchParams.get("quote");
 
   const orders = usePurchaseOrders();
   const vendors = useVendors();
@@ -57,7 +58,7 @@ function View() {
           ))}
         </TabsList>
         <TabsContent value="orders" className="pt-6">
-          <PurchaseOrdersTable onCreate={() => router.push("/quotes")} />
+          <PurchaseOrdersTable onCreate={() => router.push("/quotes")} quoteId={quoteFilter} onClearQuote={() => router.replace(pathname, { scroll: false })} />
         </TabsContent>
         <TabsContent value="vendors" className="pt-6">
           <VendorsTable />

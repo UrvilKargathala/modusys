@@ -12,7 +12,7 @@ import { formatInr } from "@/lib/format";
 import { formatPoDate } from "@/components/purchase-orders/po-dates";
 import { poTotals, type PurchaseOrder } from "@/lib/purchase-order";
 
-export function PurchaseOrdersTable({ onCreate }: { onCreate?: () => void }) {
+export function PurchaseOrdersTable({ onCreate, quoteId, onClearQuote }: { onCreate?: () => void; quoteId?: string | null; onClearQuote?: () => void }) {
   const orders = usePurchaseOrders();
   const customers = useCustomers();
   const quotes = useQuotes();
@@ -30,12 +30,23 @@ export function PurchaseOrdersTable({ onCreate }: { onCreate?: () => void }) {
         quote: po.quoteId ? quoteNumber.get(po.quoteId) ?? "" : "",
         total: poTotals(po).final,
       }))
+      .filter((r) => !quoteId || r.po.quoteId === quoteId)
       .filter((r) => `${r.po.poNumber} ${r.po.vendorName} ${r.customer} ${r.quote}`.toLowerCase().includes(q));
-  }, [orders, customerName, quoteNumber, search]);
+  }, [orders, customerName, quoteNumber, search, quoteId]);
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(rows);
 
   return (
     <div className="flex flex-col gap-4">
+      {quoteId && (
+        <div className="flex items-center gap-2 text-sm font-body text-grey-700">
+          <span>
+            Showing purchase orders for quote <span className="font-number font-medium">{quoteNumber.get(quoteId) ?? ""}</span>
+          </span>
+          <button type="button" onClick={onClearQuote} className="rounded-full border border-grey-100 px-2 py-0.5 text-xs hover:bg-light-600">
+            Show all ✕
+          </button>
+        </div>
+      )}
       <div className="relative w-full max-w-xs">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
         <input
