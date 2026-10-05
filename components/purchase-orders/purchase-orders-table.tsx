@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, ShoppingCart } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, ShoppingCart, Eye } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
@@ -13,6 +15,7 @@ import { formatPoDate } from "@/components/purchase-orders/po-dates";
 import { poTotals, type PurchaseOrder } from "@/lib/purchase-order";
 
 export function PurchaseOrdersTable({ onCreate, quoteId, onClearQuote }: { onCreate?: () => void; quoteId?: string | null; onClearQuote?: () => void }) {
+  const router = useRouter();
   const orders = usePurchaseOrders();
   const customers = useCustomers();
   const quotes = useQuotes();
@@ -68,10 +71,10 @@ export function PurchaseOrdersTable({ onCreate, quoteId, onClearQuote }: { onCre
           <table className="w-full text-left">
             <thead className="bg-[#DACCCC]">
               <tr>
-                {["PO No", "Date", "Required", "Vendor", "Customer", "Quote", "Amount"].map((h) => (
+                {["PO No", "Date", "Required", "Vendor", "Customer", "Quote", "Amount", "Actions"].map((h) => (
                   <th
                     key={h}
-                    className={`px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900 ${h === "Amount" ? "text-right" : ""}`}
+                    className={`px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900 ${h === "Amount" ? "text-right" : h === "Actions" ? "text-right" : ""}`}
                   >
                     {h}
                   </th>
@@ -90,6 +93,20 @@ export function PurchaseOrdersTable({ onCreate, quoteId, onClearQuote }: { onCre
                   <td className="px-4 py-3 text-sm font-body text-grey-700">{customer || "—"}</td>
                   <td className="px-4 py-3 font-number text-sm text-grey-700">{quote || "—"}</td>
                   <td className="px-4 py-3 text-right font-number text-sm text-grey-900">{formatInr(total)}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end">
+                      <Tooltip>
+                        <TooltipTrigger
+                          aria-label="View"
+                          onClick={() => router.push(`/purchase-orders/${po.id}`)}
+                          className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </TooltipTrigger>
+                        <TooltipContent>View</TooltipContent>
+                      </Tooltip>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

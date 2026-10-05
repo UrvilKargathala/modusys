@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/format";
 import { lineAmount, panelSqft, type PoGroup, type PurchaseOrderLine } from "@/lib/purchase-order";
@@ -56,6 +57,7 @@ export function PoLinesTable({
   lines: PurchaseOrderLine[];
   onChange: (lines: PurchaseOrderLine[]) => void;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
   const hardware = group === "hardware";
   const cols = hardware ? HW_COLS : PANEL_COLS;
   const mine = lines.filter((l) => l.group === group);
@@ -70,7 +72,8 @@ export function PoLinesTable({
         return hardware ? next : { ...next, sqft: panelSqft(next.width, next.height, next.qty) };
       })
     );
-  const add = () =>
+  const add = () => {
+    setCollapsed(false);
     onChange([
       ...lines,
       {
@@ -82,13 +85,23 @@ export function PoLinesTable({
         internalColour: "", externalColour: "", material: "", articleNo: "", brand: "", category: "", unit: "", rate: 0, remarks: "",
       },
     ]);
+  };
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <h3 className="font-heading text-base font-semibold text-grey-900">
-          {title} <span className="font-number text-sm font-normal text-grey-500">({mine.length})</span>
-        </h3>
+        <button
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          aria-label={`${collapsed ? "Expand" : "Collapse"} ${title}`}
+          aria-expanded={!collapsed}
+          className="flex items-center gap-1.5 rounded-md text-left hover:text-primary"
+        >
+          {collapsed ? <ChevronRight className="h-4 w-4 text-grey-500" /> : <ChevronDown className="h-4 w-4 text-grey-500" />}
+          <h3 className="font-heading text-base font-semibold text-grey-900">
+            {title} <span className="font-number text-sm font-normal text-grey-500">({mine.length})</span>
+          </h3>
+        </button>
         <div className="flex items-center gap-3">
           <span className="font-number text-sm text-grey-700">{formatInr(total)}</span>
           <Button type="button" variant="outline" size="sm" onClick={add}>
@@ -97,7 +110,7 @@ export function PoLinesTable({
           </Button>
         </div>
       </div>
-      {mine.length === 0 ? (
+      {collapsed ? null : mine.length === 0 ? (
         <p className="rounded-lg border border-dashed border-grey-100 py-4 text-center text-sm font-body text-grey-400">No rows</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
