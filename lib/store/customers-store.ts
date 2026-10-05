@@ -140,6 +140,23 @@ export const customersStore = {
 // the list once, so a second viewer had to hard-refresh to see anything new.
 const POLL_MS = 6000;
 
+// One shared timer for all useCustomers() callers (a page mounts ~10 of them;
+// a timer each meant ~10 identical full-list fetches per tick). Skips ticks
+// while the tab is hidden so background tabs cost the server nothing.
+let pollers = 0;
+let pollId: ReturnType<typeof setInterval> | undefined;
+
+function startPolling() {
+  if (pollers++ > 0) return;
+  pollId = setInterval(() => {
+    if (!document.hidden) void refetch();
+  }, POLL_MS);
+}
+
+function stopPolling() {
+  if (--pollers === 0) clearInterval(pollId);
+}
+
 export function useCustomers() {
   const customers = useSyncExternalStore(
     customersStore.subscribe,
@@ -147,8 +164,8 @@ export function useCustomers() {
     customersStore.getServerSnapshot
   );
   useEffect(() => {
-    const id = setInterval(() => void refetch(), POLL_MS);
-    return () => clearInterval(id);
+    startPolling();
+    return stopPolling;
   }, []);
   return customers;
 }
