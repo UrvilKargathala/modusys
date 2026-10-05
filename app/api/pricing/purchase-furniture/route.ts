@@ -1,0 +1,83 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/server/prisma";
+import { replaceCollection, toDate } from "@/lib/server/bulk";
+import { requireRole } from "@/lib/server/require-user";
+import { logAudit } from "@/lib/server/audit";
+import { normalizeVariantId, variantIdFormatError } from "@/lib/variant-id";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+// Purchase prices are what The Furn pays vendors, so (unlike the selling
+// list, which the quote builder edits inline) only admins read and write them.
+const ROLES = ["super-admin", "admin"];
+
+export async function GET() {
+  const auth = await requireRole(ROLES);
+  if (auth.response) return auth.response;
+  const items = await prisma.purchaseFurniturePriceItem.findMany({ orderBy: { createdAt: "asc" } });
+  return NextResponse.json(
+    items.map((i) => ({
+      id: i.id,
+      thicknessId: i.thicknessId,
+      rawMaterialTypeId: i.rawMaterialTypeId,
+      internalColourId: i.internalColourId,
+      externalColourId: i.externalColourId,
+      rate: i.rate,
+      variantId: i.variantId,
+      deleted: i.deleted,
+      createdAt: i.createdAt.toISOString(),
+    }))
+  );
+}
+
+// Bulk id-preserving replace (last-write-wins), same contract as /api/pricing/furniture.
+export async function PUT(req: Request) {
+  const auth = await requireRole(ROLES);
+  if (auth.response) return auth.response;
+
+  const oldItems = await prisma.purchaseFurniturePriceItem.findMany();
+  const oldMap = new Map(oldItems.map((i) => [i.id, i]));
+
+  const rows = (await req.json()) as Array<Record<string, unknown>>;
+  const mapped = rows.map((r) => ({
+    id: String(r.id),
+    thicknessId: String(r.thicknessId),
+    rawMaterialTypeId: String(r.rawMaterialTypeId),
+    internalColourId: String(r.internalColourId),
+    externalColourId: String(r.externalColourId),
+    rate: Number(r.rate),
+    variantId: normalizeVariantId(String(r.variantId ?? "")),
+    deleted: Boolean(r.deleted),
+    createdAt: toDate(r.createdAt),
+  }));
+
+  // Live rows: a filled Variant ID must be valid and unique.
+  const seen = new Set<string>();
+  for (const r of mapped) {
+    if (r.deleted || !r.variantId) continue;
+    const err = variantIdFormatError(r.variantId) ?? (seen.has(r.variantId) ? `Variant ID "${r.variantId}" is used more than once` : null);
+    if (err) return NextResponse.json({ error: err }, { status: 400 });
+    seen.add(r.variantId);
+  }
+  await replaceCollection(prisma.purchaseFurniturePriceItem, mapped);
+
+  const actor = { id: auth.user.id, email: auth.user.email, name: auth.user.name };
+  const newMap = new Map(mapped.map((r) => [r.id, r]));
+  for (const r of mapped) {
+    const old = oldMap.get(r.id);
+    const label = `Purchase furniture: ${r.variantId || r.id}`;
+    if (!old) {
+      void logAudit({ action: "PRICE_LIST_ENTRY_CREATED", actor, target: { type: "PRICE_LIST_ENTRY", id: r.id, label }, details: { rate: r.rate }, req });
+    } else if (old.rate !== r.rate || old.deleted !== r.deleted) {
+      void logAudit({ action: "PRICE_LIST_ENTRY_UPDATED", actor, target: { type: "PRICE_LIST_ENTRY", id: r.id, label }, details: { field: "rate", from: old.rate, to: r.rate }, req });
+    }
+  }
+  for (const old of oldItems) {
+    if (!newMap.has(old.id)) {
+      void logAudit({ action: "PRICE_LIST_ENTRY_DELETED", actor, target: { type: "PRICE_LIST_ENTRY", id: old.id, label: `Purchase furniture: ${old.variantId || old.id}` }, req });
+    }
+  }
+
+  return NextResponse.json({ ok: true });
+}

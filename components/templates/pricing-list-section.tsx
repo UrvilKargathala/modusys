@@ -5,13 +5,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { SimpleCsvPanel } from "@/components/templates/simple-csv-panel";
 import { FurniturePriceTable } from "@/components/templates/furniture-price-table";
 import { HardwarePriceTable } from "@/components/templates/hardware-price-table";
+import { PurchaseFurniturePriceTable } from "@/components/templates/purchase-furniture-price-table";
 
 export function PricingListSection() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const rawSubTab = searchParams.get("view");
-  const subTab = rawSubTab === "furniture" || rawSubTab === "hardware" ? rawSubTab : "furniture";
+  const subTab = rawSubTab === "furniture" || rawSubTab === "hardware" || rawSubTab === "purchase-furniture" ? rawSubTab : "furniture";
 
   const setSubTab = (value: string) => {
     const params = new URLSearchParams(searchParams);
@@ -31,8 +32,11 @@ export function PricingListSection() {
           <TabsList>
             <TabsTrigger value="furniture">Furniture Price List</TabsTrigger>
             <TabsTrigger value="hardware">Hardware Price List</TabsTrigger>
+            <TabsTrigger value="purchase-furniture">Purchase Furniture Price List</TabsTrigger>
           </TabsList>
-          <SimpleCsvPanel label={subTab === "furniture" ? "Furniture Price List" : "Hardware Price List"} kind={subTab} />
+          {subTab !== "purchase-furniture" && (
+            <SimpleCsvPanel label={subTab === "furniture" ? "Furniture Price List" : "Hardware Price List"} kind={subTab} />
+          )}
         </div>
 
         <TabsContent value="furniture" className="pt-6">
@@ -41,6 +45,10 @@ export function PricingListSection() {
 
         <TabsContent value="hardware" className="pt-6">
           <HardwarePriceTable />
+        </TabsContent>
+
+        <TabsContent value="purchase-furniture" className="pt-6">
+          <PurchaseFurniturePriceTable />
         </TabsContent>
       </Tabs>
     </div>

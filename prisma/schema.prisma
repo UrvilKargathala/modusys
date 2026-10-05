@@ -766,3 +766,22 @@ model PurchaseOrderLine {
 
   @@index([poId])
 }
+
+// Purchase Furniture Price List — what The Furn pays vendors per sq.ft for a
+// sheet of a given thickness / raw material / internal / external finish.
+// Same shape as FurniturePriceItem (the selling price list) but kept separate
+// so purchase and selling rates never mix. internalColourId/externalColourId
+// point at Purchase Material Library entries (MaterialItem categories
+// "purchase-internal" / "purchase-external"), plain String ids like the
+// selling list. Soft-deleted with `deleted`; variantId unique among live rows.
+model PurchaseFurniturePriceItem {
+  id                String   @id
+  thicknessId       String
+  rawMaterialTypeId String
+  internalColourId  String
+  externalColourId  String
+  rate              Float
+  variantId         String   @default("")
+  deleted           Boolean  @default(false)
+  createdAt         DateTime @default(now())
+}
