@@ -681,3 +681,88 @@ model PhotoAttendanceRecord {
   @@index([date])
   @@index([employeeId])
 }
+
+// A manufacturing/material vendor a Purchase Order is sent to. `state` drives
+// the PO's GST mode (vendor state vs the company's Gujarat). contacts is a
+// JSON array of { name, phone } — the PO sheet shows two contact rows.
+model Vendor {
+  id        String    @id @default(cuid())
+  name      String
+  address   String    @default("")
+  city      String    @default("")
+  state     String    @default("")
+  gst       String    @default("")
+  contacts  Json      @default("[]")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([deletedAt])
+}
+
+// Purchase order sent to one vendor, usually created from a Quote (a quote can
+// have several POs — one per vendor). vendorId/quoteId/customerId are plain
+// String (not FK relations), like Task.linkedCustomerId, so deleting a
+// customer/quote never cascades into POs. Dates are ISO yyyy-mm-dd strings.
+// No status column yet (statuses not defined) and no stored totals — amount/
+// discount/GST/final are computed from lines. `material` snapshots the sheet's
+// Material Description block as text, frozen at create time.
+model PurchaseOrder {
+  id           String    @id @default(cuid())
+  poNumber     String
+  poDate       String    @default("")
+  requiredDate String    @default("")
+  vendorId     String
+  quoteId      String?
+  customerId   String?
+  material     Json      @default("{}")
+  discountPct  Float     @default(0)
+  gstMode      String    @default("intra") // "intra" (9%+9%) | "inter" (18% IGST)
+  roundOff     Float     @default(0)
+  remarks      String    @default("")
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  lines PurchaseOrderLine[]
+
+  @@index([vendorId])
+  @@index([quoteId])
+  @@index([customerId])
+  @@index([deletedAt])
+}
+
+// One snapshot row of the PO cut-list. group is "carcass" | "shutter" |
+// "other-panel" | "hardware". srNo is the cabinet's running number in the
+// quote; position is the row order inside the PO. width/depth/height are mm,
+// already evaluated from the quote's formulas (shutters/panels keep their
+// thickness in depth). Hardware lines use articleNo/brand/category/unit as
+// text snapshots so a later catalog edit never rewrites an issued PO. rate is
+// typed manually, never taken from the quote's selling price.
+model PurchaseOrderLine {
+  id             String        @id @default(cuid())
+  poId           String
+  po             PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  group          String
+  srNo           Int           @default(0)
+  position       Int           @default(0)
+  description    String        @default("")
+  designType     String        @default("")
+  width          Float         @default(0)
+  depth          Float         @default(0)
+  height         Float         @default(0)
+  qty            Float         @default(1)
+  sqft           Float         @default(0)
+  internalColour String        @default("")
+  externalColour String        @default("")
+  material       String        @default("")
+  articleNo      String        @default("")
+  brand          String        @default("")
+  category       String        @default("")
+  unit           String        @default("")
+  rate           Float         @default(0)
+  remarks        String        @default("")
+
+  @@index([poId])
+}
