@@ -48,3 +48,23 @@ PO list (shared list-page shell), PO detail/editor in the sheet's layout, Vendor
 - PO number format and which quote status can create a PO: user will decide later (not blocking Phase 2).
 - Hardware lines: the sheet has no hardware layout. Confirm columns (article no, brand, category, qty, unit, rate, amount) and whether the vendor for hardware can differ from the panel vendor (several vendors per quote is already allowed).
 - Sr no per cabinet: confirm it is the cabinet's running number in the quote (shared by its carcass, shutter, panel and hardware lines), not a count per group.
+
+## Phase 3 — how a quote becomes PO lines (verified against real staging quotes)
+
+Quote → `units[]` (each: spaceId/room, unitTypeId, W/D/H, qty) → `cabinets[]` → four lists. Every row already carries mm dimensions baked from the formulas, a qty that already includes the unit's qty, and material ids (thickness, raw material, internal/external colour) resolved to names through the Material Library.
+
+| PO group | Quote source | PO line |
+|---|---|---|
+| A Carcass | `cabinet.components` (uses the cabinet's own carcass W/D/H/qty override if set) | one line per panel row |
+| B Shutter | `cabinet.externalFinishes` | one line per row |
+| C Other Panel | `cabinet.panels` (tandem bottom/back panels etc.) | one line per row |
+| D Hardware | `cabinet.hardware` | one line per row: article no, brand, category, unit, qty |
+
+- Width/height = evaluated from the row's formulas (`evaluateFormula`), sq.ft = W × H ÷ 92,903.04 × qty (same as the quote's own `groupSqFt`).
+- Sr no = running cabinet number in quote order (decided); design type = unit type short code + running number per code.
+- Rate starts empty and is typed manually.
+- Material block comes from the quote header's shutter finish fields.
+- The snapshot is built in the browser from the quote and the Material Library stores, then POSTed; the server only stores it.
+
+### Open decision for Phase 3
+The Excel's Carcass is **one row per cabinet** (W/D/H + a fixed 3-part sq.ft formula). Real quotes store a carcass as **many component panel rows** (each with its own W × H). Recommended: one PO row per panel (exact cut-list from the quote, always agrees with the quote), grouped under the cabinet's sr no, with the cabinet's design code on each row.

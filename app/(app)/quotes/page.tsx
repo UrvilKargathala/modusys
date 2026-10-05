@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
-import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, Printer, ArrowUpDown, ArrowUp, ArrowDown, Upload, FileArchive, ListOrdered, LayoutList, LayoutGrid, Layers } from "lucide-react";
+import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, Printer, ArrowUpDown, ArrowUp, ArrowDown, Upload, FileArchive, ListOrdered, LayoutList, LayoutGrid, Layers, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -21,6 +21,8 @@ import { formatInr } from "@/lib/format";
 import { toastStore } from "@/lib/store/toast-store";
 import { statusConfig, type StatusKey } from "@/lib/status";
 import { StatusPicker } from "@/components/quotes/create/status-picker";
+import { CreatePoDialog } from "@/components/purchase-orders/create-po-dialog";
+import { getCurrentUser } from "@/lib/session";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
@@ -84,6 +86,9 @@ export default function QuotesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusKey | "all">("all");
   const [deleteTarget, setDeleteTarget] = useState<Quote | null>(null);
+  const [poQuote, setPoQuote] = useState<Quote | null>(null);
+  const role = getCurrentUser().role;
+  const canCreatePo = role === "super-admin" || role === "admin";
   type SortKey = "quoteNumber" | "customer" | "date" | "productType" | "finalAmount" | "revision" | "status";
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
   const toggleSort = (key: SortKey) =>
@@ -401,6 +406,18 @@ export default function QuotesPage() {
                               </TooltipTrigger>
                               <TooltipContent>Edit</TooltipContent>
                             </Tooltip>
+                            {canCreatePo && (
+                              <Tooltip>
+                                <TooltipTrigger
+                                  aria-label="Create Purchase Order"
+                                  onClick={() => setPoQuote(quote)}
+                                  className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                                >
+                                  <ShoppingCart className="h-4 w-4" />
+                                </TooltipTrigger>
+                                <TooltipContent>Create Purchase Order</TooltipContent>
+                              </Tooltip>
+                            )}
                             <Tooltip>
                               <TooltipTrigger
                                 aria-label="Duplicate"
@@ -518,6 +535,7 @@ export default function QuotesPage() {
           if (deleteTarget) deleteQuote(deleteTarget);
         }}
       />
+      <CreatePoDialog quote={poQuote} onOpenChange={(o) => !o && setPoQuote(null)} />
     </div>
   );
 }

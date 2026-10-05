@@ -56,12 +56,30 @@ export type PurchaseOrder = {
   quoteId: string | null;
   customerId: string | null;
   discountPct: number;
+  material: PoMaterial;
   gstMode: GstMode;
   roundOff: number;
   remarks: string;
   createdAt: string;
   lines: PurchaseOrderLine[];
 };
+
+export const SQMM_PER_SQFT = 92_903.04;
+
+// Panel area in sq.ft from mm dimensions — same maths as the quote's groupSqFt.
+export function panelSqft(width: number, height: number, qty: number): number {
+  return (width * height * qty) / SQMM_PER_SQFT;
+}
+
+// The Material Description block of the sheet, snapshotted as text.
+export type PoMaterial = {
+  shutterRawMaterial: string;
+  otherRawMaterial: string;
+  internalColours: string[];
+  externalColours: string[];
+};
+
+export const blankMaterial = (): PoMaterial => ({ shutterRawMaterial: "", otherRawMaterial: "", internalColours: [], externalColours: [] });
 
 // Panels are bought by area, hardware by piece.
 export function lineAmount(l: Pick<PurchaseOrderLine, "group" | "rate" | "sqft" | "qty">): number {

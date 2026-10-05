@@ -7,14 +7,10 @@ import { TablePagination, usePagination } from "@/components/shared/table-pagina
 import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
+import Link from "next/link";
 import { formatInr } from "@/lib/format";
+import { formatPoDate } from "@/components/purchase-orders/po-dates";
 import { poTotals, type PurchaseOrder } from "@/lib/purchase-order";
-
-// yyyy-mm-dd → DD/MM/YYYY (house date format); "" stays "—".
-export function formatPoDate(iso: string) {
-  const [y, m, d] = iso.split("-");
-  return y && m && d ? `${d}/${m}/${y}` : "—";
-}
 
 export function PurchaseOrdersTable({ onCreate }: { onCreate?: () => void }) {
   const orders = usePurchaseOrders();
@@ -74,7 +70,9 @@ export function PurchaseOrdersTable({ onCreate }: { onCreate?: () => void }) {
             <tbody>
               {paged.map(({ po, customer, quote, total }) => (
                 <tr key={po.id} className="border-t border-grey-100">
-                  <td className="px-4 py-3 font-number text-sm text-grey-900">{po.poNumber}</td>
+                  <td className="px-4 py-3 font-number text-sm text-grey-900">
+                    <Link href={`/purchase-orders/${po.id}`} className="text-primary hover:underline">{po.poNumber}</Link>
+                  </td>
                   <td className="px-4 py-3 font-number text-sm text-grey-700">{formatPoDate(po.poDate)}</td>
                   <td className="px-4 py-3 font-number text-sm text-grey-700">{formatPoDate(po.requiredDate)}</td>
                   <td className="px-4 py-3 text-sm font-body text-grey-900">{po.vendorName || "—"}</td>

@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "crypto";
 import type { Customer, Architect, User, ArchitectPartner, Message, MediaAttachment, MessageReaction, Vendor, PurchaseOrder, PurchaseOrderLine } from "@prisma/client";
-import type { VendorContact, PoGroup, GstMode } from "@/lib/purchase-order";
+import type { VendorContact, PoGroup, GstMode, PoMaterial } from "@/lib/purchase-order";
 import type { ArchitectSiteEngineer } from "@/lib/mock/architects";
 
 // DB rows carry Date objects and a merged/relational shape; the existing app
@@ -194,6 +194,7 @@ export function serializePurchaseOrder(po: PurchaseOrder & { lines: PurchaseOrde
     quoteId: po.quoteId,
     customerId: po.customerId,
     discountPct: po.discountPct,
+    material: { shutterRawMaterial: "", otherRawMaterial: "", internalColours: [], externalColours: [], ...((po.material as Partial<PoMaterial> | null) ?? {}) },
     gstMode: po.gstMode as GstMode,
     roundOff: po.roundOff,
     remarks: po.remarks,

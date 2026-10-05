@@ -1,0 +1,42 @@
+import "server-only";
+
+const str = (v: unknown) => String(v ?? "");
+const num = (v: unknown, d = 0) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+const GROUPS = ["carcass", "shutter", "other-panel", "hardware"];
+
+// Normalises client-sent PO lines; the server never trusts shape or numbers.
+export function cleanLines(input: unknown) {
+  if (!Array.isArray(input)) return [];
+  return input.map((l: Record<string, unknown>, i) => ({
+    group: GROUPS.includes(str(l.group)) ? str(l.group) : "carcass",
+    srNo: Math.round(num(l.srNo)),
+    position: i,
+    description: str(l.description),
+    designType: str(l.designType),
+    width: num(l.width),
+    depth: num(l.depth),
+    height: num(l.height),
+    qty: num(l.qty, 1),
+    sqft: num(l.sqft),
+    internalColour: str(l.internalColour),
+    externalColour: str(l.externalColour),
+    material: str(l.material),
+    articleNo: str(l.articleNo),
+    brand: str(l.brand),
+    category: str(l.category),
+    unit: str(l.unit),
+    rate: num(l.rate),
+    remarks: str(l.remarks),
+  }));
+}
+
+export function cleanMaterial(m: unknown) {
+  const o = (m ?? {}) as Record<string, unknown>;
+  const list = (v: unknown) => (Array.isArray(v) ? v.map(str).filter(Boolean) : []);
+  return {
+    shutterRawMaterial: str(o.shutterRawMaterial),
+    otherRawMaterial: str(o.otherRawMaterial),
+    internalColours: list(o.internalColours),
+    externalColours: list(o.externalColours),
+  };
+}

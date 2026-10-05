@@ -1,10 +1,11 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { PurchaseOrder } from "@/lib/purchase-order";
+import type { PurchaseOrder, PurchaseOrderLine } from "@/lib/purchase-order";
 
-// Backed by /api/purchase-orders. Read-only for now (create-from-quote and the
-// editor land in the next phase). One fetch on first use, no polling.
+// Backed by /api/purchase-orders. One fetch on first use, no polling. Writes
+// wait for the server (a PO is a snapshot — no optimistic guessing) and then
+// merge the saved row into the list.
 
 const EMPTY: PurchaseOrder[] = [];
 let orders: PurchaseOrder[] = EMPTY;
@@ -34,6 +35,18 @@ function ensureHydrated() {
   void refetch();
 }
 
+async function save(res: Response): Promise<PurchaseOrder> {
+  if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Could not save purchase order");
+  return (await res.json()) as PurchaseOrder;
+}
+
+function put(po: PurchaseOrder) {
+  orders = orders.some((o) => o.id === po.id) ? orders.map((o) => (o.id === po.id ? po : o)) : [po, ...orders];
+  emit();
+}
+
+export type PurchaseOrderInput = Omit<PurchaseOrder, "id" | "createdAt" | "vendorName" | "lines"> & { lines: Omit<PurchaseOrderLine, "id">[] };
+
 export const purchaseOrdersStore = {
   subscribe(listener: () => void) {
     listeners.add(listener);
@@ -48,6 +61,27 @@ export const purchaseOrdersStore = {
   },
   isLoaded: () => loaded,
   refetch,
+  async create(input: PurchaseOrderInput): Promise<PurchaseOrder> {
+    ensureHydrated();
+    const po = await save(
+      await fetch("/api/purchase-orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) })
+    );
+    put(po);
+    return po;
+  },
+  async update(id: string, fields: Partial<PurchaseOrderInput>): Promise<PurchaseOrder> {
+    const po = await save(
+      await fetch(`/api/purchase-orders/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fields) })
+    );
+    put(po);
+    return po;
+  },
+  async remove(id: string) {
+    const res = await fetch(`/api/purchase-orders/${id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("Could not delete purchase order");
+    orders = orders.filter((o) => o.id !== id);
+    emit();
+  },
 };
 
 export function usePurchaseOrders() {
