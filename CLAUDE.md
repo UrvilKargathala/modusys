@@ -175,3 +175,33 @@ Define all of the following as CSS variables / Tailwind theme colors. Use semant
 - Keep commits scoped to one phase/feature at a time with clear messages.
 - Prefer editing/extending shared components over duplicating markup across pages.
 - Ask before adding a new dependency not listed in Section 2.
+
+## 6. Release workflow (production runs from `garage-migration`)
+
+The live site (modusys.co.in) is built by Coolify from branch `garage-migration` and only changes when a person presses Deploy in Coolify. Files live in Garage (S3) on our own server, the database is Postgres on the same server. Follow this for every change.
+
+**Branches**
+- `garage-migration` = production. Only tested work is merged into it.
+- Work on `work-code` (or one short branch per task), created from `garage-migration`. Never commit directly to `garage-migration` or `main`. Do not touch `main` until the planned day-14 merge.
+
+**Every change, in order**
+1. Branch from `garage-migration`.
+2. Make the change.
+3. `npm run check` must pass (it runs the production build, which includes the TypeScript check). Never merge on a failing check.
+4. Test the behaviour in a browser (dev server or staging) before merging anything that changes what users type, see or save.
+5. Commit only the files that belong to the change, push the work branch.
+6. Merge into `garage-migration`, re-run `npm run check`, push `garage-migration`.
+7. STOP. Deploy is a manual click in Coolify by the user. Never deploy, restart or change Coolify settings from a session.
+8. After the user deploys: verify the new container runs the expected commit and the site answers.
+
+**Database changes** (`prisma/schema.prisma` or `prisma/migrations/` in the diff) are not covered by the steps above. Coolify does not run migrations. Stop and agree a plan first: additive changes only (new tables or columns, never edit or drop existing ones), apply to staging first, dump production before touching it, apply to production just before the deploy.
+
+**Never**
+- Commit `.env*` files, passwords or keys, or print secret values in a chat or log. Server password files live in `~/prod/*.env` (owner only).
+- Use `git push --force`, `git reset --hard` on shared branches, or delete branches without being asked.
+- Resolve a merge conflict silently. Stop and report it.
+- Run a destructive script (drop database, delete files, `--apply` of a sync or clone) without an explicit yes in that conversation.
+
+**Rollback**: in Coolify, redeploy the previous good deployment (its image is kept). Fix the code afterwards.
+
+Shortcuts: `/review-changes`, `/save-work`, `/ship` (see `.claude/commands/`). `/ship` ends before Deploy.
