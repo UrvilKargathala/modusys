@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Plus, Pencil, Trash2, ListTree, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, Copy, ListTree, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -11,7 +11,7 @@ import { useMaterialItems, materialSpecStore } from "@/lib/store/material-spec-s
 import { useMaterialDependencies } from "@/lib/hooks/use-material-dependencies";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
-import type { MaterialCategory, MaterialItem } from "@/lib/mock/material-spec";
+import { materialCategories, type MaterialCategory, type MaterialItem } from "@/lib/mock/material-spec";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 export function MaterialCategoryList({ category }: { category: MaterialCategory }) {
@@ -55,6 +55,23 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
   }, [items, search, sort]);
 
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(filtered);
+
+  // Purchase Material Library only: Internal ↔ External. One click puts the same brand + colour code in the other
+  // list; if it's already there, nothing is added.
+  const otherCategory = brandCode ? materialCategories.find((c) => c.brandAndCode && c.key !== category.key) : undefined;
+  const copyToOther = (i: MaterialItem) => {
+    if (!otherCategory) return;
+    const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+    const exists = materialSpecStore
+      .getSnapshot()
+      .some((m) => m.category === otherCategory.key && !m.deleted && same(m.name, i.name) && same(m.description, i.description));
+    if (exists) {
+      toastStore.show(`${i.description} — ${i.name} is already in ${otherCategory.label}`);
+      return;
+    }
+    materialSpecStore.createItem({ category: otherCategory.key, name: i.name, description: i.description });
+    toastStore.show(`${i.description} — ${i.name} copied to ${otherCategory.label}`, "success");
+  };
 
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -165,6 +182,18 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                   )}
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
+                      {canEdit && otherCategory && (
+                        <Tooltip>
+                          <TooltipTrigger
+                            aria-label={`Copy to ${otherCategory.label}`}
+                            onClick={() => copyToOther(i)}
+                            className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </TooltipTrigger>
+                          <TooltipContent>Copy to {otherCategory.label}</TooltipContent>
+                        </Tooltip>
+                      )}
                       {canEdit && (
                         <Tooltip>
                           <TooltipTrigger
