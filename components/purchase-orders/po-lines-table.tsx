@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/format";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
@@ -106,6 +106,7 @@ export function PoLinesTable({
   varsFor,
   header,
   subHeader,
+  defaultCollapsed = false,
   onChange,
 }: {
   group: PoGroup;
@@ -120,9 +121,11 @@ export function PoLinesTable({
   header?: ReactNode;
   // A second line under the header (e.g. the cabinet's size and details).
   subHeader?: ReactNode;
+  // Start closed; the user opens what they need.
+  defaultCollapsed?: boolean;
   onChange: (lines: PurchaseOrderLine[]) => void;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const hardware = group === "hardware";
   const cols = (hardware ? HW_COLS : PANEL_COLS).filter((c) => srNo === undefined || c.key !== "designType");
   const mine = lines.filter((l) => l.group === group && (srNo === undefined || l.srNo === srNo));
@@ -137,6 +140,12 @@ export function PoLinesTable({
         return hardware ? next : { ...next, sqft: panelSqft(next.width, next.height, next.qty) };
       })
     );
+  // Copy a row: same values, new id, placed right under the original.
+  const copyRow = (l: PurchaseOrderLine) => {
+    const at = lines.findIndex((x) => x.id === l.id);
+    const clone = { ...l, id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
+    onChange([...lines.slice(0, at + 1), clone, ...lines.slice(at + 1)].map((x, i) => ({ ...x, position: i })));
+  };
   const add = () => {
     setCollapsed(false);
     const no = srNo ?? mine[mine.length - 1]?.srNo ?? 0;
@@ -182,7 +191,7 @@ export function PoLinesTable({
                     {c.label}
                   </th>
                 ))}
-                <th className="w-8" />
+                <th className="w-16" />
               </tr>
             </thead>
             <tbody>
@@ -223,7 +232,16 @@ export function PoLinesTable({
                       )}
                     </td>
                   ))}
-                  <td className="px-1">
+                  <td className="whitespace-nowrap px-1">
+                    <button
+                      type="button"
+                      aria-label="Copy row"
+                      title="Copy row"
+                      onClick={() => copyRow(l)}
+                      className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-primary"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
                     <button
                       type="button"
                       aria-label="Remove row"

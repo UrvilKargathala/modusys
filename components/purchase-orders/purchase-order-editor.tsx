@@ -148,6 +148,17 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       },
     });
   };
+  // Copy a whole cabinet: its size / details and every row (carcass, shutter, other panel, hardware) become the next cabinet number.
+  const copyCabinet = (no: number) => {
+    const next = Math.max(0, ...cabinetNos) + 1;
+    const src = cabinetFor(no);
+    const rows = draft.lines.filter((l) => l.srNo === no).map((l, i) => ({ ...l, id: `new-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`, srNo: next }));
+    set({
+      lines: [...draft.lines, ...rows].map((x, i) => ({ ...x, position: i })),
+      material: { ...draft.material, cabinets: { ...draft.material.cabinets, ...(src ? { [String(next)]: { ...src } } : {}) } },
+    });
+    toastStore.show(`Cabinet ${no} copied as cabinet ${next}`, "success");
+  };
   const removeCabinet = (no: number) => {
     const { [String(no)]: _gone, ...rest } = draft.material.cabinets;
     setMaterial({ cabinets: rest });
@@ -341,6 +352,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 group={g.key}
                 title={g.label}
                 lines={draft.lines}
+                defaultCollapsed
                 varsFor={(no) => {
                   const c = cabinetFor(no);
                   return c ? { W: c.width, D: c.depth, H: c.height } : undefined;
@@ -364,6 +376,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                       cabinet={cabinetFor(no)}
                       onCabinetChange={(next) => setMaterial({ cabinets: { ...draft.material.cabinets, [String(no)]: next } })}
                       onChange={(lines) => set({ lines })}
+                      onCopyCabinet={() => copyCabinet(no)}
                     />
                   ))}
               </div>

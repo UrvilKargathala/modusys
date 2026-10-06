@@ -7,8 +7,8 @@ import { useMaterialItems, materialSpecStore } from "@/lib/store/material-spec-s
 export function PoDesignSelect({ value, onChange }: { value: string; onChange: (name: string) => void }) {
   const items = useMaterialItems("purchase-cabinet-type");
   return (
-    <label className="flex items-center gap-1 text-xs text-grey-500">
-      Cabinet Type
+    <label className="flex shrink-0 items-center gap-1 text-xs text-grey-500">
+      Cabinet Name
       <div className="w-36">
         <MaterialReferenceSelect
           category="purchase-cabinet-type"

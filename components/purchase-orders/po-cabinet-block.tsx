@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Copy, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PoDesignSelect } from "@/components/purchase-orders/po-design-select";
 import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
@@ -23,6 +23,7 @@ export function PoCabinetBlock({
   cabinet,
   onCabinetChange,
   onChange,
+  onCopyCabinet,
 }: {
   group: PoGroup;
   title: string;
@@ -31,6 +32,7 @@ export function PoCabinetBlock({
   cabinet?: PoCabinet;
   onCabinetChange: (cabinet: PoCabinet) => void;
   onChange: (lines: PurchaseOrderLine[]) => void;
+  onCopyCabinet: () => void;
 }) {
   const cabinetType = useCabinetTypes().find((t) => t.id === cabinet?.cabinetTypeId);
   const isManual = !!cabinet && !cabinet.unitName && !cabinet.cabinetTypeId;
@@ -47,15 +49,15 @@ export function PoCabinetBlock({
 
   const header = (
     <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
-      <span className="flex min-w-0 items-center gap-2">
+      <span className="flex min-w-0 max-w-[260px] shrink items-center gap-2">
         <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-primary-transparent px-1.5 font-number text-sm font-semibold text-primary">{srNo}</span>
         <span className="truncate font-heading text-base font-semibold text-grey-900">{name}</span>
       </span>
       {cabinet && (
-        <span className="flex shrink-0 items-center gap-2">
+        <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
           <PoDesignSelect value={cabinet.designType ?? ""} onChange={(v) => onCabinetChange({ ...cabinet, designType: v })} />
           {(["width", "depth", "height", "qty"] as const).map((k) => (
-            <label key={k} className="flex items-center gap-1 text-xs text-grey-500">
+            <label key={k} className="flex shrink-0 items-center gap-1 text-xs text-grey-500">
               {k === "qty" ? "Qty" : k[0].toUpperCase()}
               <input
                 type="number"
@@ -70,17 +72,22 @@ export function PoCabinetBlock({
           <input
             aria-label={`Cabinet ${srNo} design`}
             placeholder="Design"
-            className="h-8 w-32 rounded-md border border-grey-100 bg-card px-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+            className="h-8 w-32 shrink-0 rounded-md border border-grey-100 bg-card px-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
             value={cabinet.design ?? ""}
             onChange={(e) => onCabinetChange({ ...cabinet, design: e.target.value })}
           />
           <input
             aria-label={`Cabinet ${srNo} remark`}
             placeholder="Remark"
-            className="h-8 w-32 rounded-md border border-grey-100 bg-card px-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+            className="h-8 min-w-40 max-w-md flex-1 rounded-md border border-grey-100 bg-card px-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
             value={cabinet.remark ?? ""}
             onChange={(e) => onCabinetChange({ ...cabinet, remark: e.target.value })}
           />
+          {group === "carcass" && (
+            <Button type="button" size="icon-sm" variant="outline" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          )}
           {group === "carcass" && !isManual && (
             <Button type="button" size="icon-sm" aria-label="Auto Populate" disabled={!cabinetType} onClick={autoPopulate} title="Auto Populate: recalculate this cabinet's carcass sizes from its W / D / H">
               <Sparkles className="h-3.5 w-3.5" />
@@ -100,6 +107,7 @@ export function PoCabinetBlock({
         srNo={srNo}
         vars={cabinet ? { W: cabinet.width, D: cabinet.depth, H: cabinet.height } : undefined}
         header={header}
+        defaultCollapsed
         onChange={onChange}
       />
     </div>
