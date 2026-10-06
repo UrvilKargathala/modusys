@@ -22,7 +22,7 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
   const items = useMaterialItems(category.key);
   // Brand + Colour Code entries keep Brand in `description` and Colour Code in `name`.
   const brandCode = !!category.brandAndCode;
-  const showSrNo = category.group === "library" || brandCode;
+  const showSrNo = category.group === "library" || category.group === "purchase-library";
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ key: "name" | "description"; asc: boolean }>({ key: "name", asc: true });
   const [addOpen, setAddOpen] = useState(false);
@@ -71,6 +71,13 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
     }
     materialSpecStore.createItem({ category: otherCategory.key, name: i.name, description: i.description });
     toastStore.show(`${i.description} — ${i.name} copied to ${otherCategory.label}`, "success");
+  };
+
+  // Cabinet Name has no Internal/External pair: Copy makes a second entry with the same name to edit.
+  const isCabinetName = category.key === "purchase-cabinet-type";
+  const duplicate = (i: MaterialItem) => {
+    materialSpecStore.createItem({ category: category.key, name: `${i.name} (copy)`, description: i.description });
+    toastStore.show(`${i.name} copied`, "success");
   };
 
   const handleDelete = () => {
@@ -192,6 +199,18 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                             <Copy className="h-4 w-4" />
                           </TooltipTrigger>
                           <TooltipContent>Copy to {otherCategory.label}</TooltipContent>
+                        </Tooltip>
+                      )}
+                      {canEdit && isCabinetName && (
+                        <Tooltip>
+                          <TooltipTrigger
+                            aria-label="Copy"
+                            onClick={() => duplicate(i)}
+                            className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </TooltipTrigger>
+                          <TooltipContent>Copy</TooltipContent>
                         </Tooltip>
                       )}
                       {canEdit && (

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PoDesignSelect } from "@/components/purchase-orders/po-design-select";
 import { PoLinesTable, newBlankLine } from "@/components/purchase-orders/po-lines-table";
 import { formatInr } from "@/lib/format";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
@@ -60,7 +61,7 @@ export function PoCabinetCard({
   const isManual = !!cabinet && !cabinet.unitName && !cabinet.cabinetTypeId;
   const emptyGroups = PO_GROUPS.filter((g) => !mine.some((l) => l.group === g.key));
 
-  const name = [cabinet?.unitName, cabinet?.label].filter(Boolean).join(" · ");
+  const name = cabinet?.label;
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-grey-100 bg-card p-3">
@@ -120,6 +121,14 @@ export function PoCabinetCard({
                   />
                 </label>
               ))}
+              <PoDesignSelect value={cabinet.designType ?? ""} onChange={(v) => onCabinetChange({ ...cabinet, designType: v })} />
+          <input
+            aria-label={`Cabinet ${srNo} remark`}
+            placeholder="Remark"
+            className="h-8 w-48 rounded-md border border-grey-100 bg-card px-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+            value={cabinet.remark ?? ""}
+            onChange={(e) => onCabinetChange({ ...cabinet, remark: e.target.value })}
+          />
               {!isManual && (
               <Button
                 type="button"

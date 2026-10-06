@@ -117,6 +117,8 @@ function HardwareTable({ lines }: { lines: PurchaseOrderLine[] }) {
 export function PurchaseOrderSheet({ po, vendor, branding }: { po: PurchaseOrder; vendor?: Vendor; branding: Branding }) {
   const t = poTotals(po);
   const m = po.material;
+  const colours = (groups: string[], key: "internalColour" | "externalColour") =>
+    [...new Set(po.lines.filter((l) => groups.includes(l.group)).map((l) => l[key]).filter(Boolean))].join(", ");
   const contacts = vendor?.contacts ?? [];
   const money = (label: string, v: number, bold = false) => (
     <div className={`flex justify-between gap-6 border border-grey-700 px-2 py-1 ${bold ? "font-semibold" : ""}`}>
@@ -138,7 +140,7 @@ export function PurchaseOrderSheet({ po, vendor, branding }: { po: PurchaseOrder
         <h2 className="font-heading text-xl font-bold uppercase">Purchase Order</h2>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         <Info
           title="Vendor Details"
           rows={[
@@ -150,12 +152,19 @@ export function PurchaseOrderSheet({ po, vendor, branding }: { po: PurchaseOrder
           ]}
         />
         <Info
-          title="Material Description"
+          title="Shutter Details"
           rows={[
             ["Shutter Raw Material", m.shutterRawMaterial],
-            ["Other Raw Material", m.otherRawMaterial],
-            ["Internal Color", m.internalColours.join(", ")],
-            ["External Color", m.externalColours.join(", ")],
+            ["Internal Color", colours(["shutter"], "internalColour")],
+            ["External Color", colours(["shutter"], "externalColour")],
+          ]}
+        />
+        <Info
+          title="Cabinet Details"
+          rows={[
+            ["Cabinet Raw Material", m.cabinetRawMaterial],
+            ["Internal Color", colours(["carcass", "other-panel"], "internalColour")],
+            ["External Color", colours(["carcass", "other-panel"], "externalColour")],
           ]}
         />
         <Info

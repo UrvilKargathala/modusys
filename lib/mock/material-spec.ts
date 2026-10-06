@@ -25,7 +25,8 @@ export type MaterialCategoryKey =
   | "level-type"
   // Purchase Material Library — colours bought from vendors
   | "purchase-internal"
-  | "purchase-external";
+  | "purchase-external"
+  | "purchase-cabinet-type";
 
 export type MaterialCategory = {
   key: MaterialCategoryKey;
@@ -68,6 +69,7 @@ export const materialCategories: MaterialCategory[] = [
   { key: "level-type", group: "library", label: "Level Type", noDescription: true },
   { key: "purchase-internal", group: "purchase-library", label: "Internal", brandAndCode: true },
   { key: "purchase-external", group: "purchase-library", label: "External", brandAndCode: true },
+  { key: "purchase-cabinet-type", group: "purchase-library", label: "Cabinet Name", noDescription: true },
 ];
 
 export function getMaterialCategory(key: MaterialCategoryKey) {

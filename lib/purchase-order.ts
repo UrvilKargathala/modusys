@@ -89,18 +89,24 @@ export type PoCabinet = {
   // For Auto Populate: which cabinet type's formulas size this cabinet's carcass rows, and the unit's qty.
   cabinetTypeId: string;
   unitQty: number;
+  // Design type picked from Purchase Material Library > Cabinet Type (name as text).
+  designType?: string;
+  remark?: string;
+  design?: string;
 };
 
 export type PoMaterial = {
   shutterRawMaterial: string;
   otherRawMaterial: string;
+  cabinetRawMaterial: string;
+  cabinetOtherRawMaterial: string;
   // Derived from the lines' purchase internal/external finishes on save.
   internalColours: string[];
   externalColours: string[];
   cabinets: Record<string, PoCabinet>;
 };
 
-export const blankMaterial = (): PoMaterial => ({ shutterRawMaterial: "", otherRawMaterial: "", internalColours: [], externalColours: [], cabinets: {} });
+export const blankMaterial = (): PoMaterial => ({ shutterRawMaterial: "", otherRawMaterial: "", cabinetRawMaterial: "", cabinetOtherRawMaterial: "", internalColours: [], externalColours: [], cabinets: {} });
 
 // Panels are bought by area, hardware by piece.
 export function lineAmount(l: Pick<PurchaseOrderLine, "group" | "rate" | "sqft" | "qty">): number {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/format";
@@ -17,29 +17,29 @@ const th = "whitespace-nowrap px-2 py-2 text-xs font-body font-semibold uppercas
 type Col = { key: string; label: string; width: string };
 
 const PANEL_COLS: Col[] = [
-  { key: "srNo", label: "Sr", width: "w-14" },
-  { key: "description", label: "Description", width: "w-48" },
-  { key: "designType", label: "Design", width: "w-24" },
+  { key: "srNo", label: "Sr", width: "w-16" },
+  { key: "description", label: "Description", width: "w-72" },
+  { key: "designType", label: "Design", width: "w-36" },
   { key: "width", label: "Width", width: "w-20" },
-  { key: "depth", label: "Thk", width: "w-16" },
+  { key: "depth", label: "Thk", width: "w-20" },
   { key: "height", label: "Height", width: "w-20" },
   { key: "qty", label: "Qty", width: "w-16" },
   { key: "sqft", label: "Sq.Ft", width: "w-20" },
   { key: "internalColour", label: "Internal Brand & Colour", width: "w-56" },
   { key: "externalColour", label: "External Brand & Colour", width: "w-56" },
-  { key: "material", label: "Material", width: "w-28" },
+  { key: "material", label: "Material", width: "w-40" },
   { key: "rate", label: "Rate", width: "w-24" },
   { key: "amount", label: "Amount", width: "w-28" },
   { key: "remarks", label: "Remarks", width: "w-48" },
 ];
 
 const HW_COLS: Col[] = [
-  { key: "srNo", label: "Sr", width: "w-14" },
-  { key: "description", label: "Description", width: "w-56" },
-  { key: "designType", label: "Design", width: "w-24" },
-  { key: "articleNo", label: "Article No", width: "w-32" },
+  { key: "srNo", label: "Sr", width: "w-16" },
+  { key: "description", label: "Description", width: "w-72" },
+  { key: "designType", label: "Design", width: "w-36" },
+  { key: "articleNo", label: "Article No", width: "w-40" },
   { key: "brand", label: "Brand", width: "w-28" },
-  { key: "category", label: "Category", width: "w-28" },
+  { key: "category", label: "Category", width: "w-36" },
   { key: "unit", label: "Unit", width: "w-20" },
   { key: "qty", label: "Qty", width: "w-16" },
   { key: "rate", label: "Rate", width: "w-24" },
@@ -103,6 +103,9 @@ export function PoLinesTable({
   lines,
   srNo,
   vars,
+  varsFor,
+  header,
+  subHeader,
   onChange,
 }: {
   group: PoGroup;
@@ -111,11 +114,17 @@ export function PoLinesTable({
   srNo?: number;
   // The cabinet's W / D / H, for formulas typed in Width / Height (and hardware Qty).
   vars?: Vars;
+  // When the table spans all cabinets: each row's own cabinet W / D / H.
+  varsFor?: (srNo: number) => Vars | undefined;
+  // Replaces the title (e.g. a cabinet's name and W / D / H / Qty).
+  header?: ReactNode;
+  // A second line under the header (e.g. the cabinet's size and details).
+  subHeader?: ReactNode;
   onChange: (lines: PurchaseOrderLine[]) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const hardware = group === "hardware";
-  const cols = (hardware ? HW_COLS : PANEL_COLS).filter((c) => srNo === undefined || (c.key !== "srNo" && c.key !== "designType"));
+  const cols = (hardware ? HW_COLS : PANEL_COLS).filter((c) => srNo === undefined || c.key !== "designType");
   const mine = lines.filter((l) => l.group === group && (srNo === undefined || l.srNo === srNo));
   const total = mine.reduce((s, l) => s + lineAmount(l), 0);
 
@@ -145,10 +154,13 @@ export function PoLinesTable({
           className="flex items-center gap-1.5 rounded-md text-left hover:text-primary"
         >
           {collapsed ? <ChevronRight className="h-4 w-4 text-grey-500" /> : <ChevronDown className="h-4 w-4 text-grey-500" />}
-          <h3 className="font-heading text-base font-semibold text-grey-900">
-            {title} <span className="font-number text-sm font-normal text-grey-500">({mine.length})</span>
-          </h3>
+          {!header && (
+            <h3 className="font-heading text-base font-semibold text-grey-900">
+              {title} <span className="font-number text-sm font-normal text-grey-500">({mine.length})</span>
+            </h3>
+          )}
         </button>
+        {header}
         <div className="flex items-center gap-3">
           <span className="font-number text-sm text-grey-700">{formatInr(total)}</span>
           <Button type="button" variant="outline" size="sm" onClick={add}>
@@ -157,11 +169,12 @@ export function PoLinesTable({
           </Button>
         </div>
       </div>
+      {subHeader}
       {collapsed ? null : mine.length === 0 ? (
         <p className="rounded-lg border border-dashed border-grey-100 py-4 text-center text-sm font-body text-grey-400">No rows</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
-          <table className="w-full text-left">
+          <table className="w-full min-w-max table-fixed text-left">
             <thead className="bg-[#DACCCC]">
               <tr>
                 {cols.map((c) => (
@@ -177,7 +190,9 @@ export function PoLinesTable({
                 <tr key={l.id} className="border-t border-grey-100">
                   {cols.map((c) => (
                     <td key={c.key} className="px-1 py-1">
-                      {c.key === "amount" ? (
+                      {c.key === "srNo" ? (
+                        <span className="block px-2 font-number text-sm text-grey-900">{`${l.srNo}.${mine.filter((x) => x.srNo === l.srNo).indexOf(l) + 1}`}</span>
+                      ) : c.key === "amount" ? (
                         <span className="block px-2 text-right font-number text-sm text-grey-900">{formatInr(lineAmount(l))}</span>
                       ) : c.key === "sqft" ? (
                         <span className="block px-2 text-right font-number text-sm text-grey-700">{l.sqft.toFixed(2)}</span>
@@ -194,7 +209,7 @@ export function PoLinesTable({
                           onChange={(e) => patch(l.id, { [c.key]: e.target.value })}
                         />
                       ) : c.key === "width" || c.key === "height" || (hardware && c.key === "qty") ? (
-                        <DimCell value={l[c.key]} vars={vars} onCommit={(n) => patch(l.id, { [c.key]: n })} />
+                        <DimCell value={l[c.key]} vars={vars ?? varsFor?.(l.srNo)} onCommit={(n) => patch(l.id, { [c.key]: n })} />
                       ) : (
                         <input
                           type="number"

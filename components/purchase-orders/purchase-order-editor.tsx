@@ -9,6 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PoCabinetCard } from "@/components/purchase-orders/po-cabinet-card";
+import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
+import { quoteCabinetInfo } from "@/lib/purchase-order-from-quote";
+import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
+import { PoCabinetBlock } from "@/components/purchase-orders/po-cabinet-block";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
@@ -17,7 +21,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
-import { gstModeFor, poTotals, type GstMode, type PurchaseOrder } from "@/lib/purchase-order";
+import { PO_GROUPS, gstModeFor, poTotals, type GstMode, type PurchaseOrder } from "@/lib/purchase-order";
 
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
 const card = "flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-5 shadow-sm";
@@ -42,6 +46,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const [draft, setDraft] = useState<PurchaseOrder | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  // By component: all cabinets' Carcass rows together, then Shutter, etc. By cabinet: one card per cabinet.
+  const [view, setView] = useState<"component" | "cabinet">("component");
 
   // Seed the draft once the PO has loaded; later store updates (our own save)
   // re-seed through reset() below, not through this effect.
@@ -63,12 +69,18 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       external: distinct(draft?.lines.map((l) => l.externalColour) ?? []),
     };
   }, [draft]);
-  // One internal / external pick for the whole PO: shows the common value, "" when rows differ.
-  const panelLines = draft?.lines.filter((l) => l.group !== "hardware") ?? [];
-  const commonFinish = (key: "internalColour" | "externalColour") =>
-    panelLines.length > 0 && panelLines.every((l) => l[key] === panelLines[0][key]) ? panelLines[0][key] : "";
-  const applyFinishToAll = (key: "internalColour" | "externalColour", label: string) =>
-    draft && setDraft({ ...draft, lines: draft.lines.map((l) => (l.group !== "hardware" ? { ...l, [key]: label } : l)) });
+  // Shutter Details applies to the shutter rows; Cabinet Details to the carcass and other-panel rows.
+  const inScope = (scope: "shutter" | "cabinet", g: string) => (scope === "shutter" ? g === "shutter" : g === "carcass" || g === "other-panel");
+  const commonFinish = (scope: "shutter" | "cabinet", key: "internalColour" | "externalColour") => {
+    const rows = draft?.lines.filter((l) => inScope(scope, l.group)) ?? [];
+    return rows.length > 0 && rows.every((l) => l[key] === rows[0][key]) ? rows[0][key] : "";
+  };
+  const usedIn = (scope: "shutter" | "cabinet", key: "internalColour" | "externalColour") =>
+    [...new Set((draft?.lines ?? []).filter((l) => inScope(scope, l.group)).map((l) => l[key]).filter(Boolean))];
+  const applyFinish = (scope: "shutter" | "cabinet", key: "internalColour" | "externalColour", label: string) =>
+    draft && setDraft({ ...draft, lines: draft.lines.map((l) => (inScope(scope, l.group) ? { ...l, [key]: label } : l)) });
+
+  const fromQuote = useMemo(() => (draft?.quoteId ? quoteCabinetInfo(quotes.find((q) => q.id === draft.quoteId) ?? ({ units: [] } as never)) : new Map<number, { cabinetTypeId: string; unitQty: number }>()), [draft?.quoteId, quotes]);
 
   if (!draft || !totals) {
     return purchaseOrdersStore.isLoaded() && !saved ? (
@@ -116,6 +128,16 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     setDraft(next);
     void save(next);
   };
+
+  // Older POs lack the cabinet type / unit qty that Auto Populate needs: read them back from the quote.
+  const cabinetFor = (no: number) => {
+    const c = draft.material.cabinets?.[String(no)];
+    const q = fromQuote.get(no);
+    return c && q && !c.cabinetTypeId ? { ...c, cabinetTypeId: q.cabinetTypeId, unitQty: q.unitQty } : c;
+  };
+
+  // A PO with no rows yet (new manual PO) starts in the cabinet view, where cabinets and rows are added.
+  const shownView = draft.lines.length === 0 ? "cabinet" : view;
 
   const addCabinet = () => {
     const no = Math.max(0, ...cabinetNos) + 1;
@@ -186,7 +208,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className={card}>
           <h2 className="font-heading text-base font-semibold text-grey-900">Vendor</h2>
           <select
@@ -243,24 +265,37 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         </div>
 
         <div className={card}>
-          <h2 className="font-heading text-base font-semibold text-grey-900">Material Description</h2>
+          <h2 className="font-heading text-base font-semibold text-grey-900">Shutter Details</h2>
           <div className="flex flex-col gap-1.5">
             <Label>Shutter Raw Material</Label>
-            <Input value={draft.material.shutterRawMaterial} onChange={(e) => setMaterial({ shutterRawMaterial: e.target.value })} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Other Raw Material</Label>
-            <Input value={draft.material.otherRawMaterial} onChange={(e) => setMaterial({ otherRawMaterial: e.target.value })} />
+            <PoRawMaterialSelect value={draft.material.shutterRawMaterial} onChange={(v) => setMaterial({ shutterRawMaterial: v })} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Internal Brand & Colour</Label>
-            <PoFinishSelect kind="internal" value={commonFinish("internalColour")} onChange={(label) => applyFinishToAll("internalColour", label)} />
-            {usedFinishes.internal.length > 1 && <p className="text-xs font-body text-grey-500">Rows use: {usedFinishes.internal.join(", ")}</p>}
+            <PoFinishSelect kind="internal" value={commonFinish("shutter", "internalColour")} onChange={(label) => applyFinish("shutter", "internalColour", label)} />
+            {usedIn("shutter", "internalColour").length > 1 && <p className="text-xs font-body text-grey-500">Rows use: {usedIn("shutter", "internalColour").join(", ")}</p>}
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>External Brand & Colour</Label>
-            <PoFinishSelect kind="external" value={commonFinish("externalColour")} onChange={(label) => applyFinishToAll("externalColour", label)} />
-            {usedFinishes.external.length > 1 && <p className="text-xs font-body text-grey-500">Rows use: {usedFinishes.external.join(", ")}</p>}
+            <PoFinishSelect kind="external" value={commonFinish("shutter", "externalColour")} onChange={(label) => applyFinish("shutter", "externalColour", label)} />
+            {usedIn("shutter", "externalColour").length > 1 && <p className="text-xs font-body text-grey-500">Rows use: {usedIn("shutter", "externalColour").join(", ")}</p>}
+          </div>
+        </div>
+        <div className={card}>
+          <h2 className="font-heading text-base font-semibold text-grey-900">Cabinet Details</h2>
+          <div className="flex flex-col gap-1.5">
+            <Label>Cabinet Raw Material</Label>
+            <PoRawMaterialSelect value={draft.material.cabinetRawMaterial} onChange={(v) => setMaterial({ cabinetRawMaterial: v })} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Internal Brand & Colour</Label>
+            <PoFinishSelect kind="internal" value={commonFinish("cabinet", "internalColour")} onChange={(label) => applyFinish("cabinet", "internalColour", label)} />
+            {usedIn("cabinet", "internalColour").length > 1 && <p className="text-xs font-body text-grey-500">Rows use: {usedIn("cabinet", "internalColour").join(", ")}</p>}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>External Brand & Colour</Label>
+            <PoFinishSelect kind="external" value={commonFinish("cabinet", "externalColour")} onChange={(label) => applyFinish("cabinet", "externalColour", label)} />
+            {usedIn("cabinet", "externalColour").length > 1 && <p className="text-xs font-body text-grey-500">Rows use: {usedIn("cabinet", "externalColour").join(", ")}</p>}
           </div>
         </div>
       </div>
@@ -270,23 +305,81 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           <h2 className="font-heading text-base font-semibold text-grey-900">
             Cabinets <span className="font-number text-sm font-normal text-grey-500">({cabinetNos.length})</span>
           </h2>
-          <Button type="button" variant="outline" size="sm" onClick={addCabinet}>
-            <Plus className="h-4 w-4" />
-            Add Cabinet
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Group rows by">
+              {(["component", "cabinet"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  role="tab"
+                  aria-selected={shownView === v}
+                  onClick={() => setView(v)}
+                  className={`rounded-md px-3 py-1 text-sm font-body font-medium transition-colors ${shownView === v ? "bg-primary-transparent text-primary" : "text-grey-600 hover:bg-light-600"}`}
+                >
+                  {v === "component" ? "By component" : "By cabinet"}
+                </button>
+              ))}
+            </div>
+            {shownView === "cabinet" && (
+              <Button type="button" variant="outline" size="sm" onClick={addCabinet}>
+                <Plus className="h-4 w-4" />
+                Add Cabinet
+              </Button>
+            )}
+          </div>
         </div>
         {cabinetNos.length === 0 && (
           <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">
             No cabinets yet. Click Add Cabinet, then add its rows.
           </p>
         )}
-        {cabinetNos.map((no) => (
-          <PoCabinetCard key={no} srNo={no} lines={draft.lines} cabinet={draft.material.cabinets?.[String(no)]}
-            onCabinetChange={(next) => setMaterial({ cabinets: { ...draft.material.cabinets, [String(no)]: next } })}
-            onChange={(lines) => set({ lines })}
-            onRemove={() => removeCabinet(no)}
-          />
-        ))}
+        {shownView === "component"
+          ? PO_GROUPS.filter((g) => draft.lines.some((l) => l.group === g.key)).map((g) =>
+            g.key !== "carcass" ? (
+              <PoLinesTable
+                key={g.key}
+                group={g.key}
+                title={g.label}
+                lines={draft.lines}
+                varsFor={(no) => {
+                  const c = cabinetFor(no);
+                  return c ? { W: c.width, D: c.depth, H: c.height } : undefined;
+                }}
+                onChange={(lines) => set({ lines })}
+              />
+            ) : (
+              <div key={g.key} className="flex flex-col gap-3">
+                <h3 className="font-heading text-base font-semibold text-grey-900">
+                  {g.label} <span className="font-number text-sm font-normal text-grey-500">({draft.lines.filter((l) => l.group === g.key).length})</span>
+                </h3>
+                {cabinetNos
+                  .filter((no) => draft.lines.some((l) => l.group === g.key && l.srNo === no))
+                  .map((no) => (
+                    <PoCabinetBlock
+                      key={no}
+                      group={g.key}
+                      title={g.label}
+                      srNo={no}
+                      lines={draft.lines}
+                      cabinet={cabinetFor(no)}
+                      onCabinetChange={(next) => setMaterial({ cabinets: { ...draft.material.cabinets, [String(no)]: next } })}
+                      onChange={(lines) => set({ lines })}
+                    />
+                  ))}
+              </div>
+            )
+          )
+          : cabinetNos.map((no) => (
+              <PoCabinetCard
+                key={no}
+                srNo={no}
+                lines={draft.lines}
+                cabinet={cabinetFor(no)}
+                onCabinetChange={(next) => setMaterial({ cabinets: { ...draft.material.cabinets, [String(no)]: next } })}
+                onChange={(lines) => set({ lines })}
+                onRemove={() => removeCabinet(no)}
+              />
+            ))}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

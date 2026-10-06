@@ -124,6 +124,8 @@ export function buildPoFromQuote(quote: Quote, { materials, unitTypes, hardwareI
   const shutters = lines.filter((l) => l.group === "shutter");
   const others = lines.filter((l) => l.group !== "shutter" && l.group !== "hardware");
   const material: PoMaterial = {
+    cabinetRawMaterial: "",
+    cabinetOtherRawMaterial: "",
     shutterRawMaterial: name(quote.shutterFinishRawMaterialId) || distinct(shutters.map((l) => l.material))[0] || "",
     otherRawMaterial: distinct(others.map((l) => l.material))[0] ?? "",
     internalColours: [],
@@ -166,4 +168,13 @@ export function recalcCarcass({
     return { ...l, width, height, qty, sqft: panelSqft(width, height, qty) };
   });
   return { lines: out, recalculated };
+}
+
+// Older POs were saved before each cabinet remembered its cabinet type and unit qty (needed by Auto Populate).
+// Cabinet numbers follow the quote's order, so they can be read back from the quote.
+export function quoteCabinetInfo(quote: Quote): Map<number, { cabinetTypeId: string; unitQty: number }> {
+  const out = new Map<number, { cabinetTypeId: string; unitQty: number }>();
+  let sr = 0;
+  for (const unit of quote.units) for (const cabinet of unit.cabinets) out.set(++sr, { cabinetTypeId: cabinet.cabinetTypeId, unitQty: unitQty(unit) });
+  return out;
 }

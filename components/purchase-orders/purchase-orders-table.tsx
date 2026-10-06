@@ -2,13 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ShoppingCart, Eye, Plus } from "lucide-react";
+import { Search, ShoppingCart, Eye, Plus, Trash2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
-import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { toastStore } from "@/lib/store/toast-store";
+import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import Link from "next/link";
@@ -22,6 +24,18 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
   const customers = useCustomers();
   const quotes = useQuotes();
   const [search, setSearch] = useState("");
+  // Copy = a new Pending PO with the same vendor, material and rows; the PO number is left blank to type.
+  const copyPo = async (po: PurchaseOrder) => {
+    const { id: _id, createdAt: _c, vendorName: _v, status: _s, lines, ...rest } = po;
+    try {
+      const created = await purchaseOrdersStore.create({ ...rest, poNumber: "", lines: lines.map(({ id: _l, ...l }) => l) });
+      toastStore.show("Purchase order copied", "success");
+      router.push(`/purchase-orders/${created.id}`);
+    } catch (e) {
+      toastStore.show(e instanceof Error ? e.message : "Could not copy", "error");
+    }
+  };
+  const [toDelete, setToDelete] = useState<PurchaseOrder | null>(null);
   const [status, setStatus] = useState<PoStatus>("pending");
 
   const customerName = useMemo(() => new Map(customers.map((c) => [c.id, c.name])), [customers]);
@@ -141,6 +155,26 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
                         </TooltipTrigger>
                         <TooltipContent>View</TooltipContent>
                       </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger
+                          aria-label="Copy"
+                          onClick={() => copyPo(po)}
+                          className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </TooltipTrigger>
+                        <TooltipContent>Copy</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger
+                          aria-label="Delete"
+                          onClick={() => setToDelete(po)}
+                          className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </TooltipTrigger>
+                        <TooltipContent>Delete</TooltipContent>
+                      </Tooltip>
                     </div>
                   </td>
                 </tr>
@@ -149,6 +183,23 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!toDelete}
+        onOpenChange={(o) => !o && setToDelete(null)}
+        title={`Delete PO ${toDelete?.poNumber || "(no number)"}?`}
+        description="This removes the purchase order and its lines. The quote it came from is not affected."
+        onConfirm={async () => {
+          if (!toDelete) return;
+          try {
+            await purchaseOrdersStore.remove(toDelete.id);
+            toastStore.show("Purchase order deleted", "success");
+          } catch (e) {
+            toastStore.show(e instanceof Error ? e.message : "Could not delete", "error");
+          }
+          setToDelete(null);
+        }}
+      />
 
       <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
     </div>
