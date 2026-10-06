@@ -5,6 +5,8 @@ import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/format";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
+import { evaluateFormula } from "@/lib/quote-pricing";
+import { toastStore } from "@/lib/store/toast-store";
 import { lineAmount, panelSqft, type PoGroup, type PurchaseOrderLine } from "@/lib/purchase-order";
 
 const cell =
@@ -47,6 +49,40 @@ const HW_COLS: Col[] = [
 
 const TEXT_KEYS = new Set(["description", "designType", "internalColour", "externalColour", "material", "articleNo", "brand", "category", "unit", "remarks"]);
 
+type Vars = { W: number; D: number; H: number };
+
+// Number cell that also takes a formula in the cabinet's W / D / H ("w-10", "(D-20)/2"; upper or lower case).
+// It collapses to the result when you tab out or press Enter, like the quote's width/height fields. Plain numbers
+// are kept as typed; a formula that can't be read puts the old value back and says why.
+function DimCell({ value, vars, onCommit }: { value: number; vars?: Vars; onCommit: (n: number) => void }) {
+  const [text, setText] = useState<string | null>(null); // null = not editing
+
+  const commit = () => {
+    if (text === null) return;
+    const t = text.trim();
+    setText(null);
+    if (t === "") return onCommit(0);
+    if (/^\d*\.?\d+$/.test(t)) return onCommit(Number(t));
+    if (!vars) return toastStore.show("This purchase order has no cabinet size to use in a formula — type a number.", "error");
+    const n = Math.round(evaluateFormula(t, vars));
+    if (/[WDH]/i.test(t) && n > 0) return onCommit(n);
+    toastStore.show(`Couldn't read "${t}" — use numbers or W, D, H, like W-10 or (D-20)/2.`, "error");
+  };
+
+  return (
+    <input
+      className={numCell}
+      inputMode="text"
+      autoComplete="off"
+      value={text ?? (value === 0 ? "" : String(value))}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+      title={vars ? `W ${vars.W} · D ${vars.D} · H ${vars.H} — type e.g. W-10, then Tab` : undefined}
+    />
+  );
+}
+
 // srNo given = shown inside that cabinet's card: only its rows, and the Sr / Design columns
 // are dropped (the cabinet header already shows them).
 export function PoLinesTable({
@@ -54,12 +90,15 @@ export function PoLinesTable({
   title,
   lines,
   srNo,
+  vars,
   onChange,
 }: {
   group: PoGroup;
   title: string;
   lines: PurchaseOrderLine[];
   srNo?: number;
+  // The cabinet's W / D / H, for formulas typed in Width / Height (and hardware Qty).
+  vars?: Vars;
   onChange: (lines: PurchaseOrderLine[]) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -151,6 +190,8 @@ export function PoLinesTable({
                           value={String(l[c.key as keyof PurchaseOrderLine] ?? "")}
                           onChange={(e) => patch(l.id, { [c.key]: e.target.value })}
                         />
+                      ) : c.key === "width" || c.key === "height" || (hardware && c.key === "qty") ? (
+                        <DimCell value={l[c.key]} vars={vars} onCommit={(n) => patch(l.id, { [c.key]: n })} />
                       ) : (
                         <input
                           type="number"

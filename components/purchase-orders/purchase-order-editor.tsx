@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PoCabinetCard } from "@/components/purchase-orders/po-cabinet-card";
+import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { useVendors } from "@/lib/store/vendors-store";
@@ -59,6 +60,12 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       external: distinct(draft?.lines.map((l) => l.externalColour) ?? []),
     };
   }, [draft]);
+  // One internal / external pick for the whole PO: shows the common value, "" when rows differ.
+  const panelLines = draft?.lines.filter((l) => l.group !== "hardware") ?? [];
+  const commonFinish = (key: "internalColour" | "externalColour") =>
+    panelLines.length > 0 && panelLines.every((l) => l[key] === panelLines[0][key]) ? panelLines[0][key] : "";
+  const applyFinishToAll = (key: "internalColour" | "externalColour", label: string) =>
+    draft && setDraft({ ...draft, lines: draft.lines.map((l) => (l.group !== "hardware" ? { ...l, [key]: label } : l)) });
 
   if (!draft || !totals) {
     return purchaseOrdersStore.isLoaded() && !saved ? (
@@ -201,13 +208,15 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             <Label>Other Raw Material</Label>
             <Input value={draft.material.otherRawMaterial} onChange={(e) => setMaterial({ otherRawMaterial: e.target.value })} />
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5">
             <Label>Internal Brand & Colour</Label>
-            <p className="text-sm font-body text-grey-700">{usedFinishes.internal.join(", ") || "Pick on the cabinet rows below"}</p>
+            <PoFinishSelect kind="internal" value={commonFinish("internalColour")} onChange={(label) => applyFinishToAll("internalColour", label)} />
+            {usedFinishes.internal.length > 1 && <p className="text-xs font-body text-grey-500">Rows use: {usedFinishes.internal.join(", ")}</p>}
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5">
             <Label>External Brand & Colour</Label>
-            <p className="text-sm font-body text-grey-700">{usedFinishes.external.join(", ") || "Pick on the cabinet rows below"}</p>
+            <PoFinishSelect kind="external" value={commonFinish("externalColour")} onChange={(label) => applyFinishToAll("externalColour", label)} />
+            {usedFinishes.external.length > 1 && <p className="text-xs font-body text-grey-500">Rows use: {usedFinishes.external.join(", ")}</p>}
           </div>
         </div>
       </div>
@@ -217,7 +226,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           Cabinets <span className="font-number text-sm font-normal text-grey-500">({cabinetNos.length})</span>
         </h2>
         {cabinetNos.map((no) => (
-          <PoCabinetCard key={no} srNo={no} lines={draft.lines} cabinet={draft.material.cabinets?.[String(no)]} onChange={(lines) => set({ lines })} />
+          <PoCabinetCard key={no} srNo={no} lines={draft.lines} cabinet={draft.material.cabinets?.[String(no)]}
+            onCabinetChange={(next) => setMaterial({ cabinets: { ...draft.material.cabinets, [String(no)]: next } })}
+            onChange={(lines) => set({ lines })}
+          />
         ))}
       </div>
 

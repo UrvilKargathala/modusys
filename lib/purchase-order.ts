@@ -82,6 +82,9 @@ export type PoCabinet = {
   depth: number;
   height: number;
   qty: number;
+  // For Auto Populate: which cabinet type's formulas size this cabinet's carcass rows, and the unit's qty.
+  cabinetTypeId: string;
+  unitQty: number;
 };
 
 export type PoMaterial = {

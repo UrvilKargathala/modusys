@@ -1,36 +1,57 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
-import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { formatInr } from "@/lib/format";
+import { recalcCarcass } from "@/lib/purchase-order-from-quote";
+import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
+import { materialSpecStore } from "@/lib/store/material-spec-store";
+import { toastStore } from "@/lib/store/toast-store";
 import { PO_GROUPS, lineAmount, type PoCabinet, type PurchaseOrderLine } from "@/lib/purchase-order";
 
-// One cabinet of the quote: header (number, unit/cabinet name, W/D/H) and its components
+// One cabinet of the quote: header (number, unit/cabinet name, W/D/H/Qty) and its components
 // underneath, grouped Carcass / Shutter / Other Panel / Hardware — the same flow as the quote.
-// Header W/D/H are the quote's cabinet size at the time the PO was created (rows are snapshots).
+// W/D/H/Qty start as the quote's cabinet size and are editable; the rows are snapshots, so they only
+// change when you press Auto Populate (same as the quote: carcass rows only, from the cabinet type's formulas).
+const dimInput =
+  "h-8 w-16 rounded-md border border-grey-100 bg-card px-2 text-right text-sm font-number text-grey-900 outline-none focus:border-primary";
 export function PoCabinetCard({
   srNo,
   lines,
   cabinet,
+  onCabinetChange,
   onChange,
 }: {
   srNo: number;
   lines: PurchaseOrderLine[];
   cabinet?: PoCabinet;
+  onCabinetChange: (cabinet: PoCabinet) => void;
   onChange: (lines: PurchaseOrderLine[]) => void;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  // Collapsed by default: a PO can have dozens of cabinets, so open only the ones you need.
+  const [collapsed, setCollapsed] = useState(true);
   const mine = lines.filter((l) => l.srNo === srNo);
   const designType = mine[0]?.designType ?? "";
   const total = mine.reduce((s, l) => s + lineAmount(l), 0);
 
-  // Shared finish for the cabinet's panel rows: shows the common value, "" when rows differ.
-  const panels = mine.filter((l) => l.group !== "hardware");
-  const common = (key: "internalColour" | "externalColour") => (panels.length > 0 && panels.every((l) => l[key] === panels[0][key]) ? panels[0][key] : "");
-  const applyAll = (key: "internalColour" | "externalColour", label: string) =>
-    onChange(lines.map((l) => (l.srNo === srNo && l.group !== "hardware" ? { ...l, [key]: label } : l)));
+  const cabinetType = useCabinetTypes().find((t) => t.id === cabinet?.cabinetTypeId);
+
+  // Recalculate the sizes of this cabinet's existing carcass rows for the W/D/H/Qty in the header.
+  // Rows are never added or removed, and rate / remarks / finishes stay as typed.
+  const autoPopulate = () => {
+    if (!cabinet || !cabinetType) return;
+    const mineCarcass = lines.filter((l) => l.srNo === srNo && l.group === "carcass");
+    const { lines: next, recalculated } = recalcCarcass({ cabinetType, cabinet, lines: mineCarcass, materials: materialSpecStore.getSnapshot() });
+    const byId = new Map(next.map((l) => [l.id, l]));
+    onChange(lines.map((l) => byId.get(l.id) ?? l));
+    const skipped = mineCarcass.length - recalculated;
+    toastStore.show(
+      `Cabinet ${srNo}: ${recalculated} carcass row${recalculated === 1 ? "" : "s"} recalculated${skipped > 0 ? `, ${skipped} not in the cabinet type left as they are` : ""}`,
+      "success"
+    );
+  };
 
   const name = [cabinet?.unitName, cabinet?.label].filter(Boolean).join(" · ");
 
@@ -56,9 +77,31 @@ export function PoCabinetCard({
         </button>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-body text-grey-700">
           {cabinet && (
-            <span className="font-number">
-              W {cabinet.width} · D {cabinet.depth} · H {cabinet.height} · Qty {cabinet.qty}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              {(["width", "depth", "height", "qty"] as const).map((k) => (
+                <label key={k} className="flex items-center gap-1 text-xs text-grey-500">
+                  {k === "qty" ? "Qty" : k[0].toUpperCase()}
+                  <input
+                    type="number"
+                    min={k === "qty" ? 1 : 0}
+                    aria-label={`Cabinet ${srNo} ${k}`}
+                    className={dimInput}
+                    value={cabinet[k]}
+                    onChange={(e) => onCabinetChange({ ...cabinet, [k]: e.target.value === "" ? 0 : Number(e.target.value) })}
+                  />
+                </label>
+              ))}
+              <Button
+                type="button"
+                size="sm"
+                disabled={!cabinetType}
+                title={cabinetType ? "Recalculate this cabinet's carcass sizes from its W / D / H" : "This cabinet's type isn't available (older PO or deleted type)"}
+                onClick={autoPopulate}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Auto Populate
+              </Button>
+            </div>
           )}
           <span className="font-number font-semibold text-grey-900">{formatInr(total)}</span>
         </div>
@@ -66,18 +109,16 @@ export function PoCabinetCard({
 
       {!collapsed && (
         <>
-          <div className="grid gap-3 rounded-lg bg-light-600 p-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-body font-medium text-grey-500">Internal Brand & Colour — all panel rows</span>
-              <PoFinishSelect kind="internal" value={common("internalColour")} onChange={(label) => applyAll("internalColour", label)} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-body font-medium text-grey-500">External Brand & Colour — all panel rows</span>
-              <PoFinishSelect kind="external" value={common("externalColour")} onChange={(label) => applyAll("externalColour", label)} />
-            </div>
-          </div>
           {PO_GROUPS.filter((g) => mine.some((l) => l.group === g.key)).map((g) => (
-            <PoLinesTable key={g.key} group={g.key} title={g.label} lines={lines} srNo={srNo} onChange={onChange} />
+            <PoLinesTable
+              key={g.key}
+              group={g.key}
+              title={g.label}
+              lines={lines}
+              srNo={srNo}
+              vars={cabinet ? { W: cabinet.width, D: cabinet.depth, H: cabinet.height } : undefined}
+              onChange={onChange}
+            />
           ))}
         </>
       )}
