@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, FileText, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FileText, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,7 +52,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const dirty = useMemo(() => !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved), [draft, saved]);
   const totals = useMemo(() => (draft ? poTotals(draft) : null), [draft]);
   // Cabinets in quote order; internal/external lists are what the rows actually use.
-  const cabinetNos = useMemo(() => (draft ? [...new Set(draft.lines.map((l) => l.srNo))].sort((a, b) => a - b) : []), [draft]);
+  const cabinetNos = useMemo(
+    () => (draft ? [...new Set([...draft.lines.map((l) => l.srNo), ...Object.keys(draft.material.cabinets ?? {}).map(Number)])].sort((a, b) => a - b) : []),
+    [draft]
+  );
   const usedFinishes = useMemo(() => {
     const distinct = (xs: string[]) => [...new Set(xs.filter(Boolean))];
     return {
@@ -86,14 +89,11 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const set = (fields: Partial<PurchaseOrder>) => setDraft({ ...draft, ...fields });
   const setMaterial = (fields: Partial<PurchaseOrder["material"]>) => set({ material: { ...draft.material, ...fields } });
 
-  const save = async () => {
-    if (!draft.poNumber.trim()) {
-      toastStore.show("PO number is required", "error");
-      return;
-    }
+  // Saves the given draft (default: what's on screen). A blank vendor / PO number is fine while Pending.
+  const save = async (d: PurchaseOrder = draft) => {
     setSaving(true);
     try {
-      const { id: _id, createdAt: _c, vendorName: _v, ...fields } = draft;
+      const { id: _id, createdAt: _c, vendorName: _v, ...fields } = d;
       // The PO's internal/external lists mirror the finishes picked on the rows.
       fields.material = { ...fields.material, internalColours: usedFinishes.internal, externalColours: usedFinishes.external };
       const next = await purchaseOrdersStore.update(id, fields);
@@ -106,6 +106,31 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     }
   };
 
+  // Pending <-> Completed. Completing needs a vendor and a PO number; it saves everything on screen too.
+  const setStatus = (status: PurchaseOrder["status"]) => {
+    if (status === "completed" && (!draft.vendorId || !draft.poNumber.trim())) {
+      toastStore.show("Add a vendor and a PO number before marking it Completed", "error");
+      return;
+    }
+    const next = { ...draft, status };
+    setDraft(next);
+    void save(next);
+  };
+
+  const addCabinet = () => {
+    const no = Math.max(0, ...cabinetNos) + 1;
+    setMaterial({
+      cabinets: {
+        ...draft.material.cabinets,
+        [String(no)]: { label: "", unitName: "", space: "", width: 0, depth: 0, height: 0, qty: 1, cabinetTypeId: "", unitQty: 1 },
+      },
+    });
+  };
+  const removeCabinet = (no: number) => {
+    const { [String(no)]: _gone, ...rest } = draft.material.cabinets;
+    setMaterial({ cabinets: rest });
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -114,13 +139,31 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="font-heading text-2xl font-semibold text-grey-900">
-              Purchase Order <span className="font-number">{draft.poNumber}</span>
+            <h1 className="flex flex-wrap items-center gap-2 font-heading text-2xl font-semibold text-grey-900">
+              <span>
+                Purchase Order {draft.poNumber ? <span className="font-number">{draft.poNumber}</span> : <span className="text-grey-400">(no PO number yet)</span>}
+              </span>
+              <span
+                className={`rounded-full px-2.5 py-0.5 font-body text-xs font-medium ${draft.status === "completed" ? "bg-success-transparent text-success" : "bg-warning-transparent text-warning-900"}`}
+              >
+                {draft.status === "completed" ? "Completed" : "Pending"}
+              </span>
             </h1>
             <p className="text-sm font-body text-grey-500">{dirty ? "Unsaved changes" : "All changes saved"}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {draft.status === "completed" ? (
+            <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => setStatus("pending")}>
+              <RotateCcw className="h-4 w-4" />
+              Reopen
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => setStatus("completed")}>
+              <CheckCircle2 className="h-4 w-4" />
+              Mark as Completed
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -136,7 +179,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             <Trash2 className="h-4 w-4" />
             Delete
           </Button>
-          <Button type="button" size="sm" disabled={!dirty || saving} onClick={save}>
+          <Button type="button" size="sm" disabled={!dirty || saving} onClick={() => void save()}>
             <Save className="h-4 w-4" />
             {saving ? "Saving…" : "Save"}
           </Button>
@@ -154,7 +197,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             }}
             className={field}
           >
-            {!vendor && <option value={draft.vendorId}>{draft.vendorName || "Unknown vendor"}</option>}
+            <option value="">Select a vendor…</option>
+            {!vendor && draft.vendorId && <option value={draft.vendorId}>{draft.vendorName || "Unknown vendor"}</option>}
             {vendors.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.name}
@@ -222,13 +266,25 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       </div>
 
       <div className={card}>
-        <h2 className="font-heading text-base font-semibold text-grey-900">
-          Cabinets <span className="font-number text-sm font-normal text-grey-500">({cabinetNos.length})</span>
-        </h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-heading text-base font-semibold text-grey-900">
+            Cabinets <span className="font-number text-sm font-normal text-grey-500">({cabinetNos.length})</span>
+          </h2>
+          <Button type="button" variant="outline" size="sm" onClick={addCabinet}>
+            <Plus className="h-4 w-4" />
+            Add Cabinet
+          </Button>
+        </div>
+        {cabinetNos.length === 0 && (
+          <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">
+            No cabinets yet. Click Add Cabinet, then add its rows.
+          </p>
+        )}
         {cabinetNos.map((no) => (
           <PoCabinetCard key={no} srNo={no} lines={draft.lines} cabinet={draft.material.cabinets?.[String(no)]}
             onCabinetChange={(next) => setMaterial({ cabinets: { ...draft.material.cabinets, [String(no)]: next } })}
             onChange={(lines) => set({ lines })}
+            onRemove={() => removeCabinet(no)}
           />
         ))}
       </div>

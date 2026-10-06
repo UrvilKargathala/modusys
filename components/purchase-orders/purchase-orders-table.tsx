@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ShoppingCart, Eye } from "lucide-react";
+import { Search, ShoppingCart, Eye, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
@@ -12,14 +14,15 @@ import { useQuotes } from "@/lib/store/quotes-store";
 import Link from "next/link";
 import { formatInr } from "@/lib/format";
 import { formatPoDate } from "@/components/purchase-orders/po-dates";
-import { poTotals, type PurchaseOrder } from "@/lib/purchase-order";
+import { poTotals, type PoStatus, type PurchaseOrder } from "@/lib/purchase-order";
 
-export function PurchaseOrdersTable({ onCreate, quoteId, onClearQuote }: { onCreate?: () => void; quoteId?: string | null; onClearQuote?: () => void }) {
+export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: () => void; quoteId?: string | null; onClearQuote?: () => void }) {
   const router = useRouter();
   const orders = usePurchaseOrders();
   const customers = useCustomers();
   const quotes = useQuotes();
   const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<PoStatus>("pending");
 
   const customerName = useMemo(() => new Map(customers.map((c) => [c.id, c.name])), [customers]);
   const quoteNumber = useMemo(() => new Map(quotes.map((q) => [q.id, q.quoteNumber])), [quotes]);
@@ -34,8 +37,10 @@ export function PurchaseOrdersTable({ onCreate, quoteId, onClearQuote }: { onCre
         total: poTotals(po).final,
       }))
       .filter((r) => !quoteId || r.po.quoteId === quoteId)
+      .filter((r) => r.po.status === status)
       .filter((r) => `${r.po.poNumber} ${r.po.vendorName} ${r.customer} ${r.quote}`.toLowerCase().includes(q));
-  }, [orders, customerName, quoteNumber, search, quoteId]);
+  }, [orders, customerName, quoteNumber, search, quoteId, status]);
+  const count = (st: PoStatus) => orders.filter((o) => o.status === st && (!quoteId || o.quoteId === quoteId)).length;
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(rows);
 
   return (
@@ -50,21 +55,52 @@ export function PurchaseOrdersTable({ onCreate, quoteId, onClearQuote }: { onCre
           </button>
         </div>
       )}
-      <div className="relative w-full max-w-xs">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search PO no, vendor, customer, quote..."
-          className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
-        />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2" role="tablist" aria-label="Purchase order status">
+          {(["pending", "completed"] as const).map((st) => (
+            <button
+              key={st}
+              type="button"
+              role="tab"
+              aria-selected={status === st}
+              onClick={() => setStatus(st)}
+              className={cn(
+                "rounded-full border px-3.5 py-1.5 text-sm font-body font-medium transition-colors",
+                status === st ? "border-primary bg-primary-transparent text-primary" : "border-grey-100 bg-card text-grey-600 hover:bg-light-600"
+              )}
+            >
+              {st === "pending" ? "Pending" : "Completed"} <span className="font-number">({count(st)})</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-64">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search PO no, vendor, customer, quote..."
+              className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
+            />
+          </div>
+          {onNew && (
+            <Button size="sm" onClick={onNew}>
+              <Plus className="h-4 w-4" />
+              Create Purchase Order
+            </Button>
+          )}
+        </div>
       </div>
 
       {rows.length === 0 ? (
         <EmptyState
           icon={ShoppingCart}
-          message="No purchase orders yet. Create one from an approved quote."
-          cta={onCreate ? { label: "Go to Quotes", onClick: onCreate } : undefined}
+          message={
+            status === "pending"
+              ? "No pending purchase orders. One appears here when a quote is set to In Production, or you can create one by hand."
+              : "No completed purchase orders yet."
+          }
+          cta={status === "pending" && onNew ? { label: "Create Purchase Order", onClick: onNew } : undefined}
         />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
@@ -85,11 +121,11 @@ export function PurchaseOrdersTable({ onCreate, quoteId, onClearQuote }: { onCre
               {paged.map(({ po, customer, quote, total }) => (
                 <tr key={po.id} className="border-t border-grey-100">
                   <td className="px-4 py-3 font-number text-sm text-grey-900">
-                    <Link href={`/purchase-orders/${po.id}`} className="text-primary hover:underline">{po.poNumber}</Link>
+                    <Link href={`/purchase-orders/${po.id}`} className="text-primary hover:underline">{po.poNumber || <span className="text-grey-400">Not set</span>}</Link>
                   </td>
                   <td className="px-4 py-3 font-number text-sm text-grey-700">{formatPoDate(po.poDate)}</td>
                   <td className="px-4 py-3 font-number text-sm text-grey-700">{formatPoDate(po.requiredDate)}</td>
-                  <td className="px-4 py-3 text-sm font-body text-grey-900">{po.vendorName || "—"}</td>
+                  <td className="px-4 py-3 text-sm font-body text-grey-900">{po.vendorName || <span className="text-grey-400">No vendor yet</span>}</td>
                   <td className="px-4 py-3 text-sm font-body text-grey-700">{customer || "—"}</td>
                   <td className="px-4 py-3 font-number text-sm text-grey-700">{quote || "—"}</td>
                   <td className="px-4 py-3 text-right font-number text-sm text-grey-900">{formatInr(total)}</td>

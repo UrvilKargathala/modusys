@@ -718,6 +718,8 @@ model PurchaseOrder {
   material     Json      @default("{}")
   discountPct  Float     @default(0)
   gstMode      String    @default("intra") // "intra" (9%+9%) | "inter" (18% IGST)
+  // "pending" (default, set when created) | "completed" (set by the Mark as Completed button).
+  status       String    @default("pending")
   roundOff     Float     @default(0)
   remarks      String    @default("")
   createdById  String?

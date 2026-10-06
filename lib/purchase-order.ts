@@ -45,6 +45,9 @@ export type PurchaseOrderLine = {
 
 export type GstMode = "intra" | "inter";
 
+// Pending until someone presses Mark as Completed.
+export type PoStatus = "pending" | "completed";
+
 export type PurchaseOrder = {
   id: string;
   poNumber: string;
@@ -58,6 +61,7 @@ export type PurchaseOrder = {
   discountPct: number;
   material: PoMaterial;
   gstMode: GstMode;
+  status: PoStatus;
   roundOff: number;
   remarks: string;
   createdAt: string;

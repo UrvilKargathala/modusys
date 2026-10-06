@@ -49,6 +49,18 @@ const HW_COLS: Col[] = [
 
 const TEXT_KEYS = new Set(["description", "designType", "internalColour", "externalColour", "material", "articleNo", "brand", "category", "unit", "remarks"]);
 
+// A new empty row for a group, in the given cabinet.
+export function newBlankLine(group: PoGroup, srNo: number, designType: string, position: number): PurchaseOrderLine {
+  return {
+    id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    group,
+    srNo,
+    position,
+    description: "", designType, width: 0, depth: 0, height: 0, qty: 1, sqft: 0,
+    internalColour: "", externalColour: "", material: "", articleNo: "", brand: "", category: "", unit: "", rate: 0, remarks: "",
+  };
+}
+
 type Vars = { W: number; D: number; H: number };
 
 // Number cell that also takes a formula in the cabinet's W / D / H ("w-10", "(D-20)/2"; upper or lower case).
@@ -118,17 +130,8 @@ export function PoLinesTable({
     );
   const add = () => {
     setCollapsed(false);
-    onChange([
-      ...lines,
-      {
-        id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        group,
-        srNo: srNo ?? mine[mine.length - 1]?.srNo ?? 0,
-        position: lines.length,
-        description: "", designType: srNo === undefined ? "" : (lines.find((l) => l.srNo === srNo)?.designType ?? ""), width: 0, depth: 0, height: 0, qty: 1, sqft: 0,
-        internalColour: "", externalColour: "", material: "", articleNo: "", brand: "", category: "", unit: "", rate: 0, remarks: "",
-      },
-    ]);
+    const no = srNo ?? mine[mine.length - 1]?.srNo ?? 0;
+    onChange([...lines, newBlankLine(group, no, srNo === undefined ? "" : (lines.find((l) => l.srNo === srNo)?.designType ?? ""), lines.length)]);
   };
 
   return (

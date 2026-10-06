@@ -1,12 +1,13 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ShoppingCart, CalendarDays, IndianRupee, Store } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { PurchaseOrdersTable } from "@/components/purchase-orders/purchase-orders-table";
 import { VendorsTable } from "@/components/purchase-orders/vendors-table";
+import { NewPoDialog } from "@/components/purchase-orders/new-po-dialog";
 import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { useVendors } from "@/lib/store/vendors-store";
 import { formatInr } from "@/lib/format";
@@ -24,6 +25,7 @@ function View() {
   const tab = searchParams.get("tab") === "vendors" ? "vendors" : "orders";
   const quoteFilter = searchParams.get("quote");
 
+  const [newOpen, setNewOpen] = useState(false);
   const orders = usePurchaseOrders();
   const vendors = useVendors();
   const kpis = useMemo(() => {
@@ -58,12 +60,13 @@ function View() {
           ))}
         </TabsList>
         <TabsContent value="orders" className="pt-6">
-          <PurchaseOrdersTable onCreate={() => router.push("/quotes")} quoteId={quoteFilter} onClearQuote={() => router.replace(pathname, { scroll: false })} />
+          <PurchaseOrdersTable onNew={() => setNewOpen(true)} quoteId={quoteFilter} onClearQuote={() => router.replace(pathname, { scroll: false })} />
         </TabsContent>
         <TabsContent value="vendors" className="pt-6">
           <VendorsTable />
         </TabsContent>
       </Tabs>
+      <NewPoDialog open={newOpen} onOpenChange={setNewOpen} />
     </div>
   );
 }

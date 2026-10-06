@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
+import { PoLinesTable, newBlankLine } from "@/components/purchase-orders/po-lines-table";
 import { formatInr } from "@/lib/format";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
@@ -23,16 +23,19 @@ export function PoCabinetCard({
   cabinet,
   onCabinetChange,
   onChange,
+  onRemove,
 }: {
   srNo: number;
   lines: PurchaseOrderLine[];
   cabinet?: PoCabinet;
   onCabinetChange: (cabinet: PoCabinet) => void;
   onChange: (lines: PurchaseOrderLine[]) => void;
+  onRemove: () => void;
 }) {
-  // Collapsed by default: a PO can have dozens of cabinets, so open only the ones you need.
-  const [collapsed, setCollapsed] = useState(true);
   const mine = lines.filter((l) => l.srNo === srNo);
+  // Collapsed by default: a PO can have dozens of cabinets, so open only the ones you need.
+  // A cabinet with no rows yet (just added by hand) starts open so you can fill it.
+  const [collapsed, setCollapsed] = useState(mine.length > 0);
   const designType = mine[0]?.designType ?? "";
   const total = mine.reduce((s, l) => s + lineAmount(l), 0);
 
@@ -53,11 +56,36 @@ export function PoCabinetCard({
     );
   };
 
+  // A cabinet added by hand (not from a quote) has no unit or cabinet type: its name is typed in, and it has no Auto Populate.
+  const isManual = !!cabinet && !cabinet.unitName && !cabinet.cabinetTypeId;
+  const emptyGroups = PO_GROUPS.filter((g) => !mine.some((l) => l.group === g.key));
+
   const name = [cabinet?.unitName, cabinet?.label].filter(Boolean).join(" · ");
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-grey-100 bg-card p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
+        {isManual && cabinet ? (
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label={`${collapsed ? "Expand" : "Collapse"} cabinet ${srNo}`}
+              aria-expanded={!collapsed}
+              className="flex items-center gap-2 hover:text-primary"
+            >
+              {collapsed ? <ChevronRight className="h-4 w-4 shrink-0 text-grey-500" /> : <ChevronDown className="h-4 w-4 shrink-0 text-grey-500" />}
+              <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-primary-transparent px-1.5 font-number text-sm font-semibold text-primary">{srNo}</span>
+            </button>
+            <input
+              aria-label={`Cabinet ${srNo} name`}
+              placeholder="Cabinet name, e.g. Base Unit"
+              className="h-8 w-72 rounded-md border border-grey-100 bg-card px-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+              value={cabinet.label}
+              onChange={(e) => onCabinetChange({ ...cabinet, label: e.target.value })}
+            />
+          </div>
+        ) : (
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}
@@ -75,6 +103,7 @@ export function PoCabinetCard({
             {cabinet?.space && <span className="text-xs font-body text-grey-500">{cabinet.space}</span>}
           </span>
         </button>
+        )}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-body text-grey-700">
           {cabinet && (
             <div className="flex flex-wrap items-center gap-2">
@@ -91,6 +120,7 @@ export function PoCabinetCard({
                   />
                 </label>
               ))}
+              {!isManual && (
               <Button
                 type="button"
                 size="sm"
@@ -101,6 +131,7 @@ export function PoCabinetCard({
                 <Sparkles className="h-3.5 w-3.5" />
                 Auto Populate
               </Button>
+              )}
             </div>
           )}
           <span className="font-number font-semibold text-grey-900">{formatInr(total)}</span>
@@ -120,6 +151,20 @@ export function PoCabinetCard({
               onChange={onChange}
             />
           ))}
+          <div className="flex flex-wrap items-center gap-2">
+            {emptyGroups.length > 0 && <span className="text-xs font-body text-grey-500">Add rows:</span>}
+            {emptyGroups.map((g) => (
+              <Button key={g.key} type="button" variant="outline" size="sm" onClick={() => onChange([...lines, newBlankLine(g.key, srNo, designType, lines.length)])}>
+                <Plus className="h-3.5 w-3.5" />
+                {g.label}
+              </Button>
+            ))}
+            {mine.length === 0 && (
+              <Button type="button" variant="outline" size="sm" className="ml-auto text-error" onClick={onRemove}>
+                Remove cabinet
+              </Button>
+            )}
+          </div>
         </>
       )}
     </div>

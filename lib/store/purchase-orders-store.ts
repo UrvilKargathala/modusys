@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { PurchaseOrder, PurchaseOrderLine } from "@/lib/purchase-order";
+import type { PoStatus, PurchaseOrder, PurchaseOrderLine } from "@/lib/purchase-order";
 
 // Backed by /api/purchase-orders. One fetch on first use, no polling. Writes
 // wait for the server (a PO is a snapshot — no optimistic guessing) and then
@@ -45,7 +45,8 @@ function put(po: PurchaseOrder) {
   emit();
 }
 
-export type PurchaseOrderInput = Omit<PurchaseOrder, "id" | "createdAt" | "vendorName" | "lines"> & { lines: Omit<PurchaseOrderLine, "id">[] };
+// status is set by the server on create (always "pending"); it can be changed later through update().
+export type PurchaseOrderInput = Omit<PurchaseOrder, "id" | "createdAt" | "vendorName" | "lines" | "status"> & { lines: Omit<PurchaseOrderLine, "id">[] };
 
 export const purchaseOrdersStore = {
   subscribe(listener: () => void) {
@@ -69,7 +70,19 @@ export const purchaseOrdersStore = {
     put(po);
     return po;
   },
-  async update(id: string, fields: Partial<PurchaseOrderInput>): Promise<PurchaseOrder> {
+  // Auto-create for a quote that just went In Production: the server returns the existing PO instead of making a second one.
+  async createOnceForQuote(input: PurchaseOrderInput): Promise<{ po: PurchaseOrder; created: boolean }> {
+    ensureHydrated();
+    const res = await fetch("/api/purchase-orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...input, onlyIfNone: true }),
+    });
+    const po = await save(res);
+    put(po);
+    return { po, created: res.status === 201 };
+  },
+  async update(id: string, fields: Partial<PurchaseOrderInput> & { status?: PoStatus }): Promise<PurchaseOrder> {
     const po = await save(
       await fetch(`/api/purchase-orders/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fields) })
     );

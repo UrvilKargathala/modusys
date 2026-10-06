@@ -29,21 +29,29 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const b = await req.json();
   const data: Record<string, unknown> = {};
   for (const k of ["poDate", "requiredDate", "remarks"] as const) if (b[k] !== undefined) data[k] = String(b[k]);
-  if (b.poNumber !== undefined) {
-    const n = String(b.poNumber).trim();
-    if (!n) return NextResponse.json({ error: "PO number is required" }, { status: 400 });
-    data.poNumber = n;
-  }
+  if (b.poNumber !== undefined) data.poNumber = String(b.poNumber).trim();
   if (b.vendorId !== undefined) {
-    const v = await prisma.vendor.findFirst({ where: { id: String(b.vendorId), deletedAt: null } });
-    if (!v) return NextResponse.json({ error: "Choose a vendor" }, { status: 400 });
-    data.vendorId = v.id;
+    const vid = String(b.vendorId).trim();
+    if (vid) {
+      const v = await prisma.vendor.findFirst({ where: { id: vid, deletedAt: null } });
+      if (!v) return NextResponse.json({ error: "That vendor no longer exists" }, { status: 400 });
+    }
+    data.vendorId = vid;
   }
+  if (b.status !== undefined) data.status = b.status === "completed" ? "completed" : "pending";
   if (b.discountPct !== undefined) data.discountPct = Number(b.discountPct) || 0;
   if (b.roundOff !== undefined) data.roundOff = Number(b.roundOff) || 0;
   if (b.gstMode !== undefined) data.gstMode = b.gstMode === "inter" ? "inter" : "intra";
   if (b.material !== undefined) data.material = cleanMaterial(b.material);
   if (b.deletedAt !== undefined) data.deletedAt = b.deletedAt === null ? null : new Date(b.deletedAt);
+
+  // A PO can only be Completed once it has a vendor and a PO number.
+  if (data.status === "completed") {
+    const current = await prisma.purchaseOrder.findFirst({ where: { id, deletedAt: null } });
+    const vendorId = (data.vendorId as string | undefined) ?? current?.vendorId ?? "";
+    const poNumber = (data.poNumber as string | undefined) ?? current?.poNumber ?? "";
+    if (!vendorId || !poNumber) return NextResponse.json({ error: "Add a vendor and a PO number before marking it Completed" }, { status: 400 });
+  }
 
   const po = await prisma.$transaction(async (tx) => {
     if (Array.isArray(b.lines)) {
