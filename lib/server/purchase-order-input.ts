@@ -33,7 +33,7 @@ export function cleanLines(input: unknown) {
 export function cleanMaterial(m: unknown) {
   const o = (m ?? {}) as Record<string, unknown>;
   const list = (v: unknown) => (Array.isArray(v) ? v.map(str).filter(Boolean) : []);
-  const cabinets: Record<string, { label: string; unitName: string; space: string; width: number; depth: number; height: number; qty: number; cabinetTypeId: string; unitQty: number; designType: string; remark: string; design: string }> = {};
+  const cabinets: Record<string, { label: string; unitName: string; space: string; width: number; depth: number; height: number; qty: number; cabinetTypeId: string; unitQty: number; designType: string; remark: string; design: string; cabinetName: string }> = {};
   for (const [k, v] of Object.entries((o.cabinets ?? {}) as Record<string, Record<string, unknown>>)) {
     cabinets[k] = {
       label: str(v?.label),
@@ -48,6 +48,7 @@ export function cleanMaterial(m: unknown) {
       designType: str(v?.designType),
       remark: str(v?.remark),
       design: str(v?.design),
+      cabinetName: str(v?.cabinetName),
     };
   }
   return {

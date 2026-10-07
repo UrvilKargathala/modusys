@@ -2,7 +2,7 @@
 
 import { Copy, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
+import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
 import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
@@ -59,6 +59,7 @@ export function PoCabinetBlock({
       </span>
       {cabinet && (
         <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
+          <PoCabinetNameField value={cabinet.cabinetName ?? ""} onChange={(v) => onCabinetChange({ ...cabinet, cabinetName: v })} />
           {(["width", "depth", "height", "qty"] as const).map((k) => (
             <label key={k} className="flex shrink-0 items-center gap-1 text-xs text-grey-500">
               {k === "qty" ? "Qty" : k[0].toUpperCase()}

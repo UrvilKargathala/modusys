@@ -21,3 +21,22 @@ export function PoCabinetNameSelect({ value, fallback, onChange }: { value: stri
     </div>
   );
 }
+
+// A labelled Cabinet Name field (own value, separate from the heading), from the same library list.
+export function PoCabinetNameField({ value, onChange }: { value: string; onChange: (name: string) => void }) {
+  const items = useMaterialItems("purchase-cabinet-type");
+  return (
+    <label className="flex shrink-0 items-center gap-1 text-xs text-grey-500">
+      Cabinet Name
+      <div className="w-36">
+        <MaterialReferenceSelect
+          category="purchase-cabinet-type"
+          nameOnly
+          value={items.find((i) => i.name === value)?.id ?? ""}
+          triggerClassName="h-8 py-1 text-[13px]"
+          onChange={(id) => onChange(materialSpecStore.getSnapshot().find((m) => m.id === id)?.name ?? "")}
+        />
+      </div>
+    </label>
+  );
+}

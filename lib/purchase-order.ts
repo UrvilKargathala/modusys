@@ -93,6 +93,8 @@ export type PoCabinet = {
   designType?: string;
   remark?: string;
   design?: string;
+  // Cabinet name picked in its own field from Purchase Material Library > Cabinet Name.
+  cabinetName?: string;
 };
 
 export type PoMaterial = {
