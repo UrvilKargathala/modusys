@@ -161,3 +161,27 @@ export function weekdaysBetween(from: Date, to: Date): number {
   }
   return count;
 }
+
+// People left out of Attendance Reports (page, totals and CSV). They stay employees and can still check in.
+export const REPORT_HIDDEN_NAMES = ["Chirag Patel", "Soham Patel", "Henil Patel", "Infinite Automation"];
+
+// The Reports date range from its URL params (presets week / last-month, or from+to, default this month), in the IST calendar.
+export function reportRange(sp: { from?: string; to?: string; preset?: string }): { fromDate: Date; toDate: Date } {
+  const today = istMidnight();
+  const todayYmd = istDateString();
+  const [y, m] = todayYmd.split("-").map(Number);
+  if (sp.preset === "week") {
+    const dayOfWeek = new Date(`${todayYmd}T00:00:00Z`).getUTCDay();
+    const fromDate = new Date(today);
+    fromDate.setUTCDate(fromDate.getUTCDate() + (dayOfWeek === 0 ? -6 : 1 - dayOfWeek));
+    return { fromDate, toDate: today };
+  }
+  if (sp.preset === "last-month") {
+    return {
+      fromDate: istMidnight(new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 10)),
+      toDate: istMidnight(new Date(Date.UTC(y, m - 1, 0)).toISOString().slice(0, 10)),
+    };
+  }
+  if (sp.from && sp.to) return { fromDate: istMidnight(sp.from), toDate: istMidnight(sp.to) };
+  return { fromDate: istMidnight(`${y}-${String(m).padStart(2, "0")}-01`), toDate: today };
+}

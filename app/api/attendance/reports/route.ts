@@ -4,6 +4,7 @@ import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/require-user";
 import { getCurrentEmployee } from "@/lib/server/current-employee";
 import {
+  REPORT_HIDDEN_NAMES,
   workingMinutes,
   weekdaysBetween,
   istMidnight,
@@ -45,6 +46,7 @@ export async function GET(req: NextRequest) {
   const employees = await prisma.employee.findMany({
     where: {
       isActive: true,
+      name: { notIn: REPORT_HIDDEN_NAMES },
       id: { in: employeeIdParam ? managedIds.filter((id) => id === employeeIdParam) : managedIds },
       ...(departmentParam ? { department: departmentParam } : {}),
     },

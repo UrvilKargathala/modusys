@@ -8,6 +8,7 @@ import {
   weekdaysBetween,
   istMidnight,
   istDateString,
+  REPORT_HIDDEN_NAMES,
 } from "@/lib/attendance-config";
 import { Card } from "@/components/ui/card";
 import { Download } from "lucide-react";
@@ -67,6 +68,7 @@ export default async function ReportsPage({
     where: isSuper
       ? {
           isActive: true,
+          name: { notIn: REPORT_HIDDEN_NAMES },
           id: { in: sp.employeeId ? managedIds.filter((id) => id === sp.employeeId) : managedIds },
           ...(sp.department ? { department: sp.department } : {}),
         }
@@ -79,7 +81,7 @@ export default async function ReportsPage({
     ? Array.from(
         new Set(
           (await prisma.employee.findMany({
-            where: { isActive: true, id: { in: managedIds } },
+            where: { isActive: true, name: { notIn: REPORT_HIDDEN_NAMES }, id: { in: managedIds } },
             select: { department: true },
           }))
             .map((e) => e.department)
@@ -285,7 +287,9 @@ export default async function ReportsPage({
             <tbody className="divide-y divide-grey-100">
               {rows.map((r) => (
                 <tr key={r.id} className="hover:bg-light-600/50">
-                  <td className="px-6 py-3 text-sm font-body font-medium text-grey-900">{r.name}</td>
+                  <td className="px-6 py-3 text-sm font-body font-medium text-grey-900">
+                    <a href={`/attendance/reports/${r.id}?from=${toYmd(fromDate)}&to=${toYmd(toDate)}`} className="text-primary hover:underline">{r.name}</a>
+                  </td>
                   <td className="px-6 py-3 text-sm font-number font-light text-grey-500">{r.employeeNumber || "-"}</td>
                   <td className="px-6 py-3 text-sm font-body text-grey-500">{r.department || "-"}</td>
                   <td className="px-6 py-3 text-sm font-number font-light text-grey-700">{r.daysPresent}</td>

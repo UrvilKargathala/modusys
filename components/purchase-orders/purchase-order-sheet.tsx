@@ -1,5 +1,8 @@
 import { formatPoDate } from "@/components/purchase-orders/po-dates";
-import { COMPANY_GST, PO_GROUPS, lineAmount, poTotals, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
+import type { Customer } from "@/lib/mock/pipeline";
+import { Fragment } from "react";
+import { HW_HEADERS, PANEL_HEADERS, byCabinet, groupsFor, poDetailSections, type PoExportPart } from "@/lib/purchase-order-export";
+import { COMPANY_GST, lineAmount, poTotals, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
 
 type Branding = { companyName: string; address: string; email: string; phone: string };
 
@@ -23,14 +26,14 @@ function Info({ title, rows }: { title: string; rows: [string, string][] }) {
   );
 }
 
-function PanelTable({ title, code, lines }: { title: string; code: string; lines: PurchaseOrderLine[] }) {
+function PanelTable({ title, code, lines, po }: { title: string; code: string; lines: PurchaseOrderLine[]; po: PurchaseOrder }) {
   const qty = lines.reduce((s, l) => s + l.qty, 0);
   const sqft = lines.reduce((s, l) => s + l.sqft, 0);
   return (
     <table className="w-full border-collapse text-[10px]">
       <thead>
         <tr>
-          {["Sr No", "Description", "Design Type", "Width", "Depth", "Height", "Qty", "Sq.Ft", "Internal Color", "External Color", "Material", "Rate", "Amount", "Remarks"].map((h) => (
+          {PANEL_HEADERS.map((h) => (
             <th key={h} className={head}>{h}</th>
           ))}
         </tr>
@@ -41,9 +44,14 @@ function PanelTable({ title, code, lines }: { title: string; code: string; lines
         </tr>
       </thead>
       <tbody>
-        {lines.map((l) => (
+        {byCabinet(po, lines[0]?.group ?? "").map((c) => (
+          <Fragment key={c.srNo}>
+          <tr>
+            <td className={`${cell} bg-light-600 font-semibold`} colSpan={14}>{c.srNo}. {c.name}</td>
+          </tr>
+          {c.rows.map(({ l, sr }) => (
           <tr key={l.id}>
-            <td className={`${cell} text-center`}>{l.srNo}</td>
+            <td className={`${cell} text-center`}>{sr}</td>
             <td className={cell}>{l.description}</td>
             <td className={`${cell} text-center`}>{l.designType}</td>
             <td className={`${cell} text-right`}>{num(l.width)}</td>
@@ -58,6 +66,8 @@ function PanelTable({ title, code, lines }: { title: string; code: string; lines
             <td className={`${cell} text-right`}>{l.rate ? num(lineAmount(l), 2) : ""}</td>
             <td className={cell}>{l.remarks}</td>
           </tr>
+          ))}
+          </Fragment>
         ))}
         <tr className="font-semibold">
           <td className={`${cell} text-right`} colSpan={6}>TOTAL</td>
@@ -72,12 +82,12 @@ function PanelTable({ title, code, lines }: { title: string; code: string; lines
   );
 }
 
-function HardwareTable({ lines }: { lines: PurchaseOrderLine[] }) {
+function HardwareTable({ lines, po }: { lines: PurchaseOrderLine[]; po: PurchaseOrder }) {
   return (
     <table className="w-full border-collapse text-[10px]">
       <thead>
         <tr>
-          {["Sr No", "Description", "Design Type", "Article No", "Brand", "Category", "Unit", "Qty", "Rate", "Amount", "Remarks"].map((h) => (
+          {HW_HEADERS.map((h) => (
             <th key={h} className={head}>{h}</th>
           ))}
         </tr>
@@ -86,13 +96,18 @@ function HardwareTable({ lines }: { lines: PurchaseOrderLine[] }) {
         </tr>
       </thead>
       <tbody>
-        {lines.map((l) => (
+        {byCabinet(po, "hardware").map((c) => (
+          <Fragment key={c.srNo}>
+          <tr>
+            <td className={`${cell} bg-light-600 font-semibold`} colSpan={11}>{c.srNo}. {c.name}</td>
+          </tr>
+          {c.rows.map(({ l, sr }) => (
           <tr key={l.id}>
-            <td className={`${cell} text-center`}>{l.srNo}</td>
+            <td className={`${cell} text-center`}>{sr}</td>
+            <td className={cell}>{l.brand}</td>
             <td className={cell}>{l.description}</td>
             <td className={`${cell} text-center`}>{l.designType}</td>
             <td className={cell}>{l.articleNo}</td>
-            <td className={cell}>{l.brand}</td>
             <td className={cell}>{l.category}</td>
             <td className={`${cell} text-center`}>{l.unit}</td>
             <td className={`${cell} text-right`}>{num(l.qty)}</td>
@@ -100,6 +115,8 @@ function HardwareTable({ lines }: { lines: PurchaseOrderLine[] }) {
             <td className={`${cell} text-right`}>{l.rate ? num(lineAmount(l), 2) : ""}</td>
             <td className={cell}>{l.remarks}</td>
           </tr>
+          ))}
+          </Fragment>
         ))}
         <tr className="font-semibold">
           <td className={`${cell} text-right`} colSpan={9}>TOTAL</td>
@@ -114,7 +131,7 @@ function HardwareTable({ lines }: { lines: PurchaseOrderLine[] }) {
 // Printable PO laid out like the Excel sheet: header, vendor / material / PO
 // details, the four line groups, totals and signature. Plain white + black so
 // it prints cleanly and a vendor can read it.
-export function PurchaseOrderSheet({ po, vendor, branding }: { po: PurchaseOrder; vendor?: Vendor; branding: Branding }) {
+export function PurchaseOrderSheet({ po, vendor, customer, quoteNumber, branding, part = "full" }: { po: PurchaseOrder; vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: Branding; part?: PoExportPart }) {
   const t = poTotals(po);
   const m = po.material;
   const colours = (groups: string[], key: "internalColour" | "externalColour") =>
@@ -128,7 +145,7 @@ export function PurchaseOrderSheet({ po, vendor, branding }: { po: PurchaseOrder
   );
 
   return (
-    <div className="flex flex-col gap-3 bg-white p-6 font-body text-[11px] text-grey-900">
+    <div className="flex flex-col gap-3 bg-white p-6 font-heading text-[11px] text-grey-900 [&_*]:font-heading">
       <div className="flex items-start justify-between gap-6">
         <div>
           <h1 className="font-heading text-lg font-bold uppercase">{branding.companyName}</h1>
@@ -140,50 +157,19 @@ export function PurchaseOrderSheet({ po, vendor, branding }: { po: PurchaseOrder
         <h2 className="font-heading text-xl font-bold uppercase">Purchase Order</h2>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
-        <Info
-          title="Vendor Details"
-          rows={[
-            ["Vendor Name", vendor?.name ?? po.vendorName],
-            ["Address", [vendor?.address, vendor?.city, vendor?.state].filter(Boolean).join(", ")],
-            ["GST No", vendor?.gst ?? ""],
-            ["Contact Detail", [contacts[0]?.name, contacts[0]?.phone].filter(Boolean).join(": ")],
-            ["Contact Detail", [contacts[1]?.name, contacts[1]?.phone].filter(Boolean).join(": ")],
-          ]}
-        />
-        <Info
-          title="Shutter Details"
-          rows={[
-            ["Shutter Raw Material", m.shutterRawMaterial],
-            ["Internal Color", colours(["shutter"], "internalColour")],
-            ["External Color", colours(["shutter"], "externalColour")],
-          ]}
-        />
-        <Info
-          title="Cabinet Details"
-          rows={[
-            ["Cabinet Raw Material", m.cabinetRawMaterial],
-            ["Internal Color", colours(["carcass", "other-panel"], "internalColour")],
-            ["External Color", colours(["carcass", "other-panel"], "externalColour")],
-          ]}
-        />
-        <Info
-          title="Purchase Order Details"
-          rows={[
-            ["Purchase Order No", po.poNumber],
-            ["Purchase Order Date", formatPoDate(po.poDate)],
-            ["Required Date", formatPoDate(po.requiredDate)],
-          ]}
-        />
+      <div className="grid grid-cols-3 gap-3">
+        {poDetailSections(po, { vendor, customer, quoteNumber, branding }).map((sec) => (
+          <Info key={sec.title} title={sec.title} rows={sec.rows} />
+        ))}
       </div>
 
-      {PO_GROUPS.map((g) => {
+      {groupsFor(part).map((g) => {
         const lines = po.lines.filter((l) => l.group === g.key);
         if (lines.length === 0) return null;
         return g.key === "hardware" ? (
-          <HardwareTable key={g.key} lines={lines} />
+          <HardwareTable key={g.key} lines={lines} po={po} />
         ) : (
-          <PanelTable key={g.key} code={g.code} title={g.label} lines={lines} />
+          <PanelTable key={g.key} code={g.code} title={g.label} lines={lines} po={po} />
         );
       })}
 

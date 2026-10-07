@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ShoppingCart, Eye, Plus, Trash2, Copy } from "lucide-react";
+import { Search, ShoppingCart, Eye, Plus, Trash2, Copy, Download, FileText, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { PO_EXPORT_PARTS } from "@/lib/purchase-order-export";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { toastStore } from "@/lib/store/toast-store";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
@@ -155,6 +157,36 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
                         </TooltipTrigger>
                         <TooltipContent>View</TooltipContent>
                       </Tooltip>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          aria-label="Download"
+                          title="Download"
+                          className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                        >
+                          <Download className="h-4 w-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-52">
+                          <DropdownMenuGroup>
+                          <DropdownMenuLabel>PDF</DropdownMenuLabel>
+                          {PO_EXPORT_PARTS.map((p) => (
+                            <DropdownMenuItem key={`pdf-${p.key}`} className="gap-2" onClick={() => window.open(`/purchase-orders/${po.id}/pdf${p.key === "full" ? "" : `?part=${p.key}`}`, "_blank")}>
+                              <FileText className="h-4 w-4 text-grey-400" />
+                              {p.label}
+                            </DropdownMenuItem>
+                          ))}
+                          </DropdownMenuGroup>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuGroup>
+                          <DropdownMenuLabel>Excel</DropdownMenuLabel>
+                          {PO_EXPORT_PARTS.map((p) => (
+                            <DropdownMenuItem key={`xls-${p.key}`} className="gap-2" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?format=excel${p.key === "full" ? "" : `&part=${p.key}`}`, "_blank")}>
+                              <FileSpreadsheet className="h-4 w-4 text-grey-400" />
+                              {p.label}
+                            </DropdownMenuItem>
+                          ))}
+                          </DropdownMenuGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <Tooltip>
                         <TooltipTrigger
                           aria-label="Copy"
