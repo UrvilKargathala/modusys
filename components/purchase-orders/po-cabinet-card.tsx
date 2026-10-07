@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PoDesignSelect } from "@/components/purchase-orders/po-design-select";
+import { PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
 import { PoLinesTable, newBlankLine } from "@/components/purchase-orders/po-lines-table";
 import { formatInr } from "@/lib/format";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
@@ -121,7 +121,7 @@ export function PoCabinetCard({
                   />
                 </label>
               ))}
-              <PoDesignSelect value={cabinet.designType ?? ""} onChange={(v) => onCabinetChange({ ...cabinet, designType: v })} />
+              <PoCabinetNameSelect value={cabinet.designType ?? ""} fallback={cabinet.label} onChange={(v) => onCabinetChange({ ...cabinet, designType: v })} />
           <input
             aria-label={`Cabinet ${srNo} remark`}
             placeholder="Remark"

@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, Copy, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/format";
+import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { evaluateFormula } from "@/lib/quote-pricing";
 import { toastStore } from "@/lib/store/toast-store";
@@ -211,6 +212,10 @@ export function PoLinesTable({
                           value={l[c.key]}
                           onChange={(label) => patch(l.id, { [c.key]: label })}
                         />
+                      ) : c.key === "description" ? (
+                        <PoRawMaterialSelect compact category="furniture-component" value={l.description} onChange={(name) => patch(l.id, { description: name })} />
+                      ) : c.key === "material" && !hardware ? (
+                        <PoRawMaterialSelect compact value={l.material} onChange={(name) => patch(l.id, { material: name })} />
                       ) : TEXT_KEYS.has(c.key) ? (
                         <input
                           className={cell}

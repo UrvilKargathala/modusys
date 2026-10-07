@@ -23,6 +23,7 @@ export function MaterialReferenceSelect({
   disabled = false,
   wide = false,
   sorted = false,
+  fallbackText,
 }: {
   category: MaterialCategoryKey;
   value: string;
@@ -35,6 +36,8 @@ export function MaterialReferenceSelect({
   wide?: boolean;
   // Sorted: A→Z by name (numbers first) instead of Material Library order.
   sorted?: boolean;
+  // Shown in the box when nothing is picked yet (instead of the placeholder).
+  fallbackText?: string;
 }) {
   const meta = getMaterialCategory(category);
   const items = useMaterialItems(category);
@@ -73,7 +76,7 @@ export function MaterialReferenceSelect({
               {!nameOnly && parts(selected).sub && <span className="text-grey-400"> — {parts(selected).sub}</span>}
             </span>
           ) : (
-            <span className="min-w-0 truncate text-grey-400">Select {meta.label.toLowerCase()}</span>
+            <span className={cn("min-w-0 truncate", fallbackText ? "font-number" : "text-grey-400")}>{fallbackText || `Select ${meta.label.toLowerCase()}`}</span>
           )}
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
         </PopoverTrigger>

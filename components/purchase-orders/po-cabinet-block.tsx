@@ -2,7 +2,7 @@
 
 import { Copy, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PoDesignSelect } from "@/components/purchase-orders/po-design-select";
+import { PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
 import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
@@ -36,7 +36,7 @@ export function PoCabinetBlock({
 }) {
   const cabinetType = useCabinetTypes().find((t) => t.id === cabinet?.cabinetTypeId);
   const isManual = !!cabinet && !cabinet.unitName && !cabinet.cabinetTypeId;
-  const name = cabinet?.label || `Cabinet ${srNo}`;
+  const name = cabinet?.designType || cabinet?.label || `Cabinet ${srNo}`;
 
   const autoPopulate = () => {
     if (!cabinet || !cabinetType) return;
@@ -51,11 +51,14 @@ export function PoCabinetBlock({
     <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
       <span className="flex min-w-0 max-w-[260px] shrink items-center gap-2">
         <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-primary-transparent px-1.5 font-number text-sm font-semibold text-primary">{srNo}</span>
-        <span className="truncate font-heading text-base font-semibold text-grey-900">{name}</span>
+        {cabinet ? (
+          <PoCabinetNameSelect value={cabinet.designType ?? ""} fallback={cabinet.label} onChange={(v) => onCabinetChange({ ...cabinet, designType: v })} />
+        ) : (
+          <span className="truncate font-heading text-base font-semibold text-grey-900">{name}</span>
+        )}
       </span>
       {cabinet && (
         <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
-          <PoDesignSelect value={cabinet.designType ?? ""} onChange={(v) => onCabinetChange({ ...cabinet, designType: v })} />
           {(["width", "depth", "height", "qty"] as const).map((k) => (
             <label key={k} className="flex shrink-0 items-center gap-1 text-xs text-grey-500">
               {k === "qty" ? "Qty" : k[0].toUpperCase()}

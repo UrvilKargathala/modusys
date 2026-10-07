@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, FileText, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, FileText, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { PoCabinetCard } from "@/components/purchase-orders/po-cabinet-card";
 import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
 import { quoteCabinetInfo } from "@/lib/purchase-order-from-quote";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
+import { PoHardwareClubbed } from "@/components/purchase-orders/po-hardware-clubbed";
 import { PoCabinetBlock } from "@/components/purchase-orders/po-cabinet-block";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
@@ -47,6 +48,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const [saving, setSaving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   // By component: all cabinets' Carcass rows together, then Shutter, etc. By cabinet: one card per cabinet.
+  // The Carcass list (all cabinet blocks) starts closed; click the heading to open it.
+  const [carcassOpen, setCarcassOpen] = useState(false);
   const [view, setView] = useState<"component" | "cabinet">("component");
 
   // Seed the draft once the PO has loaded; later store updates (our own save)
@@ -148,6 +151,13 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       },
     });
   };
+  // Picking a raw material in Shutter / Cabinet Details also sets the Material column of that scope's rows.
+  const applyMaterial = (scope: "shutter" | "cabinet", key: "shutterRawMaterial" | "cabinetRawMaterial", name: string) =>
+    set({
+      material: { ...draft.material, [key]: name },
+      lines: draft.lines.map((l) => (inScope(scope, l.group) ? { ...l, material: name } : l)),
+    });
+
   // Copy a whole cabinet: its size / details and every row (carcass, shutter, other panel, hardware) become the next cabinet number.
   const copyCabinet = (no: number) => {
     const next = Math.max(0, ...cabinetNos) + 1;
@@ -279,7 +289,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           <h2 className="font-heading text-base font-semibold text-grey-900">Shutter Details</h2>
           <div className="flex flex-col gap-1.5">
             <Label>Shutter Raw Material</Label>
-            <PoRawMaterialSelect value={draft.material.shutterRawMaterial} onChange={(v) => setMaterial({ shutterRawMaterial: v })} />
+            <PoRawMaterialSelect value={draft.material.shutterRawMaterial} onChange={(v) => applyMaterial("shutter", "shutterRawMaterial", v)} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Internal Brand & Colour</Label>
@@ -296,7 +306,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           <h2 className="font-heading text-base font-semibold text-grey-900">Cabinet Details</h2>
           <div className="flex flex-col gap-1.5">
             <Label>Cabinet Raw Material</Label>
-            <PoRawMaterialSelect value={draft.material.cabinetRawMaterial} onChange={(v) => setMaterial({ cabinetRawMaterial: v })} />
+            <PoRawMaterialSelect value={draft.material.cabinetRawMaterial} onChange={(v) => applyMaterial("cabinet", "cabinetRawMaterial", v)} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Internal Brand & Colour</Label>
@@ -313,10 +323,12 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
 
       <div className={card}>
         <div className="flex items-center justify-between gap-3">
-          <h2 className="font-heading text-base font-semibold text-grey-900">
-            Cabinets <span className="font-number text-sm font-normal text-grey-500">({cabinetNos.length})</span>
-          </h2>
-          <div className="flex items-center gap-2">
+          {shownView === "cabinet" && (
+            <h2 className="font-heading text-base font-semibold text-grey-900">
+              Cabinets <span className="font-number text-sm font-normal text-grey-500">({cabinetNos.length})</span>
+            </h2>
+          )}
+          <div className="ml-auto flex items-center gap-2">
             <div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Group rows by">
               {(["component", "cabinet"] as const).map((v) => (
                 <button
@@ -346,7 +358,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         )}
         {shownView === "component"
           ? PO_GROUPS.filter((g) => draft.lines.some((l) => l.group === g.key)).map((g) =>
-            g.key !== "carcass" ? (
+            g.key === "hardware" ? (
+              <PoHardwareClubbed key={g.key} lines={draft.lines} onChange={(lines) => set({ lines })} />
+            ) : g.key !== "carcass" ? (
               <PoLinesTable
                 key={g.key}
                 group={g.key}
@@ -361,10 +375,19 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               />
             ) : (
               <div key={g.key} className="flex flex-col gap-3">
-                <h3 className="font-heading text-base font-semibold text-grey-900">
-                  {g.label} <span className="font-number text-sm font-normal text-grey-500">({draft.lines.filter((l) => l.group === g.key).length})</span>
-                </h3>
-                {cabinetNos
+                <button
+                  type="button"
+                  onClick={() => setCarcassOpen((o) => !o)}
+                  aria-label={`${carcassOpen ? "Collapse" : "Expand"} ${g.label}`}
+                  aria-expanded={carcassOpen}
+                  className="flex items-center gap-1.5 self-start rounded-md text-left hover:text-primary"
+                >
+                  {carcassOpen ? <ChevronDown className="h-4 w-4 text-grey-500" /> : <ChevronRight className="h-4 w-4 text-grey-500" />}
+                  <h3 className="font-heading text-base font-semibold text-grey-900">
+                    {g.label} <span className="font-number text-sm font-normal text-grey-500">({draft.lines.filter((l) => l.group === g.key).length})</span>
+                  </h3>
+                </button>
+                {carcassOpen && cabinetNos
                   .filter((no) => draft.lines.some((l) => l.group === g.key && l.srNo === no))
                   .map((no) => (
                     <PoCabinetBlock
