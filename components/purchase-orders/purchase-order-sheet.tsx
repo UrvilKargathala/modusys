@@ -89,7 +89,8 @@ function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<
   );
 }
 
-function PanelTable({ group, title, lines, po }: { group: PoGroup; title: string; lines: PurchaseOrderLine[]; po: PurchaseOrder }) {
+// plain = no cabinet heading rows and no TOTAL row (used in the Purchase Order (cabinets) PDF).
+function PanelTable({ group, title, lines, po, plain = false }: { group: PoGroup; title: string; lines: PurchaseOrderLine[]; po: PurchaseOrder; plain?: boolean }) {
   const qty = lines.reduce((s, l) => s + l.qty, 0);
   const sqft = lines.reduce((s, l) => s + l.sqft, 0);
   const total = lines.reduce((s, l) => s + lineAmount(l), 0);
@@ -101,10 +102,10 @@ function PanelTable({ group, title, lines, po }: { group: PoGroup; title: string
         <tbody>
           {byCabinet(po, group).map((c) => (
             <Fragment key={c.srNo}>
-              <CarcassHeadingRow po={po} c={c} group={group} />
+              {!plain && <CarcassHeadingRow po={po} c={c} group={group} />}
               {c.rows.map(({ l, sr }, i) => (
                 <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
-                  <td className={cell}>{sr}</td>
+                  <td className={cell}>{plain ? lines.indexOf(l) + 1 : sr}</td>
                   <td className={cell}>{l.description}</td>
                   <td className={cell}>{l.designType}</td>
                   <td className={`${cell} text-right`}>{num(l.width)}</td>
@@ -122,6 +123,7 @@ function PanelTable({ group, title, lines, po }: { group: PoGroup; title: string
               ))}
             </Fragment>
           ))}
+          {!plain && (
           <tr className={`font-semibold ${THEME[group].head}`}>
             <td className={`${cell} text-right`} colSpan={6}>TOTAL</td>
             <td className={`${cell} text-right`}>{num(qty)}</td>
@@ -130,6 +132,7 @@ function PanelTable({ group, title, lines, po }: { group: PoGroup; title: string
             <td className={`${cell} text-right`}>{num(total, 2)}</td>
             <td className={cell} colSpan={4} />
           </tr>
+          )}
         </tbody>
       </table>
     </section>
@@ -179,9 +182,14 @@ function HardwareTable({ title, lines, po }: { title: string; lines: PurchaseOrd
 
 const PART_LABEL: Record<PoExportPart, string> = { full: "Full Details", components: "Components", hardware: "Hardware", cabinets: "Cabinets" };
 
-// Purchase Order (cabinets): each section (Carcass, Shutter, Other Panel, Hardware) lists its cabinets only —
-// one row per cabinet with size, qty, design, finishes, material, sq.ft and amount — no component rows.
+// Purchase Order (cabinets): Carcass as one row per cabinet (size, qty, design, finishes, material, sq.ft, amount);
+// Shutter and Other Panel with their component rows; no Hardware.
 function CabinetSummaryTable({ po }: { po: PurchaseOrder }) {
+  // Rate of a cabinet = the rate its carcass rows share ("Mixed" if they differ, blank if none set).
+  const rateOf = (c: ReturnType<typeof byCabinet>[number]) => {
+    const r = [...new Set(c.rows.map((x) => x.l.rate).filter((n) => n > 0))];
+    return r.length === 1 ? num(r[0], 2) : r.length > 1 ? "Mixed" : "";
+  };
   // Cabinet Name column = the Cabinet Name field picked on the PO (Purchase Material Library).
   const space = (no: number) => po.material.cabinets?.[String(no)]?.cabinetName ?? "";
   return (
@@ -192,34 +200,10 @@ function CabinetSummaryTable({ po }: { po: PurchaseOrder }) {
         const cabs = byCabinet(po, g.key);
         const total = lines.reduce((s, l) => s + lineAmount(l), 0);
         const title = `${g.code}. ${g.label}`;
-        if (g.key === "hardware") {
-          const heads = ["Sr", "Cabinet Type", "Cabinet Name", "Items", "Qty", "Amount", "Remark"];
-          return (
-            <section key={g.key}>
-              <Band group="hardware" title={title} count={cabs.length} total={total} unit="cabinets" />
-              <table className="w-full border-collapse text-[10px]">
-                <thead><Header group="hardware" headers={heads} /></thead>
-                <tbody>
-                  {cabs.map((c, i) => {
-                    const rows = c.rows.map((r) => r.l);
-                    return (
-                      <tr key={c.srNo} className={`break-inside-avoid ${i % 2 ? "bg-light-600" : ""}`}>
-                        <td className={cell}>{c.srNo}</td>
-                        <td className={`${cell} font-semibold`}>{c.name}</td>
-                        <td className={cell}>{space(c.srNo)}</td>
-                        <td className={`${cell} text-right`}>{rows.length}</td>
-                        <td className={`${cell} text-right`}>{num(rows.reduce((s, l) => s + l.qty, 0))}</td>
-                        <td className={`${cell} text-right`}>{num(rows.reduce((s, l) => s + lineAmount(l), 0), 2)}</td>
-                        <td className={cell}>{po.material.cabinets?.[String(c.srNo)]?.remark ?? ""}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </section>
-          );
-        }
-        const heads = ["Sr", "Cabinet Type", "Cabinet Name", "Design", "Width", "Depth", "Height", "Qty", "Sq.Ft", "Amount", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remark"];
+        // Hardware is left out of the Purchase Order (cabinets) PDF; Shutter and Other Panel show their component rows.
+        if (g.key === "hardware") return null;
+        if (g.key !== "carcass") return <PanelTable key={g.key} group={g.key} title={title} lines={lines} po={po} plain />;
+        const heads = ["Sr", "Cabinet Type", "Cabinet Name", "Design", "Width", "Depth", "Height", "Qty", "Sq.Ft", "Rate", "Amount", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remark"];
         return (
           <section key={g.key}>
             <Band group={g.key} title={title} count={cabs.length} total={total} unit="cabinets" />
@@ -239,6 +223,7 @@ function CabinetSummaryTable({ po }: { po: PurchaseOrder }) {
                       <td className={`${cell} text-right`}>{num(h.height)}</td>
                       <td className={`${cell} text-right`}>{num(h.qty)}</td>
                       <td className={`${cell} text-right`}>{h.sqft.toFixed(2)}</td>
+                      <td className={`${cell} text-right`}>{rateOf(c)}</td>
                       <td className={`${cell} text-right`}>{h.amount ? num(h.amount, 2) : ""}</td>
                       <td className={cell}>{h.material}</td>
                       <td className={cell}>{h.internal}</td>
