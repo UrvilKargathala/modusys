@@ -71,7 +71,29 @@ export function byCabinet(po: PurchaseOrder, group: string) {
   return out.sort((x, y) => x.srNo - y.srNo);
 }
 
-export const HW_HEADERS = ["Sr", "Brand", "Description", "Design", "Article No", "Category", "Unit", "Qty", "Rate", "Amount", "Remarks"];
+// Carcass cabinet heading for PDF / Excel: name, then size, design, remark and the finishes its carcass rows share.
+export function carcassHeading(po: PurchaseOrder, c: ReturnType<typeof byCabinet>[number]): string {
+  const cab = po.material.cabinets?.[String(c.srNo)];
+  const rows = c.rows.map((r) => r.l);
+  const common = (k: "internalColour" | "externalColour" | "material") => {
+    const v = [...new Set(rows.map((l) => l[k]).filter(Boolean))];
+    return v.length === 1 ? v[0] : v.length > 1 ? "Mixed" : "";
+  };
+  return [
+    `${c.srNo}. ${c.name}`,
+    cab ? `W ${cab.width} × D ${cab.depth} × H ${cab.height}` : "",
+    cab ? `Qty ${cab.qty}` : "",
+    cab?.design ? `Design: ${cab.design}` : "",
+    common("internalColour") ? `Internal: ${common("internalColour")}` : "",
+    common("externalColour") ? `External: ${common("externalColour")}` : "",
+    common("material") ? `Material: ${common("material")}` : "",
+    cab?.remark ? `Remark: ${cab.remark}` : "",
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
+}
+
+export const HW_HEADERS = ["Sr", "Brand", "Description", "Design", "Article No", "Category", "Unit", "Qty", "MRP", "Discount %", "Rate", "Amount", "Remarks"];
 export const PANEL_HEADERS = ["Sr", "Description", "Design", "Width", "Thk", "Height", "Qty", "Sq.Ft", "Internal Brand & Colour", "External Brand & Colour", "Material", "Rate", "Amount", "Remarks"];
 
 // A Details sheet (all header blocks + totals) on every download, then one sheet per group.
@@ -92,11 +114,11 @@ export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoEx
     const hw = g.key === "hardware";
     const aoaG: (string | number)[][] = [hw ? HW_HEADERS : PANEL_HEADERS];
     for (const c of cabs) {
-      aoaG.push([`${c.srNo}. ${c.name}`]);
+      aoaG.push([g.key === "carcass" ? carcassHeading(po, c) : `${c.srNo}. ${c.name}`]);
       for (const { l, sr } of c.rows)
         aoaG.push(
           hw
-            ? [sr, l.brand, l.description, l.designType, l.articleNo, l.category, l.unit, l.qty, l.rate, lineAmount(l), l.remarks]
+            ? [sr, l.brand, l.description, l.designType, l.articleNo, l.category, l.unit, l.qty, l.rate, l.discountPct ?? 0, Number((l.rate * (1 - (l.discountPct ?? 0) / 100)).toFixed(2)), lineAmount(l), l.remarks]
             : [sr, l.description, l.designType, l.width, l.depth, l.height, l.qty, Number(l.sqft.toFixed(2)), l.internalColour, l.externalColour, l.material, l.rate, lineAmount(l), l.remarks]
         );
     }

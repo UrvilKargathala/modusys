@@ -51,8 +51,39 @@ export function TopNavbar() {
       <nav className="hidden min-w-0 flex-1 items-center justify-start gap-0.5 overflow-x-auto rounded-full bg-primary/40 p-1 lg:flex xl:justify-center xl:gap-1">
         {navigationItems
           .filter((item) => canSeeNav(item, currentUser.role))
-          .map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          .map((item, i, visible) => {
+          const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+          const active = isActive(item.href);
+          if (item.group) {
+            // One dropdown per group, placed at the group's first item.
+            if (visible.findIndex((x) => x.group === item.group) !== i) return null;
+            const members = visible.filter((x) => x.group === item.group);
+            return (
+              <DropdownMenu key={item.group}>
+                <DropdownMenuTrigger
+                  className={cn(
+                    "flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1.5 text-sm font-body font-bold transition-colors xl:px-4",
+                    members.some((m) => isActive(m.href)) ? "bg-primary text-white shadow-sm" : "text-grey-700 hover:text-grey-900"
+                  )}
+                >
+                  {item.group}
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="min-w-52">
+                  {members.map((m) => (
+                    <DropdownMenuItem
+                      key={m.href}
+                      render={<Link href={m.href} />}
+                      className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm font-semibold"
+                    >
+                      <m.icon className="h-4 w-4 shrink-0 text-grey-400" />
+                      {m.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          }
           return (
             <Link
               key={item.href}

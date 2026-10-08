@@ -222,6 +222,7 @@ export function serializePurchaseOrder(po: PurchaseOrder & { lines: PurchaseOrde
         category: l.category,
         unit: l.unit,
         rate: l.rate,
+        discountPct: l.discountPct,
         remarks: l.remarks,
       })),
   };

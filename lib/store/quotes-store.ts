@@ -1,6 +1,6 @@
 "use client";
 
-import { createPendingPoForQuote } from "@/lib/purchase-order-auto";
+import { createPendingPoForQuote, createProcurementCopy } from "@/lib/purchase-order-auto";
 import { useSyncExternalStore } from "react";
 import { mockQuotes, type Quote } from "@/lib/mock/quote";
 import { fetchJson } from "@/lib/store/api-sync";
@@ -86,12 +86,15 @@ export const quotesStore = {
     const existingIndex = quotes.findIndex((q) => q.id === quote.id);
     const quoteNumber = uniqueQuoteNumber(quote.quoteNumber, quotes, quote.id);
     const updated = { ...quote, quoteNumber, updatedAt: new Date().toISOString() };
-    const wasInProduction = existingIndex >= 0 && quotes[existingIndex].status === "in-production";
+    const prevStatus = existingIndex >= 0 ? quotes[existingIndex].status : null;
+    const wasInProduction = prevStatus === "in-production";
     quotes = existingIndex >= 0 ? quotes.map((q, i) => (i === existingIndex ? updated : q)) : [updated, ...quotes];
     emit();
     // An existing quote that just moved to In Production gets its Pending purchase order (see purchase-order-auto).
     // Duplicates, imports and undo are new ids, so they never trigger this.
     if (existingIndex >= 0 && !wasInProduction && updated.status === "in-production") void createPendingPoForQuote(updated);
+    // Moving to In Procurement makes procurement's own editable copy of the quote (once per quote).
+    if (existingIndex >= 0 && prevStatus !== "in-procurement" && updated.status === "in-procurement") void createProcurementCopy(updated);
     // Upsert this single quote in the shared DB.
     fetch("/api/quotes", {
       method: "POST",

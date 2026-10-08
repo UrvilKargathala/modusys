@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, Copy, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatInr } from "@/lib/format";
+import { PoHardwareSelect } from "@/components/purchase-orders/po-hardware-select";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { evaluateFormula } from "@/lib/quote-pricing";
@@ -19,7 +20,6 @@ type Col = { key: string; label: string; width: string };
 
 const PANEL_COLS: Col[] = [
   { key: "srNo", label: "Sr", width: "w-16" },
-  { key: "brand", label: "Brand", width: "w-28" },
   { key: "description", label: "Description", width: "w-72" },
   { key: "designType", label: "Design", width: "w-36" },
   { key: "width", label: "Width", width: "w-20" },
@@ -44,7 +44,9 @@ const HW_COLS: Col[] = [
   { key: "category", label: "Category", width: "w-36" },
   { key: "unit", label: "Unit", width: "w-20" },
   { key: "qty", label: "Qty", width: "w-16" },
-  { key: "rate", label: "Rate", width: "w-24" },
+  { key: "rate", label: "MRP", width: "w-28" },
+  { key: "discountPct", label: "Discount %", width: "w-24" },
+  { key: "netRate", label: "Rate", width: "w-28" },
   { key: "amount", label: "Amount", width: "w-28" },
   { key: "remarks", label: "Remarks", width: "w-48" },
 ];
@@ -189,7 +191,7 @@ export function PoLinesTable({
             <thead className="bg-[#DACCCC]">
               <tr>
                 {cols.map((c) => (
-                  <th key={c.key} className={`${th} ${c.width} ${["width", "depth", "height", "qty", "sqft", "rate", "amount"].includes(c.key) ? "text-right" : ""}`}>
+                  <th key={c.key} className={`${th} ${c.width} ${["width", "depth", "height", "qty", "sqft", "rate", "discountPct", "netRate", "amount"].includes(c.key) ? "text-right" : ""}`}>
                     {c.label}
                   </th>
                 ))}
@@ -201,7 +203,9 @@ export function PoLinesTable({
                 <tr key={l.id} className="border-t border-grey-100">
                   {cols.map((c) => (
                     <td key={c.key} className="px-1 py-1">
-                      {c.key === "srNo" ? (
+                      {c.key === "netRate" ? (
+                        <span className="block px-2 text-right font-number text-sm text-grey-900">{formatInr(l.rate * (1 - (l.discountPct ?? 0) / 100))}</span>
+                      ) : c.key === "srNo" ? (
                         <span className="block px-2 font-number text-sm text-grey-900">{`${l.srNo}.${mine.filter((x) => x.srNo === l.srNo).indexOf(l) + 1}`}</span>
                       ) : c.key === "amount" ? (
                         <span className="block px-2 text-right font-number text-sm text-grey-900">{formatInr(lineAmount(l))}</span>
@@ -213,6 +217,8 @@ export function PoLinesTable({
                           value={l[c.key]}
                           onChange={(label) => patch(l.id, { [c.key]: label })}
                         />
+                      ) : hardware && (c.key === "brand" || c.key === "category" || c.key === "description" || c.key === "articleNo") ? (
+                        <PoHardwareSelect field={c.key} line={l} onChange={(fields) => patch(l.id, fields)} />
                       ) : c.key === "description" ? (
                         <PoRawMaterialSelect compact category="furniture-component" value={l.description} onChange={(name) => patch(l.id, { description: name })} />
                       ) : c.key === "material" && !hardware ? (
@@ -231,8 +237,8 @@ export function PoLinesTable({
                           className={numCell}
                           min={0}
                           step="any"
-                          placeholder={c.key === "rate" ? "0" : undefined}
-                          value={Number(l[c.key as keyof PurchaseOrderLine]) === 0 && c.key === "rate" ? "" : String(l[c.key as keyof PurchaseOrderLine])}
+                          placeholder={c.key === "rate" || c.key === "discountPct" ? "0" : undefined}
+                          value={Number(l[c.key as keyof PurchaseOrderLine] ?? 0) === 0 && (c.key === "rate" || c.key === "discountPct") ? "" : String(l[c.key as keyof PurchaseOrderLine] ?? "")}
                           onChange={(e) => patch(l.id, { [c.key]: e.target.value === "" ? 0 : Number(e.target.value) })}
                         />
                       )}

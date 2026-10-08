@@ -16,6 +16,7 @@ import {
   CheckSquare,
   Link2,
   type LucideIcon,
+  ClipboardList,
 } from "lucide-react";
 
 // `roles` is an explicit whitelist. Undefined = visible to everyone.
@@ -26,6 +27,8 @@ export type NavItem = {
   href: string;
   icon: LucideIcon;
   roles?: string[];
+  // Desktop top bar: items with the same group share one dropdown (shown where the first one sits).
+  group?: string;
 };
 
 const ADMIN_UP = ["admin", "super-admin"];
@@ -39,9 +42,10 @@ export const navigationItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: SUPER },
   { label: "CRM", href: "/crm", icon: Users },
   { label: "Quotes", href: "/quotes", icon: FileText, roles: ADMIN_UP },
-  { label: "Purchase Orders", href: "/purchase-orders", icon: ShoppingCart, roles: ADMIN_UP },
-  { label: "Customers", href: "/customers", icon: Contact },
-  { label: "Architects", href: "/architects", icon: Building2 },
+  { label: "Procurement", href: "/procurement", icon: ClipboardList, roles: ADMIN_UP, group: "Orders" },
+  { label: "Purchase Orders", href: "/purchase-orders", icon: ShoppingCart, roles: ADMIN_UP, group: "Orders" },
+  { label: "Customers", href: "/customers", icon: Contact, group: "Contacts" },
+  { label: "Architects", href: "/architects", icon: Building2, group: "Contacts" },
   { label: "Templates", href: "/templates", icon: LayoutTemplate, roles: ADMIN_UP },
 ];
 

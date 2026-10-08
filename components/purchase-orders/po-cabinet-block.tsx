@@ -3,6 +3,8 @@
 import { Copy, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
+import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
+import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
@@ -46,6 +48,27 @@ export function PoCabinetBlock({
     onChange(lines.map((l) => byId.get(l.id) ?? l));
     toastStore.show(`Cabinet ${srNo}: ${recalculated} carcass row${recalculated === 1 ? "" : "s"} recalculated`, "success");
   };
+
+  // Carcass only: this cabinet's internal / external brand & colour and material, applied to all its carcass rows.
+  const mine = lines.filter((l) => l.srNo === srNo && l.group === "carcass");
+  const common = (k: "internalColour" | "externalColour" | "material") => (mine.length && mine.every((l) => l[k] === mine[0][k]) ? mine[0][k] : "");
+  const applyAll = (fields: Partial<PurchaseOrderLine>) => onChange(lines.map((l) => (l.srNo === srNo && l.group === "carcass" ? { ...l, ...fields } : l)));
+  const finishRow = (
+    <div className="grid grid-cols-1 gap-3 pl-8 text-xs text-grey-500 md:grid-cols-3">
+      {(
+        [
+          ["Internal", <PoFinishSelect key="i" kind="internal" value={common("internalColour")} onChange={(v) => applyAll({ internalColour: v })} />],
+          ["External", <PoFinishSelect key="e" kind="external" value={common("externalColour")} onChange={(v) => applyAll({ externalColour: v })} />],
+          ["Material", <PoRawMaterialSelect key="m" compact value={common("material")} onChange={(v) => applyAll({ material: v })} />],
+        ] as const
+      ).map(([label, field]) => (
+        <label key={label} className="flex min-w-0 items-center gap-2">
+          <span className="w-16 shrink-0">{label}</span>
+          <span className="min-w-0 flex-1">{field}</span>
+        </label>
+      ))}
+    </div>
+  );
 
   const header = (
     <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
@@ -111,6 +134,7 @@ export function PoCabinetBlock({
         srNo={srNo}
         vars={cabinet ? { W: cabinet.width, D: cabinet.depth, H: cabinet.height } : undefined}
         header={header}
+        subHeader={group === "carcass" ? finishRow : undefined}
         defaultCollapsed
         onChange={onChange}
       />

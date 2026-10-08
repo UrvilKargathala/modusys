@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PoCabinetCard } from "@/components/purchase-orders/po-cabinet-card";
 import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
 import { applyPurchaseRates } from "@/lib/purchase-order-rate";
+import { useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { usePurchaseFurniturePriceItems } from "@/lib/store/purchase-furniture-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
 import { quoteCabinetInfo } from "@/lib/purchase-order-from-quote";
@@ -24,7 +25,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
-import { PO_GROUPS, gstModeFor, poTotals, type GstMode, type PurchaseOrder } from "@/lib/purchase-order";
+import { PO_GROUPS, nextPoNumber, gstModeFor, poTotals, type GstMode, type PurchaseOrder } from "@/lib/purchase-order";
 
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
 const card = "flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-5 shadow-sm";
@@ -45,6 +46,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const customers = useCustomers();
   const quotes = useQuotes();
   const purchasePrices = usePurchaseFurniturePriceItems();
+  const hardwarePrices = useHardwarePriceItems();
   const saved = orders.find((o) => o.id === id);
 
   const [draft, setDraft] = useState<PurchaseOrder | null>(null);
@@ -65,10 +67,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   // Rows still at rate 0 pick up a matching Purchase Furniture Price List rate as soon as the PO and prices are loaded.
   const materials = useSyncExternalStore(materialSpecStore.subscribe, materialSpecStore.getSnapshot, materialSpecStore.getServerSnapshot);
   useEffect(() => {
-    if (!draft || purchasePrices.length === 0 || materials.length === 0) return;
-    const lines = applyPurchaseRates(draft.lines, draft.lines, purchasePrices, materials);
+    if (!draft || materials.length === 0 || (purchasePrices.length === 0 && hardwarePrices.length === 0)) return;
+    const lines = applyPurchaseRates(draft.lines, draft.lines, purchasePrices, materials, hardwarePrices);
     if (lines.some((l, i) => l.rate !== draft.lines[i].rate)) setDraft({ ...draft, lines });
-  }, [draft, purchasePrices, materials]);
+  }, [draft, purchasePrices, hardwarePrices, materials]);
 
   const dirty = useMemo(() => !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved), [draft, saved]);
   const totals = useMemo(() => (draft ? poTotals(draft) : null), [draft]);
@@ -115,7 +117,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const quote = quotes.find((q) => q.id === draft.quoteId);
   // Panel rows pick up their rate from the Purchase Furniture Price List when thickness, raw material and both finishes match.
   const set = (fields: Partial<PurchaseOrder>) =>
-    setDraft({ ...draft, ...fields, ...(fields.lines ? { lines: applyPurchaseRates(fields.lines, draft.lines, purchasePrices, materialSpecStore.getSnapshot()) } : {}) });
+    setDraft({ ...draft, ...fields, ...(fields.lines ? { lines: applyPurchaseRates(fields.lines, draft.lines, purchasePrices, materialSpecStore.getSnapshot(), hardwarePrices) } : {}) });
   const setMaterial = (fields: Partial<PurchaseOrder["material"]>) => set({ material: { ...draft.material, ...fields } });
 
   // Saves the given draft (default: what's on screen). A blank vendor / PO number is fine while Pending.
@@ -296,7 +298,27 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             </div>
           </div>
           <Row label="Quote" value={quote?.quoteNumber ?? ""} />
-          <Row label="Customer" value={customer?.name ?? ""} />
+          <div className="flex items-center gap-2 text-sm font-body">
+            <span className="w-24 shrink-0 text-grey-500">Customer</span>
+            <select
+              aria-label="Customer"
+              className="h-9 min-w-0 flex-1 rounded-lg border border-grey-100 bg-card px-2 text-sm text-grey-900 outline-none focus:border-primary"
+              value={draft.customerId ?? ""}
+              onChange={(e) => {
+                const c = customers.find((x) => x.id === e.target.value);
+                // A PO without a number gets the customer's next one (UK-PO-01); a number already set is kept.
+                const poNumber = c && !draft.poNumber.trim()
+                  ? nextPoNumber(c, orders.filter((o) => o.customerId === c.id && o.id !== draft.id).map((o) => o.poNumber))
+                  : draft.poNumber;
+                set({ customerId: c?.id ?? null, poNumber });
+              }}
+            >
+              <option value="">Select customer</option>
+              {[...customers].sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}{c.customerCode ? ` (${c.customerCode})` : ""}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className={card}>

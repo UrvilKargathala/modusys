@@ -6,7 +6,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { statusConfig, type StatusKey } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
-const statusOptions: StatusKey[] = ["draft", "approved", "in-production", "completed", "cancelled"];
+const statusOptions: StatusKey[] = ["draft", "approved", "in-procurement", "in-production", "completed", "cancelled"];
 
 // Native <select><option> can't reliably show a background color across
 // browsers, so unlike other pickers in this app the trigger AND the options

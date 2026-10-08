@@ -763,6 +763,8 @@ model PurchaseOrderLine {
   brand          String        @default("")
   category       String        @default("")
   unit           String        @default("")
+  // Hardware only: discount % off the rate (MRP), filled from the Hardware Price List.
+  discountPct    Float         @default(0)
   rate           Float         @default(0)
   remarks        String        @default("")
 
@@ -788,4 +790,15 @@ model PurchaseFurniturePriceItem {
   variantId         String   @default("")
   deleted           Boolean  @default(false)
   createdAt         DateTime @default(now())
+}
+
+// Procurement's own editable copy of a quote, made when the quote moves to In Procurement. `data` is the full quote
+// (same shape as the Quote record, units and all) so it opens in the same editor; edits never touch the sold quote.
+// One copy per quote. The Pending PO made at In Purchase is built from this copy when it exists.
+model ProcurementQuote {
+  id        String   @id
+  quoteId   String   @unique
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

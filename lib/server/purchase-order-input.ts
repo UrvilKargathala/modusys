@@ -26,6 +26,7 @@ export function cleanLines(input: unknown) {
     category: str(l.category),
     unit: str(l.unit),
     rate: num(l.rate),
+    discountPct: num(l.discountPct),
     remarks: str(l.remarks),
   }));
 }

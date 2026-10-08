@@ -30,6 +30,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const data: Record<string, unknown> = {};
   for (const k of ["poDate", "requiredDate", "remarks"] as const) if (b[k] !== undefined) data[k] = String(b[k]);
   if (b.poNumber !== undefined) data.poNumber = String(b.poNumber).trim();
+  if (b.customerId !== undefined) data.customerId = b.customerId ? String(b.customerId) : null;
   if (b.vendorId !== undefined) {
     const vid = String(b.vendorId).trim();
     if (vid) {

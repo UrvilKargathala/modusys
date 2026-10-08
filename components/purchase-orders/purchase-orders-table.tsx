@@ -113,7 +113,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
           icon={ShoppingCart}
           message={
             status === "pending"
-              ? "No pending purchase orders. One appears here when a quote is set to In Production, or you can create one by hand."
+              ? "No pending purchase orders. One appears here when a quote is set to In Purchase, or you can create one by hand."
               : "No completed purchase orders yet."
           }
           cta={status === "pending" && onNew ? { label: "Create Purchase Order", onClick: onNew } : undefined}
