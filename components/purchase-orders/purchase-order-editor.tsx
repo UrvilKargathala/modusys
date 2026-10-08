@@ -421,7 +421,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                             lines={draft.lines}
                             srNo={no}
                             vars={c ? { W: c.width, D: c.depth, H: c.height } : undefined}
-                            header={<span className="ml-1 flex-1 text-left font-heading text-base font-semibold text-grey-900">{no}. {c?.designType || c?.cabinetName || c?.label || `Cabinet ${no}`}</span>}
+                            header={<span className="ml-1 flex-1 text-left font-heading text-base font-semibold text-grey-900">{no}. {c?.designType || c?.label || `Cabinet ${no}`}</span>}
                             onChange={(lines) => set({ lines })}
                           />
                         </div>

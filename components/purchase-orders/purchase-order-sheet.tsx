@@ -1,6 +1,6 @@
 import type { Customer } from "@/lib/mock/pipeline";
 import { Fragment } from "react";
-import { HW_HEADERS, PANEL_HEADERS, byCabinet, carcassHeading, groupsFor, poDetailSections, type PoExportPart } from "@/lib/purchase-order-export";
+import { HW_HEADERS, PANEL_HEADERS, byCabinet, carcassHeadingCells, groupsFor, poDetailSections, type PoExportPart } from "@/lib/purchase-order-export";
 import { COMPANY_GST, lineAmount, poTotals, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
 
 type Branding = { companyName: string; address: string; email: string; phone: string };
@@ -11,13 +11,13 @@ type Branding = { companyName: string; address: string; email: string; phone: st
 const THEME: Record<PoGroup, { band: string; head: string; tint: string; text: string; border: string }> = {
   carcass: { band: "bg-primary", head: "bg-primary-transparent", tint: "bg-primary-transparent", text: "text-primary", border: "border-primary" },
   shutter: { band: "bg-info", head: "bg-info-transparent", tint: "bg-info-transparent", text: "text-info", border: "border-info" },
-  "other-panel": { band: "bg-teal", head: "bg-teal-transparent", tint: "bg-teal-transparent", text: "text-teal", border: "border-teal" },
+  "other-panel": { band: "bg-teal-900", head: "bg-teal-100", tint: "bg-teal-100", text: "text-teal-900", border: "border-teal-900" },
   hardware: { band: "bg-orange", head: "bg-orange-transparent", tint: "bg-orange-transparent", text: "text-orange", border: "border-orange" },
 };
 
 const cell = "border border-grey-100 px-1.5 py-1 align-top";
 const num = (n: number, d = 0) => (n ? n.toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d }) : "");
-const RIGHT = new Set(["Width", "Thk", "Height", "Qty", "Sq.Ft", "Rate", "MRP", "Discount %", "Amount"]);
+const RIGHT = new Set(["Width", "Thk", "Depth", "Height", "Qty", "Items", "Sq.Ft", "Rate", "MRP", "Discount %", "Amount"]);
 
 function Info({ title, rows }: { title: string; rows: [string, string][] }) {
   return (
@@ -36,11 +36,11 @@ function Info({ title, rows }: { title: string; rows: [string, string][] }) {
 }
 
 // Section title bar: "A. CARCASS · 30 rows · ₹12,345.00".
-function Band({ group, title, count, total }: { group: PoGroup; title: string; count: number; total: number }) {
+function Band({ group, title, count, total, unit = "rows" }: { group: PoGroup; title: string; count: number; total: number; unit?: string }) {
   return (
     <div className={`flex items-center justify-between rounded-t-lg px-3 py-2 text-white ${THEME[group].band}`}>
       <span className="text-[12px] font-semibold uppercase tracking-wider">{title}</span>
-      <span className="text-[11px]">{count} rows · ₹ {num(total, 2) || "0.00"}</span>
+      <span className="text-[11px]">{count} {unit} · ₹ {num(total, 2) || "0.00"}</span>
     </div>
   );
 }
@@ -58,7 +58,33 @@ function Header({ group, headers }: { group: PoGroup; headers: string[] }) {
 function CabinetRow({ group, cols, children }: { group: PoGroup; cols: number; children: React.ReactNode }) {
   return (
     <tr className="break-inside-avoid">
-      <td className={`${cell} ${THEME[group].tint} border-l-4 ${THEME[group].border} font-semibold text-grey-900`} colSpan={cols}>{children}</td>
+      <td className={`${cell} ${THEME[group].tint} font-semibold text-grey-900`} colSpan={3}>{children}</td>
+      {Array.from({ length: cols - 3 }, (_, i) => (
+        <td key={i} className={`${cell} ${THEME[group].tint}`} />
+      ))}
+    </tr>
+  );
+}
+
+// Panel cabinet heading (Carcass, Shutter, Other Panel): the cabinet's own values sit under the matching columns.
+function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<typeof byCabinet>[number]; group: PoGroup }) {
+  const h = carcassHeadingCells(po, c);
+  const t = `${cell} ${THEME[group].tint} font-semibold text-grey-900`;
+  return (
+    <tr className="break-inside-avoid">
+      <td className={t} colSpan={2}>{h.name}</td>
+      <td className={t}>{h.design}</td>
+      <td className={`${t} text-right`}>{num(h.width)}</td>
+      <td className={`${t} text-right`}>{num(h.depth)}</td>
+      <td className={`${t} text-right`}>{num(h.height)}</td>
+      <td className={`${t} text-right`}>{num(h.qty)}</td>
+      <td className={`${t} text-right`}>{h.sqft.toFixed(2)}</td>
+      <td className={t} />
+      <td className={`${t} text-right`}>{h.amount ? num(h.amount, 2) : ""}</td>
+      <td className={t}>{h.material}</td>
+      <td className={t}>{h.internal}</td>
+      <td className={t}>{h.external}</td>
+      <td className={t}>{h.remark}</td>
     </tr>
   );
 }
@@ -75,7 +101,7 @@ function PanelTable({ group, title, lines, po }: { group: PoGroup; title: string
         <tbody>
           {byCabinet(po, group).map((c) => (
             <Fragment key={c.srNo}>
-              <CabinetRow group={group} cols={14}>{group === "carcass" ? carcassHeading(po, c) : `${c.srNo}. ${c.name}`}</CabinetRow>
+              <CarcassHeadingRow po={po} c={c} group={group} />
               {c.rows.map(({ l, sr }, i) => (
                 <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
                   <td className={cell}>{sr}</td>
@@ -86,11 +112,11 @@ function PanelTable({ group, title, lines, po }: { group: PoGroup; title: string
                   <td className={`${cell} text-right`}>{num(l.height)}</td>
                   <td className={`${cell} text-right`}>{num(l.qty)}</td>
                   <td className={`${cell} text-right`}>{l.sqft.toFixed(2)}</td>
-                  <td className={cell}>{l.internalColour}</td>
-                  <td className={cell}>{l.externalColour}</td>
-                  <td className={cell}>{l.material}</td>
                   <td className={`${cell} text-right`}>{num(l.rate, 2)}</td>
                   <td className={`${cell} text-right`}>{l.rate ? num(lineAmount(l), 2) : ""}</td>
+                  <td className={cell}>{l.material}</td>
+                  <td className={cell}>{l.internalColour}</td>
+                  <td className={cell}>{l.externalColour}</td>
                   <td className={cell}>{l.remarks}</td>
                 </tr>
               ))}
@@ -100,9 +126,9 @@ function PanelTable({ group, title, lines, po }: { group: PoGroup; title: string
             <td className={`${cell} text-right`} colSpan={6}>TOTAL</td>
             <td className={`${cell} text-right`}>{num(qty)}</td>
             <td className={`${cell} text-right`}>{sqft.toFixed(2)}</td>
-            <td className={cell} colSpan={4} />
-            <td className={`${cell} text-right`}>{num(total, 2)}</td>
             <td className={cell} />
+            <td className={`${cell} text-right`}>{num(total, 2)}</td>
+            <td className={cell} colSpan={4} />
           </tr>
         </tbody>
       </table>
@@ -151,7 +177,84 @@ function HardwareTable({ title, lines, po }: { title: string; lines: PurchaseOrd
   );
 }
 
-const PART_LABEL: Record<PoExportPart, string> = { full: "Full Details", components: "Components", hardware: "Hardware" };
+const PART_LABEL: Record<PoExportPart, string> = { full: "Full Details", components: "Components", hardware: "Hardware", cabinets: "Cabinets" };
+
+// Purchase Order (cabinets): each section (Carcass, Shutter, Other Panel, Hardware) lists its cabinets only —
+// one row per cabinet with size, qty, design, finishes, material, sq.ft and amount — no component rows.
+function CabinetSummaryTable({ po }: { po: PurchaseOrder }) {
+  // Cabinet Name column = the Cabinet Name field picked on the PO (Purchase Material Library).
+  const space = (no: number) => po.material.cabinets?.[String(no)]?.cabinetName ?? "";
+  return (
+    <>
+      {groupsFor("full").map((g) => {
+        const lines = po.lines.filter((l) => l.group === g.key);
+        if (lines.length === 0) return null;
+        const cabs = byCabinet(po, g.key);
+        const total = lines.reduce((s, l) => s + lineAmount(l), 0);
+        const title = `${g.code}. ${g.label}`;
+        if (g.key === "hardware") {
+          const heads = ["Sr", "Cabinet Type", "Cabinet Name", "Items", "Qty", "Amount", "Remark"];
+          return (
+            <section key={g.key}>
+              <Band group="hardware" title={title} count={cabs.length} total={total} unit="cabinets" />
+              <table className="w-full border-collapse text-[10px]">
+                <thead><Header group="hardware" headers={heads} /></thead>
+                <tbody>
+                  {cabs.map((c, i) => {
+                    const rows = c.rows.map((r) => r.l);
+                    return (
+                      <tr key={c.srNo} className={`break-inside-avoid ${i % 2 ? "bg-light-600" : ""}`}>
+                        <td className={cell}>{c.srNo}</td>
+                        <td className={`${cell} font-semibold`}>{c.name}</td>
+                        <td className={cell}>{space(c.srNo)}</td>
+                        <td className={`${cell} text-right`}>{rows.length}</td>
+                        <td className={`${cell} text-right`}>{num(rows.reduce((s, l) => s + l.qty, 0))}</td>
+                        <td className={`${cell} text-right`}>{num(rows.reduce((s, l) => s + lineAmount(l), 0), 2)}</td>
+                        <td className={cell}>{po.material.cabinets?.[String(c.srNo)]?.remark ?? ""}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </section>
+          );
+        }
+        const heads = ["Sr", "Cabinet Type", "Cabinet Name", "Design", "Width", "Depth", "Height", "Qty", "Sq.Ft", "Amount", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remark"];
+        return (
+          <section key={g.key}>
+            <Band group={g.key} title={title} count={cabs.length} total={total} unit="cabinets" />
+            <table className="w-full border-collapse text-[10px]">
+              <thead><Header group={g.key} headers={heads} /></thead>
+              <tbody>
+                {cabs.map((c, i) => {
+                  const h = carcassHeadingCells(po, c);
+                  return (
+                    <tr key={c.srNo} className={`break-inside-avoid ${i % 2 ? "bg-light-600" : ""}`}>
+                      <td className={cell}>{c.srNo}</td>
+                      <td className={`${cell} font-semibold`}>{c.name}</td>
+                      <td className={cell}>{space(c.srNo)}</td>
+                      <td className={cell}>{po.material.cabinets?.[String(c.srNo)]?.design ?? ""}</td>
+                      <td className={`${cell} text-right`}>{num(h.width)}</td>
+                      <td className={`${cell} text-right`}>{num(h.depth)}</td>
+                      <td className={`${cell} text-right`}>{num(h.height)}</td>
+                      <td className={`${cell} text-right`}>{num(h.qty)}</td>
+                      <td className={`${cell} text-right`}>{h.sqft.toFixed(2)}</td>
+                      <td className={`${cell} text-right`}>{h.amount ? num(h.amount, 2) : ""}</td>
+                      <td className={cell}>{h.material}</td>
+                      <td className={cell}>{h.internal}</td>
+                      <td className={cell}>{h.external}</td>
+                      <td className={cell}>{h.remark}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </section>
+        );
+      })}
+    </>
+  );
+}
 
 // Printable PO (A4 landscape): letterhead, detail cards, one colour-coded section per group, totals, signature.
 export function PurchaseOrderSheet({ po, vendor, customer, quoteNumber, branding, part = "full" }: { po: PurchaseOrder; vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: Branding; part?: PoExportPart }) {
@@ -200,6 +303,8 @@ export function PurchaseOrderSheet({ po, vendor, customer, quoteNumber, branding
           ))}
         </div>
       )}
+
+      {part === "cabinets" && <CabinetSummaryTable po={po} />}
 
       {groups.map((g) => {
         const lines = po.lines.filter((l) => l.group === g.key);

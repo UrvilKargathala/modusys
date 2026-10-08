@@ -18,7 +18,7 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
   const { id } = use(params);
   const q = useSearchParams().get("part");
   const excel = useSearchParams().get("format") === "excel";
-  const part: PoExportPart = q === "components" || q === "hardware" ? q : "full";
+  const part: PoExportPart = q === "components" || q === "hardware" || q === "cabinets" ? q : "full";
   const orders = usePurchaseOrders();
   const vendors = useVendors();
   const settings = useQuoteTemplateSettings();

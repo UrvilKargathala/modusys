@@ -47,14 +47,16 @@ export function poDetailSections(po: PurchaseOrder, { vendor, customer, quoteNum
 }
 
 // What a download covers: the full PO, only the panel components (carcass, shutter, other panel), or only hardware.
-export type PoExportPart = "full" | "components" | "hardware";
+// "cabinets" = the Purchase Order sheet: one row per cabinet (size, design, finishes), no component rows. PDF only.
+export type PoExportPart = "full" | "components" | "hardware" | "cabinets";
 export const PO_EXPORT_PARTS: { key: PoExportPart; label: string }[] = [
   { key: "full", label: "Full details" },
   { key: "components", label: "Components only" },
   { key: "hardware", label: "Hardware only" },
 ];
+export const PO_PDF_PARTS: { key: PoExportPart; label: string }[] = [...PO_EXPORT_PARTS, { key: "cabinets", label: "Purchase Order (cabinets)" }];
 export const groupsFor = (part: PoExportPart) =>
-  PO_GROUPS.filter((g) => part === "full" || (part === "hardware" ? g.key === "hardware" : g.key !== "hardware"));
+  PO_GROUPS.filter((g) => part !== "cabinets") .filter((g) => part === "full" || (part === "hardware" ? g.key === "hardware" : g.key !== "hardware"));
 
 // A group's rows split by cabinet, in cabinet order: the cabinet's name, then its rows numbered 1.1, 1.2...
 export function byCabinet(po: PurchaseOrder, group: string) {
@@ -63,7 +65,7 @@ export function byCabinet(po: PurchaseOrder, group: string) {
     let c = out.find((x) => x.srNo === l.srNo);
     if (!c) {
       const cab = po.material.cabinets?.[String(l.srNo)];
-      c = { srNo: l.srNo, name: cab?.designType || cab?.cabinetName || cab?.label || `Cabinet ${l.srNo}`, rows: [] };
+      c = { srNo: l.srNo, name: cab?.designType || cab?.label || `Cabinet ${l.srNo}`, rows: [] };
       out.push(c);
     }
     c.rows.push({ l, sr: `${l.srNo}.${c.rows.length + 1}` });
@@ -93,8 +95,33 @@ export function carcassHeading(po: PurchaseOrder, c: ReturnType<typeof byCabinet
     .join("  ·  ");
 }
 
+// Carcass cabinet heading as values lined up under the panel columns (Sr..Remarks): name, then W under Width,
+// D under Thk, H under Height, cabinet Qty, total Sq.Ft, shared finishes and material, and the cabinet's amount.
+export function carcassHeadingCells(po: PurchaseOrder, c: ReturnType<typeof byCabinet>[number]) {
+  const cab = po.material.cabinets?.[String(c.srNo)];
+  const rows = c.rows.map((r) => r.l);
+  const common = (k: "internalColour" | "externalColour" | "material") => {
+    const v = [...new Set(rows.map((l) => l[k]).filter(Boolean))];
+    return v.length === 1 ? v[0] : v.length > 1 ? "Mixed" : "";
+  };
+  return {
+    name: `${c.srNo}. ${c.name}`,
+    design: cab?.design ?? "",
+    width: cab?.width ?? 0,
+    depth: cab?.depth ?? 0,
+    height: cab?.height ?? 0,
+    qty: cab?.qty ?? 0,
+    sqft: rows.reduce((s, l) => s + l.sqft, 0),
+    internal: common("internalColour"),
+    external: common("externalColour"),
+    material: common("material"),
+    amount: rows.reduce((s, l) => s + lineAmount(l), 0),
+    remark: cab?.remark ?? "",
+  };
+}
+
 export const HW_HEADERS = ["Sr", "Brand", "Description", "Design", "Article No", "Category", "Unit", "Qty", "MRP", "Discount %", "Rate", "Amount", "Remarks"];
-export const PANEL_HEADERS = ["Sr", "Description", "Design", "Width", "Thk", "Height", "Qty", "Sq.Ft", "Internal Brand & Colour", "External Brand & Colour", "Material", "Rate", "Amount", "Remarks"];
+export const PANEL_HEADERS = ["Sr", "Description", "Design", "Width", "Thk", "Height", "Qty", "Sq.Ft", "Rate", "Amount", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remarks"];
 
 // A Details sheet (all header blocks + totals) on every download, then one sheet per group.
 export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoExportContext) {
@@ -114,12 +141,15 @@ export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoEx
     const hw = g.key === "hardware";
     const aoaG: (string | number)[][] = [hw ? HW_HEADERS : PANEL_HEADERS];
     for (const c of cabs) {
-      aoaG.push([g.key === "carcass" ? carcassHeading(po, c) : `${c.srNo}. ${c.name}`]);
+      if (g.key !== "hardware") {
+        const h = carcassHeadingCells(po, c);
+        aoaG.push([h.name, "", h.design, h.width, h.depth, h.height, h.qty, Number(h.sqft.toFixed(2)), "", Number(h.amount.toFixed(2)), h.material, h.internal, h.external, h.remark]);
+      } else aoaG.push([`${c.srNo}. ${c.name}`]);
       for (const { l, sr } of c.rows)
         aoaG.push(
           hw
             ? [sr, l.brand, l.description, l.designType, l.articleNo, l.category, l.unit, l.qty, l.rate, l.discountPct ?? 0, Number((l.rate * (1 - (l.discountPct ?? 0) / 100)).toFixed(2)), lineAmount(l), l.remarks]
-            : [sr, l.description, l.designType, l.width, l.depth, l.height, l.qty, Number(l.sqft.toFixed(2)), l.internalColour, l.externalColour, l.material, l.rate, lineAmount(l), l.remarks]
+            : [sr, l.description, l.designType, l.width, l.depth, l.height, l.qty, Number(l.sqft.toFixed(2)), l.rate, lineAmount(l), l.material, l.internalColour, l.externalColour, l.remarks]
         );
     }
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoaG), g.label);
