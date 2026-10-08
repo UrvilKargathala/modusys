@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/input";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { purchaseFurnitureStore, type NewPurchaseFurnitureInput } from "@/lib/store/purchase-furniture-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
+import { useVendors } from "@/lib/store/vendors-store";
 import { normalizeVariantId, sanitizeVariantIdInput, suggestVariantId, makeUniqueVariantId, variantIdFormatError, VARIANT_ID_MAX } from "@/lib/variant-id";
 import type { PurchaseFurniturePriceItem } from "@/lib/mock/pricing-list";
 
-const emptyValues = (): NewPurchaseFurnitureInput => ({ thicknessId: "", rawMaterialTypeId: "", internalColourId: "", externalColourId: "", rate: 0, variantId: "" });
+const emptyValues = (): NewPurchaseFurnitureInput => ({ thicknessId: "", rawMaterialTypeId: "", internalColourId: "", externalColourId: "", rate: 0, variantId: "", vendorId: "" });
 
 export function PurchaseFurniturePriceFormDialog({
   open,
@@ -36,12 +37,13 @@ export function PurchaseFurniturePriceFormDialog({
   const rawMaterialTypes = useMaterialItems("raw-material-type");
   const internals = useMaterialItems("purchase-internal");
   const externals = useMaterialItems("purchase-external");
+  const vendors = useVendors();
 
   useEffect(() => {
     if (!open) return;
     setValues(
       item
-        ? { thicknessId: item.thicknessId, rawMaterialTypeId: item.rawMaterialTypeId, internalColourId: item.internalColourId, externalColourId: item.externalColourId, rate: item.rate, variantId: item.variantId }
+        ? { thicknessId: item.thicknessId, rawMaterialTypeId: item.rawMaterialTypeId, internalColourId: item.internalColourId, externalColourId: item.externalColourId, rate: item.rate, variantId: item.variantId, vendorId: item.vendorId ?? "" }
         : emptyValues()
     );
     setDuplicate(null);
@@ -91,6 +93,20 @@ export function PurchaseFurniturePriceFormDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="pfp-vendor">Vendor Name</Label>
+            <select
+              id="pfp-vendor"
+              className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
+              value={values.vendorId ?? ""}
+              onChange={(e) => setValues((v) => ({ ...v, vendorId: e.target.value }))}
+            >
+              <option value="">Any vendor</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={v.id}>{v.name}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex flex-col gap-1.5">
             <Label>Thickness</Label>
             <MaterialReferenceSelect category="thickness" value={values.thicknessId} onChange={(id) => setValues((v) => ({ ...v, thicknessId: id }))} />

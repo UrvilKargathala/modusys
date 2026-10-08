@@ -19,6 +19,7 @@ type Col = { key: string; label: string; width: string };
 
 const PANEL_COLS: Col[] = [
   { key: "srNo", label: "Sr", width: "w-16" },
+  { key: "brand", label: "Brand", width: "w-28" },
   { key: "description", label: "Description", width: "w-72" },
   { key: "designType", label: "Design", width: "w-36" },
   { key: "width", label: "Width", width: "w-20" },
@@ -36,10 +37,10 @@ const PANEL_COLS: Col[] = [
 
 const HW_COLS: Col[] = [
   { key: "srNo", label: "Sr", width: "w-16" },
+  { key: "brand", label: "Brand", width: "w-28" },
   { key: "description", label: "Description", width: "w-72" },
   { key: "designType", label: "Design", width: "w-36" },
   { key: "articleNo", label: "Article No", width: "w-40" },
-  { key: "brand", label: "Brand", width: "w-28" },
   { key: "category", label: "Category", width: "w-36" },
   { key: "unit", label: "Unit", width: "w-20" },
   { key: "qty", label: "Qty", width: "w-16" },

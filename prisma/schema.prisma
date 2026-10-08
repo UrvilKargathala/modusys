@@ -782,6 +782,8 @@ model PurchaseFurniturePriceItem {
   rawMaterialTypeId String
   internalColourId  String
   externalColourId  String
+  // Vendor this purchase rate applies to; "" = any vendor.
+  vendorId          String   @default("")
   rate              Float
   variantId         String   @default("")
   deleted           Boolean  @default(false)

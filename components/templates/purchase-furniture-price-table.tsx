@@ -10,6 +10,7 @@ import { PurchaseFurniturePriceFormDialog } from "@/components/templates/purchas
 import { DeletePriceItemDialog } from "@/components/templates/delete-price-item-dialog";
 import { usePurchaseFurniturePriceItems, purchaseFurnitureStore } from "@/lib/store/purchase-furniture-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
+import { useVendors } from "@/lib/store/vendors-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
 import type { PurchaseFurniturePriceItem } from "@/lib/mock/pricing-list";
@@ -27,6 +28,7 @@ export function PurchaseFurniturePriceTable() {
   const thicknesses = useMaterialItems("thickness");
   const rawMaterialTypes = useMaterialItems("raw-material-type");
   const internals = useMaterialItems("purchase-internal");
+  const vendors = useVendors();
   const externals = useMaterialItems("purchase-external");
   const nameOf = (list: { id: string; name: string }[], id: string) => list.find((m) => m.id === id)?.name ?? "—";
   // "Brand — Colour code" for the purchase finishes.
@@ -114,6 +116,7 @@ export function PurchaseFurniturePriceTable() {
               <tr>
                 <th className={th}>SR No</th>
                 <th className={th}>{header("variantId", "Variant ID")}</th>
+                <th className={th}>Vendor Name</th>
                 <th className={th}>{header("thickness", "Thickness")}</th>
                 <th className={th}>{header("rawMaterial", "Raw Material Type")}</th>
                 <th className={th}>{header("internal", "Internal Brand and Colour")}</th>
@@ -127,6 +130,7 @@ export function PurchaseFurniturePriceTable() {
                 <tr key={i.id} className="border-t border-grey-100">
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number font-medium text-grey-900">{i.variantId || <span className="text-grey-300">—</span>}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-900">{vendors.find((v) => v.id === i.vendorId)?.name || <span className="text-grey-400">Any vendor</span>}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body font-medium text-grey-900">{nameOf(thicknesses, i.thicknessId)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-900">{nameOf(rawMaterialTypes, i.rawMaterialTypeId)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{brandCodeOf(internals, i.internalColourId)}</td>

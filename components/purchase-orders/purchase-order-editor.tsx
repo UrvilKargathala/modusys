@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, FileText, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
@@ -10,9 +10,11 @@ import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PoCabinetCard } from "@/components/purchase-orders/po-cabinet-card";
 import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
+import { applyPurchaseRates } from "@/lib/purchase-order-rate";
+import { usePurchaseFurniturePriceItems } from "@/lib/store/purchase-furniture-store";
+import { materialSpecStore } from "@/lib/store/material-spec-store";
 import { quoteCabinetInfo } from "@/lib/purchase-order-from-quote";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
-import { PoHardwareClubbed } from "@/components/purchase-orders/po-hardware-clubbed";
 import { PoCabinetBlock } from "@/components/purchase-orders/po-cabinet-block";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
@@ -42,6 +44,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const vendors = useVendors();
   const customers = useCustomers();
   const quotes = useQuotes();
+  const purchasePrices = usePurchaseFurniturePriceItems();
   const saved = orders.find((o) => o.id === id);
 
   const [draft, setDraft] = useState<PurchaseOrder | null>(null);
@@ -50,6 +53,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   // By component: all cabinets' Carcass rows together, then Shutter, etc. By cabinet: one card per cabinet.
   // The Carcass list (all cabinet blocks) starts closed; click the heading to open it.
   const [carcassOpen, setCarcassOpen] = useState(false);
+  const [hardwareOpen, setHardwareOpen] = useState(false);
   const [view, setView] = useState<"component" | "cabinet">("component");
 
   // Seed the draft once the PO has loaded; later store updates (our own save)
@@ -57,6 +61,14 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   useEffect(() => {
     if (saved && !draft) setDraft(structuredClone(saved));
   }, [saved, draft]);
+
+  // Rows still at rate 0 pick up a matching Purchase Furniture Price List rate as soon as the PO and prices are loaded.
+  const materials = useSyncExternalStore(materialSpecStore.subscribe, materialSpecStore.getSnapshot, materialSpecStore.getServerSnapshot);
+  useEffect(() => {
+    if (!draft || purchasePrices.length === 0 || materials.length === 0) return;
+    const lines = applyPurchaseRates(draft.lines, draft.lines, purchasePrices, materials);
+    if (lines.some((l, i) => l.rate !== draft.lines[i].rate)) setDraft({ ...draft, lines });
+  }, [draft, purchasePrices, materials]);
 
   const dirty = useMemo(() => !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved), [draft, saved]);
   const totals = useMemo(() => (draft ? poTotals(draft) : null), [draft]);
@@ -101,7 +113,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const vendor = vendors.find((v) => v.id === draft.vendorId);
   const customer = customers.find((c) => c.id === draft.customerId);
   const quote = quotes.find((q) => q.id === draft.quoteId);
-  const set = (fields: Partial<PurchaseOrder>) => setDraft({ ...draft, ...fields });
+  // Panel rows pick up their rate from the Purchase Furniture Price List when thickness, raw material and both finishes match.
+  const set = (fields: Partial<PurchaseOrder>) =>
+    setDraft({ ...draft, ...fields, ...(fields.lines ? { lines: applyPurchaseRates(fields.lines, draft.lines, purchasePrices, materialSpecStore.getSnapshot()) } : {}) });
   const setMaterial = (fields: Partial<PurchaseOrder["material"]>) => set({ material: { ...draft.material, ...fields } });
 
   // Saves the given draft (default: what's on screen). A blank vendor / PO number is fine while Pending.
@@ -359,7 +373,39 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         {shownView === "component"
           ? PO_GROUPS.filter((g) => draft.lines.some((l) => l.group === g.key)).map((g) =>
             g.key === "hardware" ? (
-              <PoHardwareClubbed key={g.key} lines={draft.lines} onChange={(lines) => set({ lines })} />
+              <div key={g.key} className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={() => setHardwareOpen((o) => !o)}
+                  aria-label={`${hardwareOpen ? "Collapse" : "Expand"} ${g.label}`}
+                  aria-expanded={hardwareOpen}
+                  className="flex items-center gap-1.5 self-start rounded-md text-left hover:text-primary"
+                >
+                  {hardwareOpen ? <ChevronDown className="h-4 w-4 text-grey-500" /> : <ChevronRight className="h-4 w-4 text-grey-500" />}
+                  <h3 className="font-heading text-base font-semibold text-grey-900">
+                    {g.label} <span className="font-number text-sm font-normal text-grey-500">({draft.lines.filter((l) => l.group === g.key).length})</span>
+                  </h3>
+                </button>
+                {hardwareOpen &&
+                  cabinetNos
+                    .filter((no) => draft.lines.some((l) => l.group === g.key && l.srNo === no))
+                    .map((no) => {
+                      const c = cabinetFor(no);
+                      return (
+                        <div key={no} className="rounded-lg border border-grey-100 bg-card p-3">
+                          <PoLinesTable
+                            group={g.key}
+                            title={g.label}
+                            lines={draft.lines}
+                            srNo={no}
+                            vars={c ? { W: c.width, D: c.depth, H: c.height } : undefined}
+                            header={<span className="ml-1 flex-1 text-left font-heading text-base font-semibold text-grey-900">{no}. {c?.designType || c?.cabinetName || c?.label || `Cabinet ${no}`}</span>}
+                            onChange={(lines) => set({ lines })}
+                          />
+                        </div>
+                      );
+                    })}
+              </div>
             ) : g.key !== "carcass" ? (
               <PoLinesTable
                 key={g.key}

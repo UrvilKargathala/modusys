@@ -22,7 +22,8 @@ export type FurniturePriceItem = {
 // Purchase Furniture Price List — same shape as FurniturePriceItem, but the
 // internal/external ids point at Purchase Material Library entries (brand +
 // colour code) and the rate is what The Furn pays the vendor.
-export type PurchaseFurniturePriceItem = FurniturePriceItem;
+// vendorId: the vendor this rate applies to ("" = any vendor).
+export type PurchaseFurniturePriceItem = FurniturePriceItem & { vendorId?: string };
 
 let furnitureSeedId = 0;
 function furnitureItem(thickness: string, rawMaterialType: string, internalColour: string, externalColour: string, rate: number): FurniturePriceItem {
