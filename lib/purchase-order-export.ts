@@ -18,10 +18,12 @@ export function poDetailSections(po: PurchaseOrder, { vendor, customer, quoteNum
       title: "Vendor Details",
       rows: [
         ["Vendor Name", vendor?.name ?? po.vendorName],
+        ...(vendor?.code ? [["Vendor Code", vendor.code] as [string, string]] : []),
         ["Address", [vendor?.address, vendor?.city, vendor?.state].filter(Boolean).join(", ")],
         ["GST No", vendor?.gst ?? ""],
         ["Contact", [c[0]?.name, c[0]?.phone].filter(Boolean).join(": ")],
         ["Contact", [c[1]?.name, c[1]?.phone].filter(Boolean).join(": ")],
+        ...(vendor?.emails ?? []).map((e, i) => [i === 0 ? "Email" : "", e] as [string, string]),
       ],
     },
     {

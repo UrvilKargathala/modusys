@@ -59,6 +59,30 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
   const count = (st: PoStatus) => orders.filter((o) => o.status === st && (!quoteId || o.quoteId === quoteId)).length;
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(rows);
 
+  const changeStatus = async (po: PurchaseOrder, status: PoStatus) => {
+    if (status === "completed") {
+      const missing = [
+        [!po.vendorId, "Vendor"],
+        [!po.customerId, "Customer"],
+        [!po.material.productTypeId, "Purchase Product Type"],
+        [!po.poNumber.trim(), "PO Number"],
+        [!po.poDate, "PO Date"],
+        [!po.material.shutterRawMaterial, "Shutter Raw Material"],
+        [!po.material.cabinetRawMaterial, "Cabinet Raw Material"],
+      ].filter(([m]) => m).map(([, l]) => l);
+      if (missing.length) {
+        toastStore.show(`Open the PO and fill in: ${missing.join(", ")}`, "error");
+        return;
+      }
+    }
+    try {
+      await purchaseOrdersStore.update(po.id, { status });
+      toastStore.show(`${po.poNumber || "PO"} marked ${status === "completed" ? "Completed" : "Pending"}`, "success");
+    } catch (e) {
+      toastStore.show(e instanceof Error ? e.message : "Could not change status", "error");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       {quoteId && (
@@ -123,7 +147,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
           <table className="w-full text-left">
             <thead className="bg-[#DACCCC]">
               <tr>
-                {["PO No", "Date", "Required", "Vendor", "Customer", "Quote", "Amount", "Actions"].map((h) => (
+                {["PO No", "Date", "Required", "Vendor", "Customer", "Quote", "Amount", "Status", "Actions"].map((h) => (
                   <th
                     key={h}
                     className={`px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900 ${h === "Amount" ? "text-right" : h === "Actions" ? "text-right" : ""}`}
@@ -145,6 +169,21 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
                   <td className="px-4 py-3 text-sm font-body text-grey-700">{customer || "—"}</td>
                   <td className="px-4 py-3 font-number text-sm text-grey-700">{quote || "—"}</td>
                   <td className="px-4 py-3 text-right font-number text-sm text-grey-900">{formatInr(total)}</td>
+                  <td className="px-4 py-3">
+                    {/* Changeable here like the Quotes status. Completing needs the PO's required fields filled in. */}
+                    <select
+                      aria-label={`Status of ${po.poNumber || "this PO"}`}
+                      value={po.status}
+                      onChange={(e) => void changeStatus(po, e.target.value as PoStatus)}
+                      className={cn(
+                        "h-7 cursor-pointer rounded-full border border-grey-100 px-2.5 text-xs font-body font-medium outline-none focus:border-primary",
+                        po.status === "completed" ? "bg-success-transparent text-success" : "bg-warning-100 text-warning-900"
+                      )}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end">
                       <Tooltip>

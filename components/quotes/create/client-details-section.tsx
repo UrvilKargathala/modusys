@@ -44,6 +44,7 @@ export function ClientDetailsSection({
   quote,
   onChange,
   confirmChanges = false,
+  procurementNumber,
 }: {
   quote: Quote;
   onChange: (patch: Partial<Quote>) => void;
@@ -51,6 +52,7 @@ export function ClientDetailsSection({
   // a brand-new quote has nothing to lose, so Create mode applies changes
   // immediately with no popup.
   confirmChanges?: boolean;
+  procurementNumber?: string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [pending, setPending] = useState<{ label: string; patch: Partial<Quote> } | null>(null);
@@ -127,12 +129,21 @@ export function ClientDetailsSection({
           </Field>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 lg:gap-3">
+        <div className={`grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-3 ${procurementNumber ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
           <Field label="Quote Number" htmlFor="q-number" helper="Auto-generated">
             <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-number font-medium text-grey-700">
               {quote.quoteNumber}
             </div>
           </Field>
+
+          {/* Procurement copy only: its own PR number, as a separate field beside the quote number. */}
+          {procurementNumber && (
+            <Field label="Procurement No" htmlFor="q-pr-number" helper="Auto-generated">
+              <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-number font-medium text-grey-700">
+                {procurementNumber}
+              </div>
+            </Field>
+          )}
 
           <Field label="Date" htmlFor="q-date">
             <Input

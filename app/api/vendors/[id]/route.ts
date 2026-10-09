@@ -24,6 +24,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
       .map((x) => ({ name: String(x.name ?? "").trim(), phone: String(x.phone ?? "").trim() }))
       .filter((x) => x.name || x.phone);
   }
+  if (b.code !== undefined) data.code = String(b.code).trim();
+  if (Array.isArray(b.emails)) data.emails = (b.emails as unknown[]).map((x) => String(x ?? "").trim()).filter(Boolean);
   if (b.deletedAt !== undefined) data.deletedAt = b.deletedAt === null ? null : new Date(b.deletedAt);
   if (data.name !== undefined && !String(data.name).trim()) {
     return NextResponse.json({ error: "Vendor name is required" }, { status: 400 });

@@ -26,7 +26,8 @@ export type MaterialCategoryKey =
   // Purchase Material Library — colours bought from vendors
   | "purchase-internal"
   | "purchase-external"
-  | "purchase-cabinet-type";
+  | "purchase-cabinet-type"
+  | "purchase-product-type";
 
 export type MaterialCategory = {
   key: MaterialCategoryKey;
@@ -41,6 +42,8 @@ export type MaterialCategory = {
   // Purchase Material Library: each entry is a Brand + Colour Code pair
   // (stored as description + name, so no DB change is needed).
   brandAndCode?: boolean;
+  // Code + Name entries: Code kept in `description` and shown first (no DB change).
+  codeAndName?: boolean;
 };
 
 export const materialCategories: MaterialCategory[] = [
@@ -67,9 +70,10 @@ export const materialCategories: MaterialCategory[] = [
   { key: "brand", group: "library", label: "Brand", noDescription: true },
   { key: "unit", group: "library", label: "Unit", noDescription: true },
   { key: "level-type", group: "library", label: "Level Type", noDescription: true },
-  { key: "purchase-internal", group: "purchase-library", label: "Internal", brandAndCode: true },
-  { key: "purchase-external", group: "purchase-library", label: "External", brandAndCode: true },
+  { key: "purchase-internal", group: "purchase-library", label: "Internal Colour", brandAndCode: true },
+  { key: "purchase-external", group: "purchase-library", label: "External Colour", brandAndCode: true },
   { key: "purchase-cabinet-type", group: "purchase-library", label: "Cabinet Name", noDescription: true },
+  { key: "purchase-product-type", group: "purchase-library", label: "Purchase Product Type", codeAndName: true },
 ];
 
 export function getMaterialCategory(key: MaterialCategoryKey) {

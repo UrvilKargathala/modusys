@@ -112,6 +112,13 @@ export function MaterialItemFormDialog({
             </div>
           )}
 
+          {category.codeAndName && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="mi-code">Code</Label>
+              <Input id="mi-code" placeholder="e.g. PPT-01" {...register("description")} />
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="mi-name">{brandCode ? "Colour Code *" : "Name *"}</Label>
             <Input id="mi-name" placeholder={brandCode ? "e.g. EW 79520" : "e.g. Profile Handle — Aluminium"} {...register("name")} />
@@ -122,7 +129,7 @@ export function MaterialItemFormDialog({
             )}
           </div>
 
-          {!brandCode && !category.noDescription && (
+          {!brandCode && !category.codeAndName && !category.noDescription && (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="mi-description">
                 Description {category.longDescription ? "" : "(optional)"}

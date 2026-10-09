@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, FileText, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, FileText, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +25,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
-import { PO_GROUPS, mostUsed, nextPoNumber, gstModeFor, poTotals, type GstMode, type PurchaseOrder } from "@/lib/purchase-order";
+import { PO_GROUPS, buildPoNumber, poNumberBase, customerCodeFrom, mostUsed, gstModeFor, poTotals, type GstMode, type PurchaseOrder } from "@/lib/purchase-order";
 
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
 const card = "flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-5 shadow-sm";
@@ -44,6 +44,12 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const orders = usePurchaseOrders();
   const vendors = useVendors();
   const customers = useCustomers();
+  // Customer part of the PO number: first two letters of the name + first two of the surname (Tejashbhai Patel → TEPA),
+  // falling back to the full name's first and last words when the surname is empty.
+  const custCode = (c: { firstName?: string; lastName?: string; name: string }) => {
+    const words = c.name.trim().split(/\s+/);
+    return c.lastName?.trim() ? customerCodeFrom(c.firstName || words[0], c.lastName) : customerCodeFrom(words[0], words.length > 1 ? words[words.length - 1] : "");
+  };
   const quotes = useQuotes();
   const purchasePrices = usePurchaseFurniturePriceItems();
   const hardwarePrices = useHardwarePriceItems();
@@ -71,6 +77,21 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     const lines = applyPurchaseRates(draft.lines, draft.lines, purchasePrices, materials, hardwarePrices, draft.vendorId);
     if (lines.some((l, i) => l.rate !== draft.lines[i].rate)) setDraft({ ...draft, lines });
   }, [draft, purchasePrices, hardwarePrices, materials]);
+
+  // On open, a PO whose number doesn't match its vendor / product type / customer gets the generated one.
+  const [numbered, setNumbered] = useState(false);
+  useEffect(() => {
+    if (numbered || !draft || !draft.customerId || customers.length === 0) return;
+    setNumbered(true);
+    const c = customers.find((x) => x.id === draft.customerId);
+    const pt = materials.find((m) => m.id === draft.material.productTypeId);
+    const parts = [vendors.find((v) => v.id === draft.vendorId)?.code, pt?.description, c ? custCode(c) : undefined];
+    // Already right (same parts plus its id, e.g. -01)? Leave it.
+    const prefix = `${poNumberBase(parts)}-`.toUpperCase();
+    const id = draft.poNumber.toUpperCase().startsWith(prefix) ? draft.poNumber.slice(prefix.length) : "";
+    if (/^\d+$/.test(id)) return;
+    setDraft({ ...draft, poNumber: buildPoNumber(parts, orders.filter((o) => o.id !== draft.id).map((o) => o.poNumber)) });
+  }, [numbered, draft, customers, vendors, materials, orders]);
 
   const dirty = useMemo(() => !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved), [draft, saved]);
   const totals = useMemo(() => (draft ? poTotals(draft) : null), [draft]);
@@ -133,8 +154,48 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   };
   const setMaterial = (fields: Partial<PurchaseOrder["material"]>) => set({ material: { ...draft.material, ...fields } });
 
+  // PO number = PO-<vendor code>-<purchase product type code>-<customer code>. Rebuilt whenever one of those is picked.
+  const productTypes = materials.filter((m) => m.category === "purchase-product-type" && !m.deleted);
+  const poNumberFor = (vendorId: string, productTypeId: string | undefined, customerId: string | null) => {
+    const c = customers.find((x) => x.id === customerId);
+    return buildPoNumber(
+      [
+        vendors.find((v) => v.id === vendorId)?.code,
+        productTypes.find((m) => m.id === productTypeId)?.description,
+        c ? custCode(c) : undefined,
+      ],
+      orders.filter((o) => o.id !== draft.id).map((o) => o.poNumber)
+    );
+  };
+
   // Saves the given draft (default: what's on screen). A blank vendor / PO number is fine while Pending.
+  // Required before saving: vendor, customer, product type, PO number and date, and every Shutter / Cabinet Details field.
+  const missingFields = (d: PurchaseOrder) => {
+    const fin = (scope: "shutter" | "cabinet", key: "internalColour" | "externalColour") =>
+      d.material.finishes?.[`${scope}${key === "internalColour" ? "Internal" : "External"}Colour`] ?? commonFinish(scope, key);
+    return [
+      [!d.vendorId, "Vendor"],
+      [!d.customerId, "Customer"],
+      [!d.material.productTypeId, "Purchase Product Type"],
+      [!d.poNumber.trim(), "PO Number"],
+      [!d.poDate, "PO Date"],
+      [!d.material.shutterRawMaterial, "Shutter Raw Material"],
+      [!fin("shutter", "internalColour"), "Shutter Internal Brand & Colour"],
+      [!fin("shutter", "externalColour"), "Shutter External Brand & Colour"],
+      [!d.material.cabinetRawMaterial, "Cabinet Raw Material"],
+      [!fin("cabinet", "internalColour"), "Cabinet Internal Brand & Colour"],
+      [!fin("cabinet", "externalColour"), "Cabinet External Brand & Colour"],
+    ]
+      .filter(([miss]) => miss)
+      .map(([, label]) => label as string);
+  };
+
   const save = async (d: PurchaseOrder = draft) => {
+    const missing = missingFields(d);
+    if (missing.length) {
+      toastStore.show(`Fill in before saving: ${missing.join(", ")}`, "error");
+      return;
+    }
     setSaving(true);
     try {
       const { id: _id, createdAt: _c, vendorName: _v, ...fields } = d;
@@ -252,6 +313,11 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             <Trash2 className="h-4 w-4" />
             Delete
           </Button>
+          {/* Cancel: throw away unsaved edits and go back to the last saved version. */}
+          <Button type="button" variant="outline" size="sm" disabled={!dirty || saving} onClick={() => saved && setDraft(structuredClone(saved))}>
+            <X className="h-4 w-4" />
+            Cancel
+          </Button>
           <Button type="button" size="sm" disabled={!dirty || saving} onClick={() => void save()}>
             <Save className="h-4 w-4" />
             {saving ? "Saving…" : "Save"}
@@ -261,12 +327,16 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className={card}>
-          <h2 className="font-heading text-base font-semibold text-grey-900">Vendor</h2>
+          <h2 className="font-heading text-base font-semibold text-grey-900">Vendor <span className="text-error">*</span></h2>
           <select
             value={draft.vendorId}
             onChange={(e) => {
               const v = vendors.find((x) => x.id === e.target.value);
-              set({ vendorId: e.target.value, ...(v ? { gstMode: gstModeFor(v.state) } : {}) });
+              set({
+                vendorId: e.target.value,
+                poNumber: poNumberFor(e.target.value, draft.material.productTypeId, draft.customerId ?? null),
+                ...(v ? { gstMode: gstModeFor(v.state) } : {}),
+              });
             }}
             className={field}
           >
@@ -274,14 +344,18 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             {!vendor && draft.vendorId && <option value={draft.vendorId}>{draft.vendorName || "Unknown vendor"}</option>}
             {vendors.map((v) => (
               <option key={v.id} value={v.id}>
-                {v.name}
+                {v.name}{v.code ? ` (${v.code})` : ""}
               </option>
             ))}
           </select>
           {vendor && (
             <div className="flex flex-col gap-1">
               <Row label="Address" value={[vendor.address, vendor.city, vendor.state].filter(Boolean).join(", ")} />
+              {vendor.code && <Row label="Code" value={vendor.code} />}
               <Row label="GST No" value={vendor.gst} />
+              {(vendor.emails ?? []).map((e, i) => (
+                <Row key={`e${i}`} label={i === 0 ? "Email" : ""} value={e} />
+              ))}
               {vendor.contacts.map((c, i) => (
                 <Row key={i} label={i === 0 ? "Contact" : ""} value={[c.name, c.phone].filter(Boolean).join(": ")} />
               ))}
@@ -291,13 +365,54 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
 
         <div className={card}>
           <h2 className="font-heading text-base font-semibold text-grey-900">Purchase Order Details</h2>
+          <div className="flex items-center gap-2 text-sm font-body">
+            <span className="w-24 shrink-0 text-grey-500">Customer <span className="text-error">*</span></span>
+            <select
+              aria-label="Customer"
+              className="h-9 min-w-0 flex-1 rounded-lg border border-grey-100 bg-card px-2 text-sm text-grey-900 outline-none focus:border-primary"
+              value={draft.customerId ?? ""}
+              onChange={(e) => {
+                const c = customers.find((x) => x.id === e.target.value);
+                set({ customerId: c?.id ?? null, poNumber: poNumberFor(draft.vendorId, draft.material.productTypeId, c?.id ?? null) });
+              }}
+            >
+              <option value="">Select customer</option>
+              {[...customers].sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
+                <option key={c.id} value={c.id}>{c.name} ({custCode(c)})</option>
+              ))}
+            </select>
+          </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="e-po">PO Number</Label>
-            <Input id="e-po" value={draft.poNumber} onChange={(e) => set({ poNumber: e.target.value })} className="font-number" />
+            <Label htmlFor="e-ppt">Purchase Product Type <span className="text-error">*</span></Label>
+            <select
+              id="e-ppt"
+              className={field}
+              value={draft.material.productTypeId ?? ""}
+              onChange={(e) =>
+                set({
+                  material: { ...draft.material, productTypeId: e.target.value || undefined },
+                  poNumber: poNumberFor(draft.vendorId, e.target.value || undefined, draft.customerId ?? null),
+                })
+              }
+            >
+              <option value="">Select product type…</option>
+              {productTypes.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}{m.description ? ` (${m.description})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="e-po">PO Number <span className="text-error">*</span></Label>
+            <div id="e-po" className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 font-number text-sm font-medium text-grey-700">
+              {draft.poNumber || "—"}
+            </div>
+            <span className="text-xs font-body text-grey-400">Auto-generated: PO-Vendor code-Product type code-Customer code.</span>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="e-date">PO Date</Label>
+              <Label htmlFor="e-date">PO Date <span className="text-error">*</span></Label>
               <Input
                 id="e-date"
                 type="date"
@@ -312,56 +427,35 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             </div>
           </div>
           <Row label="Quote" value={quote?.quoteNumber ?? ""} />
-          <div className="flex items-center gap-2 text-sm font-body">
-            <span className="w-24 shrink-0 text-grey-500">Customer</span>
-            <select
-              aria-label="Customer"
-              className="h-9 min-w-0 flex-1 rounded-lg border border-grey-100 bg-card px-2 text-sm text-grey-900 outline-none focus:border-primary"
-              value={draft.customerId ?? ""}
-              onChange={(e) => {
-                const c = customers.find((x) => x.id === e.target.value);
-                // A PO without a number gets the customer's next one (UK-PO-01); a number already set is kept.
-                const poNumber = c && !draft.poNumber.trim()
-                  ? nextPoNumber(c, orders.filter((o) => o.customerId === c.id && o.id !== draft.id).map((o) => o.poNumber))
-                  : draft.poNumber;
-                set({ customerId: c?.id ?? null, poNumber });
-              }}
-            >
-              <option value="">Select customer</option>
-              {[...customers].sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
-                <option key={c.id} value={c.id}>{c.name}{c.customerCode ? ` (${c.customerCode})` : ""}</option>
-              ))}
-            </select>
-          </div>
         </div>
 
         <div className={card}>
           <h2 className="font-heading text-base font-semibold text-grey-900">Shutter Details</h2>
           <div className="flex flex-col gap-1.5">
-            <Label>Shutter Raw Material</Label>
+            <Label>Shutter Raw Material <span className="text-error">*</span></Label>
             <PoRawMaterialSelect value={draft.material.shutterRawMaterial} onChange={(v) => applyMaterial("shutter", "shutterRawMaterial", v)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Internal Brand & Colour</Label>
+            <Label>Internal Brand & Colour <span className="text-error">*</span></Label>
             <PoFinishSelect kind="internal" value={commonFinish("shutter", "internalColour")} onChange={(label) => applyFinish("shutter", "internalColour", label)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>External Brand & Colour</Label>
+            <Label>External Brand & Colour <span className="text-error">*</span></Label>
             <PoFinishSelect kind="external" value={commonFinish("shutter", "externalColour")} onChange={(label) => applyFinish("shutter", "externalColour", label)} />
           </div>
         </div>
         <div className={card}>
           <h2 className="font-heading text-base font-semibold text-grey-900">Cabinet Details</h2>
           <div className="flex flex-col gap-1.5">
-            <Label>Cabinet Raw Material</Label>
+            <Label>Cabinet Raw Material <span className="text-error">*</span></Label>
             <PoRawMaterialSelect value={draft.material.cabinetRawMaterial} onChange={(v) => applyMaterial("cabinet", "cabinetRawMaterial", v)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Internal Brand & Colour</Label>
+            <Label>Internal Brand & Colour <span className="text-error">*</span></Label>
             <PoFinishSelect kind="internal" value={commonFinish("cabinet", "internalColour")} onChange={(label) => applyFinish("cabinet", "internalColour", label)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>External Brand & Colour</Label>
+            <Label>External Brand & Colour <span className="text-error">*</span></Label>
             <PoFinishSelect kind="external" value={commonFinish("cabinet", "externalColour")} onChange={(label) => applyFinish("cabinet", "externalColour", label)} />
           </div>
         </div>

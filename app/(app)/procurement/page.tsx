@@ -30,7 +30,7 @@ export default function ProcurementPage() {
         const customer = customers.find((c) => c.id === r.data.customerId)?.name ?? "";
         return { r, quote, customer };
       })
-      .filter(({ r, customer }) => `${r.data.quoteNumber} ${customer}`.toLowerCase().includes(q));
+      .filter(({ r, customer }) => `${r.number ?? ""} ${r.data.quoteNumber} ${customer}`.toLowerCase().includes(q));
   }, [rows, quotes, customers, search]);
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(list);
 
@@ -46,7 +46,7 @@ export default function ProcurementPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search quote no, customer..."
+            placeholder="Search PR no, quote no, customer..."
             className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
           />
         </div>
@@ -58,7 +58,7 @@ export default function ProcurementPage() {
           <table className="w-full text-left">
             <thead className="bg-[#DACCCC]">
               <tr>
-                {["Quote No", "Customer", "Quote Status", "Copied On", "Last Edited", "Actions"].map((h) => (
+                {["Procurement No", "Quote No", "Customer", "Quote Status", "Copied On", "Last Edited", "Actions"].map((h) => (
                   <th key={h} className={`${th} ${h === "Actions" ? "text-right" : ""}`}>{h}</th>
                 ))}
               </tr>
@@ -67,8 +67,9 @@ export default function ProcurementPage() {
               {paged.map(({ r, quote, customer }) => (
                 <tr key={r.id} className="border-t border-grey-100">
                   <td className="px-4 py-3 font-number text-sm">
-                    <Link href={`/procurement/${r.id}`} className="text-primary hover:underline">{r.data.quoteNumber}</Link>
+                    <Link href={`/procurement/${r.id}`} className="text-primary hover:underline">{r.number}</Link>
                   </td>
+                  <td className="px-4 py-3 font-number text-sm text-grey-700">{r.data.quoteNumber}</td>
                   <td className="px-4 py-3 text-sm font-body text-grey-900">{customer || "—"}</td>
                   <td className="px-4 py-3">
                     {!quote ? (

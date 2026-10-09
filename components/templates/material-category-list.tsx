@@ -22,6 +22,8 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
   const items = useMaterialItems(category.key);
   // Brand + Colour Code entries keep Brand in `description` and Colour Code in `name`.
   const brandCode = !!category.brandAndCode;
+  // Brand + Colour Code and Code + Name share a layout: the `description` column first, then `name`.
+  const pair = brandCode || !!category.codeAndName;
   const showSrNo = category.group === "library" || category.group === "purchase-library";
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ key: "name" | "description"; asc: boolean }>({ key: "name", asc: true });
@@ -129,15 +131,15 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                 {showSrNo && (
                   <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">SR No</th>
                 )}
-                {brandCode && (
+                {pair && (
                   <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
                     <button
                       type="button"
                       onClick={() => toggleSort("description")}
                       className="flex items-center gap-1 uppercase tracking-wide hover:text-grey-700"
-                      aria-label="Sort by brand"
+                      aria-label={brandCode ? "Sort by brand" : "Sort by code"}
                     >
-                      Brand
+                      {brandCode ? "Brand" : "Code"}
                       {sortIcon("description")}
                     </button>
                   </th>
@@ -153,7 +155,7 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                     {sortIcon("name")}
                   </button>
                 </th>
-                {!brandCode && !category.longDescription && !category.noDescription && (
+                {!pair && !category.longDescription && !category.noDescription && (
                   <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
                     <button
                       type="button"
@@ -177,14 +179,14 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                   {showSrNo && (
                     <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
                   )}
-                  {brandCode && <td className="px-4 py-3 text-[13px] font-body text-grey-900">{i.description || "—"}</td>}
+                  {pair && <td className="px-4 py-3 text-[13px] font-body text-grey-900">{i.description || "—"}</td>}
                   <td className="px-4 py-3 text-[13px] font-body text-grey-900">
                     {i.name}
                     {category.longDescription && i.description && (
                       <p className="mt-0.5 text-xs font-body text-grey-400">{i.description}</p>
                     )}
                   </td>
-                  {!brandCode && !category.longDescription && !category.noDescription && (
+                  {!pair && !category.longDescription && !category.noDescription && (
                     <td className="px-4 py-3 text-[13px] font-body text-grey-500">{i.description || "—"}</td>
                   )}
                   <td className="px-4 py-3">

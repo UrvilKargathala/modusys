@@ -178,7 +178,9 @@ export function serializeVendor(v: Vendor) {
     city: v.city,
     state: v.state,
     gst: v.gst,
+    code: v.code,
     contacts: (v.contacts as VendorContact[] | null) ?? [],
+    emails: (v.emails as string[] | null) ?? [],
     createdAt: v.createdAt.toISOString(),
   };
 }

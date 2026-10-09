@@ -23,7 +23,7 @@ export function VendorsTable() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return vendors.filter((v) => `${v.name} ${v.city} ${v.state} ${v.gst}`.toLowerCase().includes(q));
+    return vendors.filter((v) => `${v.name} ${v.code ?? ""} ${v.city} ${v.state} ${v.gst} ${(v.emails ?? []).join(" ")}`.toLowerCase().includes(q));
   }, [vendors, search]);
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(filtered);
 
@@ -61,7 +61,7 @@ export function VendorsTable() {
           <table className="w-full text-left">
             <thead className="bg-[#DACCCC]">
               <tr>
-                {["Vendor", "City / State", "GST No", "Contact", ""].map((h) => (
+                {["Vendor", "Code", "City / State", "GST No", "Contact", "Email", ""].map((h) => (
                   <th key={h} className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
                     {h}
                   </th>
@@ -72,11 +72,13 @@ export function VendorsTable() {
               {paged.map((v) => (
                 <tr key={v.id} className="border-t border-grey-100">
                   <td className="px-4 py-3 text-sm font-body text-grey-900">{v.name}</td>
+                  <td className="px-4 py-3 font-number text-sm text-grey-700">{v.code || "—"}</td>
                   <td className="px-4 py-3 text-sm font-body text-grey-700">{[v.city, v.state].filter(Boolean).join(", ") || "—"}</td>
                   <td className="px-4 py-3 font-number text-sm text-grey-700">{v.gst || "—"}</td>
                   <td className="px-4 py-3 text-sm font-body text-grey-700">
                     {v.contacts.length ? v.contacts.map((c) => [c.name, c.phone].filter(Boolean).join(": ")).join(" · ") : "—"}
                   </td>
+                  <td className="px-4 py-3 text-sm font-body text-grey-700">{v.emails?.length ? v.emails.join(", ") : "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <Tooltip>

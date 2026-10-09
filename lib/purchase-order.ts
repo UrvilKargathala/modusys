@@ -7,7 +7,9 @@ export type Vendor = {
   city: string;
   state: string;
   gst: string;
+  code: string;
   contacts: VendorContact[];
+  emails: string[];
   createdAt: string;
 };
 
@@ -100,6 +102,8 @@ export type PoCabinet = {
 };
 
 export type PoMaterial = {
+  // Purchase Material Library > Purchase Product Type picked on the PO (its id); its Code goes into the PO number.
+  productTypeId?: string;
   shutterRawMaterial: string;
   otherRawMaterial: string;
   cabinetRawMaterial: string;
@@ -138,18 +142,26 @@ export function poTotals(po: Pick<PurchaseOrder, "lines" | "discountPct" | "gstM
   return { amount, discount, taxable, stateGst, centralGst, igst, final };
 }
 
-// Next PO number for a customer: their initials (first name + surname), "PO", then a 2-digit number counted per
-// customer — Urvil Kargathala → UK-PO-01, UK-PO-02. Looks at that customer's existing UK-PO-nn numbers.
-export function nextPoNumber(customer: { firstName?: string; lastName?: string; name: string }, customerPoNumbers: string[]): string {
-  const parts = [customer.firstName, customer.lastName].filter((x): x is string => !!x?.trim());
-  const words = parts.length ? parts : customer.name.trim().split(/\s+/);
-  const initials = (words.length > 1 ? words[0][0] + words[words.length - 1][0] : (words[0] ?? "X").slice(0, 2)).toUpperCase();
-  const prefix = `${initials}-PO-`;
-  const max = customerPoNumbers.reduce((m, n) => {
-    const hit = n.toUpperCase().startsWith(prefix) ? Number(n.slice(prefix.length)) : NaN;
-    return Number.isFinite(hit) ? Math.max(m, hit) : m;
+// Customer code: first two letters of the name + first two of the surname (Urvil Kargathala → URKA).
+export function customerCodeFrom(firstName = "", lastName = "") {
+  const two = (w: string) => w.replace(/[^a-z]/gi, "").slice(0, 2);
+  return (two(firstName) + two(lastName)).toUpperCase();
+}
+
+// PO-<vendor code>-<purchase product type code>-<customer code>-<id>, e.g. PO-VEN01-KT-TEPA-01. Missing parts are
+// left out; the id counts up (01, 02 …) across POs that share the same parts.
+export function poNumberBase(parts: (string | undefined)[]) {
+  return ["PO", ...parts.map((p) => (p ?? "").trim().toUpperCase()).filter(Boolean)].join("-");
+}
+export function buildPoNumber(parts: (string | undefined)[], otherNumbers: string[]) {
+  const base = poNumberBase(parts);
+  const prefix = `${base}-`.toUpperCase();
+  const max = otherNumbers.reduce((m, n) => {
+    const u = n.toUpperCase();
+    const id = u.startsWith(prefix) ? Number(u.slice(prefix.length)) : NaN;
+    return Number.isInteger(id) ? Math.max(m, id) : m;
   }, 0);
-  return `${prefix}${String(max + 1).padStart(2, "0")}`;
+  return `${base}-${String(max + 1).padStart(2, "0")}`;
 }
 
 // The value most rows use (first seen wins a tie); "" when none. Header pickers show this, so changing one row

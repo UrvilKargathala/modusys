@@ -78,7 +78,7 @@ export default function ProcurementEditorPage({ params }: { params: Promise<{ id
       </div>
 
       <div className="flex flex-col gap-6">
-        <ClientDetailsSection quote={quote} onChange={patchQuote} confirmChanges />
+        <ClientDetailsSection quote={quote} onChange={patchQuote} confirmChanges procurementNumber={row?.number} />
         <MaterialSpecificationSection quote={quote} onChange={patchQuote} confirmChanges />
         <UnitsSection
           units={quote.units}

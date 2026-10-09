@@ -692,7 +692,9 @@ model Vendor {
   city      String    @default("")
   state     String    @default("")
   gst       String    @default("")
+  code      String    @default("")
   contacts  Json      @default("[]")
+  emails    Json      @default("[]")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?

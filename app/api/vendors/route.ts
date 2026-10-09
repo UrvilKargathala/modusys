@@ -13,6 +13,7 @@ const cleanContacts = (c: unknown) =>
   (Array.isArray(c) ? (c as ContactIn[]) : [])
     .map((x) => ({ name: String(x.name ?? "").trim(), phone: String(x.phone ?? "").trim() }))
     .filter((x) => x.name || x.phone);
+const cleanEmails = (e: unknown) => (Array.isArray(e) ? e : []).map((x) => String(x ?? "").trim()).filter(Boolean);
 
 export async function GET() {
   const auth = await requireRole(ROLES);
@@ -34,7 +35,9 @@ export async function POST(req: Request) {
       city: b.city ?? "",
       state: b.state ?? "",
       gst: String(b.gst ?? "").trim().toUpperCase(),
+      code: String(b.code ?? "").trim(),
       contacts: cleanContacts(b.contacts),
+      emails: cleanEmails(b.emails),
     },
   });
   return NextResponse.json(serializeVendor(vendor), { status: 201 });

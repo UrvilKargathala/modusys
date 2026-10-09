@@ -1,5 +1,6 @@
 "use client";
 
+import { customerCodeFrom } from "@/lib/purchase-order";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,9 +34,7 @@ const birthYears = Array.from({ length: 70 }, (_, i) => String(currentYear - 18 
 function pad4(n: number) {
   return String(n).padStart(4, "0");
 }
-function deriveCode(firstName: string, lastName: string) {
-  return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
-}
+const deriveCode = customerCodeFrom;
 
 const customerSchema = z.object({
   prefix: z.string(),
@@ -215,7 +214,7 @@ export function CustomerFormDialog({
               </div>
             </div>
             {errors.firstName && <span className="text-xs font-body text-error">{errors.firstName.message}</span>}
-            <span className="text-xs font-body text-grey-400">Customer Code is auto-generated from the initials of Name and Surname.</span>
+            <span className="text-xs font-body text-grey-400">Customer Code is auto-generated from the first two letters of Name and Surname.</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

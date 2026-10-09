@@ -4,7 +4,26 @@ import { useSyncExternalStore } from "react";
 import type { Quote } from "@/lib/mock/quote";
 
 // Procurement copies of quotes (see /api/procurement). One fetch on first use; writes wait for the server.
-export type ProcurementQuote = { id: string; quoteId: string; data: Quote; createdAt: string; updatedAt: string };
+// `number`: PR-DDMMYY-NN, from the day the copy was made (India time) and its order that day. Worked out here, not
+// stored: copies are never deleted, so the order (and the number) never changes.
+export type ProcurementQuote = { id: string; quoteId: string; data: Quote; createdAt: string; updatedAt: string; number?: string };
+
+const istDay = (iso: string) => {
+  const [y, m, d] = new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }).split("-");
+  return `${d}${m}${y.slice(2)}`;
+};
+function withNumbers(list: ProcurementQuote[]): ProcurementQuote[] {
+  const byTime = [...list].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+  const seen = new Map<string, number>();
+  const num = new Map<string, string>();
+  for (const r of byTime) {
+    const day = istDay(r.createdAt);
+    const n = (seen.get(day) ?? 0) + 1;
+    seen.set(day, n);
+    num.set(r.id, `PR-${day}-${String(n).padStart(2, "0")}`);
+  }
+  return list.map((r) => ({ ...r, number: num.get(r.id) }));
+}
 
 const EMPTY: ProcurementQuote[] = [];
 let rows: ProcurementQuote[] = EMPTY;
@@ -17,7 +36,7 @@ function load(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
   loading ??= fetch("/api/procurement", { cache: "no-store" })
     .then(async (res) => {
-      if (res.ok) rows = (await res.json()) as ProcurementQuote[];
+      if (res.ok) rows = withNumbers((await res.json()) as ProcurementQuote[]);
       loaded = true;
       emit();
     })
@@ -28,7 +47,7 @@ function load(): Promise<void> {
 }
 
 const put = (r: ProcurementQuote) => {
-  rows = rows.some((x) => x.id === r.id) ? rows.map((x) => (x.id === r.id ? r : x)) : [r, ...rows];
+  rows = withNumbers(rows.some((x) => x.id === r.id) ? rows.map((x) => (x.id === r.id ? r : x)) : [r, ...rows]);
   emit();
 };
 
