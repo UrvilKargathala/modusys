@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PoCabinetCard } from "@/components/purchase-orders/po-cabinet-card";
 import { PoLinesTable, PoVendorContext } from "@/components/purchase-orders/po-lines-table";
-import { applyPurchaseRates } from "@/lib/purchase-order-rate";
+import { applyPurchaseRates, purchaseRateFor } from "@/lib/purchase-order-rate";
 import { useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { usePurchaseFurniturePriceItems } from "@/lib/store/purchase-furniture-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
@@ -25,7 +25,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
-import { PO_GROUPS, buildPoNumber, poNumberBase, customerCodeFrom, mostUsed, gstModeFor, poTotals, type GstMode, type PurchaseOrder } from "@/lib/purchase-order";
+import { PO_GROUPS, buildPoNumber, poNumberBase, customerCodeFrom, mostUsed, gstModeFor, poTotals, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
 
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
 const card = "flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-5 shadow-sm";
@@ -62,7 +62,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   // The Carcass list (all cabinet blocks) starts closed; click the heading to open it.
   const [carcassOpen, setCarcassOpen] = useState(false);
   const [hardwareOpen, setHardwareOpen] = useState(false);
-  const [view, setView] = useState<"component" | "cabinet">("component");
+  const [view, setView] = useState<"component" | "cabinet" | "pending">("component");
+  // Rate pending: the rows without a rate when the tab was opened. Kept while you type rates so a row doesn't vanish mid-edit.
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
 
   // Seed the draft once the PO has loaded; later store updates (our own save)
   // re-seed through reset() below, not through this effect.
@@ -74,7 +76,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const materials = useSyncExternalStore(materialSpecStore.subscribe, materialSpecStore.getSnapshot, materialSpecStore.getServerSnapshot);
   useEffect(() => {
     if (!draft || materials.length === 0 || (purchasePrices.length === 0 && hardwarePrices.length === 0)) return;
-    const lines = applyPurchaseRates(draft.lines, draft.lines, purchasePrices, materials, hardwarePrices, draft.vendorId);
+    const lines = applyPurchaseRates(draft.lines, draft.lines, purchasePrices, materials, hardwarePrices, (l) => draft.material.cabinets?.[String(l.srNo)]?.vendorId || draft.vendorId);
     if (lines.some((l, i) => l.rate !== draft.lines[i].rate)) setDraft({ ...draft, lines });
   }, [draft, purchasePrices, hardwarePrices, materials]);
 
@@ -149,8 +151,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const set = (fields: Partial<PurchaseOrder>) => {
     const vendorId = fields.vendorId ?? draft.vendorId;
     const vendorChanged = vendorId !== draft.vendorId;
+    const cabinets = (fields.material ?? draft.material).cabinets;
     const lines = fields.lines ?? (vendorChanged ? draft.lines : undefined);
-    setDraft({ ...draft, ...fields, ...(lines ? { lines: applyPurchaseRates(lines, draft.lines, purchasePrices, materialSpecStore.getSnapshot(), hardwarePrices, vendorId, vendorChanged) } : {}) });
+    setDraft({ ...draft, ...fields, ...(lines ? { lines: applyPurchaseRates(lines, draft.lines, purchasePrices, materialSpecStore.getSnapshot(), hardwarePrices, (l) => cabinets?.[String(l.srNo)]?.vendorId || vendorId, vendorChanged) } : {}) });
   };
   const setMaterial = (fields: Partial<PurchaseOrder["material"]>) => set({ material: { ...draft.material, ...fields } });
 
@@ -259,13 +262,24 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     });
     toastStore.show(`Cabinet ${no} copied as cabinet ${next}`, "success");
   };
+  // A cabinet's own vendor re-rates only that cabinet's panel rows (no price → 0, highlighted). The PO's vendor is untouched.
+  const setCabinet = (no: number, next: PoCabinet) => {
+    const material = { ...draft.material, cabinets: { ...draft.material.cabinets, [String(no)]: next } };
+    if ((next.vendorId ?? "") === (draft.material.cabinets?.[String(no)]?.vendorId ?? "")) return set({ material });
+    const vendorId = next.vendorId || draft.vendorId;
+    set({
+      material,
+      lines: draft.lines.map((l) => (l.srNo === no && l.group !== "hardware" ? { ...l, rate: purchaseRateFor(l, purchasePrices, materials, vendorId) ?? 0 } : l)),
+    });
+  };
+  const pendingCount = draft.lines.filter((l) => !l.rate).length;
   const removeCabinet = (no: number) => {
     const { [String(no)]: _gone, ...rest } = draft.material.cabinets;
     setMaterial({ cabinets: rest });
   };
 
   return (
-    <PoVendorContext.Provider value={draft.vendorId}>
+    <PoVendorContext.Provider value={(no) => draft.material.cabinets?.[String(no)]?.vendorId || draft.vendorId}>
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -470,16 +484,19 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           )}
           <div className="ml-auto flex items-center gap-2">
             <div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Group rows by">
-              {(["component", "cabinet"] as const).map((v) => (
+              {(["component", "cabinet", "pending"] as const).map((v) => (
                 <button
                   key={v}
                   type="button"
                   role="tab"
                   aria-selected={shownView === v}
-                  onClick={() => setView(v)}
+                  onClick={() => {
+                    if (v === "pending") setPendingIds(new Set(draft.lines.filter((l) => !l.rate).map((l) => l.id)));
+                    setView(v);
+                  }}
                   className={`rounded-md px-3 py-1 text-sm font-body font-medium transition-colors ${shownView === v ? "bg-primary-transparent text-primary" : "text-grey-600 hover:bg-light-600"}`}
                 >
-                  {v === "component" ? "By component" : "By cabinet"}
+                  {v === "component" ? "By component" : v === "cabinet" ? "By cabinet" : <>Rate pending <span className="font-number">({pendingCount})</span></>}
                 </button>
               ))}
             </div>
@@ -496,7 +513,26 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             No cabinets yet. Click Add Cabinet, then add its rows.
           </p>
         )}
-        {shownView === "component"
+        {shownView === "pending" ? (
+          pendingIds.size === 0 ? (
+            <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">Every row has a rate.</p>
+          ) : (
+            PO_GROUPS.filter((g) => draft.lines.some((l) => l.group === g.key && pendingIds.has(l.id))).map((g) => (
+              <PoLinesTable
+                key={g.key}
+                group={g.key}
+                title={g.label}
+                lines={draft.lines}
+                only={(l) => pendingIds.has(l.id)}
+                varsFor={(no) => {
+                  const c = cabinetFor(no);
+                  return c ? { W: c.width, D: c.depth, H: c.height } : undefined;
+                }}
+                onChange={(lines) => set({ lines })}
+              />
+            ))
+          )
+        ) : shownView === "component"
           ? PO_GROUPS.filter((g) => draft.lines.some((l) => l.group === g.key)).map((g) =>
             g.key === "hardware" ? (
               <div key={g.key} className="flex flex-col gap-3">
@@ -569,7 +605,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                       srNo={no}
                       lines={draft.lines}
                       cabinet={cabinetFor(no)}
-                      onCabinetChange={(next) => setMaterial({ cabinets: { ...draft.material.cabinets, [String(no)]: next } })}
+                      onCabinetChange={(next) => setCabinet(no, next)}
                       onChange={(lines) => set({ lines })}
                       onCopyCabinet={() => copyCabinet(no)}
                     />
@@ -583,7 +619,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 srNo={no}
                 lines={draft.lines}
                 cabinet={cabinetFor(no)}
-                onCabinetChange={(next) => setMaterial({ cabinets: { ...draft.material.cabinets, [String(no)]: next } })}
+                onCabinetChange={(next) => setCabinet(no, next)}
                 onChange={(lines) => set({ lines })}
                 onRemove={() => removeCabinet(no)}
               />

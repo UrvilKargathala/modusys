@@ -10,6 +10,7 @@ import { PoLinesTable, newBlankLine } from "@/components/purchase-orders/po-line
 import { formatInr } from "@/lib/format";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
+import { useVendors } from "@/lib/store/vendors-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { PO_GROUPS, lineAmount, mostUsed, type PoCabinet, type PurchaseOrderLine } from "@/lib/purchase-order";
@@ -51,6 +52,7 @@ export function PoCabinetCard({
   const designType = mine[0]?.designType ?? "";
   const total = mine.reduce((s, l) => s + lineAmount(l), 0);
 
+  const vendors = useVendors();
   const cabinetType = useCabinetTypes().find((t) => t.id === cabinet?.cabinetTypeId);
 
   // Recalculate the sizes of this cabinet's existing carcass rows for the W/D/H/Qty in the header.
@@ -168,8 +170,18 @@ export function PoCabinetCard({
         </div>
       )}
 
-      {mine.some((l) => l.group === "carcass") && (
-        <div className="grid grid-cols-1 gap-3 pl-8 md:grid-cols-3">
+      {cabinet && (
+        <div className="grid grid-cols-1 gap-3 pl-8 md:grid-cols-4">
+          <Field label="Vendor">
+            <select aria-label={`Cabinet ${srNo} vendor`} className={fieldInput} value={cabinet.vendorId ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, vendorId: e.target.value || undefined })}>
+              <option value="">Same as PO vendor</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={v.id}>{v.name}</option>
+              ))}
+            </select>
+          </Field>
+          {mine.some((l) => l.group === "carcass") && (
+            <>
           <Field label="Internal Brand & Colour">
             <PoFinishSelect kind="internal" value={commonCarcass("internalColour")} onChange={(v) => applyCarcass({ internalColour: v })} />
           </Field>
@@ -179,6 +191,8 @@ export function PoCabinetCard({
           <Field label="Material">
             <PoRawMaterialSelect value={commonCarcass("material")} onChange={(v) => applyCarcass({ material: v })} />
           </Field>
+            </>
+          )}
         </div>
       )}
 

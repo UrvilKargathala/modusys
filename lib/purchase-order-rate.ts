@@ -59,19 +59,21 @@ export function purchasePriceFieldsFor(l: PurchaseOrderLine, materials: Material
 // fields didn't change is kept. Panels: rate from the Purchase Furniture Price List. Hardware: rate = MRP and
 // discount % from the Hardware Price List. `vendorChanged`: every panel row is re-rated for the new vendor, and a row
 // with no price for that vendor goes to 0 (shown highlighted) instead of keeping the old vendor's rate.
-export function applyPurchaseRates(next: PurchaseOrderLine[], prev: PurchaseOrderLine[], prices: PurchaseFurniturePriceItem[], materials: MaterialItem[], hardware: HardwarePriceItem[] = [], vendorId = "", vendorChanged = false) {
+// `vendorId` may be a function giving each row's vendor (a cabinet can have its own).
+export function applyPurchaseRates(next: PurchaseOrderLine[], prev: PurchaseOrderLine[], prices: PurchaseFurniturePriceItem[], materials: MaterialItem[], hardware: HardwarePriceItem[] = [], vendorId: string | ((l: PurchaseOrderLine) => string) = "", vendorChanged = false) {
+  const vendorOf = (l: PurchaseOrderLine) => (typeof vendorId === "string" ? vendorId : vendorId(l));
   const before = new Map(prev.map((l) => [l.id, l]));
   const sig = (l: PurchaseOrderLine) =>
     (l.group === "hardware" ? [l.category, l.brand, l.description, l.unit] : [l.depth, l.material, l.internalColour, l.externalColour]).join("|");
   return next.map((l) => {
     const old = before.get(l.id);
-    if (vendorChanged && l.group !== "hardware") return { ...l, rate: purchaseRateFor(l, prices, materials, vendorId) ?? 0 };
+    if (vendorChanged && l.group !== "hardware") return { ...l, rate: purchaseRateFor(l, prices, materials, vendorOf(l)) ?? 0 };
     if (l.rate !== 0 && old && sig(old) === sig(l)) return l;
     if (l.group === "hardware") {
       const h = hardwareMatchFor(l, hardware, materials);
       return h ? { ...l, rate: h.mrp, discountPct: h.discountPct } : l;
     }
-    const rate = purchaseRateFor(l, prices, materials, vendorId);
+    const rate = purchaseRateFor(l, prices, materials, vendorOf(l));
     return rate === null ? l : { ...l, rate };
   });
 }

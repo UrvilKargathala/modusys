@@ -17,7 +17,8 @@ import { purchaseFurnitureStore, type NewPurchaseFurnitureInput } from "@/lib/st
 import { lineAmount, panelSqft, type PoGroup, type PurchaseOrderLine } from "@/lib/purchase-order";
 
 // The PO's vendor, so "Add this combination" can tag the new price with it.
-export const PoVendorContext = createContext("");
+// Vendor for a cabinet's rows: the cabinet's own vendor, else the PO's.
+export const PoVendorContext = createContext<(srNo: number) => string>(() => "");
 
 const cell =
   "h-8 w-full rounded-md border border-transparent bg-transparent px-2 text-sm font-body text-grey-900 outline-none hover:border-grey-100 focus:border-primary focus:bg-card";
@@ -141,6 +142,7 @@ export function PoLinesTable({
   header,
   subHeader,
   defaultCollapsed = false,
+  only,
   onChange,
 }: {
   group: PoGroup;
@@ -157,17 +159,19 @@ export function PoLinesTable({
   subHeader?: ReactNode;
   // Start closed; the user opens what they need.
   defaultCollapsed?: boolean;
+  // Show only these rows (e.g. Rate pending); hides Add Row.
+  only?: (l: PurchaseOrderLine) => boolean;
   onChange: (lines: PurchaseOrderLine[]) => void;
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   // Removing a row asks first.
   const [toRemove, setToRemove] = useState<PurchaseOrderLine | null>(null);
   // A panel row with no price: add its combination to the Purchase Furniture Price List (only the rate to type).
-  const vendorId = useContext(PoVendorContext);
+  const vendorFor = useContext(PoVendorContext);
   const [pricePrefill, setPricePrefill] = useState<Partial<NewPurchaseFurnitureInput> | null>(null);
   const hardware = group === "hardware";
   const cols = (hardware ? HW_COLS : PANEL_COLS).filter((c) => srNo === undefined || c.key !== "designType");
-  const mine = lines.filter((l) => l.group === group && (srNo === undefined || l.srNo === srNo));
+  const mine = lines.filter((l) => l.group === group && (srNo === undefined || l.srNo === srNo) && (!only || only(l)));
   const total = mine.reduce((s, l) => s + lineAmount(l), 0);
 
   const patch = (id: string, fields: Partial<PurchaseOrderLine>) =>
@@ -211,10 +215,12 @@ export function PoLinesTable({
         {header}
         <div className="flex items-center gap-3">
           <span className="font-number text-sm text-grey-700">{formatInr(total)}</span>
-          <Button type="button" variant="outline" size="sm" onClick={add}>
-            <Plus className="h-3.5 w-3.5" />
-            Add Row
-          </Button>
+          {!only && (
+            <Button type="button" variant="outline" size="sm" onClick={add}>
+              <Plus className="h-3.5 w-3.5" />
+              Add Row
+            </Button>
+          )}
         </div>
       </div>
       {subHeader}
@@ -314,7 +320,7 @@ export function PoLinesTable({
                           type="button"
                           size="sm"
                           variant="outline"
-                          onClick={() => setPricePrefill({ ...purchasePriceFieldsFor(l, materialSpecStore.getSnapshot()), vendorId })}
+                          onClick={() => setPricePrefill({ ...purchasePriceFieldsFor(l, materialSpecStore.getSnapshot()), vendorId: vendorFor(l.srNo) })}
                         >
                           <Plus className="h-3.5 w-3.5" />
                           Add this combination to Purchase Furniture Price List

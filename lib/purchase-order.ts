@@ -99,6 +99,8 @@ export type PoCabinet = {
   design?: string;
   // Cabinet name picked in its own field from Purchase Material Library > Cabinet Name.
   cabinetName?: string;
+  // This cabinet's own vendor (rates come from its prices); blank = the PO's vendor. Never changes the PO's Vendor section.
+  vendorId?: string;
 };
 
 export type PoMaterial = {
