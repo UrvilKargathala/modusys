@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { Cake, MessageCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardPanel } from "@/components/dashboard/dashboard-panel";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useCustomers } from "@/lib/store/customers-store";
@@ -50,11 +50,7 @@ export function UpcomingBirthdaysPanel() {
   }, [customers, architects]);
 
   return (
-    <Card className="border-grey-100">
-      <CardHeader>
-        <CardTitle className="font-heading text-base text-grey-900">Upcoming Birthdays</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <DashboardPanel icon={Cake} tone="bg-pink-transparent text-pink" title="Upcoming Birthdays" count={rows.length}>
         {rows.length === 0 ? (
           <EmptyState
             icon={Cake}
@@ -97,7 +93,6 @@ export function UpcomingBirthdaysPanel() {
             })}
           </ul>
         )}
-      </CardContent>
-    </Card>
+    </DashboardPanel>
   );
 }

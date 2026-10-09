@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { CheckCircle2, Circle, Clock, ListTodo, User } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardPanel } from "@/components/dashboard/dashboard-panel";
 import { EmptyState } from "@/components/shared/empty-state";
 import { tasksStore, type Task } from "@/lib/store/tasks-store";
 import { useOrgUsers } from "@/lib/store/users-store";
@@ -33,11 +33,7 @@ export function UpcomingTasksPanel({
   const userName = (id: string) => users.find((u) => u.id === id)?.name ?? "Unknown";
 
   return (
-    <Card className="border-grey-100 bg-white shadow-sm">
-      <CardHeader>
-        <CardTitle className="font-heading text-base text-grey-900">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <DashboardPanel icon={ListTodo} tone="bg-indigo-transparent text-indigo" title={title} actions={<button type="button" onClick={onAddTask} className="text-xs font-body font-medium text-primary hover:underline">+ Add task</button>}>
         {tasks.length === 0 ? (
           <EmptyState
             icon={ListTodo}
@@ -50,7 +46,7 @@ export function UpcomingTasksPanel({
               const overdue = !task.completed && isOverdue(task.dueDate);
               const due = formatDueDate(task.dueDate);
               return (
-                <li key={task.id} className="flex items-start gap-3 py-3">
+                <li key={task.id} className="-mx-2 flex items-start gap-3 rounded-lg px-2 py-3 hover:bg-light-600">
                   <button
                     type="button"
                     onClick={() => tasksStore.toggleComplete(task.id)}
@@ -93,7 +89,6 @@ export function UpcomingTasksPanel({
             })}
           </ul>
         )}
-      </CardContent>
-    </Card>
+    </DashboardPanel>
   );
 }

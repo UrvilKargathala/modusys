@@ -4,10 +4,12 @@ import { useMemo, useState } from "react";
 import { IndianRupee, FileText, Target, AlertTriangle } from "lucide-react";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { GranularityToggle } from "@/components/shared/granularity-toggle";
-import { DonutChart } from "@/components/charts/donut-chart";
 import { TrendChart } from "@/components/charts/trend-chart";
 import { DateRangeControl } from "@/components/dashboard/date-range-control";
-import { WelcomeBanner } from "@/components/dashboard/welcome-banner";
+import { DashboardHero } from "@/components/dashboard/dashboard-hero";
+import { StatusBreakdownPanel } from "@/components/dashboard/status-breakdown-panel";
+import { ConversionPanel } from "@/components/dashboard/conversion-panel";
+import { QuoteProgressPanel } from "@/components/dashboard/quote-progress-panel";
 import { UpcomingTasksPanel } from "@/components/dashboard/upcoming-tasks-panel";
 import { UpcomingBirthdaysPanel } from "@/components/dashboard/upcoming-birthdays-panel";
 import { PipelineFunnelPanel } from "@/components/dashboard/pipeline-funnel-panel";
@@ -20,7 +22,7 @@ import { TeamPerformancePanel } from "@/components/dashboard/team-performance-pa
 import { CustomerAcquisitionPanel } from "@/components/dashboard/customer-acquisition-panel";
 import { ActivityTimelinePanel } from "@/components/dashboard/activity-timeline-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { statusChartColor, statusConfig, type StatusKey } from "@/lib/status";
+import type { StatusKey } from "@/lib/status";
 import { formatInr, formatPercent } from "@/lib/format";
 import { MOCK_CREDITS_BALANCE } from "@/lib/mock/credits";
 import { useTasks, visibleTasks } from "@/lib/store/tasks-store";
@@ -83,26 +85,22 @@ export default function DashboardPage() {
     () => getQuoteTrends(quotes, furnitureItems, hardwareItems, range, granularity),
     [quotes, furnitureItems, hardwareItems, range, granularity]
   );
-  const donutData = distribution.map((d) => ({
-    name: statusConfig[d.status].label,
-    value: d.count,
-    color: statusChartColor[d.status as StatusKey],
-  }));
+  const dist = distribution.map((d) => ({ status: d.status as StatusKey, count: d.count }));
   const trendData = trends.map((t) => ({ label: t.label, volume: t.quotes, value: t.revenue }));
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header: Welcome + Date Range */}
-      <WelcomeBanner
+      {/* Hero: greeting, headline numbers, pipeline split */}
+      <DashboardHero
         name={currentUser.name}
+        distribution={dist}
         stats={[
-          { label: "Tasks Due", value: String(pendingTasks.length) },
-          { label: "Active Quotes", value: String(kpis.activeQuotes) },
+          { label: "Active quotes", value: String(kpis.activeQuotes) },
+          { label: "Tasks due", value: String(pendingTasks.length) },
           { label: "Credits", value: formatInr(MOCK_CREDITS_BALANCE) },
         ]}
       />
 
-      {/* Date Range Filter */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-heading font-semibold text-grey-900">Overview</h2>
         <DateRangeControl value={range} onChange={setRange} />
@@ -124,30 +122,10 @@ export default function DashboardPage() {
           icon={AlertTriangle}
           accent={convKpis.overdueTaskCount > 0 ? "error" : "success"}
         />
-        <KpiCard
-          label="Conversion Rate"
-          value={`${convKpis.conversionRatePct.toFixed(1)}%`}
-          icon={Target}
-          accent="primary"
-        />
+        <KpiCard label="Conversion Rate" value={`${convKpis.conversionRatePct.toFixed(1)}%`} icon={Target} accent="primary" />
       </div>
 
-      {/* Row 1: Pipeline (wide) + Quote Status Donut */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <PipelineFunnelPanel />
-        </div>
-        <Card className="border-grey-100 bg-white shadow-sm">
-          <CardHeader>
-            <CardTitle className="font-heading text-base text-grey-900">Quote Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DonutChart data={donutData} />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Row 2: Revenue Trend (wide) + Top Customers */}
+      {/* Row 1: Quote Trends (wide) + Status breakdown */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="border-grey-100 bg-white shadow-sm lg:col-span-2">
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
@@ -158,12 +136,26 @@ export default function DashboardPage() {
             <TrendChart data={trendData} />
           </CardContent>
         </Card>
+        <StatusBreakdownPanel distribution={dist} />
+      </div>
+
+      {/* Row 2: Revenue by Month (wide) + Conversion */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <RevenueByMonthPanel range={range} />
+        </div>
+        <ConversionPanel ratePct={convKpis.conversionRatePct} distribution={dist} />
+      </div>
+
+      {/* Row 3: Quote progress + Pipeline + Top customers */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <QuoteProgressPanel distribution={dist} />
+        <PipelineFunnelPanel />
         <TopCustomersPanel range={range} />
       </div>
 
-      {/* Row 3: Revenue by Month + Customer Acquisition + Team Performance */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <RevenueByMonthPanel range={range} />
+      {/* Row 3b: Customer acquisition + Team performance */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <CustomerAcquisitionPanel range={range} />
         {canSeeAll ? <TeamPerformancePanel range={range} /> : <StaleQuotesPanel />}
       </div>

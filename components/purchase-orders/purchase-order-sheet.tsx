@@ -1,6 +1,6 @@
 import type { Customer } from "@/lib/mock/pipeline";
 import { Fragment } from "react";
-import { HW_HEADERS, PANEL_HEADERS, byCabinet, carcassHeadingCells, groupsFor, poDetailSections, type PoExportPart } from "@/lib/purchase-order-export";
+import { CUT_LIST_HEADERS, HW_HEADERS, PANEL_HEADERS, cutListRows, byCabinet, carcassHeadingCells, groupsFor, poDetailSections, type PoExportPart } from "@/lib/purchase-order-export";
 import { COMPANY_GST, lineAmount, poTotals, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
 
 type Branding = { companyName: string; address: string; email: string; phone: string };
@@ -219,7 +219,7 @@ function HardwareTable({ title, lines, po, merged = false }: { title: string; li
   );
 }
 
-const PART_LABEL: Record<PoExportPart, string> = { full: "Full Details", components: "Components", hardware: "Hardware", cabinets: "Cabinets" };
+const PART_LABEL: Record<PoExportPart, string> = { full: "Full Details", components: "Components", hardware: "Hardware", cabinets: "Cabinets", cutlist: "Cut List" };
 
 // Purchase Order (cabinets): Carcass as one row per cabinet (size, qty, design, finishes, material, sq.ft, amount);
 // Shutter and Other Panel with their component rows; no Hardware.
@@ -291,6 +291,22 @@ export function PurchaseOrderSheet({ po, vendor, customer, quoteNumber, branding
     </div>
   );
 
+  // Cut List: letterhead and detail cards as usual, then one plain table of component rows (no cabinet rows, no prices).
+  const cutList = part === "cutlist" && (
+    <table className="w-full border-collapse text-[10px]">
+      <thead><Header group="carcass" headers={CUT_LIST_HEADERS} /></thead>
+      <tbody>
+        {cutListRows(po).map((r, i) => (
+          <tr key={i} className={i % 2 ? "bg-light-600" : ""}>
+            {r.map((v, j) => (
+              <td key={j} className={`${cell} ${typeof v === "number" && j > 0 ? "text-right" : ""}`}>{v}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
   return (
     <div className="flex flex-col gap-4 bg-white p-6 font-heading text-[11px] text-grey-900 [&_*]:font-heading">
       {/* Letterhead */}
@@ -317,7 +333,7 @@ export function PurchaseOrderSheet({ po, vendor, customer, quoteNumber, branding
       </div>
 
       {/* Colour key */}
-      {groups.length > 1 && (
+      {!cutList && groups.length > 1 && (
         <div className="flex flex-wrap items-center gap-4 text-[10px] text-grey-600">
           {groups.map((g) => (
             <span key={g.key} className="flex items-center gap-1.5">
@@ -329,8 +345,9 @@ export function PurchaseOrderSheet({ po, vendor, customer, quoteNumber, branding
       )}
 
       {part === "cabinets" && <CabinetSummaryTable po={po} />}
+      {cutList}
 
-      {groups.map((g) => {
+      {!cutList && groups.map((g) => {
         const lines = po.lines.filter((l) => l.group === g.key);
         const title = `${g.code}. ${g.label}`;
         return g.key === "hardware" ? (
@@ -346,6 +363,7 @@ export function PurchaseOrderSheet({ po, vendor, customer, quoteNumber, branding
           <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-grey-500">Additional Remarks</p>
           <p className="whitespace-pre-wrap">{po.remarks || "—"}</p>
         </div>
+        {!cutList && (
         <div className="flex w-80 flex-col overflow-hidden rounded-lg border border-grey-100">
           {money("Total Amount", t.amount)}
           {money(`Special Discount ${po.discountPct}%`, t.discount)}
@@ -361,6 +379,7 @@ export function PurchaseOrderSheet({ po, vendor, customer, quoteNumber, branding
           {money("Round Off", po.roundOff)}
           {money("Final Amount", t.final, true)}
         </div>
+        )}
       </div>
 
       <div className="mt-6 flex justify-end break-inside-avoid">

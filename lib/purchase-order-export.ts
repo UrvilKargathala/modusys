@@ -48,12 +48,14 @@ export function poDetailSections(po: PurchaseOrder, { vendor, customer, quoteNum
 
 // What a download covers: the full PO, only the panel components (carcass, shutter, other panel), or only hardware.
 // "cabinets" = the Purchase Order sheet: one row per cabinet (size, design, finishes), no component rows. PDF only.
-export type PoExportPart = "full" | "components" | "hardware" | "cabinets";
+// "cutlist" = Excel only: one Cut List sheet of every panel component (sizes + finishes, no prices, no Details sheet).
+export type PoExportPart = "full" | "components" | "hardware" | "cabinets" | "cutlist";
 export const PO_EXPORT_PARTS: { key: PoExportPart; label: string }[] = [
   { key: "full", label: "Full details" },
   { key: "components", label: "Components only" },
   { key: "hardware", label: "Hardware only" },
 ];
+export const PO_EXCEL_PARTS: { key: PoExportPart; label: string }[] = [...PO_EXPORT_PARTS, { key: "cutlist", label: "Cut List" }];
 export const PO_PDF_PARTS: { key: PoExportPart; label: string }[] = [...PO_EXPORT_PARTS, { key: "cabinets", label: "Purchase Order (cabinets)" }];
 export const groupsFor = (part: PoExportPart) =>
   PO_GROUPS.filter((g) => part !== "cabinets") .filter((g) => part === "full" || (part === "hardware" ? g.key === "hardware" : g.key !== "hardware"));
@@ -125,6 +127,7 @@ export const PANEL_HEADERS = ["Sr", "Description", "Design", "Width", "Thk", "He
 
 // A Details sheet (all header blocks + totals) on every download, then one sheet per group.
 export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoExportContext) {
+  if (part === "cutlist") return downloadCutList(po);
   const wb = XLSX.utils.book_new();
   const t = poTotals(po);
   const aoa: (string | number)[][] = [];
@@ -156,4 +159,26 @@ export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoEx
   }
   const suffix = part === "full" ? "" : part === "components" ? "-components" : "-hardware";
   XLSX.writeFile(wb, `PO-${po.poNumber || "draft"}${suffix}.xlsx`);
+}
+
+// Cut List: Carcass, Shutter and Other Panel rows only (component names with their cabinet type, no unit names), with what the cutting needs.
+export const CUT_LIST_HEADERS = ["Sr", "Cabinet Type", "Description", "Width", "Height", "Thk", "Qty", "Sq.Ft", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remarks"];
+// Same rows for the Excel and the on-screen preview, numbered 1, 2, 3...
+export function cutListRows(po: PurchaseOrder): (string | number)[][] {
+  const rows: (string | number)[][] = [];
+  for (const g of PO_GROUPS.filter((x) => x.key !== "hardware"))
+    for (const c of byCabinet(po, g.key))
+      for (const { l } of c.rows) {
+        const cab = po.material.cabinets?.[String(c.srNo)];
+        rows.push([rows.length + 1, cab?.designType || cab?.label || "", l.description, l.width, l.height, l.depth, l.qty, Number(l.sqft.toFixed(2)), l.material, l.internalColour, l.externalColour, l.remarks]);
+      }
+  return rows;
+}
+function downloadCutList(po: PurchaseOrder) {
+  const aoa: (string | number)[][] = [CUT_LIST_HEADERS, ...cutListRows(po)];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [6, 22, 28, 8, 8, 6, 6, 8, 18, 30, 30, 20].map((wch) => ({ wch }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Cut List");
+  XLSX.writeFile(wb, `PO-${po.poNumber || "draft"}-cut-list.xlsx`);
 }

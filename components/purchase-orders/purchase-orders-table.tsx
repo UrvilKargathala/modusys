@@ -9,7 +9,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { EmptyState } from "@/components/shared/empty-state";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { PO_EXPORT_PARTS, PO_PDF_PARTS } from "@/lib/purchase-order-export";
+import { PO_EXCEL_PARTS, PO_PDF_PARTS } from "@/lib/purchase-order-export";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { toastStore } from "@/lib/store/toast-store";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
@@ -178,7 +178,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
                           <DropdownMenuSeparator />
                           <DropdownMenuGroup>
                           <DropdownMenuLabel>Excel</DropdownMenuLabel>
-                          {PO_EXPORT_PARTS.map((p) => (
+                          {PO_EXCEL_PARTS.map((p) => (
                             <DropdownMenuItem key={`xls-${p.key}`} className="gap-2" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?format=excel${p.key === "full" ? "" : `&part=${p.key}`}`, "_blank")}>
                               <FileSpreadsheet className="h-4 w-4 text-grey-400" />
                               {p.label}

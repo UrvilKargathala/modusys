@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardPanel } from "@/components/dashboard/dashboard-panel";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { useCustomers } from "@/lib/store/customers-store";
@@ -35,20 +35,16 @@ export function StaleQuotesPanel() {
   );
 
   return (
-    <Card className="border-grey-100">
-      <CardHeader>
-        <CardTitle className="font-heading text-base text-grey-900">Stale Quotes</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <DashboardPanel icon={AlertTriangle} tone="bg-warning-100 text-warning-900" title="Stale Quotes" count={stale.length}>
         {stale.length === 0 ? (
           <EmptyState icon={AlertTriangle} message={`No quotes untouched for ${STALE_DAYS}+ days.`} />
         ) : (
-          <ul className="flex flex-col divide-y divide-grey-100">
+          <ul className="flex flex-col">
             {stale.map((q) => {
               const cfg = statusConfig[q.status as StatusKey] ?? statusConfig.draft;
               const days = daysSince(q.updatedAt);
               return (
-                <li key={q.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                <li key={q.id} className="-mx-2 flex items-center gap-3 rounded-lg px-2 py-3 hover:bg-light-600">
                   <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
                     <Link
                       href={`/quotes/new?id=${q.id}`}
@@ -56,8 +52,12 @@ export function StaleQuotesPanel() {
                     >
                       {q.quoteNumber} · {customerName(q.customerId)}
                     </Link>
-                    <span className="text-xs font-body text-warning-900">No activity in <span className="font-number">{days}</span> days</span>
+                    <span className="text-xs font-body text-grey-500">Last activity <span className="font-number">{days}</span> days ago</span>
                   </div>
+                  {/* Older = more urgent: 30+ days amber, 40+ days red. */}
+                  <span className={cn("rounded-md px-2 py-0.5 font-number text-[11px] font-semibold", days >= 40 ? "bg-error-transparent text-error" : "bg-warning-100 text-warning-900")}>
+                    {days}d
+                  </span>
                   <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium", cfg.bg, cfg.color)}>
                     {cfg.label}
                   </span>
@@ -66,7 +66,6 @@ export function StaleQuotesPanel() {
             })}
           </ul>
         )}
-      </CardContent>
-    </Card>
+    </DashboardPanel>
   );
 }

@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { FileText, FileStack } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardPanel } from "@/components/dashboard/dashboard-panel";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { useCustomers } from "@/lib/store/customers-store";
@@ -43,14 +43,11 @@ export function RecentQuotesPanel() {
     ).finalOffer;
 
   return (
-    <Card className="border-grey-100 bg-white shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle className="font-heading text-base text-grey-900">Recent Quotes</CardTitle>
-        <Link href="/quotes" className="text-xs font-body font-medium text-primary hover:underline">
-          View all
-        </Link>
-      </CardHeader>
-      <CardContent>
+    <DashboardPanel
+      icon={FileStack}
+      title="Recent Quotes"
+      actions={<Link href="/quotes" className="text-xs font-body font-medium text-primary hover:underline">View all</Link>}
+    >
         {recent.length === 0 ? (
           <EmptyState icon={FileStack} message="No quotes yet." />
         ) : (
@@ -83,7 +80,6 @@ export function RecentQuotesPanel() {
             })}
           </ul>
         )}
-      </CardContent>
-    </Card>
+    </DashboardPanel>
   );
 }

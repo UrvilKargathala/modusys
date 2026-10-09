@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart } from "@/components/charts/bar-chart";
+import { IndianRupee } from "lucide-react";
+import { DashboardPanel } from "@/components/dashboard/dashboard-panel";
+import { LollipopChart } from "@/components/charts/lollipop-chart";
 import { compactInr } from "@/components/charts/chart-theme";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
@@ -23,13 +24,8 @@ export function RevenueByMonthPanel({ range }: { range: DateRange }) {
   );
 
   return (
-    <Card className="border-grey-100 bg-white shadow-sm">
-      <CardHeader>
-        <CardTitle className="font-heading text-base text-grey-900">Revenue by Month</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <BarChart data={data} format={compactInr} name="Revenue" />
-      </CardContent>
-    </Card>
+    <DashboardPanel icon={IndianRupee} title="Revenue by Month" className="h-auto" bodyClassName="py-5">
+      <LollipopChart data={data} format={compactInr} />
+    </DashboardPanel>
   );
 }

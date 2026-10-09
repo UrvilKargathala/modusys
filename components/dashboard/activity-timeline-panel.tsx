@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
-import { FileText, UserPlus, CheckCircle2, ArrowRight, Package, Edit3, AlertCircle, Clock } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FileText, UserPlus, CheckCircle2, ArrowRight, Package, Edit3, AlertCircle, Clock, Activity } from "lucide-react";
+import { DashboardPanel } from "@/components/dashboard/dashboard-panel";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { useCustomers } from "@/lib/store/customers-store";
@@ -155,11 +155,7 @@ export function ActivityTimelinePanel() {
   }, [quotes, customers, tasks]);
 
   return (
-    <Card className="border-grey-100 bg-white shadow-sm">
-      <CardHeader>
-        <CardTitle className="font-heading text-base text-grey-900">Activity Timeline</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <DashboardPanel icon={Activity} tone="bg-primary-transparent text-primary" title="Activity Timeline" count={items.length}>
         {items.length === 0 ? (
           <EmptyState icon={ArrowRight} message="No recent activity." />
         ) : (
@@ -184,7 +180,6 @@ export function ActivityTimelinePanel() {
             })}
           </ul>
         )}
-      </CardContent>
-    </Card>
+    </DashboardPanel>
   );
 }

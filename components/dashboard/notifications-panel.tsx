@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, CheckCheck } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardPanel } from "@/components/dashboard/dashboard-panel";
 import { EmptyState } from "@/components/shared/empty-state";
 import { NotificationRowItem } from "@/components/layout/notification-panel";
 import { useNotificationRows } from "@/components/layout/use-notification-rows";
@@ -16,17 +16,14 @@ export function NotificationsPanel() {
   const shown = [...rows.filter((r) => r.unread), ...rows.filter((r) => !r.unread)].slice(0, VISIBLE);
 
   return (
-    <Card className="border-grey-100">
-      <CardHeader className="flex flex-row items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <CardTitle className="font-heading text-base text-grey-900">Notifications</CardTitle>
-          {unreadCount > 0 && (
-            <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-number font-medium text-white">
-              {unreadCount} new
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
+    <DashboardPanel
+      icon={Bell}
+      tone="bg-primary-transparent text-primary"
+      title="Notifications"
+      count={unreadCount}
+      bodyClassName="px-0 py-0"
+      actions={
+        <>
           <button
             type="button"
             onClick={markAllRead}
@@ -45,9 +42,9 @@ export function NotificationsPanel() {
               View all ({rows.length})
             </button>
           )}
-        </div>
-      </CardHeader>
-      <CardContent className="px-0">
+        </>
+      }
+    >
         {shown.length === 0 ? (
           <div className="px-4">
             <EmptyState icon={Bell} message="No notifications yet." />
@@ -59,7 +56,6 @@ export function NotificationsPanel() {
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+    </DashboardPanel>
   );
 }
