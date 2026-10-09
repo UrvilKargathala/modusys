@@ -62,6 +62,11 @@ export function cleanMaterial(m: unknown) {
     externalColours: list(o.externalColours),
     cabinets,
     productTypeId: str(o.productTypeId) || undefined,
+    brandVendors: Object.fromEntries(
+      Object.entries((o.brandVendors ?? {}) as Record<string, unknown>)
+        .filter(([k, v]) => k && typeof v === "string")
+        .map(([k, v]) => [str(k), str(v)])
+    ),
     // Shutter / Cabinet Details colour picks (only the four known keys, as text).
     finishes: Object.fromEntries(
       (["shutterInternalColour", "shutterExternalColour", "cabinetInternalColour", "cabinetExternalColour"] as const)

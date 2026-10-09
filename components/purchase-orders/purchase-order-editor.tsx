@@ -3,19 +3,20 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, FileText, Plus, RotateCcw, Save, Trash2, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, FileText, Plus, RotateCcw, Save, Search, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PoCabinetCard } from "@/components/purchase-orders/po-cabinet-card";
-import { PoLinesTable, PoVendorContext } from "@/components/purchase-orders/po-lines-table";
+import { PoBrandVendorContext, PoLinesTable, PoVendorContext } from "@/components/purchase-orders/po-lines-table";
 import { applyPurchaseRates, purchaseRateFor } from "@/lib/purchase-order-rate";
 import { useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { usePurchaseFurniturePriceItems } from "@/lib/store/purchase-furniture-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
 import { quoteCabinetInfo } from "@/lib/purchase-order-from-quote";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
+import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { PoCabinetBlock } from "@/components/purchase-orders/po-cabinet-block";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
@@ -25,7 +26,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
-import { PO_GROUPS, buildPoNumber, poNumberBase, customerCode, mostUsed, gstModeFor, poTotals, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
+import { PO_GROUPS, buildPoNumber, poNumberBase, customerCode, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
 
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
 const card = "flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-5 shadow-sm";
@@ -57,9 +58,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   // The Carcass list (all cabinet blocks) starts closed; click the heading to open it.
   const [carcassOpen, setCarcassOpen] = useState(false);
   const [hardwareOpen, setHardwareOpen] = useState(false);
-  const [view, setView] = useState<"component" | "cabinet" | "pending">("component");
+  const [view, setView] = useState<"component" | "cabinet" | "pending" | "vendor">("component");
   // Rate pending: the rows without a rate when the tab was opened. Kept while you type rates so a row doesn't vanish mid-edit.
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const [brandSearch, setBrandSearch] = useState("");
 
   // Seed the draft once the PO has loaded; later store updates (our own save)
   // re-seed through reset() below, not through this effect.
@@ -268,6 +270,35 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     });
   };
   const pendingCount = draft.lines.filter((l) => !l.rate).length;
+  // Vendor tab: each hardware brand used in this PO, with the vendor it's bought from (blank = the PO's vendor).
+  const brandVendors = draft.material.brandVendors ?? {};
+  // Brands come from Material Library > Brand; listed: those on this PO's hardware rows plus any added here.
+  const libraryBrands = materials.filter((m) => m.category === "brand" && !m.deleted).map((m) => m.name.trim());
+  const brandName = (key: string) => libraryBrands.find((b) => brandKey(b) === key) ?? draft.lines.find((l) => brandKey(l.brand) === key)?.brand.trim() ?? key;
+  const hardwareBrands = [...new Set([...draft.lines.filter((l) => l.group === "hardware" && l.brand.trim()).map((l) => brandKey(l.brand)), ...Object.keys(brandVendors)])].map(
+    (key) => [key, brandName(key)] as const
+  );
+  // Updates from the latest draft: "+ Add new brand" calls back after its form closes, when this render's draft is stale.
+  // vendorId undefined = add the brand only (keeps a vendor already set).
+  const setBrandVendor = (key: string, vendorId: string | undefined) =>
+    setDraft((d) => {
+      if (!d) return d;
+      const current = d.material.brandVendors ?? {};
+      if (vendorId === undefined && key in current) return d;
+      return { ...d, material: { ...d.material, brandVendors: { ...current, [key]: vendorId ?? "" } } };
+    });
+  const usedBrandKeys = new Set(draft.lines.filter((l) => l.group === "hardware" && l.brand.trim()).map((l) => brandKey(l.brand)));
+  const shownBrands = hardwareBrands.filter(([, brand]) => brand.toLowerCase().includes(brandSearch.trim().toLowerCase()));
+  const removeBrand = (key: string) =>
+    setDraft((d) => {
+      if (!d) return d;
+      const { [key]: _gone, ...rest } = d.material.brandVendors ?? {};
+      return { ...d, material: { ...d.material, brandVendors: rest } };
+    });
+  const brandVendorName = (brand: string) => {
+    const id = brandVendors[brandKey(brand)] || draft.vendorId;
+    return vendors.find((v) => v.id === id)?.name ?? "";
+  };
   const removeCabinet = (no: number) => {
     const { [String(no)]: _gone, ...rest } = draft.material.cabinets;
     setMaterial({ cabinets: rest });
@@ -275,6 +306,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
 
   return (
     <PoVendorContext.Provider value={(no) => draft.material.cabinets?.[String(no)]?.vendorId || draft.vendorId}>
+    <PoBrandVendorContext.Provider value={brandVendorName}>
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -479,7 +511,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           )}
           <div className="ml-auto flex items-center gap-2">
             <div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Group rows by">
-              {(["component", "cabinet", "pending"] as const).map((v) => (
+              {(["component", "cabinet", "pending", "vendor"] as const).map((v) => (
                 <button
                   key={v}
                   type="button"
@@ -491,7 +523,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                   }}
                   className={`rounded-md px-3 py-1 text-sm font-body font-medium transition-colors ${shownView === v ? "bg-primary-transparent text-primary" : "text-grey-600 hover:bg-light-600"}`}
                 >
-                  {v === "component" ? "By component" : v === "cabinet" ? "By cabinet" : <>Rate pending <span className="font-number">({pendingCount})</span></>}
+                  {v === "component" ? "By component" : v === "cabinet" ? "By cabinet" : v === "vendor" ? "Vendor" : <>Rate pending <span className="font-number">({pendingCount})</span></>}
                 </button>
               ))}
             </div>
@@ -508,7 +540,96 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             No cabinets yet. Click Add Cabinet, then add its rows.
           </p>
         )}
-        {shownView === "pending" ? (
+        {shownView === "vendor" ? (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-heading text-base font-semibold text-grey-900">Brand Vendors</h3>
+                <p className="text-xs font-body text-grey-400"><span className="font-number">{hardwareBrands.length}</span> entries</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative w-44">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
+                  <input
+                    value={brandSearch}
+                    onChange={(e) => setBrandSearch(e.target.value)}
+                    placeholder="Search"
+                    className="w-full rounded-lg border border-grey-100 bg-card py-1.5 pl-8 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
+                  />
+                </div>
+                <MaterialReferenceSelect
+                  category="brand"
+                  nameOnly
+                  sorted
+                  value=""
+                  triggerClassName="h-8 w-auto gap-1.5 border-primary bg-primary px-3 py-1 font-medium text-white hover:bg-primary/90"
+                  trigger={
+                    <>
+                      <Plus className="h-4 w-4" />
+                      Add Brand
+                    </>
+                  }
+                  onChange={(id) => {
+                    const key = brandKey(materialSpecStore.getSnapshot().find((m) => m.id === id)?.name ?? "");
+                    if (key) setBrandVendor(key, undefined);
+                  }}
+                />
+              </div>
+            </div>
+            {shownBrands.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">
+                {hardwareBrands.length === 0 ? "No hardware brands in this PO yet. Click Add Brand." : "No brands match your search."}
+              </p>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-grey-100">
+                <table className="w-full text-left">
+                  <thead className="bg-[#DACCCC]">
+                    <tr>
+                      <th className="w-24 whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">SR No</th>
+                      <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Brand</th>
+                      <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Vendor</th>
+                      <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shownBrands.map(([key, brand], idx) => (
+                      <tr key={key} className="border-t border-grey-100">
+                        <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
+                        <td className="px-4 py-3 text-[13px] font-body text-grey-900">{brand}</td>
+                        <td className="px-4 py-2">
+                          <select
+                            aria-label={`${brand} vendor`}
+                            className={`${field} w-full max-w-sm text-[13px]`}
+                            value={brandVendors[key] ?? ""}
+                            onChange={(e) => setBrandVendor(key, e.target.value)}
+                          >
+                            <option value="">Same as PO vendor</option>
+                            {vendors.map((v) => (
+                              <option key={v.id} value={v.id}>{v.name}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              aria-label={`Delete ${brand}`}
+                              title={usedBrandKeys.has(key) ? "Reset to the PO vendor (the brand stays: it's on hardware rows)" : "Delete"}
+                              onClick={() => removeBrand(key)}
+                              className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : shownView === "pending" ? (
           pendingIds.size === 0 ? (
             <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">Every row has a rate.</p>
           ) : (
@@ -695,6 +816,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         }}
       />
     </div>
+    </PoBrandVendorContext.Provider>
     </PoVendorContext.Provider>
   );
 }

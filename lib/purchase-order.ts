@@ -116,7 +116,12 @@ export type PoMaterial = {
   internalColours: string[];
   externalColours: string[];
   cabinets: Record<string, PoCabinet>;
+  // Vendor tab: hardware brand (key = brandKey(brand)) → vendor id ("" = the PO's vendor; the brand stays listed).
+  // Shown on every hardware row of that brand.
+  brandVendors?: Record<string, string>;
 };
+
+export const brandKey = (brand: string) => brand.trim().toLowerCase();
 
 export const blankMaterial = (): PoMaterial => ({ shutterRawMaterial: "", otherRawMaterial: "", cabinetRawMaterial: "", cabinetOtherRawMaterial: "", internalColours: [], externalColours: [], cabinets: {} });
 

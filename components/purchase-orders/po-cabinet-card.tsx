@@ -30,6 +30,19 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+// A cabinet's own vendor (blank = the PO's vendor). Used in By cabinet and By component.
+export function PoCabinetVendorSelect({ srNo, cabinet, onCabinetChange, className = fieldInput }: { srNo: number; cabinet: PoCabinet; onCabinetChange: (cabinet: PoCabinet) => void; className?: string }) {
+  const vendors = useVendors();
+  return (
+    <select aria-label={`Cabinet ${srNo} vendor`} className={className} value={cabinet.vendorId ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, vendorId: e.target.value || undefined })}>
+      <option value="">Same as PO vendor</option>
+      {vendors.map((v) => (
+        <option key={v.id} value={v.id}>{v.name}</option>
+      ))}
+    </select>
+  );
+}
+
 export function PoCabinetCard({
   srNo,
   lines,
@@ -52,7 +65,6 @@ export function PoCabinetCard({
   const designType = mine[0]?.designType ?? "";
   const total = mine.reduce((s, l) => s + lineAmount(l), 0);
 
-  const vendors = useVendors();
   const cabinetType = useCabinetTypes().find((t) => t.id === cabinet?.cabinetTypeId);
 
   // Recalculate the sizes of this cabinet's existing carcass rows for the W/D/H/Qty in the header.
@@ -173,12 +185,7 @@ export function PoCabinetCard({
       {cabinet && (
         <div className="grid grid-cols-1 gap-3 pl-8 md:grid-cols-4">
           <Field label="Vendor">
-            <select aria-label={`Cabinet ${srNo} vendor`} className={fieldInput} value={cabinet.vendorId ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, vendorId: e.target.value || undefined })}>
-              <option value="">Same as PO vendor</option>
-              {vendors.map((v) => (
-                <option key={v.id} value={v.id}>{v.name}</option>
-              ))}
-            </select>
+            <PoCabinetVendorSelect srNo={srNo} cabinet={cabinet} onCabinetChange={onCabinetChange} />
           </Field>
           {mine.some((l) => l.group === "carcass") && (
             <>

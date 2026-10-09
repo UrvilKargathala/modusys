@@ -24,6 +24,7 @@ export function MaterialReferenceSelect({
   wide = false,
   sorted = false,
   fallbackText,
+  trigger,
 }: {
   category: MaterialCategoryKey;
   value: string;
@@ -38,6 +39,8 @@ export function MaterialReferenceSelect({
   sorted?: boolean;
   // Shown in the box when nothing is picked yet (instead of the placeholder).
   fallbackText?: string;
+  // Replaces the box's contents (e.g. an "Add Brand" button look); the list opens right-aligned under it.
+  trigger?: React.ReactNode;
 }) {
   const meta = getMaterialCategory(category);
   const items = useMaterialItems(category);
@@ -67,7 +70,7 @@ export function MaterialReferenceSelect({
             triggerClassName
           )}
         >
-          {selected ? (
+          {trigger ?? (selected ? (
             <span
               title={nameOnly || !parts(selected).sub ? parts(selected).main : `${parts(selected).main} — ${parts(selected).sub}`}
               className={cn("min-w-0 truncate font-number", bold && "font-semibold")}
@@ -77,10 +80,10 @@ export function MaterialReferenceSelect({
             </span>
           ) : (
             <span className={cn("min-w-0 truncate", fallbackText ? "font-number" : "text-grey-400")}>{fallbackText || `Select ${meta.label.toLowerCase()}`}</span>
-          )}
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
+          ))}
+          {!trigger && <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />}
         </PopoverTrigger>
-        <PopoverContent align="start" className={cn("p-2", wide ? "w-[min(44rem,calc(100vw-2rem))]" : "w-72")}>
+        <PopoverContent align={trigger ? "end" : "start"} className={cn("p-2", wide ? "w-[min(44rem,calc(100vw-2rem))]" : "w-72")}>
           <Input
             autoFocus
             placeholder={`Search ${meta.label.toLowerCase()}`}

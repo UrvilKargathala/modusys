@@ -19,6 +19,8 @@ import { lineAmount, panelSqft, type PoGroup, type PurchaseOrderLine } from "@/l
 // The PO's vendor, so "Add this combination" can tag the new price with it.
 // Vendor for a cabinet's rows: the cabinet's own vendor, else the PO's.
 export const PoVendorContext = createContext<(srNo: number) => string>(() => "");
+// Hardware row's vendor name, from the Vendor tab's brand → vendor setting.
+export const PoBrandVendorContext = createContext<(brand: string) => string>(() => "");
 
 const cell =
   "h-8 w-full rounded-md border border-transparent bg-transparent px-2 text-sm font-body text-grey-900 outline-none hover:border-grey-100 focus:border-primary focus:bg-card";
@@ -47,6 +49,7 @@ const PANEL_COLS: Col[] = [
 const HW_COLS: Col[] = [
   { key: "srNo", label: "Sr", width: "w-16" },
   { key: "brand", label: "Brand", width: "w-28" },
+  { key: "vendor", label: "Vendor", width: "w-40" },
   { key: "description", label: "Description", width: "w-72" },
   { key: "designType", label: "Design", width: "w-36" },
   { key: "articleNo", label: "Article No", width: "w-40" },
@@ -168,6 +171,7 @@ export function PoLinesTable({
   const [toRemove, setToRemove] = useState<PurchaseOrderLine | null>(null);
   // A panel row with no price: add its combination to the Purchase Furniture Price List (only the rate to type).
   const vendorFor = useContext(PoVendorContext);
+  const brandVendor = useContext(PoBrandVendorContext);
   const [pricePrefill, setPricePrefill] = useState<Partial<NewPurchaseFurnitureInput> | null>(null);
   const hardware = group === "hardware";
   const cols = (hardware ? HW_COLS : PANEL_COLS).filter((c) => srNo === undefined || c.key !== "designType");
@@ -245,7 +249,9 @@ export function PoLinesTable({
                 <tr className={`border-t border-grey-100 ${l.rate ? "" : "bg-error-200"}`} title={l.rate ? undefined : "No rate for this row: none in the price list for this vendor. Type one in."}>
                   {cols.map((c) => (
                     <td key={c.key} className="px-1 py-1">
-                      {c.key === "netRate" ? (
+                      {c.key === "vendor" ? (
+                        <span className="block truncate px-2 text-sm text-grey-700" title="Set in the Vendor tab">{brandVendor(l.brand) || "—"}</span>
+                      ) : c.key === "netRate" ? (
                         <span className="block px-2 text-right font-number text-sm text-grey-900">{formatInr(l.rate * (1 - (l.discountPct ?? 0) / 100))}</span>
                       ) : c.key === "srNo" ? (
                         <span className="block px-2 font-number text-sm text-grey-900">{`${l.srNo}.${mine.filter((x) => x.srNo === l.srNo).indexOf(l) + 1}`}</span>

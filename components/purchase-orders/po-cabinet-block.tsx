@@ -6,6 +6,7 @@ import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-o
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
+import { PoCabinetVendorSelect } from "@/components/purchase-orders/po-cabinet-card";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
@@ -54,9 +55,12 @@ export function PoCabinetBlock({
   const common = (k: "internalColour" | "externalColour" | "material") => mostUsed(mine.map((l) => l[k]));
   const applyAll = (fields: Partial<PurchaseOrderLine>) => onChange(lines.map((l) => (l.srNo === srNo && l.group === "carcass" ? { ...l, ...fields } : l)));
   const finishRow = (
-    <div className="grid grid-cols-1 gap-3 pl-8 text-xs text-grey-500 md:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 pl-8 text-xs text-grey-500 md:grid-cols-4">
       {(
         [
+          ...(cabinet
+            ? ([["Vendor", <PoCabinetVendorSelect key="v" srNo={srNo} cabinet={cabinet} onCabinetChange={onCabinetChange} className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2 text-[13px] font-body text-grey-900 outline-none focus:border-primary" />]] as const)
+            : []),
           ["Internal", <PoFinishSelect key="i" kind="internal" value={common("internalColour")} onChange={(v) => applyAll({ internalColour: v })} />],
           ["External", <PoFinishSelect key="e" kind="external" value={common("externalColour")} onChange={(v) => applyAll({ externalColour: v })} />],
           ["Material", <PoRawMaterialSelect key="m" compact value={common("material")} onChange={(v) => applyAll({ material: v })} />],
