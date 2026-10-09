@@ -150,6 +150,13 @@ export function customerCodeFrom(firstName = "", lastName = "") {
   return (two(firstName) + two(lastName)).toUpperCase();
 }
 
+// A customer's code: first two letters of the name + first two of the surname (Tejashbhai Patel → TEPA),
+// falling back to the full name's first and last words when the surname is empty.
+export function customerCode(c: { firstName?: string; lastName?: string; name: string }) {
+  const words = c.name.trim().split(/\s+/);
+  return c.lastName?.trim() ? customerCodeFrom(c.firstName || words[0], c.lastName) : customerCodeFrom(words[0], words.length > 1 ? words[words.length - 1] : "");
+}
+
 // PO-<vendor code>-<purchase product type code>-<customer code>-<id>, e.g. PO-VEN01-KT-TEPA-01. Missing parts are
 // left out; the id counts up (01, 02 …) across POs that share the same parts.
 export function poNumberBase(parts: (string | undefined)[]) {

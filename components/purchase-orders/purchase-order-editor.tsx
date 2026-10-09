@@ -25,7 +25,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
-import { PO_GROUPS, buildPoNumber, poNumberBase, customerCodeFrom, mostUsed, gstModeFor, poTotals, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
+import { PO_GROUPS, buildPoNumber, poNumberBase, customerCode, mostUsed, gstModeFor, poTotals, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
 
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
 const card = "flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-5 shadow-sm";
@@ -44,12 +44,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const orders = usePurchaseOrders();
   const vendors = useVendors();
   const customers = useCustomers();
-  // Customer part of the PO number: first two letters of the name + first two of the surname (Tejashbhai Patel → TEPA),
-  // falling back to the full name's first and last words when the surname is empty.
-  const custCode = (c: { firstName?: string; lastName?: string; name: string }) => {
-    const words = c.name.trim().split(/\s+/);
-    return c.lastName?.trim() ? customerCodeFrom(c.firstName || words[0], c.lastName) : customerCodeFrom(words[0], words.length > 1 ? words[words.length - 1] : "");
-  };
+  const custCode = customerCode;
   const quotes = useQuotes();
   const purchasePrices = usePurchaseFurniturePriceItems();
   const hardwarePrices = useHardwarePriceItems();
