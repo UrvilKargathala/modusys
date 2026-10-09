@@ -282,8 +282,11 @@ function CabinetSummaryTable({ po }: { po: PurchaseOrder }) {
 
 // Printable PO (A4 landscape): letterhead, detail cards, one colour-coded section per group, totals, signature.
 export function PurchaseOrderSheet({ po, vendor, customer, quoteNumber, branding, part = "full" }: { po: PurchaseOrder; vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: Branding; part?: PoExportPart }) {
-  const t = poTotals(po);
   const groups = groupsFor(part).filter((g) => po.lines.some((l) => l.group === g.key));
+  // A partial download (Components / Hardware only) totals just its own rows; round-off belongs to the full PO.
+  const partial = part === "components" || part === "hardware";
+  const roundOff = partial ? 0 : po.roundOff;
+  const t = poTotals(partial ? { ...po, roundOff, lines: po.lines.filter((l) => groups.some((g) => g.key === l.group)) } : po);
   const money = (label: string, v: number, strong = false) => (
     <div className={`flex justify-between gap-6 px-3 py-1.5 ${strong ? "bg-grey-800 text-[12px] font-semibold text-white" : "border-b border-grey-100"}`}>
       <span>{label}</span>
@@ -376,7 +379,7 @@ export function PurchaseOrderSheet({ po, vendor, customer, quoteNumber, branding
           ) : (
             money("Integrated GST 18%", t.igst)
           )}
-          {money("Round Off", po.roundOff)}
+          {money("Round Off", roundOff)}
           {money("Final Amount", t.final, true)}
         </div>
         )}

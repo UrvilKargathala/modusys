@@ -129,7 +129,10 @@ export const PANEL_HEADERS = ["Sr", "Description", "Design", "Width", "Thk", "He
 export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoExportContext) {
   if (part === "cutlist") return downloadCutList(po);
   const wb = XLSX.utils.book_new();
-  const t = poTotals(po);
+  // Components / Hardware only: totals of just those rows (same as the PDF).
+  const partial = part === "components" || part === "hardware";
+  const keys = groupsFor(part).map((g) => g.key);
+  const t = poTotals(partial ? { ...po, roundOff: 0, lines: po.lines.filter((l) => keys.includes(l.group)) } : po);
   const aoa: (string | number)[][] = [];
   for (const sec of poDetailSections(po, ctx)) {
     aoa.push([sec.title.toUpperCase()], ...sec.rows, []);
