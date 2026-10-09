@@ -1,15 +1,23 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { ChevronDown, ChevronRight, Copy, Plus, X } from "lucide-react";
+import { Fragment, createContext, useContext, useState, type ReactNode } from "react";
+import { AlertTriangle, ChevronDown, ChevronRight, Copy, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { formatInr } from "@/lib/format";
 import { PoHardwareSelect } from "@/components/purchase-orders/po-hardware-select";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { evaluateFormula } from "@/lib/quote-pricing";
 import { toastStore } from "@/lib/store/toast-store";
+import { PurchaseFurniturePriceFormDialog } from "@/components/templates/purchase-furniture-price-form-dialog";
+import { purchasePriceFieldsFor } from "@/lib/purchase-order-rate";
+import { materialSpecStore } from "@/lib/store/material-spec-store";
+import { purchaseFurnitureStore, type NewPurchaseFurnitureInput } from "@/lib/store/purchase-furniture-store";
 import { lineAmount, panelSqft, type PoGroup, type PurchaseOrderLine } from "@/lib/purchase-order";
+
+// The PO's vendor, so "Add this combination" can tag the new price with it.
+export const PoVendorContext = createContext("");
 
 const cell =
   "h-8 w-full rounded-md border border-transparent bg-transparent px-2 text-sm font-body text-grey-900 outline-none hover:border-grey-100 focus:border-primary focus:bg-card";
@@ -70,6 +78,28 @@ type Vars = { W: number; D: number; H: number };
 // Number cell that also takes a formula in the cabinet's W / D / H ("w-10", "(D-20)/2"; upper or lower case).
 // It collapses to the result when you tab out or press Enter, like the quote's width/height fields. Plain numbers
 // are kept as typed; a formula that can't be read puts the old value back and says why.
+// Rate shown with 2 decimals (250.00); free typing while focused, saved on blur. Empty / 0 = no rate (red).
+function RateCell({ value, onCommit }: { value: number; onCommit: (n: number) => void }) {
+  const [text, setText] = useState<string | null>(null);
+  return (
+    <input
+      type="number"
+      min={0}
+      step="any"
+      placeholder="0.00"
+      className={value ? numCell : `${numCell} rounded-md bg-card text-error ring-1 ring-error-300 placeholder:text-error`}
+      value={text ?? (value ? value.toFixed(2) : "")}
+      onFocus={() => setText(value ? String(value) : "")}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        if (text !== null) onCommit(text.trim() === "" ? 0 : Number(text));
+        setText(null);
+      }}
+      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+    />
+  );
+}
+
 function DimCell({ value, vars, onCommit }: { value: number; vars?: Vars; onCommit: (n: number) => void }) {
   const [text, setText] = useState<string | null>(null); // null = not editing
 
@@ -130,6 +160,11 @@ export function PoLinesTable({
   onChange: (lines: PurchaseOrderLine[]) => void;
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  // Removing a row asks first.
+  const [toRemove, setToRemove] = useState<PurchaseOrderLine | null>(null);
+  // A panel row with no price: add its combination to the Purchase Furniture Price List (only the rate to type).
+  const vendorId = useContext(PoVendorContext);
+  const [pricePrefill, setPricePrefill] = useState<Partial<NewPurchaseFurnitureInput> | null>(null);
   const hardware = group === "hardware";
   const cols = (hardware ? HW_COLS : PANEL_COLS).filter((c) => srNo === undefined || c.key !== "designType");
   const mine = lines.filter((l) => l.group === group && (srNo === undefined || l.srNo === srNo));
@@ -200,7 +235,8 @@ export function PoLinesTable({
             </thead>
             <tbody>
               {mine.map((l) => (
-                <tr key={l.id} className="border-t border-grey-100">
+                <Fragment key={l.id}>
+                <tr className={`border-t border-grey-100 ${l.rate ? "" : "bg-error-200"}`} title={l.rate ? undefined : "No rate for this row: none in the price list for this vendor. Type one in."}>
                   {cols.map((c) => (
                     <td key={c.key} className="px-1 py-1">
                       {c.key === "netRate" ? (
@@ -229,6 +265,8 @@ export function PoLinesTable({
                           value={String(l[c.key as keyof PurchaseOrderLine] ?? "")}
                           onChange={(e) => patch(l.id, { [c.key]: e.target.value })}
                         />
+                      ) : c.key === "rate" ? (
+                        <RateCell value={l.rate} onCommit={(n) => patch(l.id, { rate: n })} />
                       ) : c.key === "width" || c.key === "height" || (hardware && c.key === "qty") ? (
                         <DimCell value={l[c.key]} vars={vars ?? varsFor?.(l.srNo)} onCommit={(n) => patch(l.id, { [c.key]: n })} />
                       ) : (
@@ -257,18 +295,56 @@ export function PoLinesTable({
                     <button
                       type="button"
                       aria-label="Remove row"
-                      onClick={() => onChange(lines.filter((x) => x.id !== l.id))}
+                      onClick={() => setToRemove(l)}
                       className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error"
                     >
                       <X className="h-4 w-4" />
                     </button>
                   </td>
                 </tr>
+                {!hardware && !l.rate && (
+                  <tr className="bg-error-transparent">
+                    <td colSpan={cols.length + 1} className="px-3 py-1.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-body text-error">
+                        <span className="flex items-center gap-1.5">
+                          <AlertTriangle className="h-4 w-4" />
+                          No price found for this combination.
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPricePrefill({ ...purchasePriceFieldsFor(l, materialSpecStore.getSnapshot()), vendorId })}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Add this combination to Purchase Furniture Price List
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>
         </div>
       )}
+      <PurchaseFurniturePriceFormDialog
+        open={!!pricePrefill}
+        onOpenChange={(o) => !o && setPricePrefill(null)}
+        prefill={pricePrefill ?? undefined}
+        onSubmit={(values) => purchaseFurnitureStore.create(values)}
+      />
+      <ConfirmDialog
+        open={!!toRemove}
+        onOpenChange={(o) => !o && setToRemove(null)}
+        title="Delete this row?"
+        description={toRemove ? `"${toRemove.description || "Untitled row"}" (cabinet ${toRemove.srNo}) will be removed from this purchase order. Nothing is saved until you press Save.` : ""}
+        onConfirm={() => {
+          if (toRemove) onChange(lines.filter((x) => x.id !== toRemove.id));
+          setToRemove(null);
+        }}
+      />
     </div>
   );
 }

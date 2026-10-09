@@ -17,6 +17,9 @@ export function TextReferenceSelect({
   onChange,
   placeholder,
   disabled,
+  allowAdd = true,
+  triggerClassName,
+  onAddNew,
 }: {
   label: string;
   options: string[];
@@ -24,6 +27,10 @@ export function TextReferenceSelect({
   onChange: (name: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  allowAdd?: boolean;
+  triggerClassName?: string;
+  // When set, an always-visible "+ Add new …" button at the bottom calls this instead of the inline add.
+  onAddNew?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -41,7 +48,10 @@ export function TextReferenceSelect({
     <Popover open={open && !disabled} onOpenChange={(next) => setOpen(disabled ? false : next)}>
       <PopoverTrigger
         disabled={disabled}
-        className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary disabled:cursor-not-allowed disabled:bg-light-600 disabled:text-grey-300"
+        className={cn(
+          "flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary disabled:cursor-not-allowed disabled:bg-light-600 disabled:text-grey-300",
+          triggerClassName
+        )}
       >
         {value ? (
           <span className="min-w-0 truncate">{value}</span>
@@ -77,7 +87,21 @@ export function TextReferenceSelect({
             <span className="px-2 py-1.5 text-sm font-body text-grey-400">No matches</span>
           )}
         </div>
-        {query.trim() && !exactMatch && (
+        {onAddNew && (
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setQuery("");
+              onAddNew();
+            }}
+            className="mt-1 flex w-full items-center gap-1.5 rounded-md border-t border-grey-100 px-2 py-2 text-left text-sm font-body font-medium text-primary hover:bg-light-600"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add new {label.toLowerCase()}
+          </button>
+        )}
+        {!onAddNew && allowAdd && query.trim() && !exactMatch && (
           <button
             type="button"
             onClick={() => select(query.trim())}

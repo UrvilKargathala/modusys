@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PoCabinetCard } from "@/components/purchase-orders/po-cabinet-card";
-import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
+import { PoLinesTable, PoVendorContext } from "@/components/purchase-orders/po-lines-table";
 import { applyPurchaseRates } from "@/lib/purchase-order-rate";
 import { useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { usePurchaseFurniturePriceItems } from "@/lib/store/purchase-furniture-store";
@@ -25,7 +25,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
-import { PO_GROUPS, nextPoNumber, gstModeFor, poTotals, type GstMode, type PurchaseOrder } from "@/lib/purchase-order";
+import { PO_GROUPS, mostUsed, nextPoNumber, gstModeFor, poTotals, type GstMode, type PurchaseOrder } from "@/lib/purchase-order";
 
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
 const card = "flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-5 shadow-sm";
@@ -68,7 +68,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const materials = useSyncExternalStore(materialSpecStore.subscribe, materialSpecStore.getSnapshot, materialSpecStore.getServerSnapshot);
   useEffect(() => {
     if (!draft || materials.length === 0 || (purchasePrices.length === 0 && hardwarePrices.length === 0)) return;
-    const lines = applyPurchaseRates(draft.lines, draft.lines, purchasePrices, materials, hardwarePrices);
+    const lines = applyPurchaseRates(draft.lines, draft.lines, purchasePrices, materials, hardwarePrices, draft.vendorId);
     if (lines.some((l, i) => l.rate !== draft.lines[i].rate)) setDraft({ ...draft, lines });
   }, [draft, purchasePrices, hardwarePrices, materials]);
 
@@ -88,14 +88,22 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   }, [draft]);
   // Shutter Details applies to the shutter rows; Cabinet Details to the carcass and other-panel rows.
   const inScope = (scope: "shutter" | "cabinet", g: string) => (scope === "shutter" ? g === "shutter" : g === "carcass" || g === "other-panel");
+  // The Details cards show what was picked there (saved separately); older POs fall back to what all rows share.
+  const finishKey = (scope: "shutter" | "cabinet", key: "internalColour" | "externalColour") =>
+    `${scope}${key === "internalColour" ? "Internal" : "External"}Colour` as const;
   const commonFinish = (scope: "shutter" | "cabinet", key: "internalColour" | "externalColour") => {
+    const picked = draft?.material.finishes?.[finishKey(scope, key)];
+    if (picked !== undefined) return picked;
     const rows = draft?.lines.filter((l) => inScope(scope, l.group)) ?? [];
-    return rows.length > 0 && rows.every((l) => l[key] === rows[0][key]) ? rows[0][key] : "";
+    return mostUsed(rows.map((l) => l[key]));
   };
-  const usedIn = (scope: "shutter" | "cabinet", key: "internalColour" | "externalColour") =>
-    [...new Set((draft?.lines ?? []).filter((l) => inScope(scope, l.group)).map((l) => l[key]).filter(Boolean))];
   const applyFinish = (scope: "shutter" | "cabinet", key: "internalColour" | "externalColour", label: string) =>
-    draft && setDraft({ ...draft, lines: draft.lines.map((l) => (inScope(scope, l.group) ? { ...l, [key]: label } : l)) });
+    draft &&
+    setDraft({
+      ...draft,
+      material: { ...draft.material, finishes: { ...draft.material.finishes, [finishKey(scope, key)]: label } },
+      lines: draft.lines.map((l) => (inScope(scope, l.group) ? { ...l, [key]: label } : l)),
+    });
 
   const fromQuote = useMemo(() => (draft?.quoteId ? quoteCabinetInfo(quotes.find((q) => q.id === draft.quoteId) ?? ({ units: [] } as never)) : new Map<number, { cabinetTypeId: string; unitQty: number }>()), [draft?.quoteId, quotes]);
 
@@ -116,8 +124,13 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const customer = customers.find((c) => c.id === draft.customerId);
   const quote = quotes.find((q) => q.id === draft.quoteId);
   // Panel rows pick up their rate from the Purchase Furniture Price List when thickness, raw material and both finishes match.
-  const set = (fields: Partial<PurchaseOrder>) =>
-    setDraft({ ...draft, ...fields, ...(fields.lines ? { lines: applyPurchaseRates(fields.lines, draft.lines, purchasePrices, materialSpecStore.getSnapshot(), hardwarePrices) } : {}) });
+  // Changing the vendor re-rates every panel row from that vendor's prices.
+  const set = (fields: Partial<PurchaseOrder>) => {
+    const vendorId = fields.vendorId ?? draft.vendorId;
+    const vendorChanged = vendorId !== draft.vendorId;
+    const lines = fields.lines ?? (vendorChanged ? draft.lines : undefined);
+    setDraft({ ...draft, ...fields, ...(lines ? { lines: applyPurchaseRates(lines, draft.lines, purchasePrices, materialSpecStore.getSnapshot(), hardwarePrices, vendorId, vendorChanged) } : {}) });
+  };
   const setMaterial = (fields: Partial<PurchaseOrder["material"]>) => set({ material: { ...draft.material, ...fields } });
 
   // Saves the given draft (default: what's on screen). A blank vendor / PO number is fine while Pending.
@@ -191,6 +204,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   };
 
   return (
+    <PoVendorContext.Provider value={draft.vendorId}>
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -330,12 +344,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           <div className="flex flex-col gap-1.5">
             <Label>Internal Brand & Colour</Label>
             <PoFinishSelect kind="internal" value={commonFinish("shutter", "internalColour")} onChange={(label) => applyFinish("shutter", "internalColour", label)} />
-            {usedIn("shutter", "internalColour").length > 1 && <p className="text-xs font-body text-grey-500">Rows use: {usedIn("shutter", "internalColour").join(", ")}</p>}
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>External Brand & Colour</Label>
             <PoFinishSelect kind="external" value={commonFinish("shutter", "externalColour")} onChange={(label) => applyFinish("shutter", "externalColour", label)} />
-            {usedIn("shutter", "externalColour").length > 1 && <p className="text-xs font-body text-grey-500">Rows use: {usedIn("shutter", "externalColour").join(", ")}</p>}
           </div>
         </div>
         <div className={card}>
@@ -347,12 +359,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           <div className="flex flex-col gap-1.5">
             <Label>Internal Brand & Colour</Label>
             <PoFinishSelect kind="internal" value={commonFinish("cabinet", "internalColour")} onChange={(label) => applyFinish("cabinet", "internalColour", label)} />
-            {usedIn("cabinet", "internalColour").length > 1 && <p className="text-xs font-body text-grey-500">Rows use: {usedIn("cabinet", "internalColour").join(", ")}</p>}
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>External Brand & Colour</Label>
             <PoFinishSelect kind="external" value={commonFinish("cabinet", "externalColour")} onChange={(label) => applyFinish("cabinet", "externalColour", label)} />
-            {usedIn("cabinet", "externalColour").length > 1 && <p className="text-xs font-body text-grey-500">Rows use: {usedIn("cabinet", "externalColour").join(", ")}</p>}
           </div>
         </div>
       </div>
@@ -560,5 +570,6 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         }}
       />
     </div>
+    </PoVendorContext.Provider>
   );
 }

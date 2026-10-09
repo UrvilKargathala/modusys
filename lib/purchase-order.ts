@@ -103,6 +103,8 @@ export type PoMaterial = {
   shutterRawMaterial: string;
   otherRawMaterial: string;
   cabinetRawMaterial: string;
+  // Shutter / Cabinet Details finishes as picked there. Editing a row in the table doesn't change them.
+  finishes?: Partial<Record<"shutterInternalColour" | "shutterExternalColour" | "cabinetInternalColour" | "cabinetExternalColour", string>>;
   cabinetOtherRawMaterial: string;
   // Derived from the lines' purchase internal/external finishes on save.
   internalColours: string[];
@@ -148,4 +150,14 @@ export function nextPoNumber(customer: { firstName?: string; lastName?: string; 
     return Number.isFinite(hit) ? Math.max(m, hit) : m;
   }, 0);
   return `${prefix}${String(max + 1).padStart(2, "0")}`;
+}
+
+// The value most rows use (first seen wins a tie); "" when none. Header pickers show this, so changing one row
+// in the table doesn't blank the header.
+export function mostUsed(values: string[]): string {
+  const n = new Map<string, number>();
+  for (const v of values) if (v) n.set(v, (n.get(v) ?? 0) + 1);
+  let best = "";
+  for (const [v, c] of n) if (c > (n.get(best) ?? 0)) best = v;
+  return best;
 }

@@ -19,7 +19,7 @@ import { quoteRawTotal, quoteWaterfall } from "@/lib/quote-pricing";
 import { downloadQuoteExportZip } from "@/lib/quote-export-zip";
 import { formatInr } from "@/lib/format";
 import { toastStore } from "@/lib/store/toast-store";
-import { statusConfig, type StatusKey } from "@/lib/status";
+import { remarkWithStatusNote, statusConfig, type StatusKey } from "@/lib/status";
 import { StatusPicker } from "@/components/quotes/create/status-picker";
 import { CreatePoDialog } from "@/components/purchase-orders/create-po-dialog";
 import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
@@ -384,8 +384,8 @@ export default function QuotesPage() {
                         <td className="whitespace-nowrap px-2 py-1">
                           <StatusPicker
                             value={status}
-                            onChange={(next) => {
-                              quotesStore.saveQuote({ ...quote, status: next });
+                            onChange={(next, note) => {
+                              quotesStore.saveQuote({ ...quote, status: next, ...(note ? { remark: remarkWithStatusNote(quote.remark, next, note) } : {}) });
                               toastStore.show(`${quote.quoteNumber} marked ${statusConfig[next].label}`, "success");
                             }}
                             className="h-7 w-auto px-2 py-0 text-xs"

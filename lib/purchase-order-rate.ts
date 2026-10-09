@@ -6,10 +6,10 @@ const norm = (s: string) => s.trim().toLowerCase();
 
 // Rate from the Purchase Furniture Price List when a panel row's thickness, raw material and internal / external
 // brand & colour all match one price row. null = no match (hardware never matches).
-export function purchaseRateFor(l: PurchaseOrderLine, prices: PurchaseFurniturePriceItem[], materials: MaterialItem[]): number | null {
+// With a vendor picked, only that vendor's rows (or rows with no vendor) count, the vendor's own row first.
+export function purchaseRateFor(l: PurchaseOrderLine, prices: PurchaseFurniturePriceItem[], materials: MaterialItem[], vendorId = ""): number | null {
   if (l.group === "hardware") return null;
   const m = new Map(materials.map((x) => [x.id, x]));
-  // Vendor on a price row is for reference only; it doesn't affect matching.
   const ok = (p: PurchaseFurniturePriceItem) => {
     if (p.deleted) return false;
     const thk = m.get(p.thicknessId), raw = m.get(p.rawMaterialTypeId), int = m.get(p.internalColourId), ext = m.get(p.externalColourId);
@@ -21,12 +21,12 @@ export function purchaseRateFor(l: PurchaseOrderLine, prices: PurchaseFurnitureP
       norm(`${ext.description} — ${ext.name}`) === norm(l.externalColour)
     );
   };
-  const hit = prices.find(ok);
+  const hit = vendorId
+    ? prices.find((p) => p.vendorId === vendorId && ok(p)) ?? prices.find((p) => !p.vendorId && ok(p))
+    : prices.find(ok);
   return hit ? hit.rate : null;
 }
 
-// Fill rates on rows whose matching fields changed (or that have no rate yet). A rate typed by hand on a row whose
-// fields didn't change is kept.
 // Hardware row → Hardware Price List item when category, brand, description and unit all match.
 export function hardwareMatchFor(l: PurchaseOrderLine, hardware: HardwarePriceItem[], materials: MaterialItem[]): HardwarePriceItem | null {
   if (l.group !== "hardware") return null;
@@ -43,21 +43,35 @@ export function hardwareMatchFor(l: PurchaseOrderLine, hardware: HardwarePriceIt
   );
 }
 
+// The Purchase Furniture Price List fields for a panel row (ids from Material Library), "" where nothing matches.
+export function purchasePriceFieldsFor(l: PurchaseOrderLine, materials: MaterialItem[]) {
+  const find = (cat: string, ok: (m: MaterialItem) => boolean) => materials.find((m) => !m.deleted && m.category === cat && ok(m))?.id ?? "";
+  const finish = (m: MaterialItem) => `${m.description} — ${m.name}`;
+  return {
+    thicknessId: find("thickness", (m) => parseFloat(m.name) === l.depth),
+    rawMaterialTypeId: find("raw-material-type", (m) => norm(m.name) === norm(l.material)),
+    internalColourId: find("purchase-internal", (m) => norm(finish(m)) === norm(l.internalColour)),
+    externalColourId: find("purchase-external", (m) => norm(finish(m)) === norm(l.externalColour)),
+  };
+}
+
 // Fill rates on rows whose matching fields changed (or that have no rate yet). A rate typed by hand on a row whose
 // fields didn't change is kept. Panels: rate from the Purchase Furniture Price List. Hardware: rate = MRP and
-// discount % from the Hardware Price List.
-export function applyPurchaseRates(next: PurchaseOrderLine[], prev: PurchaseOrderLine[], prices: PurchaseFurniturePriceItem[], materials: MaterialItem[], hardware: HardwarePriceItem[] = []) {
+// discount % from the Hardware Price List. `vendorChanged`: every panel row is re-rated for the new vendor, and a row
+// with no price for that vendor goes to 0 (shown highlighted) instead of keeping the old vendor's rate.
+export function applyPurchaseRates(next: PurchaseOrderLine[], prev: PurchaseOrderLine[], prices: PurchaseFurniturePriceItem[], materials: MaterialItem[], hardware: HardwarePriceItem[] = [], vendorId = "", vendorChanged = false) {
   const before = new Map(prev.map((l) => [l.id, l]));
   const sig = (l: PurchaseOrderLine) =>
     (l.group === "hardware" ? [l.category, l.brand, l.description, l.unit] : [l.depth, l.material, l.internalColour, l.externalColour]).join("|");
   return next.map((l) => {
     const old = before.get(l.id);
+    if (vendorChanged && l.group !== "hardware") return { ...l, rate: purchaseRateFor(l, prices, materials, vendorId) ?? 0 };
     if (l.rate !== 0 && old && sig(old) === sig(l)) return l;
     if (l.group === "hardware") {
       const h = hardwareMatchFor(l, hardware, materials);
       return h ? { ...l, rate: h.mrp, discountPct: h.discountPct } : l;
     }
-    const rate = purchaseRateFor(l, prices, materials);
+    const rate = purchaseRateFor(l, prices, materials, vendorId);
     return rate === null ? l : { ...l, rate };
   });
 }

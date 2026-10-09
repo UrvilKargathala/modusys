@@ -21,15 +21,21 @@ function emit() {
   for (const l of listeners) l();
 }
 
-function ensureHydrated() {
-  if (hydrated || typeof window === "undefined") return;
-  hydrated = true;
+function load() {
   void fetchJson<PurchaseFurniturePriceItem[]>("/api/pricing/purchase-furniture").then((data) => {
     if (data && data.length > 0) {
       items = data;
       emit();
     }
   });
+}
+
+// Re-fetched whenever the tab regains focus, so a price added in another tab (e.g. Templates) reaches an open PO.
+function ensureHydrated() {
+  if (hydrated || typeof window === "undefined") return;
+  hydrated = true;
+  load();
+  window.addEventListener("focus", load);
 }
 
 export type NewPurchaseFurnitureInput = Omit<PurchaseFurniturePriceItem, "id" | "createdAt">;
@@ -45,21 +51,6 @@ export const purchaseFurnitureStore = {
   },
   getServerSnapshot() {
     return EMPTY;
-  },
-  // The existing row for this exact Thickness + Raw Material + Internal + External combo, if any.
-  findDuplicate(input: NewPurchaseFurnitureInput, excludeId?: string): PurchaseFurniturePriceItem | null {
-    ensureHydrated();
-    return (
-      items.find(
-        (i) =>
-          !i.deleted &&
-          i.id !== excludeId &&
-          i.thicknessId === input.thicknessId &&
-          i.rawMaterialTypeId === input.rawMaterialTypeId &&
-          i.internalColourId === input.internalColourId &&
-          i.externalColourId === input.externalColourId
-      ) ?? null
-    );
   },
   takenVariantIds(excludeId?: string): Set<string> {
     ensureHydrated();

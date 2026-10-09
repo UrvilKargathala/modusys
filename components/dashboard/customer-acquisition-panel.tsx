@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCustomers } from "@/lib/store/customers-store";
 import { getCustomerAcquisition, type DateRange } from "@/lib/dashboard-metrics";
+import { CHART, axisProps, gridProps, tooltipContent } from "@/components/charts/chart-theme";
 import {
   AreaChart,
   Area,
@@ -26,24 +27,25 @@ export function CustomerAcquisitionPanel({ range }: { range: DateRange }) {
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={260}>
-          <AreaChart data={data}>
+          <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="acquisitionGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="var(--color-secondary)" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="var(--color-secondary)" stopOpacity={0} />
+                <stop offset="5%" stopColor={CHART.brand} stopOpacity={0.28} />
+                <stop offset="95%" stopColor={CHART.brand} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-grey-100)" />
-            <XAxis dataKey="label" stroke="var(--color-grey-400)" fontSize={12} tick={{ fontFamily: "var(--font-number)" }} />
-            <YAxis stroke="var(--color-grey-400)" fontSize={12} tick={{ fontFamily: "var(--font-number)" }} allowDecimals={false} />
-            <Tooltip contentStyle={{ fontFamily: "var(--font-number)" }} />
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="label" {...axisProps} dy={6} />
+            <YAxis {...axisProps} width={32} allowDecimals={false} />
+            <Tooltip content={tooltipContent((n) => String(n))} cursor={{ stroke: "var(--color-grey-300)", strokeDasharray: "4 4" }} />
             <Area
               type="monotone"
               dataKey="count"
               name="New Customers"
-              stroke="var(--color-secondary)"
+              stroke={CHART.brand}
               strokeWidth={2}
               fill="url(#acquisitionGradient)"
+              activeDot={{ r: 5, stroke: "var(--color-white)", strokeWidth: 2 }}
             />
           </AreaChart>
         </ResponsiveContainer>

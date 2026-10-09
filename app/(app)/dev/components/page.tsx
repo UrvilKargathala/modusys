@@ -6,7 +6,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ListPageShell } from "@/components/shared/list-page-shell";
 import { DonutChart } from "@/components/charts/donut-chart";
-import { DualAxisTrendChart } from "@/components/charts/dual-axis-trend-chart";
+import { TrendChart } from "@/components/charts/trend-chart";
 import { FunnelChart } from "@/components/charts/funnel-chart";
 import { BarChart } from "@/components/charts/bar-chart";
 import { Button } from "@/components/ui/button";
@@ -107,7 +107,7 @@ export default function ComponentSandboxPage() {
           </div>
           <div className="rounded-lg border border-grey-100 bg-card p-4">
             <p className="mb-2 text-sm font-medium text-grey-700">Dual-Axis Trend</p>
-            <DualAxisTrendChart data={trendData} />
+            <TrendChart data={trendData} />
           </div>
           <div className="rounded-lg border border-grey-100 bg-card p-4">
             <p className="mb-2 text-sm font-medium text-grey-700">Funnel</p>

@@ -18,8 +18,8 @@ export type StatusDistributionDatum = { status: StatusKey; count: number };
 
 export type TrendDatum = { label: string; quotes: number; revenue: number };
 
-const ACTIVE_STATUSES: StatusKey[] = ["draft", "approved", "in-procurement", "in-production"];
-const ALL_STATUSES: StatusKey[] = ["draft", "approved", "in-procurement", "in-production", "completed", "cancelled"];
+const ACTIVE_STATUSES: StatusKey[] = ["draft", "approved", "in-procurement", "in-production", "installation"];
+const ALL_STATUSES: StatusKey[] = ["draft", "approved", "in-procurement", "in-production", "installation", "completed", "cancelled"];
 
 function inRange(dateStr: string, range: DateRange) {
   return dateStr >= range.from && dateStr <= range.to;

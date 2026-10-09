@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart } from "@/components/charts/bar-chart";
+import { compactInr } from "@/components/charts/chart-theme";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { getRevenueByMonth, type DateRange } from "@/lib/dashboard-metrics";
@@ -17,7 +18,6 @@ export function RevenueByMonthPanel({ range }: { range: DateRange }) {
       getRevenueByMonth(quotes, furnitureItems, hardwareItems, range).map((d) => ({
         label: d.label,
         value: d.revenue,
-        color: "var(--color-primary)",
       })),
     [quotes, furnitureItems, hardwareItems, range]
   );
@@ -28,7 +28,7 @@ export function RevenueByMonthPanel({ range }: { range: DateRange }) {
         <CardTitle className="font-heading text-base text-grey-900">Revenue by Month</CardTitle>
       </CardHeader>
       <CardContent>
-        <BarChart data={data} />
+        <BarChart data={data} format={compactInr} name="Revenue" />
       </CardContent>
     </Card>
   );

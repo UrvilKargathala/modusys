@@ -10,7 +10,7 @@ import { MaterialReferenceSelect } from "@/components/templates/material-referen
 import { UserPicker } from "@/components/crm/tasks/user-picker";
 import { StatusPicker } from "@/components/quotes/create/status-picker";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import type { StatusKey } from "@/lib/status";
+import { remarkWithStatusNote, type StatusKey } from "@/lib/status";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
 
@@ -151,7 +151,7 @@ export function ClientDetailsSection({
           </Field>
 
           <Field label="Status">
-            <StatusPicker value={quote.status as StatusKey} onChange={(status) => confirmChange("Status", { status })} />
+            <StatusPicker value={quote.status as StatusKey} onChange={(status, note) => confirmChange("Status", { status, ...(note ? { remark: remarkWithStatusNote(quote.remark, status, note) } : {}) })} />
           </Field>
         </div>
       </div>

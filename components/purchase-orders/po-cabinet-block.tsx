@@ -10,7 +10,7 @@ import { recalcCarcass } from "@/lib/purchase-order-from-quote";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
 import { toastStore } from "@/lib/store/toast-store";
-import type { PoCabinet, PoGroup, PurchaseOrderLine } from "@/lib/purchase-order";
+import { mostUsed, type PoCabinet, type PoGroup, type PurchaseOrderLine } from "@/lib/purchase-order";
 
 const dimInput =
   "h-8 w-16 rounded-md border border-grey-100 bg-card px-2 text-right text-sm font-number text-grey-900 outline-none focus:border-primary";
@@ -51,7 +51,7 @@ export function PoCabinetBlock({
 
   // Carcass only: this cabinet's internal / external brand & colour and material, applied to all its carcass rows.
   const mine = lines.filter((l) => l.srNo === srNo && l.group === "carcass");
-  const common = (k: "internalColour" | "externalColour" | "material") => (mine.length && mine.every((l) => l[k] === mine[0][k]) ? mine[0][k] : "");
+  const common = (k: "internalColour" | "externalColour" | "material") => mostUsed(mine.map((l) => l[k]));
   const applyAll = (fields: Partial<PurchaseOrderLine>) => onChange(lines.map((l) => (l.srNo === srNo && l.group === "carcass" ? { ...l, ...fields } : l)));
   const finishRow = (
     <div className="grid grid-cols-1 gap-3 pl-8 text-xs text-grey-500 md:grid-cols-3">
@@ -75,7 +75,7 @@ export function PoCabinetBlock({
       <span className="flex min-w-0 max-w-[260px] shrink items-center gap-2">
         <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-primary-transparent px-1.5 font-number text-sm font-semibold text-primary">{srNo}</span>
         {cabinet ? (
-          <PoCabinetNameSelect value={cabinet.designType ?? ""} fallback={cabinet.label} onChange={(v) => onCabinetChange({ ...cabinet, designType: v })} />
+          <PoCabinetNameSelect value={cabinet.designType ?? ""} fallback={cabinet.label} onChange={(v, cabinetTypeId) => onCabinetChange({ ...cabinet, designType: v, cabinetTypeId })} />
         ) : (
           <span className="truncate font-heading text-base font-semibold text-grey-900">{name}</span>
         )}

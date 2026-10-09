@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -19,19 +18,19 @@ export function PurchaseFurniturePriceFormDialog({
   open,
   onOpenChange,
   item,
+  prefill,
   onSubmit,
-  onEditExisting,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   // Absent = Add mode; present = Edit mode, pre-filled.
   item?: PurchaseFurniturePriceItem;
+  // Add mode: fields already known (e.g. from a PO row with no price), so only the rate is left to type.
+  prefill?: Partial<NewPurchaseFurnitureInput>;
   onSubmit: (values: NewPurchaseFurnitureInput) => void;
-  onEditExisting: (existing: PurchaseFurniturePriceItem) => void;
 }) {
   const isEdit = !!item;
   const [values, setValues] = useState<NewPurchaseFurnitureInput>(emptyValues());
-  const [duplicate, setDuplicate] = useState<PurchaseFurniturePriceItem | null>(null);
   const [variantTouched, setVariantTouched] = useState(false);
   const thicknesses = useMaterialItems("thickness");
   const rawMaterialTypes = useMaterialItems("raw-material-type");
@@ -44,11 +43,10 @@ export function PurchaseFurniturePriceFormDialog({
     setValues(
       item
         ? { thicknessId: item.thicknessId, rawMaterialTypeId: item.rawMaterialTypeId, internalColourId: item.internalColourId, externalColourId: item.externalColourId, rate: item.rate, variantId: item.variantId, vendorId: item.vendorId ?? "" }
-        : emptyValues()
+        : { ...emptyValues(), ...prefill }
     );
-    setDuplicate(null);
     setVariantTouched(false);
-  }, [open, item]);
+  }, [open, item, prefill]);
 
   const nameOf = (list: { id: string; name: string }[], id: string) => list.find((m) => m.id === id)?.name ?? "";
   const picked = !!(values.thicknessId && values.rawMaterialTypeId && values.internalColourId && values.externalColourId);
@@ -72,11 +70,6 @@ export function PurchaseFurniturePriceFormDialog({
   const complete = picked && values.rate > 0 && !variantError;
 
   const submit = () => {
-    const existing = purchaseFurnitureStore.findDuplicate(values, item?.id);
-    if (existing) {
-      setDuplicate(existing);
-      return;
-    }
     onSubmit({ ...values, variantId: normalizeVariantId(variantId) });
     onOpenChange(false);
   };
@@ -158,25 +151,6 @@ export function PurchaseFurniturePriceFormDialog({
               onChange={(e) => setValues((v) => ({ ...v, rate: Number(e.target.value) }))}
             />
           </div>
-
-          {duplicate && (
-            <div className="flex flex-col gap-2 rounded-lg bg-warning-transparent px-3 py-2.5 text-sm font-body text-warning">
-              <span className="flex items-start gap-1.5">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                This combination already exists (<span className="font-number">{duplicate.rate.toFixed(2)}</span>/sq.ft) — edit the existing entry instead?
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  onOpenChange(false);
-                  onEditExisting(duplicate);
-                }}
-              >
-                Edit existing entry
-              </Button>
-            </div>
-          )}
 
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

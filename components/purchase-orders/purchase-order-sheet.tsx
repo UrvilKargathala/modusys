@@ -139,25 +139,58 @@ function PanelTable({ group, title, lines, po, plain = false }: { group: PoGroup
   );
 }
 
-function HardwareTable({ title, lines, po }: { title: string; lines: PurchaseOrderLine[]; po: PurchaseOrder }) {
+// Hardware-only PDF: no cabinet headings, and the same item (brand, description, article no, category, unit, rate,
+// discount) across cabinets becomes one row with the quantities added up. No Design column; columns in the order below.
+// Stock Qty / Order Qty are left blank, to be filled in by hand on the printout.
+const HW_MERGED_HEADERS = ["Sr", "Brand", "Category", "Article No", "Description", "Unit", "Qty", "MRP", "Discount %", "Rate", "Amount", "Remarks", "Stock Qty", "Order Qty"];
+function mergeHardware(lines: PurchaseOrderLine[]) {
+  const byKey = new Map<string, { l: PurchaseOrderLine; remarks: Set<string> }>();
+  for (const l of lines) {
+    const key = [l.brand, l.description, l.articleNo, l.category, l.unit, l.rate, l.discountPct ?? 0].join("|").toLowerCase();
+    const hit = byKey.get(key);
+    if (hit) hit.l = { ...hit.l, qty: hit.l.qty + l.qty };
+    else byKey.set(key, { l: { ...l }, remarks: new Set() });
+    const m = byKey.get(key)!;
+    if (l.remarks) m.remarks.add(l.remarks);
+  }
+  // Sorted by brand, then category, then description.
+  const cmp = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true });
+  return [...byKey.values()]
+    .map(({ l, remarks }) => ({ ...l, remarks: [...remarks].join(", ") }))
+    .sort((a, b) => cmp(a.brand, b.brand) || cmp(a.category, b.category) || cmp(a.description, b.description))
+    .map((l, i) => ({ l, sr: String(i + 1) }));
+}
+
+function HardwareTable({ title, lines, po, merged = false }: { title: string; lines: PurchaseOrderLine[]; po: PurchaseOrder; merged?: boolean }) {
   const total = lines.reduce((s, l) => s + lineAmount(l), 0);
+  const sections = merged ? [{ srNo: 0, name: "", rows: mergeHardware(lines) }] : byCabinet(po, "hardware");
   return (
     <section className="break-inside-auto">
-      <Band group="hardware" title={title} count={lines.length} total={total} />
+      <Band group="hardware" title={title} count={merged ? sections[0].rows.length : lines.length} total={total} />
       <table className="w-full border-collapse text-[10px]">
-        <thead><Header group="hardware" headers={HW_HEADERS} /></thead>
+        <thead><Header group="hardware" headers={merged ? HW_MERGED_HEADERS : HW_HEADERS} /></thead>
         <tbody>
-          {byCabinet(po, "hardware").map((c) => (
+          {sections.map((c) => (
             <Fragment key={c.srNo}>
-              <CabinetRow group="hardware" cols={13}>{c.srNo}. {c.name}</CabinetRow>
+              {!merged && <CabinetRow group="hardware" cols={13}>{c.srNo}. {c.name}</CabinetRow>}
               {c.rows.map(({ l, sr }, i) => (
                 <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
                   <td className={cell}>{sr}</td>
                   <td className={cell}>{l.brand}</td>
-                  <td className={cell}>{l.description}</td>
-                  <td className={cell}>{l.designType}</td>
-                  <td className={cell}>{l.articleNo}</td>
-                  <td className={cell}>{l.category}</td>
+                  {merged ? (
+                    <>
+                      <td className={cell}>{l.category}</td>
+                      <td className={cell}>{l.articleNo}</td>
+                      <td className={cell}>{l.description}</td>
+                    </>
+                  ) : (
+                    <>
+                      <td className={cell}>{l.description}</td>
+                      <td className={cell}>{l.designType}</td>
+                      <td className={cell}>{l.articleNo}</td>
+                      <td className={cell}>{l.category}</td>
+                    </>
+                  )}
                   <td className={cell}>{l.unit}</td>
                   <td className={`${cell} text-right`}>{num(l.qty)}</td>
                   <td className={`${cell} text-right`}>{num(l.rate, 2)}</td>
@@ -165,14 +198,20 @@ function HardwareTable({ title, lines, po }: { title: string; lines: PurchaseOrd
                   <td className={`${cell} text-right`}>{l.rate ? num(l.rate * (1 - (l.discountPct ?? 0) / 100), 2) : ""}</td>
                   <td className={`${cell} text-right`}>{l.rate ? num(lineAmount(l), 2) : ""}</td>
                   <td className={cell}>{l.remarks}</td>
+                  {merged && (
+                    <>
+                      <td className={`${cell} w-16`} />
+                      <td className={`${cell} w-16`} />
+                    </>
+                  )}
                 </tr>
               ))}
             </Fragment>
           ))}
           <tr className={`font-semibold ${THEME.hardware.head}`}>
-            <td className={`${cell} text-right`} colSpan={11}>TOTAL</td>
+            <td className={`${cell} text-right`} colSpan={merged ? 10 : 11}>TOTAL</td>
             <td className={`${cell} text-right`}>{num(total, 2)}</td>
-            <td className={cell} />
+            <td className={cell} colSpan={merged ? 3 : 1} />
           </tr>
         </tbody>
       </table>
@@ -295,7 +334,7 @@ export function PurchaseOrderSheet({ po, vendor, customer, quoteNumber, branding
         const lines = po.lines.filter((l) => l.group === g.key);
         const title = `${g.code}. ${g.label}`;
         return g.key === "hardware" ? (
-          <HardwareTable key={g.key} title={title} lines={lines} po={po} />
+          <HardwareTable key={g.key} title={title} lines={lines} po={po} merged={part === "hardware"} />
         ) : (
           <PanelTable key={g.key} group={g.key} title={title} lines={lines} po={po} />
         );

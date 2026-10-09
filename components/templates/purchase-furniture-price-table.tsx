@@ -193,7 +193,6 @@ export function PurchaseFurniturePriceTable() {
         open={addOpen}
         onOpenChange={setAddOpen}
         onSubmit={(values) => purchaseFurnitureStore.create(values)}
-        onEditExisting={(existing) => setEditTarget(existing)}
       />
 
       {editTarget && (
@@ -202,7 +201,6 @@ export function PurchaseFurniturePriceTable() {
           onOpenChange={(open) => !open && setEditTarget(null)}
           item={editTarget}
           onSubmit={(values) => purchaseFurnitureStore.update(editTarget.id, values)}
-          onEditExisting={(existing) => setEditTarget(existing)}
         />
       )}
 

@@ -3,21 +3,32 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
+import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
+import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
+import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { PoLinesTable, newBlankLine } from "@/components/purchase-orders/po-lines-table";
 import { formatInr } from "@/lib/format";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
 import { toastStore } from "@/lib/store/toast-store";
-import { PO_GROUPS, lineAmount, type PoCabinet, type PurchaseOrderLine } from "@/lib/purchase-order";
+import { PO_GROUPS, lineAmount, mostUsed, type PoCabinet, type PurchaseOrderLine } from "@/lib/purchase-order";
 
 // One cabinet of the quote: header (number, unit/cabinet name, W/D/H/Qty) and its components
 // underneath, grouped Carcass / Shutter / Other Panel / Hardware — the same flow as the quote.
 // W/D/H/Qty start as the quote's cabinet size and are editable; the rows are snapshots, so they only
 // change when you press Auto Populate (same as the quote: carcass rows only, from the cabinet type's formulas).
-const dimInput =
-  "h-8 w-16 rounded-md border border-grey-100 bg-card px-2 text-right text-sm font-number text-grey-900 outline-none focus:border-primary";
+// A form field with its label above it.
+const fieldInput = "h-9 w-full rounded-lg border border-grey-100 bg-card px-2 text-[13px] font-body text-grey-900 outline-none focus:border-primary";
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="flex min-w-0 flex-col gap-1 text-xs text-grey-500">
+      {label}
+      {children}
+    </label>
+  );
+}
+
 export function PoCabinetCard({
   srNo,
   lines,
@@ -62,6 +73,12 @@ export function PoCabinetCard({
   const emptyGroups = PO_GROUPS.filter((g) => !mine.some((l) => l.group === g.key));
 
   const name = cabinet?.label;
+  // This cabinet's internal / external brand & colour and material, applied to all its carcass rows (same as By component).
+  const carcassRows = mine.filter((l) => l.group === "carcass");
+  const commonCarcass = (k: "internalColour" | "externalColour" | "material") =>
+    mostUsed(carcassRows.map((l) => l[k]));
+  const applyCarcass = (fields: Partial<PurchaseOrderLine>) =>
+    onChange(lines.map((l) => (l.srNo === srNo && l.group === "carcass" ? { ...l, ...fields } : l)));
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-grey-100 bg-card p-3">
@@ -98,54 +115,72 @@ export function PoCabinetCard({
           <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-primary-transparent px-1.5 font-number text-sm font-semibold text-primary">{srNo}</span>
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-heading text-base font-semibold text-grey-900">
-              {name || `Cabinet ${srNo}`}
+              {cabinet?.unitName || name || `Cabinet ${srNo}`}
               {designType && <span className="ml-2 font-number text-sm font-normal text-grey-500">{designType}</span>}
             </span>
             {cabinet?.space && <span className="text-xs font-body text-grey-500">{cabinet.space}</span>}
           </span>
         </button>
         )}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-body text-grey-700">
-          {cabinet && (
-            <div className="flex flex-wrap items-center gap-2">
-              {(["width", "depth", "height", "qty"] as const).map((k) => (
-                <label key={k} className="flex items-center gap-1 text-xs text-grey-500">
-                  {k === "qty" ? "Qty" : k[0].toUpperCase()}
-                  <input
-                    type="number"
-                    min={k === "qty" ? 1 : 0}
-                    aria-label={`Cabinet ${srNo} ${k}`}
-                    className={dimInput}
-                    value={cabinet[k]}
-                    onChange={(e) => onCabinetChange({ ...cabinet, [k]: e.target.value === "" ? 0 : Number(e.target.value) })}
-                  />
-                </label>
-              ))}
-              <PoCabinetNameSelect value={cabinet.designType ?? ""} fallback={cabinet.label} onChange={(v) => onCabinetChange({ ...cabinet, designType: v })} />
-          <input
-            aria-label={`Cabinet ${srNo} remark`}
-            placeholder="Remark"
-            className="h-8 w-48 rounded-md border border-grey-100 bg-card px-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
-            value={cabinet.remark ?? ""}
-            onChange={(e) => onCabinetChange({ ...cabinet, remark: e.target.value })}
-          />
-              {!isManual && (
-              <Button
-                type="button"
-                size="sm"
-                disabled={!cabinetType}
-                title={cabinetType ? "Recalculate this cabinet's carcass sizes from its W / D / H" : "This cabinet's type isn't available (older PO or deleted type)"}
-                onClick={autoPopulate}
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Auto Populate
-              </Button>
-              )}
-            </div>
+        <div className="flex items-center gap-3">
+          <span className="font-number text-base font-semibold text-grey-900">{formatInr(total)}</span>
+          {cabinet && !isManual && (
+            <Button
+              type="button"
+              size="icon-sm"
+              aria-label="Auto Populate"
+              disabled={!cabinetType}
+              title={cabinetType ? "Auto Populate: recalculate this cabinet's carcass sizes from its W / D / H" : "This cabinet's type isn't available (older PO or deleted type)"}
+              onClick={autoPopulate}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+            </Button>
           )}
-          <span className="font-number font-semibold text-grey-900">{formatInr(total)}</span>
         </div>
       </div>
+
+      {cabinet && (
+        <div className="grid grid-cols-2 gap-3 pl-8 md:grid-cols-4 lg:grid-cols-[2fr_2fr_repeat(4,1fr)_2fr_3fr]">
+          <Field label="Cabinet Type">
+            <PoCabinetNameSelect field value={cabinet.designType ?? ""} fallback={cabinet.label} onChange={(v, cabinetTypeId) => onCabinetChange({ ...cabinet, designType: v, cabinetTypeId })} />
+          </Field>
+          <Field label="Cabinet Name">
+            <PoCabinetNameField stacked value={cabinet.cabinetName ?? ""} onChange={(v) => onCabinetChange({ ...cabinet, cabinetName: v })} />
+          </Field>
+          {(["width", "depth", "height", "qty"] as const).map((k) => (
+            <Field key={k} label={k === "qty" ? "Qty" : k === "width" ? "W" : k === "depth" ? "D" : "H"}>
+              <input
+                type="number"
+                min={k === "qty" ? 1 : 0}
+                aria-label={`Cabinet ${srNo} ${k}`}
+                className={fieldInput + " text-right font-number"}
+                value={cabinet[k]}
+                onChange={(e) => onCabinetChange({ ...cabinet, [k]: e.target.value === "" ? 0 : Number(e.target.value) })}
+              />
+            </Field>
+          ))}
+          <Field label="Design">
+            <input aria-label={`Cabinet ${srNo} design`} className={fieldInput} value={cabinet.design ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, design: e.target.value })} />
+          </Field>
+          <Field label="Remark">
+            <input aria-label={`Cabinet ${srNo} remark`} className={fieldInput} value={cabinet.remark ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, remark: e.target.value })} />
+          </Field>
+        </div>
+      )}
+
+      {mine.some((l) => l.group === "carcass") && (
+        <div className="grid grid-cols-1 gap-3 pl-8 md:grid-cols-3">
+          <Field label="Internal Brand & Colour">
+            <PoFinishSelect kind="internal" value={commonCarcass("internalColour")} onChange={(v) => applyCarcass({ internalColour: v })} />
+          </Field>
+          <Field label="External Brand & Colour">
+            <PoFinishSelect kind="external" value={commonCarcass("externalColour")} onChange={(v) => applyCarcass({ externalColour: v })} />
+          </Field>
+          <Field label="Material">
+            <PoRawMaterialSelect value={commonCarcass("material")} onChange={(v) => applyCarcass({ material: v })} />
+          </Field>
+        </div>
+      )}
 
       {!collapsed && (
         <>

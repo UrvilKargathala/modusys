@@ -5,7 +5,7 @@ import { IndianRupee, FileText, Target, AlertTriangle } from "lucide-react";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { GranularityToggle } from "@/components/shared/granularity-toggle";
 import { DonutChart } from "@/components/charts/donut-chart";
-import { DualAxisTrendChart } from "@/components/charts/dual-axis-trend-chart";
+import { TrendChart } from "@/components/charts/trend-chart";
 import { DateRangeControl } from "@/components/dashboard/date-range-control";
 import { WelcomeBanner } from "@/components/dashboard/welcome-banner";
 import { UpcomingTasksPanel } from "@/components/dashboard/upcoming-tasks-panel";
@@ -155,7 +155,7 @@ export default function DashboardPage() {
             <GranularityToggle value={granularity} onChange={setGranularity} />
           </CardHeader>
           <CardContent>
-            <DualAxisTrendChart data={trendData} />
+            <TrendChart data={trendData} />
           </CardContent>
         </Card>
         <TopCustomersPanel range={range} />

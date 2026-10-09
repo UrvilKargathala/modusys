@@ -42,7 +42,7 @@ export function TopCustomersPanel({ range }: { range: DateRange }) {
                 </div>
                 <div className="h-2 w-full rounded-full bg-grey-100">
                   <div
-                    className="h-full rounded-full bg-primary transition-all"
+                    className="h-full rounded-full bg-gradient-to-r from-primary to-secondary transition-all"
                     style={{ width: `${(d.revenue / maxRevenue) * 100}%` }}
                   />
                 </div>
