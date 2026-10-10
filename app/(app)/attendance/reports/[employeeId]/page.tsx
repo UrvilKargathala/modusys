@@ -5,7 +5,7 @@ import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/require-user";
 import { getCurrentEmployee } from "@/lib/server/current-employee";
 import { getManagedEmployeeIds } from "@/lib/server/managed-employees";
-import { LEAVE_TYPES, istDateString, isWeekend, reportRange, weekdaysBetween, workingMinutes } from "@/lib/attendance-config";
+import { LEAVE_TYPES, istDateString, istMidnight, isWeekend, reportRange, weekdaysBetween, workingMinutes } from "@/lib/attendance-config";
 import { AdminPhotoThumb } from "@/components/attendance/admin-photo-thumb";
 import { Card } from "@/components/ui/card";
 
@@ -64,11 +64,12 @@ export default async function EmployeeAttendancePage({
   for (const d = new Date(fromDate); d <= toDate; d.setUTCDate(d.getUTCDate() + 1)) days.push(new Date(d));
   days.reverse();
 
-  let totalMinutes = 0, full = 0, half = 0, late = 0, early = 0, leaveDays = 0;
+  let totalMinutes = 0, full = 0, half = 0, inProgress = 0, late = 0, early = 0, leaveDays = 0;
   for (const r of records) {
     totalMinutes += r.workingMinutes ?? workingMinutes(r.checkIn, r.checkOut);
     if (r.dayStatus === "FULL_DAY") full++;
     else if (r.dayStatus === "HALF_DAY") half++;
+    else inProgress++; // checked in, no check-out yet
     if (r.isLate) late++;
     if (r.isEarlyExit) early++;
   }
@@ -77,7 +78,9 @@ export default async function EmployeeAttendancePage({
     const e = l.toDate < toDate ? l.toDate : toDate;
     leaveDays += l.isHalfDay ? 0.5 : weekdaysBetween(s, e);
   }
-  const workingDays = weekdaysBetween(fromDate, toDate);
+  // Days still to come are not counted as working days (so they can't show as absent).
+  const today = istMidnight();
+  const workingDays = weekdaysBetween(fromDate, toDate > today ? today : toDate);
   const absences = Math.max(0, workingDays - records.length - leaveDays);
   const qs = `from=${ymd(fromDate)}&to=${ymd(toDate)}`;
 
@@ -114,12 +117,24 @@ export default async function EmployeeAttendancePage({
         </form>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-8">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
-          ["Days Present", `${records.length} / ${workingDays}`],
+          ["Full Day Total", full, "Worked 4h 30m or more", "bg-success-transparent", "text-success"],
+          ["In Progress Total", inProgress, "Checked in, not checked out yet", "bg-info-transparent", "text-info"],
+          ["Absent Total", absences, "Working days with no check-in or leave", "bg-error-transparent", "text-error"],
+        ].map(([label, value, hint, bg, fg]) => (
+          <Card key={String(label)} className={`flex flex-col gap-1 p-5 ${bg}`}>
+            <p className={`text-sm font-body font-medium ${fg}`}>{label}</p>
+            <p className={`font-number text-4xl font-light ${fg}`}>{value}</p>
+            <p className="text-xs font-body text-grey-500">{hint}</p>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+        {[
           ["Total Hours", (totalMinutes / 60).toFixed(1)],
           ["Avg / Day", records.length ? (totalMinutes / 60 / records.length).toFixed(1) : "0.0"],
-          ["Full Days", String(full)],
           ["Half Days", String(half)],
           ["Late", String(late)],
           ["Early Exits", String(early)],
