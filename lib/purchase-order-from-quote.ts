@@ -10,7 +10,6 @@ export type PoLineDraft = Omit<PurchaseOrderLine, "id">;
 
 type Ctx = { materials: MaterialItem[]; unitTypes: UnitType[]; hardwareItems: HardwarePriceItem[] };
 
-const pad2 = (n: number) => String(n).padStart(2, "0");
 const unitQty = (u: { qty: number }) => Math.max(1, u.qty || 1);
 
 // Snapshot of a quote's cut-list as PO lines (one row per panel, grouped
@@ -18,8 +17,8 @@ const unitQty = (u: { qty: number }) => Math.max(1, u.qty || 1);
 // mm dimensions baked from the formulas. Row qty is multiplied by the unit's qty
 // (same as the quote's own totals: unitTotal/unitSqFt scale by unit qty), so a
 // PO always agrees with the quote. Rate is left at 0 — typed manually.
-// srNo = running cabinet number in quote order; designType = unit type short
-// code + running number per code (one per unit). Each cabinet's name and W/D/H are
+// srNo = running cabinet number in quote order; the Design column starts blank (typed by hand,
+// not copied from the quote's unit codes). Each cabinet's name and W/D/H are
 // kept in material.cabinets (keyed by srNo) so the PO can show a header per cabinet
 // like the quote does. Purchase internal/external finishes start blank — they are
 // picked from the Purchase Material Library, not copied from the quote's sales colours.
@@ -27,20 +26,10 @@ export function buildPoFromQuote(quote: Quote, { materials, unitTypes, hardwareI
   const name = (id?: string) => (id ? materials.find((m) => m.id === id)?.name ?? "" : "");
   const thickness = (id?: string) => parseFloat(name(id)) || 0;
 
-  // Per-cabinet sr no and per-unit design code, computed once in quote order.
-  const codeCount = new Map<string, number>();
-  const cabinets: { cabinet: QuoteCabinet; unit: Quote["units"][number]; srNo: number; designType: string }[] = [];
+  // Per-cabinet sr no, in quote order.
+  const cabinets: { cabinet: QuoteCabinet; unit: Quote["units"][number]; srNo: number }[] = [];
   let sr = 0;
-  for (const unit of quote.units) {
-    const code = unitTypes.find((u) => u.id === unit.unitTypeId)?.shortCode ?? "";
-    let designType = "";
-    if (code) {
-      const n = (codeCount.get(code) ?? 0) + 1;
-      codeCount.set(code, n);
-      designType = `${code}-${pad2(n)}`;
-    }
-    for (const cabinet of unit.cabinets) cabinets.push({ cabinet, unit, srNo: ++sr, designType });
-  }
+  for (const unit of quote.units) for (const cabinet of unit.cabinets) cabinets.push({ cabinet, unit, srNo: ++sr });
 
   const lines: PoLineDraft[] = [];
   const panelRow = (group: PoGroup, item: FurnitureLineItem, dims: { width: number; depth: number; height: number }, c: (typeof cabinets)[number], fallback: string) => {
@@ -54,7 +43,7 @@ export function buildPoFromQuote(quote: Quote, { materials, unitTypes, hardwareI
       srNo: c.srNo,
       position: lines.length,
       description: name(item.componentTypeId) || fallback,
-      designType: c.designType,
+      designType: "",
       width,
       depth: thickness(item.thicknessId),
       height,
@@ -85,7 +74,7 @@ export function buildPoFromQuote(quote: Quote, { materials, unitTypes, hardwareI
         srNo: c.srNo,
         position: lines.length,
         description: h.description ?? matched?.description ?? "",
-        designType: c.designType,
+        designType: "",
         width: 0,
         depth: 0,
         height: 0,

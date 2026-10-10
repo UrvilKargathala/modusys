@@ -174,16 +174,16 @@ export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoEx
 
 // Cut List: Carcass, Shutter and Other Panel rows only (component names with their cabinet type, no unit names), with what the cutting needs.
 export const CUT_LIST_HEADERS = ["Sr", "Cabinet Type", "Cabinet Name", "Description", "Width", "Height", "Thk", "Qty", "Sq.Ft", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remarks"];
-// Same rows for the Excel and the on-screen preview, numbered 1, 2, 3...
+// Same rows for the Excel and the on-screen preview, numbered cabinet.row (1.1, 1.2, 2.1 ...) as in Full Details.
 export function cutListRows(po: PurchaseOrder): (string | number)[][] {
   const rows: (string | number)[][] = [];
   for (const g of PO_GROUPS.filter((x) => x.key !== "hardware"))
     for (const c of byCabinet(po, g.key))
-      for (const { l } of c.rows) {
+      for (const { l, sr } of c.rows) {
         const cab = po.material.cabinets?.[String(c.srNo)];
         // Cabinet Name with the cabinet's own size in brackets: "Wall Cabinet (800 x 600 x 750)" (W x D x H).
         const size = cab ? `(${cab.width} x ${cab.depth} x ${cab.height})` : "";
-        rows.push([rows.length + 1, cab?.designType || cab?.label || "", [cab?.cabinetName, size].filter(Boolean).join(" "), l.description, l.width, l.height, l.depth, l.qty, Number(l.sqft.toFixed(2)), l.material, l.internalColour, l.externalColour, l.remarks]);
+        rows.push([sr, cab?.designType || cab?.label || "", [cab?.cabinetName, size].filter(Boolean).join(" "), l.description, l.width, l.height, l.depth, l.qty, Number(l.sqft.toFixed(2)), l.material, l.internalColour, l.externalColour, l.remarks]);
       }
   return rows;
 }

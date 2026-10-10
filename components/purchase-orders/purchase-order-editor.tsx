@@ -205,11 +205,12 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       .map(([, label]) => label as string);
   };
 
+  // Resolves true when saved, false when it didn't go through (missing fields or an error).
   const save = async (d: PurchaseOrder = draft) => {
     const missing = missingFields(d);
     if (missing.length) {
       toastStore.show(`Fill in before saving: ${missing.join(", ")}`, "error");
-      return;
+      return false;
     }
     setSaving(true);
     try {
@@ -219,8 +220,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       const next = await purchaseOrdersStore.update(id, fields);
       setDraft(structuredClone(next));
       toastStore.show("Purchase order saved", "success");
+      return true;
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not save", "error");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -375,7 +378,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             <X className="h-4 w-4" />
             Cancel
           </Button>
-          <Button type="button" size="sm" disabled={!dirty || saving} onClick={() => void save()}>
+          <Button type="button" size="sm" disabled={!dirty || saving} onClick={async () => {
+            // Save, then back to the purchase orders list; stays here if the save didn't go through.
+            if (await save()) router.push("/purchase-orders");
+          }}>
             <Save className="h-4 w-4" />
             {saving ? "Saving…" : "Save"}
           </Button>
