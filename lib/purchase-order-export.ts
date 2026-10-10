@@ -77,6 +77,12 @@ export function byCabinet(po: PurchaseOrder, group: string) {
   return out.sort((x, y) => x.srNo - y.srNo);
 }
 
+// A cabinet's heading in Full Details: "1. Standard Cabinet (Wall Cabinet)": the Cabinet Name picked on the PO goes in brackets.
+export function cabinetTitle(po: PurchaseOrder, c: { srNo: number; name: string }) {
+  const name = po.material.cabinets?.[String(c.srNo)]?.cabinetName?.trim();
+  return `${c.srNo}. ${c.name}${name ? ` (${name})` : ""}`;
+}
+
 // Carcass cabinet heading for PDF / Excel: name, then size, design, remark and the finishes its carcass rows share.
 export function carcassHeading(po: PurchaseOrder, c: ReturnType<typeof byCabinet>[number]): string {
   const cab = po.material.cabinets?.[String(c.srNo)];
@@ -109,7 +115,7 @@ export function carcassHeadingCells(po: PurchaseOrder, c: ReturnType<typeof byCa
     return v.length === 1 ? v[0] : v.length > 1 ? "Mixed" : "";
   };
   return {
-    name: `${c.srNo}. ${c.name}`,
+    name: cabinetTitle(po, c),
     design: cab?.design ?? "",
     width: cab?.width ?? 0,
     depth: cab?.depth ?? 0,
@@ -152,7 +158,7 @@ export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoEx
       if (g.key !== "hardware") {
         const h = carcassHeadingCells(po, c);
         aoaG.push([h.name, "", h.design, h.width, h.depth, h.height, h.qty, Number(h.sqft.toFixed(2)), "", Number(h.amount.toFixed(2)), h.material, h.internal, h.external, h.remark]);
-      } else aoaG.push([`${c.srNo}. ${c.name}`]);
+      } else aoaG.push([cabinetTitle(po, c)]);
       for (const { l, sr } of c.rows)
         aoaG.push(
           hw
@@ -167,7 +173,7 @@ export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoEx
 }
 
 // Cut List: Carcass, Shutter and Other Panel rows only (component names with their cabinet type, no unit names), with what the cutting needs.
-export const CUT_LIST_HEADERS = ["Sr", "Cabinet Type", "Description", "Width", "Height", "Thk", "Qty", "Sq.Ft", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remarks"];
+export const CUT_LIST_HEADERS = ["Sr", "Cabinet Type", "Cabinet Name", "Description", "Width", "Height", "Thk", "Qty", "Sq.Ft", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remarks"];
 // Same rows for the Excel and the on-screen preview, numbered 1, 2, 3...
 export function cutListRows(po: PurchaseOrder): (string | number)[][] {
   const rows: (string | number)[][] = [];
@@ -175,14 +181,16 @@ export function cutListRows(po: PurchaseOrder): (string | number)[][] {
     for (const c of byCabinet(po, g.key))
       for (const { l } of c.rows) {
         const cab = po.material.cabinets?.[String(c.srNo)];
-        rows.push([rows.length + 1, cab?.designType || cab?.label || "", l.description, l.width, l.height, l.depth, l.qty, Number(l.sqft.toFixed(2)), l.material, l.internalColour, l.externalColour, l.remarks]);
+        // Cabinet Name with the cabinet's own size in brackets: "Wall Cabinet (800 x 600 x 750)" (W x D x H).
+        const size = cab ? `(${cab.width} x ${cab.depth} x ${cab.height})` : "";
+        rows.push([rows.length + 1, cab?.designType || cab?.label || "", [cab?.cabinetName, size].filter(Boolean).join(" "), l.description, l.width, l.height, l.depth, l.qty, Number(l.sqft.toFixed(2)), l.material, l.internalColour, l.externalColour, l.remarks]);
       }
   return rows;
 }
 function downloadCutList(po: PurchaseOrder) {
   const aoa: (string | number)[][] = [CUT_LIST_HEADERS, ...cutListRows(po)];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws["!cols"] = [6, 22, 28, 8, 8, 6, 6, 8, 18, 30, 30, 20].map((wch) => ({ wch }));
+  ws["!cols"] = [6, 22, 34, 28, 8, 8, 6, 6, 8, 18, 30, 30, 20].map((wch) => ({ wch }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Cut List");
   XLSX.writeFile(wb, `PO-${po.poNumber || "draft"}-cut-list.xlsx`);

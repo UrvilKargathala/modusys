@@ -67,7 +67,8 @@ export function applyPurchaseRates(next: PurchaseOrderLine[], prev: PurchaseOrde
     (l.group === "hardware" ? [l.category, l.brand, l.description, l.unit] : [l.depth, l.material, l.internalColour, l.externalColour]).join("|");
   return next.map((l) => {
     const old = before.get(l.id);
-    if (vendorChanged && l.group !== "hardware") return { ...l, rate: purchaseRateFor(l, prices, materials, vendorOf(l)) ?? 0 };
+    // The PO's vendor changed: rows without a vendor of their own follow it; a row's own vendor (and its hand-typed rate) stays.
+    if (vendorChanged && l.group !== "hardware" && !l.vendorId) return { ...l, rate: purchaseRateFor(l, prices, materials, vendorOf(l)) ?? 0 };
     // A row given its own vendor (or taken back to the cabinet's) is re-rated for it; no price there → 0, highlighted.
     if (l.group !== "hardware" && old && (old.vendorId ?? "") !== (l.vendorId ?? "")) return { ...l, rate: purchaseRateFor(l, prices, materials, vendorOf(l)) ?? 0 };
     if (l.rate !== 0 && old && sig(old) === sig(l)) return l;

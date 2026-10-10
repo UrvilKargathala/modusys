@@ -70,7 +70,7 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
         )}
       </div>
       <div className="po-sheet mx-auto max-w-[1400px]">
-        <PurchaseOrderSheet po={po} vendor={vendor} customer={customer} quoteNumber={quoteNumber} branding={settings.branding} part={part} />
+        <PurchaseOrderSheet po={po} vendor={vendor} vendors={vendors} customer={customer} quoteNumber={quoteNumber} branding={settings.branding} part={part} />
       </div>
     </div>
   );

@@ -125,6 +125,12 @@ export type PoMaterial = {
 
 export const brandKey = (brand: string) => brand.trim().toLowerCase();
 
+// Who a hardware brand is bought from: the vendor picked for it in the Vendor tab, else the PO's vendor.
+export function brandVendorName(po: PurchaseOrder, vendors: { id: string; name: string }[], brand: string) {
+  const id = po.material.brandVendors?.[brandKey(brand)] || po.vendorId;
+  return vendors.find((v) => v.id === id)?.name ?? po.vendorName ?? "";
+}
+
 export const blankMaterial = (): PoMaterial => ({ shutterRawMaterial: "", otherRawMaterial: "", cabinetRawMaterial: "", cabinetOtherRawMaterial: "", internalColours: [], externalColours: [], cabinets: {} });
 
 // Panels are bought by area, hardware by piece.

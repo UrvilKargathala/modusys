@@ -1,7 +1,7 @@
 import type { Customer } from "@/lib/mock/pipeline";
 import { Fragment } from "react";
-import { CUT_LIST_HEADERS, HW_HEADERS, PANEL_HEADERS, cutListRows, byCabinet, carcassHeadingCells, groupsFor, poDetailSections, type PoExportPart } from "@/lib/purchase-order-export";
-import { COMPANY_GST, lineAmount, poTotals, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
+import { CUT_LIST_HEADERS, HW_HEADERS, cabinetTitle, PANEL_HEADERS, cutListRows, byCabinet, carcassHeadingCells, groupsFor, poDetailSections, type PoExportPart } from "@/lib/purchase-order-export";
+import { COMPANY_GST, brandVendorName, lineAmount, poTotals, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
 
 type Branding = { companyName: string; address: string; email: string; phone: string };
 
@@ -89,7 +89,7 @@ function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<
   );
 }
 
-// plain = no cabinet heading rows and no TOTAL row (used in the Purchase Order (cabinets) PDF).
+// plain = no cabinet heading rows and no TOTAL row (used in the Purchase Order (cabinets) PDF). Sr stays cabinet.row (1.1, 2.3) as in Full Details.
 function PanelTable({ group, title, lines, po, plain = false }: { group: PoGroup; title: string; lines: PurchaseOrderLine[]; po: PurchaseOrder; plain?: boolean }) {
   const qty = lines.reduce((s, l) => s + l.qty, 0);
   const sqft = lines.reduce((s, l) => s + l.sqft, 0);
@@ -105,7 +105,7 @@ function PanelTable({ group, title, lines, po, plain = false }: { group: PoGroup
               {!plain && <CarcassHeadingRow po={po} c={c} group={group} />}
               {c.rows.map(({ l, sr }, i) => (
                 <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
-                  <td className={cell}>{plain ? lines.indexOf(l) + 1 : sr}</td>
+                  <td className={cell}>{sr}</td>
                   <td className={cell}>{l.description}</td>
                   <td className={cell}>{l.designType}</td>
                   <td className={`${cell} text-right`}>{num(l.width)}</td>
@@ -142,7 +142,7 @@ function PanelTable({ group, title, lines, po, plain = false }: { group: PoGroup
 // Hardware-only PDF: no cabinet headings, and the same item (brand, description, article no, category, unit, rate,
 // discount) across cabinets becomes one row with the quantities added up. No Design column; columns in the order below.
 // Stock Qty / Order Qty are left blank, to be filled in by hand on the printout.
-const HW_MERGED_HEADERS = ["Sr", "Brand", "Category", "Article No", "Description", "Unit", "Qty", "MRP", "Discount %", "Rate", "Amount", "Remarks", "Stock Qty", "Order Qty"];
+const HW_MERGED_HEADERS = ["Sr", "Brand", "Category", "Vendor", "Article No", "Description", "Unit", "Qty", "MRP", "Discount %", "Rate", "Amount", "Remarks", "Stock Qty", "Order Qty"];
 function mergeHardware(lines: PurchaseOrderLine[]) {
   const byKey = new Map<string, { l: PurchaseOrderLine; remarks: Set<string> }>();
   for (const l of lines) {
@@ -161,7 +161,7 @@ function mergeHardware(lines: PurchaseOrderLine[]) {
     .map((l, i) => ({ l, sr: String(i + 1) }));
 }
 
-function HardwareTable({ title, lines, po, merged = false }: { title: string; lines: PurchaseOrderLine[]; po: PurchaseOrder; merged?: boolean }) {
+function HardwareTable({ title, lines, po, vendors = [], merged = false }: { title: string; lines: PurchaseOrderLine[]; po: PurchaseOrder; vendors?: Vendor[]; merged?: boolean }) {
   const total = lines.reduce((s, l) => s + lineAmount(l), 0);
   const sections = merged ? [{ srNo: 0, name: "", rows: mergeHardware(lines) }] : byCabinet(po, "hardware");
   return (
@@ -172,7 +172,7 @@ function HardwareTable({ title, lines, po, merged = false }: { title: string; li
         <tbody>
           {sections.map((c) => (
             <Fragment key={c.srNo}>
-              {!merged && <CabinetRow group="hardware" cols={13}>{c.srNo}. {c.name}</CabinetRow>}
+              {!merged && <CabinetRow group="hardware" cols={13}>{cabinetTitle(po, c)}</CabinetRow>}
               {c.rows.map(({ l, sr }, i) => (
                 <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
                   <td className={cell}>{sr}</td>
@@ -180,6 +180,7 @@ function HardwareTable({ title, lines, po, merged = false }: { title: string; li
                   {merged ? (
                     <>
                       <td className={cell}>{l.category}</td>
+                      <td className={cell}>{brandVendorName(po, vendors, l.brand)}</td>
                       <td className={cell}>{l.articleNo}</td>
                       <td className={cell}>{l.description}</td>
                     </>
@@ -209,7 +210,7 @@ function HardwareTable({ title, lines, po, merged = false }: { title: string; li
             </Fragment>
           ))}
           <tr className={`font-semibold ${THEME.hardware.head}`}>
-            <td className={`${cell} text-right`} colSpan={merged ? 10 : 11}>TOTAL</td>
+            <td className={`${cell} text-right`} colSpan={11}>TOTAL</td>
             <td className={`${cell} text-right`}>{num(total, 2)}</td>
             <td className={cell} colSpan={merged ? 3 : 1} />
           </tr>
@@ -281,7 +282,7 @@ function CabinetSummaryTable({ po }: { po: PurchaseOrder }) {
 }
 
 // Printable PO (A4 landscape): letterhead, detail cards, one colour-coded section per group, totals, signature.
-export function PurchaseOrderSheet({ po, vendor, customer, quoteNumber, branding, part = "full" }: { po: PurchaseOrder; vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: Branding; part?: PoExportPart }) {
+export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber, branding, part = "full" }: { po: PurchaseOrder; vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: Branding; part?: PoExportPart; vendors?: Vendor[] }) {
   const groups = groupsFor(part).filter((g) => po.lines.some((l) => l.group === g.key));
   // A partial download (Components / Hardware only) totals just its own rows; round-off belongs to the full PO.
   const partial = part === "components" || part === "hardware";
@@ -354,7 +355,7 @@ export function PurchaseOrderSheet({ po, vendor, customer, quoteNumber, branding
         const lines = po.lines.filter((l) => l.group === g.key);
         const title = `${g.code}. ${g.label}`;
         return g.key === "hardware" ? (
-          <HardwareTable key={g.key} title={title} lines={lines} po={po} merged={part === "hardware"} />
+          <HardwareTable key={g.key} title={title} lines={lines} po={po} vendors={vendors} merged={part === "hardware"} />
         ) : (
           <PanelTable key={g.key} group={g.key} title={title} lines={lines} po={po} />
         );

@@ -20,6 +20,8 @@ import { lineAmount, panelSqft, type PoGroup, type PurchaseOrderLine } from "@/l
 // The PO's vendor, so "Add this combination" can tag the new price with it.
 // Vendor for a cabinet's rows: the cabinet's own vendor, else the PO's.
 export const PoVendorContext = createContext<(srNo: number) => string>(() => "");
+// The PO's own (top) vendor id: what a cabinet or row with no vendor of its own follows.
+export const PoDefaultVendorContext = createContext("");
 // Hardware row's vendor name, from the Vendor tab's brand → vendor setting.
 export const PoBrandVendorContext = createContext<(brand: string) => string>(() => "");
 
@@ -259,8 +261,9 @@ export function PoLinesTable({
                           value={l.vendorId ?? ""}
                           onChange={(e) => patch(l.id, { vendorId: e.target.value })}
                         >
-                          <option value="">Same as cabinet</option>
-                          {vendors.map((v) => (
+                          {/* Blank = follows the cabinet's vendor, else the PO's: shown by name, and changes with the top Vendor. */}
+                          <option value="">{vendors.find((v) => v.id === vendorFor(l.srNo))?.name ?? "Select vendor"}</option>
+                          {vendors.filter((v) => v.id !== vendorFor(l.srNo)).map((v) => (
                             <option key={v.id} value={v.id}>{v.name}</option>
                           ))}
                         </select>

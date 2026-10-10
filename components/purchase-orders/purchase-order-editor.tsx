@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PoCabinetCard } from "@/components/purchase-orders/po-cabinet-card";
-import { PoBrandVendorContext, PoLinesTable, PoVendorContext } from "@/components/purchase-orders/po-lines-table";
+import { PoBrandVendorContext, PoDefaultVendorContext, PoLinesTable, PoVendorContext } from "@/components/purchase-orders/po-lines-table";
 import { applyPurchaseRates, purchaseRateFor } from "@/lib/purchase-order-rate";
 import { useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { usePurchaseFurniturePriceItems } from "@/lib/store/purchase-furniture-store";
@@ -148,13 +148,24 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const customer = customers.find((c) => c.id === draft.customerId);
   const quote = quotes.find((q) => q.id === draft.quoteId);
   // Panel rows pick up their rate from the Purchase Furniture Price List when thickness, raw material and both finishes match.
-  // Changing the vendor re-rates every panel row from that vendor's prices.
+  // Changing the PO's vendor re-rates every panel row from that vendor's prices. The top vendor wins: cabinets and rows that had
+  // their own vendor go back to following it (pick theirs again afterwards if needed).
   const set = (fields: Partial<PurchaseOrder>) => {
     const vendorId = fields.vendorId ?? draft.vendorId;
     const vendorChanged = vendorId !== draft.vendorId;
-    const cabinets = (fields.material ?? draft.material).cabinets;
-    const lines = fields.lines ?? (vendorChanged ? draft.lines : undefined);
-    setDraft({ ...draft, ...fields, ...(lines ? { lines: applyPurchaseRates(lines, draft.lines, purchasePrices, materialSpecStore.getSnapshot(), hardwarePrices, (l) => l.vendorId || cabinets?.[String(l.srNo)]?.vendorId || vendorId, vendorChanged) } : {}) });
+    let material = fields.material ?? draft.material;
+    let lines = fields.lines ?? (vendorChanged ? draft.lines : undefined);
+    if (vendorChanged) {
+      material = { ...material, cabinets: Object.fromEntries(Object.entries(material.cabinets ?? {}).map(([k, c]) => [k, { ...c, vendorId: undefined }])) };
+      lines = lines?.map((l) => (l.vendorId ? { ...l, vendorId: "" } : l));
+    }
+    const cabinets = material.cabinets;
+    setDraft({
+      ...draft,
+      ...fields,
+      ...(vendorChanged ? { material } : {}),
+      ...(lines ? { lines: applyPurchaseRates(lines, draft.lines, purchasePrices, materialSpecStore.getSnapshot(), hardwarePrices, (l) => l.vendorId || cabinets?.[String(l.srNo)]?.vendorId || vendorId, vendorChanged) } : {}),
+    });
   };
   const setMaterial = (fields: Partial<PurchaseOrder["material"]>) => set({ material: { ...draft.material, ...fields } });
 
@@ -310,6 +321,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
 
   return (
     <PoVendorContext.Provider value={(no) => draft.material.cabinets?.[String(no)]?.vendorId || draft.vendorId}>
+    <PoDefaultVendorContext.Provider value={draft.vendorId}>
     <PoBrandVendorContext.Provider value={brandVendorName}>
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -837,6 +849,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       />
     </div>
     </PoBrandVendorContext.Provider>
+    </PoDefaultVendorContext.Provider>
     </PoVendorContext.Provider>
   );
 }

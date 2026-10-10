@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { ChevronDown, ChevronRight, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
-import { PoLinesTable, newBlankLine } from "@/components/purchase-orders/po-lines-table";
+import { PoDefaultVendorContext, PoLinesTable, newBlankLine } from "@/components/purchase-orders/po-lines-table";
 import { formatInr } from "@/lib/format";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
@@ -33,10 +33,12 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 // A cabinet's own vendor (blank = the PO's vendor). Used in By cabinet and By component.
 export function PoCabinetVendorSelect({ srNo, cabinet, onCabinetChange, className = fieldInput }: { srNo: number; cabinet: PoCabinet; onCabinetChange: (cabinet: PoCabinet) => void; className?: string }) {
   const vendors = useVendors();
+  const poVendorId = useContext(PoDefaultVendorContext);
   return (
     <select aria-label={`Cabinet ${srNo} vendor`} className={className} value={cabinet.vendorId ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, vendorId: e.target.value || undefined })}>
-      <option value="">Same as PO vendor</option>
-      {vendors.map((v) => (
+      {/* Blank = follows the PO's vendor: shown by name. */}
+      <option value="">{vendors.find((v) => v.id === poVendorId)?.name ?? "Select vendor"}</option>
+      {vendors.filter((v) => v.id !== poVendorId).map((v) => (
         <option key={v.id} value={v.id}>{v.name}</option>
       ))}
     </select>
