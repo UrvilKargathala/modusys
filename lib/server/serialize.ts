@@ -226,6 +226,7 @@ export function serializePurchaseOrder(po: PurchaseOrder & { lines: PurchaseOrde
         rate: l.rate,
         discountPct: l.discountPct,
         remarks: l.remarks,
+        vendorId: l.vendorId,
       })),
   };
 }

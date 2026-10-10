@@ -45,6 +45,8 @@ export type PurchaseOrderLine = {
   // Hardware only: % off the rate (MRP). Panels always 0.
   discountPct?: number;
   remarks: string;
+  // Panel rows: this row's own vendor; blank/absent = the cabinet's vendor, else the PO's.
+  vendorId?: string;
 };
 
 export type GstMode = "intra" | "inter";

@@ -12,6 +12,7 @@ import { evaluateFormula } from "@/lib/quote-pricing";
 import { toastStore } from "@/lib/store/toast-store";
 import { PurchaseFurniturePriceFormDialog } from "@/components/templates/purchase-furniture-price-form-dialog";
 import { purchasePriceFieldsFor } from "@/lib/purchase-order-rate";
+import { useVendors } from "@/lib/store/vendors-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
 import { purchaseFurnitureStore, type NewPurchaseFurnitureInput } from "@/lib/store/purchase-furniture-store";
 import { lineAmount, panelSqft, type PoGroup, type PurchaseOrderLine } from "@/lib/purchase-order";
@@ -41,6 +42,7 @@ const PANEL_COLS: Col[] = [
   { key: "internalColour", label: "Internal Brand & Colour", width: "w-56" },
   { key: "externalColour", label: "External Brand & Colour", width: "w-56" },
   { key: "material", label: "Material", width: "w-40" },
+  { key: "vendor", label: "Vendor", width: "w-44" },
   { key: "rate", label: "Rate", width: "w-24" },
   { key: "amount", label: "Amount", width: "w-28" },
   { key: "remarks", label: "Remarks", width: "w-48" },
@@ -171,6 +173,7 @@ export function PoLinesTable({
   const [toRemove, setToRemove] = useState<PurchaseOrderLine | null>(null);
   // A panel row with no price: add its combination to the Purchase Furniture Price List (only the rate to type).
   const vendorFor = useContext(PoVendorContext);
+  const vendors = useVendors();
   const brandVendor = useContext(PoBrandVendorContext);
   const [pricePrefill, setPricePrefill] = useState<Partial<NewPurchaseFurnitureInput> | null>(null);
   const hardware = group === "hardware";
@@ -249,7 +252,19 @@ export function PoLinesTable({
                 <tr className={`border-t border-grey-100 ${l.rate ? "" : "bg-error-200"}`} title={l.rate ? undefined : "No rate for this row: none in the price list for this vendor. Type one in."}>
                   {cols.map((c) => (
                     <td key={c.key} className="px-1 py-1">
-                      {c.key === "vendor" ? (
+                      {c.key === "vendor" && !hardware ? (
+                        <select
+                          aria-label={`Row ${l.srNo} vendor`}
+                          className={`${cell} truncate`}
+                          value={l.vendorId ?? ""}
+                          onChange={(e) => patch(l.id, { vendorId: e.target.value })}
+                        >
+                          <option value="">Same as cabinet</option>
+                          {vendors.map((v) => (
+                            <option key={v.id} value={v.id}>{v.name}</option>
+                          ))}
+                        </select>
+                      ) : c.key === "vendor" ? (
                         <span className="block truncate px-2 text-sm text-grey-700" title="Set in the Vendor tab">{brandVendor(l.brand) || "—"}</span>
                       ) : c.key === "netRate" ? (
                         <span className="block px-2 text-right font-number text-sm text-grey-900">{formatInr(l.rate * (1 - (l.discountPct ?? 0) / 100))}</span>
@@ -326,7 +341,7 @@ export function PoLinesTable({
                           type="button"
                           size="sm"
                           variant="outline"
-                          onClick={() => setPricePrefill({ ...purchasePriceFieldsFor(l, materialSpecStore.getSnapshot()), vendorId: vendorFor(l.srNo) })}
+                          onClick={() => setPricePrefill({ ...purchasePriceFieldsFor(l, materialSpecStore.getSnapshot()), vendorId: l.vendorId || vendorFor(l.srNo) })}
                         >
                           <Plus className="h-3.5 w-3.5" />
                           Add this combination to Purchase Furniture Price List

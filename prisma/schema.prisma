@@ -769,6 +769,8 @@ model PurchaseOrderLine {
   discountPct    Float         @default(0)
   rate           Float         @default(0)
   remarks        String        @default("")
+  // Panel rows: the vendor this row is bought from; "" = the cabinet's vendor, else the PO's. Hardware rows leave it empty.
+  vendorId       String        @default("")
 
   @@index([poId])
 }

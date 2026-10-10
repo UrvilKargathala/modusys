@@ -21,13 +21,15 @@ import { PoCabinetBlock } from "@/components/purchase-orders/po-cabinet-block";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
-import { useVendors } from "@/lib/store/vendors-store";
+import { useVendors, vendorsStore } from "@/lib/store/vendors-store";
+import { VendorFormDialog } from "@/components/purchase-orders/vendor-form-dialog";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
 import { PO_GROUPS, buildPoNumber, poNumberBase, customerCode, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
 
+const NEW_VENDOR = "__new-vendor__";
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
 const card = "flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-5 shadow-sm";
 
@@ -62,6 +64,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   // Rate pending: the rows without a rate when the tab was opened. Kept while you type rates so a row doesn't vanish mid-edit.
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [brandSearch, setBrandSearch] = useState("");
+  // Brand whose "+ Add new vendor" form is open; the vendor saved there is picked for that brand.
+  const [newVendorFor, setNewVendorFor] = useState<string | null>(null);
 
   // Seed the draft once the PO has loaded; later store updates (our own save)
   // re-seed through reset() below, not through this effect.
@@ -73,7 +77,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const materials = useSyncExternalStore(materialSpecStore.subscribe, materialSpecStore.getSnapshot, materialSpecStore.getServerSnapshot);
   useEffect(() => {
     if (!draft || materials.length === 0 || (purchasePrices.length === 0 && hardwarePrices.length === 0)) return;
-    const lines = applyPurchaseRates(draft.lines, draft.lines, purchasePrices, materials, hardwarePrices, (l) => draft.material.cabinets?.[String(l.srNo)]?.vendorId || draft.vendorId);
+    const lines = applyPurchaseRates(draft.lines, draft.lines, purchasePrices, materials, hardwarePrices, (l) => l.vendorId || draft.material.cabinets?.[String(l.srNo)]?.vendorId || draft.vendorId);
     if (lines.some((l, i) => l.rate !== draft.lines[i].rate)) setDraft({ ...draft, lines });
   }, [draft, purchasePrices, hardwarePrices, materials]);
 
@@ -150,7 +154,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     const vendorChanged = vendorId !== draft.vendorId;
     const cabinets = (fields.material ?? draft.material).cabinets;
     const lines = fields.lines ?? (vendorChanged ? draft.lines : undefined);
-    setDraft({ ...draft, ...fields, ...(lines ? { lines: applyPurchaseRates(lines, draft.lines, purchasePrices, materialSpecStore.getSnapshot(), hardwarePrices, (l) => cabinets?.[String(l.srNo)]?.vendorId || vendorId, vendorChanged) } : {}) });
+    setDraft({ ...draft, ...fields, ...(lines ? { lines: applyPurchaseRates(lines, draft.lines, purchasePrices, materialSpecStore.getSnapshot(), hardwarePrices, (l) => l.vendorId || cabinets?.[String(l.srNo)]?.vendorId || vendorId, vendorChanged) } : {}) });
   };
   const setMaterial = (fields: Partial<PurchaseOrder["material"]>) => set({ material: { ...draft.material, ...fields } });
 
@@ -266,7 +270,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     const vendorId = next.vendorId || draft.vendorId;
     set({
       material,
-      lines: draft.lines.map((l) => (l.srNo === no && l.group !== "hardware" ? { ...l, rate: purchaseRateFor(l, purchasePrices, materials, vendorId) ?? 0 } : l)),
+      lines: draft.lines.map((l) => (l.srNo === no && l.group !== "hardware" && !l.vendorId ? { ...l, rate: purchaseRateFor(l, purchasePrices, materials, vendorId) ?? 0 } : l)),
     });
   };
   const pendingCount = draft.lines.filter((l) => !l.rate).length;
@@ -601,12 +605,13 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                             aria-label={`${brand} vendor`}
                             className={`${field} w-full max-w-sm text-[13px]`}
                             value={brandVendors[key] ?? ""}
-                            onChange={(e) => setBrandVendor(key, e.target.value)}
+                            onChange={(e) => (e.target.value === NEW_VENDOR ? setNewVendorFor(key) : setBrandVendor(key, e.target.value))}
                           >
                             <option value="">Same as PO vendor</option>
                             {vendors.map((v) => (
                               <option key={v.id} value={v.id}>{v.name}</option>
                             ))}
+                            <option value={NEW_VENDOR}>+ Add new vendor…</option>
                           </select>
                         </td>
                         <td className="px-4 py-3">
@@ -800,6 +805,21 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         </div>
       </div>
 
+      <VendorFormDialog
+        open={newVendorFor !== null}
+        onOpenChange={(o) => !o && setNewVendorFor(null)}
+        onSubmit={async (values) => {
+          const key = newVendorFor;
+          try {
+            const created = await vendorsStore.createVendor(values);
+            if (key) setBrandVendor(key, created.id);
+            toastStore.show(`${values.name} added`, "success");
+            setNewVendorFor(null);
+          } catch (e) {
+            toastStore.show(e instanceof Error ? e.message : "Could not save vendor", "error");
+          }
+        }}
+      />
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

@@ -28,6 +28,7 @@ export function cleanLines(input: unknown) {
     rate: num(l.rate),
     discountPct: num(l.discountPct),
     remarks: str(l.remarks),
+    vendorId: str(l.vendorId),
   }));
 }
 
