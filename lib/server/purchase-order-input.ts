@@ -68,6 +68,11 @@ export function cleanMaterial(m: unknown) {
         .filter(([k, v]) => k && typeof v === "string")
         .map(([k, v]) => [str(k), str(v)])
     ),
+    dimNotes: Object.fromEntries(
+      Object.entries((o.dimNotes ?? {}) as Record<string, unknown>)
+        .filter(([k, v]) => k && typeof v === "string" && v)
+        .map(([k, v]) => [str(k), str(v).slice(0, 40)])
+    ),
     // Shutter / Cabinet Details colour picks (only the four known keys, as text).
     finishes: Object.fromEntries(
       (["shutterInternalColour", "shutterExternalColour", "cabinetInternalColour", "cabinetExternalColour"] as const)

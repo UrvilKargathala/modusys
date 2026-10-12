@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PoCabinetCard } from "@/components/purchase-orders/po-cabinet-card";
-import { PoBrandVendorContext, PoDefaultVendorContext, PoLinesTable, PoVendorContext } from "@/components/purchase-orders/po-lines-table";
+import { PoBrandVendorContext, PoDefaultVendorContext, PoDimNotesContext, PoLinesTable, PoVendorContext } from "@/components/purchase-orders/po-lines-table";
 import { applyPurchaseRates, purchaseRateFor } from "@/lib/purchase-order-rate";
 import { useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { usePurchaseFurniturePriceItems } from "@/lib/store/purchase-furniture-store";
@@ -326,6 +326,13 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     <PoVendorContext.Provider value={(no) => draft.material.cabinets?.[String(no)]?.vendorId || draft.vendorId}>
     <PoDefaultVendorContext.Provider value={draft.vendorId}>
     <PoBrandVendorContext.Provider value={brandVendorName}>
+    <PoDimNotesContext.Provider
+      value={{
+        notes: draft.material.dimNotes ?? {},
+        // Functional, so it lands on top of the row change made in the same click.
+        set: (key, value) => setDraft((d) => (d ? { ...d, material: { ...d.material, dimNotes: { ...d.material.dimNotes, [key]: value } } } : d)),
+      }}
+    >
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -854,6 +861,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         }}
       />
     </div>
+    </PoDimNotesContext.Provider>
     </PoBrandVendorContext.Provider>
     </PoDefaultVendorContext.Provider>
     </PoVendorContext.Provider>

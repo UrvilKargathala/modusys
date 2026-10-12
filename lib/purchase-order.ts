@@ -121,6 +121,9 @@ export type PoMaterial = {
   // Vendor tab: hardware brand (key = brandKey(brand)) → vendor id ("" = the PO's vendor; the brand stays listed).
   // Shown on every hardware row of that brand.
   brandVendors?: Record<string, string>;
+  // Last W/D/H formula typed in a panel row's Width / Height (key: group|cabinet no|row no in that cabinet|width or height), e.g. "W-10".
+  // Only shown while it still gives the cell's value.
+  dimNotes?: Record<string, string>;
 };
 
 export const brandKey = (brand: string) => brand.trim().toLowerCase();

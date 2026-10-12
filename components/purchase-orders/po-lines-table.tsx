@@ -23,6 +23,8 @@ export const PoVendorContext = createContext<(srNo: number) => string>(() => "")
 // The PO's own (top) vendor id: what a cabinet or row with no vendor of its own follows.
 export const PoDefaultVendorContext = createContext("");
 // Hardware row's vendor name, from the Vendor tab's brand → vendor setting.
+// Saved W/D/H formula notes (PO material.dimNotes) and how to set one. Without a provider the table keeps them locally.
+export const PoDimNotesContext = createContext<{ notes: Record<string, string>; set: (key: string, value: string) => void } | null>(null);
 export const PoBrandVendorContext = createContext<(brand: string) => string>(() => "");
 
 const cell =
@@ -108,22 +110,25 @@ function RateCell({ value, onCommit }: { value: number; onCommit: (n: number) =>
   );
 }
 
-function DimCell({ value, vars, onCommit }: { value: number; vars?: Vars; onCommit: (n: number) => void }) {
+// `note` = the last formula typed here (e.g. "W-10"), shown small under the result so the user can see what was taken off.
+// It is saved with the PO; it hides itself once the value no longer matches it (typed over, or the cabinet size changed).
+function DimCell({ value, vars, note, onNote, onCommit }: { value: number; vars?: Vars; note?: string; onNote: (s: string) => void; onCommit: (n: number) => void }) {
   const [text, setText] = useState<string | null>(null); // null = not editing
 
   const commit = () => {
     if (text === null) return;
     const t = text.trim();
     setText(null);
-    if (t === "") return onCommit(0);
-    if (/^\d*\.?\d+$/.test(t)) return onCommit(Number(t));
+    if (t === "") return (onCommit(0), onNote(""));
+    if (/^\d*\.?\d+$/.test(t)) return (onCommit(Number(t)), onNote(""));
     if (!vars) return toastStore.show("This purchase order has no cabinet size to use in a formula — type a number.", "error");
     const n = Math.round(evaluateFormula(t, vars));
-    if (/[WDH]/i.test(t) && n > 0) return onCommit(n);
+    if (/[WDH]/i.test(t) && n > 0) return (onCommit(n), onNote(t.replace(/\s+/g, "").toUpperCase()));
     toastStore.show(`Couldn't read "${t}" — use numbers or W, D, H, like W-10 or (D-20)/2.`, "error");
   };
 
   return (
+    <>
     <input
       className={numCell}
       inputMode="text"
@@ -134,6 +139,8 @@ function DimCell({ value, vars, onCommit }: { value: number; vars?: Vars; onComm
       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
       title={vars ? `W ${vars.W} · D ${vars.D} · H ${vars.H} — type e.g. W-10, then Tab` : undefined}
     />
+    {note && text === null && vars && Math.round(evaluateFormula(note, vars)) === value && <span className="block px-2 text-right font-number text-[10px] leading-3 text-grey-400" title="Last formula typed here">{note}</span>}
+    </>
   );
 }
 
@@ -171,6 +178,13 @@ export function PoLinesTable({
   onChange: (lines: PurchaseOrderLine[]) => void;
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  // Last W/D/H formula typed in each row's Width / Height. Key: group | cabinet | row no in that cabinet | column (row ids change on every save).
+  const dim = useContext(PoDimNotesContext);
+  const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
+  const notes = dim?.notes ?? localNotes;
+  const setNote = dim?.set ?? ((k: string, v: string) => setLocalNotes((m) => ({ ...m, [k]: v })));
+  const noteKey = (l: PurchaseOrderLine, col: string) =>
+    `${l.group}|${l.srNo}|${lines.filter((x) => x.group === l.group && x.srNo === l.srNo).indexOf(l)}|${col}`;
   // Removing a row asks first.
   const [toRemove, setToRemove] = useState<PurchaseOrderLine | null>(null);
   // A panel row with no price: add its combination to the Purchase Furniture Price List (only the rate to type).
@@ -183,15 +197,29 @@ export function PoLinesTable({
   const mine = lines.filter((l) => l.group === group && (srNo === undefined || l.srNo === srNo) && (!only || only(l)));
   const total = mine.reduce((s, l) => s + lineAmount(l), 0);
 
-  const patch = (id: string, fields: Partial<PurchaseOrderLine>) =>
+  // A panel rate typed on one row goes to every other panel row (Carcass, Shutter, Other Panel) with the same
+  // internal + external finish, thickness, material and vendor: that combination is one price.
+  const comboKey = (x: PurchaseOrderLine) => [x.internalColour, x.externalColour, x.depth, x.material, x.vendorId || vendorFor(x.srNo)].join("|");
+  const patch = (id: string, fields: Partial<PurchaseOrderLine>) => {
+    const src = lines.find((l) => l.id === id);
+    const spread = !hardware && !!src && !!fields.rate && fields.rate > 0 && Object.keys(fields).length === 1;
+    let copied = 0;
     onChange(
       lines.map((l) => {
-        if (l.id !== id) return l;
+        if (l.id !== id) {
+          if (spread && src && l.group !== "hardware" && l.rate !== fields.rate && comboKey(l) === comboKey(src)) {
+            copied += 1;
+            return { ...l, rate: fields.rate! };
+          }
+          return l;
+        }
         const next = { ...l, ...fields };
         // Panel area follows its own width/height/qty (same maths as the quote).
         return hardware ? next : { ...next, sqft: panelSqft(next.width, next.height, next.qty) };
       })
     );
+    if (copied) toastStore.show(`Rate applied to ${copied} more row${copied === 1 ? "" : "s"} with the same finish, thickness, material and vendor`, "success");
+  };
   // Copy a row: same values, new id, placed right under the original.
   const copyRow = (l: PurchaseOrderLine) => {
     const at = lines.findIndex((x) => x.id === l.id);
@@ -245,7 +273,7 @@ export function PoLinesTable({
                     {c.label}
                   </th>
                 ))}
-                <th className="w-16" />
+                <th className="sticky right-0 w-16 bg-[#DACCCC]" />
               </tr>
             </thead>
             <tbody>
@@ -298,7 +326,12 @@ export function PoLinesTable({
                       ) : c.key === "rate" ? (
                         <RateCell value={l.rate} onCommit={(n) => patch(l.id, { rate: n })} />
                       ) : c.key === "width" || c.key === "height" || (hardware && c.key === "qty") ? (
-                        <DimCell value={l[c.key]} vars={vars ?? varsFor?.(l.srNo)} onCommit={(n) => patch(l.id, { [c.key]: n })} />
+                        <DimCell
+                          value={l[c.key]}
+                          vars={vars ?? varsFor?.(l.srNo)}
+                          note={hardware ? undefined : notes[noteKey(l, c.key)]}
+                          onNote={(n) => !hardware && setNote(noteKey(l, c.key), n)}
+                          onCommit={(n) => patch(l.id, { [c.key]: n })} />
                       ) : (
                         <input
                           type="number"
@@ -312,7 +345,7 @@ export function PoLinesTable({
                       )}
                     </td>
                   ))}
-                  <td className="whitespace-nowrap px-1">
+                  <td className={`sticky right-0 whitespace-nowrap px-1 shadow-[-6px_0_6px_-6px_rgba(0,0,0,0.2)] ${l.rate ? "bg-card" : "bg-error-200"}`}>
                     <button
                       type="button"
                       aria-label="Copy row"

@@ -1,9 +1,9 @@
 import type { Customer } from "@/lib/mock/pipeline";
 import { Fragment } from "react";
 import { CUT_LIST_HEADERS, HW_HEADERS, cabinetTitle, PANEL_HEADERS, cutListRows, byCabinet, carcassHeadingCells, groupsFor, poDetailSections, type PoExportPart } from "@/lib/purchase-order-export";
-import { COMPANY_GST, brandVendorName, lineAmount, poTotals, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
+import { COMPANY_GST, brandVendorName, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
 
-type Branding = { companyName: string; address: string; email: string; phone: string };
+type Branding = { companyName: string; address: string; email: string; phone: string; logoDataUrl?: string | null };
 
 // One colour per section so a vendor can find Carcass / Shutter / Other Panel / Hardware at a glance.
 // Solid colour for the section band and table header, the light tint for cabinet rows. Prints in colour
@@ -17,12 +17,25 @@ const THEME: Record<PoGroup, { band: string; head: string; tint: string; text: s
 
 const cell = "border border-grey-100 px-1.5 py-1 align-top";
 const num = (n: number, d = 0) => (n ? n.toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d }) : "");
-const RIGHT = new Set(["Width", "Thk", "Depth", "Height", "Qty", "Items", "Sq.Ft", "Rate", "MRP", "Discount %", "Amount"]);
+const RIGHT = new Set(["Width", "Thk", "Depth", "Height", "Qty", "Items", "Sq.Ft"]);
+// The PO PDF carries no prices at all (the Excel export still does).
+const PRICE_HEADERS = new Set(["Rate", "MRP", "Discount %", "Amount"]);
+const noPrice = (h: string[]) => h.filter((x) => !PRICE_HEADERS.has(x));
 
+// One colour per detail card (title bar, border and a light tint), so the six read as separate blocks.
+const CARD_TONE: Record<string, { bar: string; box: string }> = {
+  "Company Details": { bar: "bg-primary", box: "border-primary bg-primary-transparent" },
+  "Vendor Details": { bar: "bg-indigo", box: "border-indigo bg-indigo-transparent" },
+  "Customer Details": { bar: "bg-purple", box: "border-purple bg-purple-transparent" },
+  "Purchase Order Details": { bar: "bg-orange", box: "border-orange bg-orange-transparent" },
+  "Shutter Details": { bar: "bg-cyan", box: "border-cyan bg-cyan-transparent" },
+  "Cabinet Details": { bar: "bg-success", box: "border-success bg-success-transparent" },
+};
 function Info({ title, rows }: { title: string; rows: [string, string][] }) {
+  const tone = CARD_TONE[title] ?? { bar: "bg-grey-800", box: "border-grey-100" };
   return (
-    <div className="overflow-hidden rounded-lg border border-grey-100 break-inside-avoid">
-      <div className="bg-grey-800 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white">{title}</div>
+    <div className={`overflow-hidden rounded-lg border break-inside-avoid ${tone.box}`}>
+      <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white ${tone.bar}`}>{title}</div>
       <div className="flex flex-col gap-1 p-3">
         {rows.map(([k, v], i) => (
           <div key={i} className="flex gap-2">
@@ -35,12 +48,12 @@ function Info({ title, rows }: { title: string; rows: [string, string][] }) {
   );
 }
 
-// Section title bar: "A. CARCASS · 30 rows · ₹12,345.00".
-function Band({ group, title, count, total, unit = "rows" }: { group: PoGroup; title: string; count: number; total: number; unit?: string }) {
+// Section title bar: "A. CARCASS · 30 rows".
+function Band({ group, title, count, unit = "rows" }: { group: PoGroup; title: string; count: number; unit?: string }) {
   return (
     <div className={`flex items-center justify-between rounded-t-lg px-3 py-2 text-white ${THEME[group].band}`}>
       <span className="text-[12px] font-semibold uppercase tracking-wider">{title}</span>
-      <span className="text-[11px]">{count} {unit} · ₹ {num(total, 2) || "0.00"}</span>
+      <span className="text-[11px]">{count} {unit}</span>
     </div>
   );
 }
@@ -79,8 +92,6 @@ function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<
       <td className={`${t} text-right`}>{num(h.height)}</td>
       <td className={`${t} text-right`}>{num(h.qty)}</td>
       <td className={`${t} text-right`}>{h.sqft.toFixed(2)}</td>
-      <td className={t} />
-      <td className={`${t} text-right`}>{h.amount ? num(h.amount, 2) : ""}</td>
       <td className={t}>{h.material}</td>
       <td className={t}>{h.internal}</td>
       <td className={t}>{h.external}</td>
@@ -93,12 +104,11 @@ function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<
 function PanelTable({ group, title, lines, po, plain = false }: { group: PoGroup; title: string; lines: PurchaseOrderLine[]; po: PurchaseOrder; plain?: boolean }) {
   const qty = lines.reduce((s, l) => s + l.qty, 0);
   const sqft = lines.reduce((s, l) => s + l.sqft, 0);
-  const total = lines.reduce((s, l) => s + lineAmount(l), 0);
   return (
     <section className="break-inside-auto">
-      <Band group={group} title={title} count={lines.length} total={total} />
+      <Band group={group} title={title} count={lines.length} />
       <table className="w-full border-collapse text-[10px]">
-        <thead><Header group={group} headers={PANEL_HEADERS} /></thead>
+        <thead><Header group={group} headers={noPrice(PANEL_HEADERS)} /></thead>
         <tbody>
           {byCabinet(po, group).map((c) => (
             <Fragment key={c.srNo}>
@@ -113,8 +123,6 @@ function PanelTable({ group, title, lines, po, plain = false }: { group: PoGroup
                   <td className={`${cell} text-right`}>{num(l.height)}</td>
                   <td className={`${cell} text-right`}>{num(l.qty)}</td>
                   <td className={`${cell} text-right`}>{l.sqft.toFixed(2)}</td>
-                  <td className={`${cell} text-right`}>{num(l.rate, 2)}</td>
-                  <td className={`${cell} text-right`}>{l.rate ? num(lineAmount(l), 2) : ""}</td>
                   <td className={cell}>{l.material}</td>
                   <td className={cell}>{l.internalColour}</td>
                   <td className={cell}>{l.externalColour}</td>
@@ -128,8 +136,6 @@ function PanelTable({ group, title, lines, po, plain = false }: { group: PoGroup
             <td className={`${cell} text-right`} colSpan={6}>TOTAL</td>
             <td className={`${cell} text-right`}>{num(qty)}</td>
             <td className={`${cell} text-right`}>{sqft.toFixed(2)}</td>
-            <td className={cell} />
-            <td className={`${cell} text-right`}>{num(total, 2)}</td>
             <td className={cell} colSpan={4} />
           </tr>
           )}
@@ -139,14 +145,13 @@ function PanelTable({ group, title, lines, po, plain = false }: { group: PoGroup
   );
 }
 
-// Hardware-only PDF: no cabinet headings, and the same item (brand, description, article no, category, unit, rate,
-// discount) across cabinets becomes one row with the quantities added up. No Design column; columns in the order below.
+// Hardware-only PDF: no cabinet headings, and the same item (brand, description, article no, category, unit) across cabinets becomes one row with the quantities added up. No Design column; columns in the order below.
 // Stock Qty / Order Qty are left blank, to be filled in by hand on the printout.
 const HW_MERGED_HEADERS = ["Sr", "Brand", "Category", "Vendor", "Article No", "Description", "Unit", "Qty", "MRP", "Discount %", "Rate", "Amount", "Remarks", "Stock Qty", "Order Qty"];
 function mergeHardware(lines: PurchaseOrderLine[]) {
   const byKey = new Map<string, { l: PurchaseOrderLine; remarks: Set<string> }>();
   for (const l of lines) {
-    const key = [l.brand, l.description, l.articleNo, l.category, l.unit, l.rate, l.discountPct ?? 0].join("|").toLowerCase();
+    const key = [l.brand, l.description, l.articleNo, l.category, l.unit].join("|").toLowerCase();
     const hit = byKey.get(key);
     if (hit) hit.l = { ...hit.l, qty: hit.l.qty + l.qty };
     else byKey.set(key, { l: { ...l }, remarks: new Set() });
@@ -162,17 +167,16 @@ function mergeHardware(lines: PurchaseOrderLine[]) {
 }
 
 function HardwareTable({ title, lines, po, vendors = [], merged = false }: { title: string; lines: PurchaseOrderLine[]; po: PurchaseOrder; vendors?: Vendor[]; merged?: boolean }) {
-  const total = lines.reduce((s, l) => s + lineAmount(l), 0);
   const sections = merged ? [{ srNo: 0, name: "", rows: mergeHardware(lines) }] : byCabinet(po, "hardware");
   return (
     <section className="break-inside-auto">
-      <Band group="hardware" title={title} count={merged ? sections[0].rows.length : lines.length} total={total} />
+      <Band group="hardware" title={title} count={merged ? sections[0].rows.length : lines.length} />
       <table className="w-full border-collapse text-[10px]">
-        <thead><Header group="hardware" headers={merged ? HW_MERGED_HEADERS : HW_HEADERS} /></thead>
+        <thead><Header group="hardware" headers={noPrice(merged ? HW_MERGED_HEADERS : HW_HEADERS)} /></thead>
         <tbody>
           {sections.map((c) => (
             <Fragment key={c.srNo}>
-              {!merged && <CabinetRow group="hardware" cols={13}>{cabinetTitle(po, c)}</CabinetRow>}
+              {!merged && <CabinetRow group="hardware" cols={9}>{cabinetTitle(po, c)}</CabinetRow>}
               {c.rows.map(({ l, sr }, i) => (
                 <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
                   <td className={cell}>{sr}</td>
@@ -194,10 +198,6 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
                   )}
                   <td className={cell}>{l.unit}</td>
                   <td className={`${cell} text-right`}>{num(l.qty)}</td>
-                  <td className={`${cell} text-right`}>{num(l.rate, 2)}</td>
-                  <td className={`${cell} text-right`}>{l.discountPct ? `${l.discountPct}%` : ""}</td>
-                  <td className={`${cell} text-right`}>{l.rate ? num(l.rate * (1 - (l.discountPct ?? 0) / 100), 2) : ""}</td>
-                  <td className={`${cell} text-right`}>{l.rate ? num(lineAmount(l), 2) : ""}</td>
                   <td className={cell}>{l.remarks}</td>
                   {merged && (
                     <>
@@ -209,11 +209,6 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
               ))}
             </Fragment>
           ))}
-          <tr className={`font-semibold ${THEME.hardware.head}`}>
-            <td className={`${cell} text-right`} colSpan={11}>TOTAL</td>
-            <td className={`${cell} text-right`}>{num(total, 2)}</td>
-            <td className={cell} colSpan={merged ? 3 : 1} />
-          </tr>
         </tbody>
       </table>
     </section>
@@ -222,14 +217,9 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
 
 const PART_LABEL: Record<PoExportPart, string> = { full: "Full Details", components: "Components", hardware: "Hardware", cabinets: "Cabinets", cutlist: "Cut List" };
 
-// Purchase Order (cabinets): Carcass as one row per cabinet (size, qty, design, finishes, material, sq.ft, amount);
+// Purchase Order (cabinets): Carcass as one row per cabinet (size, qty, design, finishes, material, sq.ft);
 // Shutter and Other Panel with their component rows; no Hardware.
 function CabinetSummaryTable({ po }: { po: PurchaseOrder }) {
-  // Rate of a cabinet = the rate its carcass rows share ("Mixed" if they differ, blank if none set).
-  const rateOf = (c: ReturnType<typeof byCabinet>[number]) => {
-    const r = [...new Set(c.rows.map((x) => x.l.rate).filter((n) => n > 0))];
-    return r.length === 1 ? num(r[0], 2) : r.length > 1 ? "Mixed" : "";
-  };
   // Cabinet Name column = the Cabinet Name field picked on the PO (Purchase Material Library).
   const space = (no: number) => po.material.cabinets?.[String(no)]?.cabinetName ?? "";
   return (
@@ -238,15 +228,14 @@ function CabinetSummaryTable({ po }: { po: PurchaseOrder }) {
         const lines = po.lines.filter((l) => l.group === g.key);
         if (lines.length === 0) return null;
         const cabs = byCabinet(po, g.key);
-        const total = lines.reduce((s, l) => s + lineAmount(l), 0);
         const title = `${g.code}. ${g.label}`;
         // Hardware is left out of the Purchase Order (cabinets) PDF; Shutter and Other Panel show their component rows.
         if (g.key === "hardware") return null;
         if (g.key !== "carcass") return <PanelTable key={g.key} group={g.key} title={title} lines={lines} po={po} plain />;
-        const heads = ["Sr", "Cabinet Type", "Cabinet Name", "Design", "Width", "Depth", "Height", "Qty", "Sq.Ft", "Rate", "Amount", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remark"];
+        const heads = ["Sr", "Cabinet Type", "Cabinet Name", "Design", "Width", "Depth", "Height", "Qty", "Sq.Ft", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remark"];
         return (
           <section key={g.key}>
-            <Band group={g.key} title={title} count={cabs.length} total={total} unit="cabinets" />
+            <Band group={g.key} title={title} count={cabs.length} unit="cabinets" />
             <table className="w-full border-collapse text-[10px]">
               <thead><Header group={g.key} headers={heads} /></thead>
               <tbody>
@@ -263,8 +252,6 @@ function CabinetSummaryTable({ po }: { po: PurchaseOrder }) {
                       <td className={`${cell} text-right`}>{num(h.height)}</td>
                       <td className={`${cell} text-right`}>{num(h.qty)}</td>
                       <td className={`${cell} text-right`}>{h.sqft.toFixed(2)}</td>
-                      <td className={`${cell} text-right`}>{rateOf(c)}</td>
-                      <td className={`${cell} text-right`}>{h.amount ? num(h.amount, 2) : ""}</td>
                       <td className={cell}>{h.material}</td>
                       <td className={cell}>{h.internal}</td>
                       <td className={cell}>{h.external}</td>
@@ -281,19 +268,9 @@ function CabinetSummaryTable({ po }: { po: PurchaseOrder }) {
   );
 }
 
-// Printable PO (A4 landscape): letterhead, detail cards, one colour-coded section per group, totals, signature.
+// Printable PO (A4 landscape): letterhead, detail cards, one colour-coded section per group, signature. No prices anywhere.
 export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber, branding, part = "full" }: { po: PurchaseOrder; vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: Branding; part?: PoExportPart; vendors?: Vendor[] }) {
   const groups = groupsFor(part).filter((g) => po.lines.some((l) => l.group === g.key));
-  // A partial download (Components / Hardware only) totals just its own rows; round-off belongs to the full PO.
-  const partial = part === "components" || part === "hardware";
-  const roundOff = partial ? 0 : po.roundOff;
-  const t = poTotals(partial ? { ...po, roundOff, lines: po.lines.filter((l) => groups.some((g) => g.key === l.group)) } : po);
-  const money = (label: string, v: number, strong = false) => (
-    <div className={`flex justify-between gap-6 px-3 py-1.5 ${strong ? "bg-grey-800 text-[12px] font-semibold text-white" : "border-b border-grey-100"}`}>
-      <span>{label}</span>
-      <span>₹ {num(v, 2) || "0.00"}</span>
-    </div>
-  );
 
   // Cut List: letterhead and detail cards as usual, then one plain table of component rows (no cabinet rows, no prices).
   const cutList = part === "cutlist" && (
@@ -315,12 +292,17 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
     <div className="flex flex-col gap-4 bg-white p-6 font-heading text-[11px] text-grey-900 [&_*]:font-heading">
       {/* Letterhead */}
       <div className="flex items-stretch justify-between gap-6 overflow-hidden rounded-xl border border-grey-100">
-        <div className="flex flex-col gap-0.5 p-4">
-          <h1 className="text-xl font-bold uppercase tracking-wide text-grey-900">{branding.companyName}</h1>
-          <p className="text-grey-600">{branding.address}</p>
-          <p className="text-grey-600">
-            {branding.email} &nbsp;·&nbsp; {branding.phone} &nbsp;·&nbsp; GST {COMPANY_GST}
-          </p>
+        <div className="flex items-center gap-4 p-4">
+          {/* The logo uploaded in Quote Template > Branding, else The Furn's own. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={branding.logoDataUrl || "/the-furn-logo.png"} alt="" className="h-16 w-28 shrink-0 object-contain" />
+          <div className="flex flex-col gap-0.5">
+            <h1 className="text-xl font-bold uppercase tracking-wide text-grey-900">{branding.companyName}</h1>
+            <p className="text-grey-600">{branding.address}</p>
+            <p className="text-grey-600">
+              {branding.email} &nbsp;·&nbsp; {branding.phone} &nbsp;·&nbsp; GST {COMPANY_GST}
+            </p>
+          </div>
         </div>
         <div className="flex min-w-60 flex-col items-end justify-center gap-1 bg-primary px-6 py-4 text-white">
           <span className="text-lg font-bold uppercase tracking-wider">Purchase Order</span>
@@ -361,29 +343,12 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
         );
       })}
 
-      {/* Remarks + totals */}
+      {/* Remarks */}
       <div className="flex items-start justify-between gap-6 break-inside-avoid">
         <div className="flex-1 rounded-lg border border-grey-100 p-3">
           <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-grey-500">Additional Remarks</p>
           <p className="whitespace-pre-wrap">{po.remarks || "—"}</p>
         </div>
-        {!cutList && (
-        <div className="flex w-80 flex-col overflow-hidden rounded-lg border border-grey-100">
-          {money("Total Amount", t.amount)}
-          {money(`Special Discount ${po.discountPct}%`, t.discount)}
-          {money("Total After Discount", t.taxable)}
-          {po.gstMode === "intra" ? (
-            <>
-              {money("State GST 9%", t.stateGst)}
-              {money("Central GST 9%", t.centralGst)}
-            </>
-          ) : (
-            money("Integrated GST 18%", t.igst)
-          )}
-          {money("Round Off", roundOff)}
-          {money("Final Amount", t.final, true)}
-        </div>
-        )}
       </div>
 
       <div className="mt-6 flex justify-end break-inside-avoid">
