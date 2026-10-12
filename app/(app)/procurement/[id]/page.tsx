@@ -12,6 +12,8 @@ import { RemarkAndFinishesSection } from "@/components/quotes/create/remark-and-
 import type { Quote } from "@/lib/mock/quote";
 import { applyShutterFinishToUnits } from "@/lib/quote-pricing";
 import { procurementStore, useProcurementQuotes } from "@/lib/store/procurement-store";
+import { quotesStore } from "@/lib/store/quotes-store";
+import { createPendingPoForQuote } from "@/lib/purchase-order-auto";
 import { toastStore } from "@/lib/store/toast-store";
 
 const shutterKeys = ["shutterFinishId", "shutterFinishThicknessId", "shutterFinishRawMaterialId", "shutterFinishInternalColourId", "shutterFinishExternalColourId"] as const;
@@ -47,6 +49,9 @@ export default function ProcurementEditorPage({ params }: { params: Promise<{ id
     try {
       await procurementStore.update(id, { ...quote, updatedAt: new Date().toISOString() });
       toastStore.show("Procurement copy saved", "success");
+      // Quote already In Purchase: bring its still-untouched PO in line with this save.
+      const q = quotesStore.getSnapshot().find((x) => x.id === row?.quoteId);
+      if (q?.status === "in-production") void createPendingPoForQuote(q);
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not save", "error");
     } finally {

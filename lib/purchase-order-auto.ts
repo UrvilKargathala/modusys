@@ -44,6 +44,11 @@ export async function createPendingPoForQuote(quote: Quote): Promise<void> {
       lines,
     });
     if (created) toastStore.show(`${quote.quoteNumber} is In Purchase — a Pending purchase order was created (${po.lines.length} rows).`, "success");
+    // The PO already exists (made earlier, before procurement's latest edits): refresh it, but only while nobody has worked on it.
+    else if (po.status === "pending" && !po.vendorId && !po.poNumber && po.lines.every((l) => !l.rate && !l.designType && !l.brand && !l.internalColour && !l.externalColour)) {
+      await purchaseOrdersStore.update(po.id, { material, lines });
+      toastStore.show(`${quote.quoteNumber}: the purchase order was updated from procurement.`, "success");
+    }
   } catch {
     toastStore.show(`Couldn't create the purchase order for ${quote.quoteNumber}. You can create it by hand in Purchase Orders.`, "error");
   }

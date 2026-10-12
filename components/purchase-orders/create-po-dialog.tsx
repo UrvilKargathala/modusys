@@ -12,6 +12,7 @@ import { materialSpecStore } from "@/lib/store/material-spec-store";
 import { unitTypeStore } from "@/lib/store/unit-type-store";
 import { pricingListStore } from "@/lib/store/pricing-list-store";
 import { toastStore } from "@/lib/store/toast-store";
+import { procurementStore } from "@/lib/store/procurement-store";
 import { buildPoFromQuote } from "@/lib/purchase-order-from-quote";
 import { gstModeFor } from "@/lib/purchase-order";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
@@ -45,7 +46,9 @@ export function CreatePoDialog({ quote, onOpenChange }: { quote: Quote | null; o
     if (!quote || !vendor) return;
     setBusy(true);
     try {
-      const { material, lines } = buildPoFromQuote(quote, {
+      // Same source as the auto-created PO: procurement's edited copy when there is one, otherwise the quote.
+      const source = (await procurementStore.forQuote(quote.id))?.data ?? quote;
+      const { material, lines } = buildPoFromQuote(source, {
         materials: materialSpecStore.getSnapshot(),
         unitTypes: unitTypeStore.getSnapshot(),
         hardwareItems: pricingListStore.getHardwareSnapshot(),
