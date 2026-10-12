@@ -1,5 +1,6 @@
 import type { Quote } from "@/lib/mock/quote";
-import { buildPoFromQuote } from "@/lib/purchase-order-from-quote";
+import type { PoMaterial, PurchaseOrder, PurchaseOrderLine } from "@/lib/purchase-order";
+import { buildPoFromQuote, type PoLineDraft } from "@/lib/purchase-order-from-quote";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
 import { purchaseOrdersStore } from "@/lib/store/purchase-orders-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
@@ -8,6 +9,36 @@ import { pricingListStore } from "@/lib/store/pricing-list-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { procurementStore } from "@/lib/store/procurement-store";
 import { getCurrentUser } from "@/lib/session";
+
+// Rows are matched to the PO's old rows by group + cabinet + description (nth occurrence); what is typed by hand on a row
+// (design, colours, rate, discount, remarks, row vendor; for panels also brand/category/unit/article) and on a cabinet
+// is carried over. Sizes, qty and hardware come from procurement. ponytail: a renamed or removed row loses its typed values.
+function mergeIntoPo(po: PurchaseOrder, material: PoMaterial, lines: PoLineDraft[]): { material: PoMaterial; lines: PoLineDraft[] } {
+  const seen = new Map<string, number>();
+  const old = new Map<string, PurchaseOrderLine>();
+  for (const l of po.lines) {
+    const k = `${l.group}|${l.srNo}|${l.description}`;
+    const n = (seen.get(k) ?? 0) + 1;
+    seen.set(k, n);
+    old.set(`${k}|${n}`, l);
+  }
+  const used = new Map<string, number>();
+  const merged = lines.map((l) => {
+    const k = `${l.group}|${l.srNo}|${l.description}`;
+    const n = (used.get(k) ?? 0) + 1;
+    used.set(k, n);
+    const o = old.get(`${k}|${n}`);
+    if (!o) return l;
+    const typed = { designType: o.designType, internalColour: o.internalColour, externalColour: o.externalColour, rate: o.rate, discountPct: o.discountPct, remarks: o.remarks, vendorId: o.vendorId };
+    return l.group === "hardware" ? { ...l, ...typed } : { ...l, ...typed, brand: o.brand || l.brand, category: o.category || l.category, unit: o.unit || l.unit, articleNo: o.articleNo || l.articleNo };
+  });
+  const cabinets = { ...material.cabinets };
+  for (const key of Object.keys(cabinets)) {
+    const o = po.material.cabinets?.[key];
+    if (o) cabinets[key] = { ...cabinets[key], designType: o.designType, remark: o.remark, design: o.design, cabinetName: o.cabinetName, vendorId: o.vendorId };
+  }
+  return { material: { ...po.material, shutterRawMaterial: material.shutterRawMaterial, otherRawMaterial: material.otherRawMaterial, cabinets }, lines: merged };
+}
 
 // When a quote goes In Purchase (saved as "in-production"), create its Pending purchase order straight from the quote's cut-list.
 // Vendor and PO number stay blank (filled in later; both are needed before it can be Completed).
@@ -44,9 +75,10 @@ export async function createPendingPoForQuote(quote: Quote): Promise<void> {
       lines,
     });
     if (created) toastStore.show(`${quote.quoteNumber} is In Purchase — a Pending purchase order was created (${po.lines.length} rows).`, "success");
-    // The PO already exists (made earlier, before procurement's latest edits): refresh it, but only while nobody has worked on it.
-    else if (po.status === "pending" && !po.vendorId && !po.poNumber && po.lines.every((l) => !l.rate && !l.designType && !l.brand && !l.internalColour && !l.externalColour)) {
-      await purchaseOrdersStore.update(po.id, { material, lines });
+    // The PO already exists (made earlier): re-read procurement's copy into it, keeping what was typed on it.
+    else if (po.status === "completed") toastStore.show(`${quote.quoteNumber}: its purchase order is Completed, so it was not changed.`, "error");
+    else {
+      await purchaseOrdersStore.update(po.id, mergeIntoPo(po, material, lines));
       toastStore.show(`${quote.quoteNumber}: the purchase order was updated from procurement.`, "success");
     }
   } catch {
