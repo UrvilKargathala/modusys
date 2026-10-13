@@ -15,7 +15,7 @@ export async function GET() {
     id: u.id, name: u.name, shortCode: u.shortCode, active: u.active,
     brandId: u.brandId, description: u.description,
     cabinetTypeLinks: u.cabinetTypeLinks, components: u.components,
-    externalFinishes: u.externalFinishes, otherPanels: u.otherPanels, hardware: u.hardware,
+    externalFinishes: u.externalFinishes, otherPanels: u.otherPanels, hardware: u.hardware, countComponents: u.countComponents,
     deleted: u.deleted, createdAt: u.createdAt.toISOString(),
   })));
 }
@@ -29,7 +29,7 @@ export async function PUT(req: Request) {
     brandId: String(r.brandId ?? ""), description: String(r.description ?? ""),
     cabinetTypeLinks: (r.cabinetTypeLinks ?? []) as object[], components: (r.components ?? []) as object[],
     externalFinishes: (r.externalFinishes ?? []) as object[], otherPanels: (r.otherPanels ?? []) as object[],
-    hardware: (r.hardware ?? []) as object[], deleted: Boolean(r.deleted), createdAt: toDate(r.createdAt),
+    hardware: (r.hardware ?? []) as object[], countComponents: r.countComponents !== false, deleted: Boolean(r.deleted), createdAt: toDate(r.createdAt),
   })));
   void logAudit({
     action: "UNIT_TYPE_UPDATED",

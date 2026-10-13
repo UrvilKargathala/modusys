@@ -351,6 +351,8 @@ model UnitType {
   externalFinishes Json     @default("[]")
   otherPanels      Json     @default("[]")
   hardware         Json     @default("[]")
+  // Ticked in Templates > Unit Type: its Comp. count shows, and its component rows appear in the purchase order PDF.
+  countComponents  Boolean  @default(true)
   deleted          Boolean  @default(false)
   createdAt        DateTime @default(now())
 }

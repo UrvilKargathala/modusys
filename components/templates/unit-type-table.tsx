@@ -31,6 +31,10 @@ export function UnitTypeTable() {
     return links.length > 1 ? `${primary} +${links.length - 1}` : primary;
   };
 
+  // Comp. checkbox (Actions), saved on the unit type: unticked shows 0 components and keeps its component rows out of the purchase order PDF.
+  const counted = (i: UnitType) => i.countComponents !== false;
+  const compCount = (i: UnitType) => (counted(i) ? i.components.length : 0);
+
   const [search, setSearch] = useState("");
   const searched = items.filter((i) => {
     const q = search.trim().toLowerCase();
@@ -49,7 +53,7 @@ export function UnitTypeTable() {
     key === "name" ? i.name
     : key === "shortCode" ? i.shortCode
     : key === "cabinet" ? cabinetTypeLabel(i.cabinetTypeLinks)
-    : key === "components" ? i.components.length
+    : key === "components" ? compCount(i)
     : key === "externalFinish" ? i.externalFinishes.length
     : key === "hardware" ? i.hardware.length
     : key === "otherPanel" ? i.otherPanels.length
@@ -138,7 +142,7 @@ export function UnitTypeTable() {
                   <td className="max-w-xs px-3 py-3 text-[13px] font-body font-medium text-grey-900"><div className="line-clamp-2">{i.name}</div></td>
                   <td className="whitespace-nowrap px-3 py-3 text-[13px] font-body text-grey-700">{i.shortCode}</td>
                   <td className="whitespace-nowrap px-3 py-3 text-[13px] font-body text-grey-700">{cabinetTypeLabel(i.cabinetTypeLinks)}</td>
-                  <td className="whitespace-nowrap px-2 py-3 text-[13px] font-number text-grey-700">{i.components.length}</td>
+                  <td className="whitespace-nowrap px-2 py-3 text-[13px] font-number text-grey-700">{compCount(i)}</td>
                   <td className="whitespace-nowrap px-2 py-3 text-[13px] font-number text-grey-700">{i.externalFinishes.length}</td>
                   <td className="whitespace-nowrap px-2 py-3 text-[13px] font-number text-grey-700">{i.hardware.length}</td>
                   <td className="whitespace-nowrap px-2 py-3 text-[13px] font-number text-grey-700">{i.otherPanels.length}</td>
@@ -154,6 +158,24 @@ export function UnitTypeTable() {
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex items-center justify-end gap-1">
+                      {canEdit && (
+                        <Tooltip>
+                          <TooltipTrigger
+                            aria-label="Count components"
+                            render={<span />}
+                            className="inline-flex p-1.5"
+                          >
+                            <input
+                              type="checkbox"
+                              aria-label={`Count components of ${i.name}`}
+                              checked={counted(i)}
+                              onChange={() => unitTypeStore.setCountComponents(i.id, !counted(i))}
+                              className="h-4 w-4 cursor-pointer accent-primary"
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent>{counted(i) ? "Counted, and shown in the purchase order PDF" : "Not counted, and left out of the purchase order PDF"}</TooltipContent>
+                        </Tooltip>
+                      )}
                       {canEdit && (
                         <Tooltip>
                           <TooltipTrigger

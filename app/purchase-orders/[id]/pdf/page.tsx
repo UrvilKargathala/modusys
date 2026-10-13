@@ -10,6 +10,7 @@ import { usePurchaseOrders, purchaseOrdersStore } from "@/lib/store/purchase-ord
 import { useVendors } from "@/lib/store/vendors-store";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
+import { useUnitTypes } from "@/lib/store/unit-type-store";
 import { useQuoteTemplateSettings } from "@/lib/store/quote-template-store";
 
 // Print route for one PO: A4 landscape, white + black. "Print / Save as PDF"
@@ -22,10 +23,20 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
   const orders = usePurchaseOrders();
   const vendors = useVendors();
   const settings = useQuoteTemplateSettings();
+  const unitTypes = useUnitTypes();
   const po = orders.find((o) => o.id === id);
   const vendor = vendors.find((v) => v.id === po?.vendorId);
   const customer = useCustomers().find((c) => c.id === po?.customerId);
   const quoteNumber = useQuotes().find((q) => q.id === po?.quoteId)?.quoteNumber;
+
+  // Unit types unticked in Templates > Unit Type: their cabinets' Carcass / Shutter / Other Panel rows are left out of the PDF
+  // (hardware stays; the PO itself and the Excel are unchanged). A cabinet is matched to its unit type by name.
+  // ponytail: two unit types sharing one name both follow the first match.
+  const hiddenNames = new Set(unitTypes.filter((u) => u.countComponents === false).map((u) => u.name));
+  const sheetPo =
+    po && hiddenNames.size > 0
+      ? { ...po, lines: po.lines.filter((l) => l.group === "hardware" || !hiddenNames.has(po.material.cabinets?.[String(l.srNo)]?.unitName ?? "")) }
+      : po;
 
   // The browser uses document.title as the default PDF file name.
   useEffect(() => {
@@ -70,7 +81,7 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
         )}
       </div>
       <div className="po-sheet mx-auto max-w-[1400px]">
-        <PurchaseOrderSheet po={po} vendor={vendor} vendors={vendors} customer={customer} quoteNumber={quoteNumber} branding={settings.branding} part={part} />
+        <PurchaseOrderSheet po={sheetPo ?? po} vendor={vendor} vendors={vendors} customer={customer} quoteNumber={quoteNumber} branding={settings.branding} part={part} />
       </div>
     </div>
   );

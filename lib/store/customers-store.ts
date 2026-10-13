@@ -11,6 +11,7 @@ import { mockCustomers, type Customer } from "@/lib/mock/pipeline";
 
 let all: Customer[] = mockCustomers;
 let hydrated = false;
+let hydratedOnce = false; // true after the first successful fetch replaced the mock list
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -38,6 +39,9 @@ async function refetch() {
     if (!res.ok) return;
     const data = (await res.json()) as Customer[];
     if (pendingWrites > 0 || version !== writeVersion) return;
+    // Unchanged list: keep the same array so nothing re-renders.
+    if (hydratedOnce && JSON.stringify(data) === JSON.stringify(all)) return;
+    hydratedOnce = true;
     all = data;
     emit();
   } catch {
@@ -135,26 +139,29 @@ export const customersStore = {
   },
 };
 
-// Polls every 6s so an edit made in another tab/by another user shows up
-// without a manual page reload — the single fetch-on-mount only ever pulled
-// the list once, so a second viewer had to hard-refresh to see anything new.
-const POLL_MS = 6000;
+// No timer: a 6s poll meant /api/customers was fetched forever (once per open tab, every 6s). Instead the list is
+// refreshed when you come back to the tab or window (an edit made elsewhere shows up then), at most once per
+// MIN_GAP_MS. One shared pair of listeners for all useCustomers() callers.
+const MIN_GAP_MS = 10_000;
+let lastFetch = Date.now();
+let watchers = 0;
 
-// One shared timer for all useCustomers() callers (a page mounts ~10 of them;
-// a timer each meant ~10 identical full-list fetches per tick). Skips ticks
-// while the tab is hidden so background tabs cost the server nothing.
-let pollers = 0;
-let pollId: ReturnType<typeof setInterval> | undefined;
-
-function startPolling() {
-  if (pollers++ > 0) return;
-  pollId = setInterval(() => {
-    if (!document.hidden) void refetch();
-  }, POLL_MS);
+function refreshOnReturn() {
+  if (document.hidden || Date.now() - lastFetch < MIN_GAP_MS) return;
+  lastFetch = Date.now();
+  void refetch();
 }
 
-function stopPolling() {
-  if (--pollers === 0) clearInterval(pollId);
+function startWatching() {
+  if (watchers++ > 0) return;
+  document.addEventListener("visibilitychange", refreshOnReturn);
+  window.addEventListener("focus", refreshOnReturn);
+}
+
+function stopWatching() {
+  if (--watchers > 0) return;
+  document.removeEventListener("visibilitychange", refreshOnReturn);
+  window.removeEventListener("focus", refreshOnReturn);
 }
 
 export function useCustomers() {
@@ -164,8 +171,8 @@ export function useCustomers() {
     customersStore.getServerSnapshot
   );
   useEffect(() => {
-    startPolling();
-    return stopPolling;
+    startWatching();
+    return stopWatching;
   }, []);
   return customers;
 }

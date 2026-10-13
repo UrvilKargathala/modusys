@@ -102,6 +102,8 @@ export type UnitType = {
   // External Finish (e.g. a loose back/divider panel).
   otherPanels: FurnitureLineItem[];
   hardware: UnitTypeHardware[];
+  // Unit Type table checkbox: absent / true = ticked (counted, shown in the PO PDF).
+  countComponents?: boolean;
   deleted?: boolean;
   createdAt: string;
 };
