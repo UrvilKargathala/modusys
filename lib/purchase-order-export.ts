@@ -62,7 +62,7 @@ export const PO_PDF_PARTS: { key: PoExportPart; label: string }[] = [
   { key: "full", label: "Full details" },
   { key: "components", label: "Material Slip Components only" },
   { key: "hardware", label: "Material Slip Hardware only" },
-  { key: "cabinets", label: "Purchase Order (cabinet)" },
+  { key: "cabinets", label: "Purchase Order" },
 ];
 export const groupsFor = (part: PoExportPart) =>
   PO_GROUPS.filter((g) => part !== "cabinets") .filter((g) => part === "full" || (part === "hardware" ? g.key === "hardware" : g.key !== "hardware"));

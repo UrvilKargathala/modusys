@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { Outfit } from "next/font/google";
+import { Manrope, Outfit } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Analytics } from "@vercel/analytics/react";
@@ -22,6 +22,13 @@ const ralewayLight = localFont({
 const outfitLight = Outfit({
   variable: "--font-number",
   weight: ["300", "400"],
+  subsets: ["latin"],
+});
+
+// Numbers in the purchase order PDFs (see .po-num in globals.css).
+const manrope = Manrope({
+  variable: "--font-manrope",
+  weight: ["400", "500", "600"],
   subsets: ["latin"],
 });
 
@@ -62,7 +69,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${raleway.variable} ${ralewayLight.variable} ${outfitLight.variable} h-full antialiased`}
+      className={`${raleway.variable} ${ralewayLight.variable} ${outfitLight.variable} ${manrope.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-body">
         <Providers>{children}</Providers>

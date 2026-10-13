@@ -31,19 +31,31 @@ const CARD_TONE: Record<string, { bar: string; box: string }> = {
   "Shutter Details": { bar: "bg-cyan", box: "border-cyan bg-cyan-transparent" },
   "Cabinet Details": { bar: "bg-success", box: "border-success bg-success-transparent" },
 };
+// Text with its digits set in Manrope (the PDFs' number font); letters keep the normal font.
+function Nums({ children }: { children: string }) {
+  return (
+    <>
+      {String(children)
+        .split(/(\d[\d.,/:-]*)/)
+        .map((part, i) => (i % 2 ? <span key={i} className="po-num">{part}</span> : part))}
+    </>
+  );
+}
+
+const rowsList = (rows: [string, string][]) =>
+  rows.map(([k, v], i) => (
+    <div key={i} className="flex gap-2">
+      <span className="w-20 shrink-0 text-grey-500">{k}</span>
+      <span className="min-w-0 font-medium text-grey-900"><Nums>{v || "—"}</Nums></span>
+    </div>
+  ));
+
 function Info({ title, rows }: { title: string; rows: [string, string][] }) {
   const tone = CARD_TONE[title] ?? { bar: "bg-grey-800", box: "border-grey-100" };
   return (
-    <div className={`overflow-hidden rounded-lg border break-inside-avoid ${tone.box}`}>
-      <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white ${tone.bar}`}>{title}</div>
-      <div className="flex flex-col gap-1 p-3">
-        {rows.map(([k, v], i) => (
-          <div key={i} className="flex gap-2">
-            <span className="w-32 shrink-0 text-grey-500">{k}</span>
-            <span className="font-medium text-grey-900">{v || "—"}</span>
-          </div>
-        ))}
-      </div>
+    <div className={`flex h-full flex-col overflow-hidden rounded-lg border break-inside-avoid ${tone.box}`}>
+      <div className={`px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white ${tone.bar}`}>{title}</div>
+      <div className="flex flex-1 flex-col gap-1 p-2.5">{rowsList(rows)}</div>
     </div>
   );
 }
@@ -87,20 +99,20 @@ function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<
     <tr className="break-inside-avoid">
       <td className={t} colSpan={2}>{h.name}</td>
       <td className={t}>{h.design}</td>
-      <td className={`${t} text-right`}>{num(h.width)}</td>
-      <td className={`${t} text-right`}>{num(h.depth)}</td>
-      <td className={`${t} text-right`}>{num(h.height)}</td>
-      <td className={`${t} text-right`}>{num(h.qty)}</td>
-      <td className={`${t} text-right`}>{h.sqft.toFixed(2)}</td>
-      <td className={t}>{h.material}</td>
-      <td className={t}>{h.internal}</td>
-      <td className={t}>{h.external}</td>
+      <td className={`${t} text-right po-num`}>{num(h.width)}</td>
+      <td className={`${t} text-right po-num`}>{num(h.depth)}</td>
+      <td className={`${t} text-right po-num`}>{num(h.height)}</td>
+      <td className={`${t} text-right po-num`}>{num(h.qty)}</td>
+      <td className={`${t} text-right po-num`}>{h.sqft.toFixed(2)}</td>
+      <td className={t}><Nums>{h.material}</Nums></td>
+      <td className={t}><Nums>{h.internal}</Nums></td>
+      <td className={t}><Nums>{h.external}</Nums></td>
       <td className={t}>{h.remark}</td>
     </tr>
   );
 }
 
-// plain = no cabinet heading rows and no TOTAL row (used in the Purchase Order (cabinets) PDF). Sr stays cabinet.row (1.1, 2.3) as in Full Details.
+// plain = no cabinet heading rows (used in the Purchase Order (cabinet) PDF); the TOTAL row (qty, sq.ft) stays. Sr stays cabinet.row (1.1, 2.3) as in Full Details.
 function PanelTable({ group, title, lines, po, plain = false }: { group: PoGroup; title: string; lines: PurchaseOrderLine[]; po: PurchaseOrder; plain?: boolean }) {
   const qty = lines.reduce((s, l) => s + l.qty, 0);
   const sqft = lines.reduce((s, l) => s + l.sqft, 0);
@@ -115,30 +127,28 @@ function PanelTable({ group, title, lines, po, plain = false }: { group: PoGroup
               {!plain && <CarcassHeadingRow po={po} c={c} group={group} />}
               {c.rows.map(({ l, sr }, i) => (
                 <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
-                  <td className={cell}>{sr}</td>
-                  <td className={cell}>{l.description}</td>
+                  <td className={`${cell} po-num`}>{sr}</td>
+                  <td className={cell}><Nums>{l.description}</Nums></td>
                   <td className={cell}>{l.designType}</td>
-                  <td className={`${cell} text-right`}>{num(l.width)}</td>
-                  <td className={`${cell} text-right`}>{l.depth ? `${l.depth}` : ""}</td>
-                  <td className={`${cell} text-right`}>{num(l.height)}</td>
-                  <td className={`${cell} text-right`}>{num(l.qty)}</td>
-                  <td className={`${cell} text-right`}>{l.sqft.toFixed(2)}</td>
-                  <td className={cell}>{l.material}</td>
-                  <td className={cell}>{l.internalColour}</td>
-                  <td className={cell}>{l.externalColour}</td>
-                  <td className={cell}>{l.remarks}</td>
+                  <td className={`${cell} text-right po-num`}>{num(l.width)}</td>
+                  <td className={`${cell} text-right po-num`}>{l.depth ? `${l.depth}` : ""}</td>
+                  <td className={`${cell} text-right po-num`}>{num(l.height)}</td>
+                  <td className={`${cell} text-right po-num`}>{num(l.qty)}</td>
+                  <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(2)}</td>
+                  <td className={cell}><Nums>{l.material}</Nums></td>
+                  <td className={cell}><Nums>{l.internalColour}</Nums></td>
+                  <td className={cell}><Nums>{l.externalColour}</Nums></td>
+                  <td className={cell}><Nums>{l.remarks}</Nums></td>
                 </tr>
               ))}
             </Fragment>
           ))}
-          {!plain && (
           <tr className={`font-semibold ${THEME[group].head}`}>
             <td className={`${cell} text-right`} colSpan={6}>TOTAL</td>
-            <td className={`${cell} text-right`}>{num(qty)}</td>
-            <td className={`${cell} text-right`}>{sqft.toFixed(2)}</td>
+            <td className={`${cell} text-right po-num`}>{num(qty)}</td>
+            <td className={`${cell} text-right po-num`}>{sqft.toFixed(2)}</td>
             <td className={cell} colSpan={4} />
           </tr>
-          )}
         </tbody>
       </table>
     </section>
@@ -179,26 +189,26 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
               {!merged && <CabinetRow group="hardware" cols={9}>{cabinetTitle(po, c)}</CabinetRow>}
               {c.rows.map(({ l, sr }, i) => (
                 <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
-                  <td className={cell}>{sr}</td>
+                  <td className={`${cell} po-num`}>{sr}</td>
                   <td className={cell}>{l.brand}</td>
                   {merged ? (
                     <>
                       <td className={cell}>{l.category}</td>
                       <td className={cell}>{brandVendorName(po, vendors, l.brand)}</td>
                       <td className={cell}>{l.articleNo}</td>
-                      <td className={cell}>{l.description}</td>
+                      <td className={cell}><Nums>{l.description}</Nums></td>
                     </>
                   ) : (
                     <>
-                      <td className={cell}>{l.description}</td>
+                      <td className={cell}><Nums>{l.description}</Nums></td>
                       <td className={cell}>{l.designType}</td>
                       <td className={cell}>{l.articleNo}</td>
                       <td className={cell}>{l.category}</td>
                     </>
                   )}
                   <td className={cell}>{l.unit}</td>
-                  <td className={`${cell} text-right`}>{num(l.qty)}</td>
-                  <td className={cell}>{l.remarks}</td>
+                  <td className={`${cell} text-right po-num`}>{num(l.qty)}</td>
+                  <td className={cell}><Nums>{l.remarks}</Nums></td>
                   {merged && (
                     <>
                       <td className={`${cell} w-16`} />
@@ -236,6 +246,16 @@ function CabinetSummaryTable({ po, noComponentCabinets }: { po: PurchaseOrder; n
 export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber, branding, part = "full", noComponentCabinets = new Set<number>() }: { noComponentCabinets?: Set<number>; po: PurchaseOrder; vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: Branding; part?: PoExportPart; vendors?: Vendor[] }) {
   const groups = groupsFor(part).filter((g) => po.lines.some((l) => l.group === g.key));
   const partial = part === "components" || part === "hardware";
+  const details = poDetailSections(po, { vendor, customer, quoteNumber, branding });
+  const card = (title: string) => {
+    const sec = details.find((d) => d.title === title);
+    if (!sec) return null;
+    const short: Record<string, string> = { "Shutter Raw Material": "Raw Material", "Cabinet Raw Material": "Raw Material", "Internal Brand & Colour": "Internal", "External Brand & Colour": "External" };
+    const rows = (title === "Customer Details" ? sec.rows.filter(([k]) => k !== "Mobile" && k !== "Address") : sec.rows)
+      .filter(([, v]) => v)
+      .map(([k, v]) => [title === "Shutter Details" || title === "Cabinet Details" ? (short[k] ?? k) : k, v] as [string, string]);
+    return <Info title={title} rows={rows} />;
+  };
 
   // Cut List: letterhead and detail cards as usual, then one plain table of component rows (no cabinet rows, no prices).
   const cutList = part === "cutlist" && (
@@ -245,7 +265,7 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
         {cutListRows(po).map((r, i) => (
           <tr key={i} className={i % 2 ? "bg-light-600" : ""}>
             {r.map((v, j) => (
-              <td key={j} className={`${cell} ${typeof v === "number" && j > 0 ? "text-right" : ""}`}>{v}</td>
+              <td key={j} className={`${cell} ${typeof v === "number" && j > 0 ? "text-right po-num" : ""}`}>{v}</td>
             ))}
           </tr>
         ))}
@@ -257,39 +277,43 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
     <div className="flex flex-col gap-4 bg-white p-6 font-heading text-[11px] text-grey-900 [&_*]:font-heading">
       {/* Letterhead */}
       <div className="flex items-stretch justify-between gap-6 overflow-hidden rounded-xl border border-grey-100">
-        <div className="flex items-center gap-4 p-4">
+        <div className="flex items-center gap-8 p-4">
           {/* The logo uploaded in Quote Template > Branding, else The Furn's own. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={branding.logoDataUrl || "/the-furn-logo.png"} alt="" className="h-16 w-28 shrink-0 object-contain" />
           <div className="flex flex-col gap-0.5">
-            <h1 className="text-xl font-bold uppercase tracking-wide text-grey-900">{branding.companyName}</h1>
-            <p className="text-grey-600">{branding.address}</p>
+            <h1 className="text-xl font-bold uppercase tracking-wide text-primary">{branding.companyName}</h1>
+            <p className="text-grey-600"><Nums>{branding.address}</Nums></p>
             <p className="text-grey-600">
-              {branding.email} &nbsp;·&nbsp; {branding.phone} &nbsp;·&nbsp; GST {COMPANY_GST}
+              <Nums>{branding.email}</Nums> &nbsp;·&nbsp; <Nums>{branding.phone}</Nums> &nbsp;·&nbsp; GST <Nums>{COMPANY_GST}</Nums>
             </p>
           </div>
         </div>
         <div className="flex min-w-60 flex-col items-end justify-center gap-1 bg-primary px-6 py-4 text-white">
           <span className="text-lg font-bold uppercase tracking-wider">{part === "components" || part === "hardware" ? "Material Slip" : "Purchase Order"}</span>
-          <span className="text-[11px] opacity-90">{PART_LABEL[part]}</span>
-          <span className="text-[13px] font-semibold">{po.poNumber || "Number not set"}</span>
+          {part !== "cabinets" && <span className="text-[11px] opacity-90">{PART_LABEL[part]}</span>}
+          <span className="text-[13px] font-semibold"><Nums>{po.poNumber || "Number not set"}</Nums></span>
         </div>
       </div>
 
       {/* Details */}
-      <div className="grid grid-cols-3 gap-3">
-        {poDetailSections(po, { vendor, customer, quoteNumber, branding })
-          // Components only / Hardware only: just the customer card; the other PDFs keep all six.
-          .filter((sec) => !partial || sec.title === "Customer Details")
-          .map((sec) => (
-            <Info
-              key={sec.title}
-              title={sec.title}
-              // The Purchase Order PDFs (Full details, cabinet) leave the customer's Mobile and Address out; the Material Slip PDFs keep them.
-              rows={sec.title === "Customer Details" && !partial ? sec.rows.filter(([k]) => k !== "Mobile" && k !== "Address") : sec.rows}
-            />
+      {partial ? (
+        // Material Slip (Components only / Hardware only): just the customer card, with Mobile and Address.
+        <div className="grid grid-cols-3 gap-3">
+          {details.filter((sec) => sec.title === "Customer Details").map((sec) => (
+            <Info key={sec.title} title={sec.title} rows={sec.rows} />
           ))}
-      </div>
+        </div>
+      ) : (
+        // Purchase Order PDFs: one row of four equal-height cards: Vendor, Shutter, Cabinet, PO details (no Customer card).
+        // Company details are in the letterhead.
+        <div className="grid grid-cols-4 gap-2">
+          {card("Vendor Details")}
+          {card("Shutter Details")}
+          {card("Cabinet Details")}
+          {card("Purchase Order Details")}
+        </div>
+      )}
 
       {/* Colour key */}
       {!cutList && groups.length > 1 && (
@@ -325,9 +349,9 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
       </div>
 
       <div className="mt-6 flex justify-end break-inside-avoid">
-        <div className="flex w-64 flex-col items-center gap-12">
-          <p>For, {branding.companyName}</p>
-          <p className="w-full border-t border-grey-700 pt-1 text-center">Authorised Signature</p>
+        <div className="flex w-80 flex-col items-center gap-12">
+          <p className="text-[14px] font-semibold">For, {branding.companyName}</p>
+          <p className="w-full pt-1 text-center">Authorised Signature</p>
         </div>
       </div>
     </div>
