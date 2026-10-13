@@ -217,59 +217,23 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
 
 const PART_LABEL: Record<PoExportPart, string> = { full: "Full Details", components: "Components", hardware: "Hardware", cabinets: "Cabinets", cutlist: "Cut List" };
 
-// Purchase Order (cabinets): Carcass as one row per cabinet (size, qty, design, finishes, material, sq.ft);
-// Shutter and Other Panel with their component rows; no Hardware.
-function CabinetSummaryTable({ po }: { po: PurchaseOrder }) {
-  // Cabinet Name column = the Cabinet Name field picked on the PO (Purchase Material Library).
-  const space = (no: number) => po.material.cabinets?.[String(no)]?.cabinetName ?? "";
+// Material Slip: the component rows only (Top Panel, LH Side Panel...) for Carcass, Shutter and Other Panel, no cabinet
+// or unit rows and no hardware. Carcass rows of cabinets whose unit type is unticked (noComponentCabinets) are left out.
+function CabinetSummaryTable({ po, noComponentCabinets }: { po: PurchaseOrder; noComponentCabinets: Set<number> }) {
   return (
     <>
       {groupsFor("full").map((g) => {
-        const lines = po.lines.filter((l) => l.group === g.key);
-        if (lines.length === 0) return null;
-        const cabs = byCabinet(po, g.key);
-        const title = `${g.code}. ${g.label}`;
-        // Hardware is left out of the Purchase Order (cabinets) PDF; Shutter and Other Panel show their component rows.
         if (g.key === "hardware") return null;
-        if (g.key !== "carcass") return <PanelTable key={g.key} group={g.key} title={title} lines={lines} po={po} plain />;
-        const heads = ["Sr", "Cabinet Type", "Cabinet Name", "Design", "Width", "Depth", "Height", "Qty", "Sq.Ft", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remark"];
-        return (
-          <section key={g.key}>
-            <Band group={g.key} title={title} count={cabs.length} unit="cabinets" />
-            <table className="w-full border-collapse text-[10px]">
-              <thead><Header group={g.key} headers={heads} /></thead>
-              <tbody>
-                {cabs.map((c, i) => {
-                  const h = carcassHeadingCells(po, c);
-                  return (
-                    <tr key={c.srNo} className={`break-inside-avoid ${i % 2 ? "bg-light-600" : ""}`}>
-                      <td className={cell}>{c.srNo}</td>
-                      <td className={`${cell} font-semibold`}>{c.name}</td>
-                      <td className={cell}>{space(c.srNo)}</td>
-                      <td className={cell}>{po.material.cabinets?.[String(c.srNo)]?.design ?? ""}</td>
-                      <td className={`${cell} text-right`}>{num(h.width)}</td>
-                      <td className={`${cell} text-right`}>{num(h.depth)}</td>
-                      <td className={`${cell} text-right`}>{num(h.height)}</td>
-                      <td className={`${cell} text-right`}>{num(h.qty)}</td>
-                      <td className={`${cell} text-right`}>{h.sqft.toFixed(2)}</td>
-                      <td className={cell}>{h.material}</td>
-                      <td className={cell}>{h.internal}</td>
-                      <td className={cell}>{h.external}</td>
-                      <td className={cell}>{h.remark}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </section>
-        );
+        const lines = po.lines.filter((l) => l.group === g.key && (g.key !== "carcass" || !noComponentCabinets.has(l.srNo)));
+        if (lines.length === 0) return null;
+        return <PanelTable key={g.key} group={g.key} title={`${g.code}. ${g.label}`} lines={lines} po={{ ...po, lines }} plain />;
       })}
     </>
   );
 }
 
 // Printable PO (A4 landscape): letterhead, detail cards, one colour-coded section per group, signature. No prices anywhere.
-export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber, branding, part = "full" }: { po: PurchaseOrder; vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: Branding; part?: PoExportPart; vendors?: Vendor[] }) {
+export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber, branding, part = "full", noComponentCabinets = new Set<number>() }: { noComponentCabinets?: Set<number>; po: PurchaseOrder; vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: Branding; part?: PoExportPart; vendors?: Vendor[] }) {
   const groups = groupsFor(part).filter((g) => po.lines.some((l) => l.group === g.key));
   const partial = part === "components" || part === "hardware";
 
@@ -306,7 +270,7 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
           </div>
         </div>
         <div className="flex min-w-60 flex-col items-end justify-center gap-1 bg-primary px-6 py-4 text-white">
-          <span className="text-lg font-bold uppercase tracking-wider">Purchase Order</span>
+          <span className="text-lg font-bold uppercase tracking-wider">{part === "cabinets" ? "Material Slip" : "Purchase Order"}</span>
           <span className="text-[11px] opacity-90">{PART_LABEL[part]}</span>
           <span className="text-[13px] font-semibold">{po.poNumber || "Number not set"}</span>
         </div>
@@ -334,7 +298,7 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
         </div>
       )}
 
-      {part === "cabinets" && <CabinetSummaryTable po={po} />}
+      {part === "cabinets" && <CabinetSummaryTable po={po} noComponentCabinets={noComponentCabinets} />}
       {cutList}
 
       {!cutList && groups.map((g) => {
