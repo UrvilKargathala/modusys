@@ -270,7 +270,7 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
           </div>
         </div>
         <div className="flex min-w-60 flex-col items-end justify-center gap-1 bg-primary px-6 py-4 text-white">
-          <span className="text-lg font-bold uppercase tracking-wider">{part === "cabinets" ? "Material Slip" : "Purchase Order"}</span>
+          <span className="text-lg font-bold uppercase tracking-wider">{part === "components" || part === "hardware" ? "Material Slip" : "Purchase Order"}</span>
           <span className="text-[11px] opacity-90">{PART_LABEL[part]}</span>
           <span className="text-[13px] font-semibold">{po.poNumber || "Number not set"}</span>
         </div>
@@ -282,7 +282,12 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
           // Components only / Hardware only: just the customer card; the other PDFs keep all six.
           .filter((sec) => !partial || sec.title === "Customer Details")
           .map((sec) => (
-            <Info key={sec.title} title={sec.title} rows={sec.rows} />
+            <Info
+              key={sec.title}
+              title={sec.title}
+              // The Purchase Order PDFs (Full details, cabinet) leave the customer's Mobile and Address out; the Material Slip PDFs keep them.
+              rows={sec.title === "Customer Details" && !partial ? sec.rows.filter(([k]) => k !== "Mobile" && k !== "Address") : sec.rows}
+            />
           ))}
       </div>
 

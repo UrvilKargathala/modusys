@@ -58,7 +58,12 @@ export const PO_EXPORT_PARTS: { key: PoExportPart; label: string }[] = [
   { key: "hardware", label: "Hardware only" },
 ];
 export const PO_EXCEL_PARTS: { key: PoExportPart; label: string }[] = [...PO_EXPORT_PARTS, { key: "cutlist", label: "Cut List" }];
-export const PO_PDF_PARTS: { key: PoExportPart; label: string }[] = [...PO_EXPORT_PARTS, { key: "cabinets", label: "Material Slip" }];
+export const PO_PDF_PARTS: { key: PoExportPart; label: string }[] = [
+  { key: "full", label: "Full details" },
+  { key: "components", label: "Material Slip Components only" },
+  { key: "hardware", label: "Material Slip Hardware only" },
+  { key: "cabinets", label: "Purchase Order (cabinet)" },
+];
 export const groupsFor = (part: PoExportPart) =>
   PO_GROUPS.filter((g) => part !== "cabinets") .filter((g) => part === "full" || (part === "hardware" ? g.key === "hardware" : g.key !== "hardware"));
 

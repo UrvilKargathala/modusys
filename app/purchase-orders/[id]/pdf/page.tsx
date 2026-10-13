@@ -44,7 +44,7 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
 
   // The browser uses document.title as the default PDF file name.
   useEffect(() => {
-    if (po) document.title = `PO-${po.poNumber}${part === "full" ? "" : `-${part === "cabinets" ? "material-slip" : part}`}`;
+    if (po) document.title = `PO-${po.poNumber}${part === "full" ? "" : `-${part === "components" || part === "hardware" ? `material-slip-${part}` : part}`}`;
   }, [po, part]);
 
   if (!po) {

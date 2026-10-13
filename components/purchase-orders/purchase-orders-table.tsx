@@ -204,11 +204,11 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
                         >
                           <Download className="h-4 w-4" />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="min-w-52">
+                        <DropdownMenuContent align="end" className="min-w-72">
                           <DropdownMenuGroup>
                           <DropdownMenuLabel>PDF</DropdownMenuLabel>
                           {PO_PDF_PARTS.map((p) => (
-                            <DropdownMenuItem key={`pdf-${p.key}`} className="gap-2" onClick={() => window.open(`/purchase-orders/${po.id}/pdf${p.key === "full" ? "" : `?part=${p.key}`}`, "_blank")}>
+                            <DropdownMenuItem key={`pdf-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf${p.key === "full" ? "" : `?part=${p.key}`}`, "_blank")}>
                               <FileText className="h-4 w-4 text-grey-400" />
                               {p.label}
                             </DropdownMenuItem>
@@ -218,7 +218,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
                           <DropdownMenuGroup>
                           <DropdownMenuLabel>Excel</DropdownMenuLabel>
                           {PO_EXCEL_PARTS.map((p) => (
-                            <DropdownMenuItem key={`xls-${p.key}`} className="gap-2" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?format=excel${p.key === "full" ? "" : `&part=${p.key}`}`, "_blank")}>
+                            <DropdownMenuItem key={`xls-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?format=excel${p.key === "full" ? "" : `&part=${p.key}`}`, "_blank")}>
                               <FileSpreadsheet className="h-4 w-4 text-grey-400" />
                               {p.label}
                             </DropdownMenuItem>
