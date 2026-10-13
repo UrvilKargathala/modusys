@@ -271,6 +271,7 @@ function CabinetSummaryTable({ po }: { po: PurchaseOrder }) {
 // Printable PO (A4 landscape): letterhead, detail cards, one colour-coded section per group, signature. No prices anywhere.
 export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber, branding, part = "full" }: { po: PurchaseOrder; vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: Branding; part?: PoExportPart; vendors?: Vendor[] }) {
   const groups = groupsFor(part).filter((g) => po.lines.some((l) => l.group === g.key));
+  const partial = part === "components" || part === "hardware";
 
   // Cut List: letterhead and detail cards as usual, then one plain table of component rows (no cabinet rows, no prices).
   const cutList = part === "cutlist" && (
@@ -313,9 +314,12 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
 
       {/* Details */}
       <div className="grid grid-cols-3 gap-3">
-        {poDetailSections(po, { vendor, customer, quoteNumber, branding }).map((sec) => (
-          <Info key={sec.title} title={sec.title} rows={sec.rows} />
-        ))}
+        {poDetailSections(po, { vendor, customer, quoteNumber, branding })
+          // Components only / Hardware only: just the customer card; the other PDFs keep all six.
+          .filter((sec) => !partial || sec.title === "Customer Details")
+          .map((sec) => (
+            <Info key={sec.title} title={sec.title} rows={sec.rows} />
+          ))}
       </div>
 
       {/* Colour key */}
