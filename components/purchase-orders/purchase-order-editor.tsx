@@ -27,7 +27,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
-import { PO_GROUPS, buildPoNumber, poNumberBase, customerCode, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
+import { PO_GROUPS, customerCode, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
 
 const NEW_VENDOR = "__new-vendor__";
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
@@ -81,20 +81,6 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     if (lines.some((l, i) => l.rate !== draft.lines[i].rate)) setDraft({ ...draft, lines });
   }, [draft, purchasePrices, hardwarePrices, materials]);
 
-  // On open, a PO whose number doesn't match its vendor / product type / customer gets the generated one.
-  const [numbered, setNumbered] = useState(false);
-  useEffect(() => {
-    if (numbered || !draft || !draft.customerId || customers.length === 0) return;
-    setNumbered(true);
-    const c = customers.find((x) => x.id === draft.customerId);
-    const pt = materials.find((m) => m.id === draft.material.productTypeId);
-    const parts = [vendors.find((v) => v.id === draft.vendorId)?.code, pt?.description, c ? custCode(c) : undefined];
-    // Already right (same parts plus its id, e.g. -01)? Leave it.
-    const prefix = `${poNumberBase(parts)}-`.toUpperCase();
-    const id = draft.poNumber.toUpperCase().startsWith(prefix) ? draft.poNumber.slice(prefix.length) : "";
-    if (/^\d+$/.test(id)) return;
-    setDraft({ ...draft, poNumber: buildPoNumber(parts, orders.filter((o) => o.id !== draft.id).map((o) => o.poNumber)) });
-  }, [numbered, draft, customers, vendors, materials, orders]);
 
   const dirty = useMemo(() => !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved), [draft, saved]);
   const totals = useMemo(() => (draft ? poTotals(draft) : null), [draft]);
@@ -169,19 +155,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   };
   const setMaterial = (fields: Partial<PurchaseOrder["material"]>) => set({ material: { ...draft.material, ...fields } });
 
-  // PO number = PO-<vendor code>-<purchase product type code>-<customer code>. Rebuilt whenever one of those is picked.
   const productTypes = materials.filter((m) => m.category === "purchase-product-type" && !m.deleted);
-  const poNumberFor = (vendorId: string, productTypeId: string | undefined, customerId: string | null) => {
-    const c = customers.find((x) => x.id === customerId);
-    return buildPoNumber(
-      [
-        vendors.find((v) => v.id === vendorId)?.code,
-        productTypes.find((m) => m.id === productTypeId)?.description,
-        c ? custCode(c) : undefined,
-      ],
-      orders.filter((o) => o.id !== draft.id).map((o) => o.poNumber)
-    );
-  };
 
   // Saves the given draft (default: what's on screen). A blank vendor / PO number is fine while Pending.
   // Required before saving: vendor, customer, product type, PO number and date, and every Shutter / Cabinet Details field.
@@ -404,7 +378,6 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               const v = vendors.find((x) => x.id === e.target.value);
               set({
                 vendorId: e.target.value,
-                poNumber: poNumberFor(e.target.value, draft.material.productTypeId, draft.customerId ?? null),
                 ...(v ? { gstMode: gstModeFor(v.state) } : {}),
               });
             }}
@@ -443,7 +416,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               value={draft.customerId ?? ""}
               onChange={(e) => {
                 const c = customers.find((x) => x.id === e.target.value);
-                set({ customerId: c?.id ?? null, poNumber: poNumberFor(draft.vendorId, draft.material.productTypeId, c?.id ?? null) });
+                set({ customerId: c?.id ?? null });
               }}
             >
               <option value="">Select customer</option>
@@ -459,10 +432,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               className={field}
               value={draft.material.productTypeId ?? ""}
               onChange={(e) =>
-                set({
-                  material: { ...draft.material, productTypeId: e.target.value || undefined },
-                  poNumber: poNumberFor(draft.vendorId, e.target.value || undefined, draft.customerId ?? null),
-                })
+                set({ material: { ...draft.material, productTypeId: e.target.value || undefined } })
               }
             >
               <option value="">Select product type…</option>
@@ -475,10 +445,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="e-po">PO Number <span className="text-error">*</span></Label>
-            <div id="e-po" className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 font-number text-sm font-medium text-grey-700">
-              {draft.poNumber || "—"}
-            </div>
-            <span className="text-xs font-body text-grey-400">Auto-generated: PO-Vendor code-Product type code-Customer code.</span>
+            <Input id="e-po" value={draft.poNumber} onChange={(e) => set({ poNumber: e.target.value })} placeholder="Type the PO number" className="font-number" />
+            {draft.poNumber.trim() && orders.some((o) => o.id !== draft.id && o.poNumber.trim().toLowerCase() === draft.poNumber.trim().toLowerCase()) && (
+              <span className="text-xs font-body text-error">Another purchase order already uses this number.</span>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
