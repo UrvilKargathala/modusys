@@ -33,6 +33,13 @@ import { PO_GROUPS, customerCode, mostUsed, gstModeFor, poTotals, brandKey, type
 const NEW_VENDOR = "__new-vendor__";
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
 const card = "flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-5 shadow-sm";
+// The four cards at the top of a PO each take one colour of the PO palette (sand, taupe, stone, slate), as a light tint.
+// A light tint with a thin matching border and a strong top edge in the colour itself.
+const tintCard = (tone: string) => `po-card flex flex-col gap-4 rounded-xl border border-t-4 p-5 shadow-sm ${tone}`;
+const vendorCard = tintCard("border-slate/40 border-t-slate bg-slate/30");
+const poCard = tintCard("border-taupe/50 border-t-taupe bg-taupe/40");
+const shutterCard = tintCard("border-stone/60 border-t-stone bg-stone/40");
+const cabinetCard = tintCard("border-sand border-t-sand bg-sand/60");
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -57,6 +64,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const [draft, setDraft] = useState<PurchaseOrder | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
   // By component: all cabinets' Carcass rows together, then Shutter, etc. By cabinet: one card per cabinet.
   // The Carcass list (all cabinet blocks) starts closed; click the heading to open it.
   const [carcassOpen, setCarcassOpen] = useState(false);
@@ -355,8 +363,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             <Trash2 className="h-4 w-4" />
             Delete
           </Button>
-          {/* Cancel: throw away unsaved edits and go back to the last saved version. */}
-          <Button type="button" variant="outline" size="sm" disabled={!dirty || saving} onClick={() => saved && setDraft(structuredClone(saved))}>
+          {/* Cancel: back to the purchase orders list. With unsaved edits it asks first, then throws them away. */}
+          <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => (dirty ? setDiscardOpen(true) : router.push("/purchase-orders"))}>
             <X className="h-4 w-4" />
             Cancel
           </Button>
@@ -371,7 +379,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className={card}>
+        <div className={vendorCard}>
           <h2 className="font-heading text-base font-semibold text-grey-900">Vendor <span className="text-error">*</span></h2>
           <select
             value={draft.vendorId}
@@ -407,7 +415,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           )}
         </div>
 
-        <div className={card}>
+        <div className={poCard}>
           <h2 className="font-heading text-base font-semibold text-grey-900">Purchase Order Details</h2>
           <div className="flex items-center gap-2 text-sm font-body">
             <span className="w-24 shrink-0 text-grey-500">Customer <span className="text-error">*</span></span>
@@ -446,7 +454,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="e-po">PO Number <span className="text-error">*</span></Label>
-            <Input id="e-po" value={draft.poNumber} onChange={(e) => set({ poNumber: e.target.value })} placeholder="Type the PO number" className="font-number" />
+            <Input id="e-po" value={draft.poNumber} onChange={(e) => set({ poNumber: e.target.value })} placeholder="Type the PO number" className="bg-white font-number" />
             {draft.poNumber.trim() && orders.some((o) => o.id !== draft.id && o.poNumber.trim().toLowerCase() === draft.poNumber.trim().toLowerCase()) && (
               <span className="text-xs font-body text-error">Another purchase order already uses this number.</span>
             )}
@@ -459,18 +467,18 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 type="date"
                 value={draft.poDate}
                 onChange={(e) => set({ poDate: e.target.value, ...(e.target.value ? { requiredDate: addDaysIso(e.target.value, 10) } : {}) })}
-                className="font-number"
+                className="bg-white font-number"
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="e-req">Required Date</Label>
-              <Input id="e-req" type="date" value={draft.requiredDate} onChange={(e) => set({ requiredDate: e.target.value })} className="font-number" />
+              <Input id="e-req" type="date" value={draft.requiredDate} onChange={(e) => set({ requiredDate: e.target.value })} className="bg-white font-number" />
             </div>
           </div>
           <Row label="Quote" value={quote?.quoteNumber ?? ""} />
         </div>
 
-        <div className={card}>
+        <div className={shutterCard}>
           <h2 className="font-heading text-base font-semibold text-grey-900">Shutter Details</h2>
           <div className="flex flex-col gap-1.5">
             <Label>Shutter Raw Material <span className="text-error">*</span></Label>
@@ -489,7 +497,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             <PoFinishMultiSelect value={draft.material.additionalExternal?.shutter ?? []} onChange={(v) => setMaterial({ additionalExternal: { ...draft.material.additionalExternal, shutter: v } })} />
           </div>
         </div>
-        <div className={card}>
+        <div className={cabinetCard}>
           <h2 className="font-heading text-base font-semibold text-grey-900">Cabinet Details</h2>
           <div className="flex flex-col gap-1.5">
             <Label>Cabinet Raw Material <span className="text-error">*</span></Label>
@@ -531,7 +539,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                   }}
                   className={`rounded-md px-3 py-1 text-sm font-body font-medium transition-colors ${shownView === v ? "bg-primary-transparent text-primary" : "text-grey-600 hover:bg-light-600"}`}
                 >
-                  {v === "component" ? "By component" : v === "cabinet" ? "By cabinet" : v === "vendor" ? "Vendor" : v === "hardware" ? "Hardware" : <>Rate pending <span className="font-number">({pendingCount})</span></>}
+                  {v === "component" ? "By Component" : v === "cabinet" ? "By Unit" : v === "vendor" ? "Vendor" : v === "hardware" ? "Hardware" : <>Rate Pending <span className="font-number">({pendingCount})</span></>}
                 </button>
               ))}
             </div>
@@ -600,7 +608,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             ) : (
               <div className="overflow-x-auto rounded-lg border border-grey-100">
                 <table className="w-full text-left">
-                  <thead className="bg-[#DACCCC]">
+                  <thead className="bg-ice-300">
                     <tr>
                       <th className="w-24 whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">SR No</th>
                       <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Brand</th>
@@ -688,7 +696,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                     .map((no) => {
                       const c = cabinetFor(no);
                       return (
-                        <div key={no} className="rounded-lg border border-grey-100 bg-card p-3">
+                        <div key={no} className="po-card rounded-lg border border-ice-200 bg-ice p-3">
                           <PoLinesTable
                             group={g.key}
                             title={g.label}
@@ -756,6 +764,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 onCabinetChange={(next) => setCabinet(no, next)}
                 onChange={(lines) => set({ lines })}
                 onRemove={() => removeCabinet(no)}
+                onCopyCabinet={() => copyCabinet(no)}
               />
             ))}
       </div>
@@ -832,6 +841,14 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             toastStore.show(e instanceof Error ? e.message : "Could not save vendor", "error");
           }
         }}
+      />
+      <ConfirmDialog
+        open={discardOpen}
+        onOpenChange={setDiscardOpen}
+        title="Discard your changes?"
+        description="You have unsaved changes on this purchase order. They will be lost and you will go back to the purchase orders list."
+        confirmLabel="Discard"
+        onConfirm={() => router.push("/purchase-orders")}
       />
       <ConfirmDialog
         open={deleteOpen}

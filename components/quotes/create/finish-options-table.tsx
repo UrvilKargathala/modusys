@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { useMaterialItems } from "@/lib/store/material-spec-store";
 import type { FinishOption } from "@/lib/mock/quote";
 
 // Option letter derives from row position: 0→A, 1→B, ..., 25→Z. Simple mod
@@ -63,9 +62,6 @@ export function FinishOptionsTable({
   onChange: (next: FinishOption[]) => void;
 }) {
   const [deleteTarget, setDeleteTarget] = useState<FinishOption | null>(null);
-  // Product Type column: the quote's Product Type as it was when the option was made (older options show the current one).
-  const productTypes = useMaterialItems("product-type");
-  const productTypeName = (row: FinishOption) => productTypes.find((m) => m.id === (row.productTypeId || current?.productTypeId))?.name ?? "—";
 
   const update = (id: string, patch: Partial<FinishOption>) =>
     onChange(options.map((o) => (o.id === id ? { ...o, ...patch } : o)));
@@ -141,7 +137,17 @@ export function FinishOptionsTable({
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-700">
                     {letterAt(idx)}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">{productTypeName(row)}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <div className="min-w-44">
+                      <MaterialReferenceSelect
+                        category="product-type"
+                        value={row.productTypeId || current?.productTypeId || ""}
+                        onChange={(id) => update(row.id, { productTypeId: id })}
+                        nameOnly
+                        bold
+                      />
+                    </div>
+                  </td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="min-w-40 flex-1">

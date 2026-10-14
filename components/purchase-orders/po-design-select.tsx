@@ -15,7 +15,7 @@ export function PoCabinetNameSelect({ value, fallback, onChange, field = false }
   // "+ Add new cabinet type" opens the same Add dialog as Templates > Cabinet Type and selects the new type.
   const [addOpen, setAddOpen] = useState(false);
   return (
-    <div className={field ? "min-w-0" : "min-w-0 max-w-[280px]"}>
+    <div className={field ? "min-w-0" : "min-w-0 max-w-[300px]"}>
       <TextReferenceSelect
         label="Cabinet Type"
         options={types.map((t) => t.name)}

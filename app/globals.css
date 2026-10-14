@@ -42,6 +42,15 @@
   --color-light-100: #fdfefe;
 
   /* System colors */
+  /* Purchase order palette (sand, taupe, stone, slate): the four detail cards at the top of a PO */
+  --color-sand: #c7c4bd;
+  --color-taupe: #716453;
+  --color-stone: #9c988f;
+  --color-slate: #3b4b5a;
+  /* Ice blue: the cabinet cards in By Component / By Unit */
+  --color-ice: #e4f1fb;
+  --color-ice-200: #bcd8ee;
+  --color-ice-300: #cfe3f4;
   --color-success: #27ae60;
   --color-orange: #e04f16;
   --color-purple: #800080;
@@ -443,6 +452,20 @@
 }
 .quote-pdf-sheet.pdf-print-mode .font-number {
   font-weight: 400;
+}
+
+/* Purchase order cards are tinted, so the light grey borders of the boxes inside them would vanish: give them a visible one. */
+/* ...and their light grey labels, icons and placeholders would be hard to read on the tint: make them darker. */
+.po-card label,
+.po-card .text-grey-400,
+.po-card .text-grey-500 {
+  color: var(--color-grey-700);
+}
+.po-card input::placeholder {
+  color: var(--color-grey-500);
+}
+.po-card [class~="border-grey-100"] {
+  border-color: color-mix(in srgb, var(--color-slate) 40%, white);
 }
 
 /* Numbers in the purchase order PDFs are set in Manrope. */

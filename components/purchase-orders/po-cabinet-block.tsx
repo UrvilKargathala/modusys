@@ -7,15 +7,12 @@ import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-o
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
-import { PoCabinetVendorSelect } from "@/components/purchase-orders/po-cabinet-card";
+import { Field, fieldInput, PoCabinetVendorSelect } from "@/components/purchase-orders/po-cabinet-card";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { mostUsed, type PoCabinet, type PoGroup, type PurchaseOrderLine } from "@/lib/purchase-order";
-
-const dimInput =
-  "h-8 w-16 rounded-md border border-grey-100 bg-card px-2 text-right text-sm font-number text-grey-900 outline-none focus:border-primary";
 
 // One cabinet inside a component section (By component view): its name, W / D / H / Qty, and only
 // this group's rows. Auto Populate shows in Carcass only and only resizes that cabinet's carcass rows.
@@ -56,83 +53,86 @@ export function PoCabinetBlock({
   const common = (k: "internalColour" | "externalColour" | "material") => mostUsed(mine.map((l) => l[k]));
   const applyAll = (fields: Partial<PurchaseOrderLine>) => onChange(lines.map((l) => (l.srNo === srNo && l.group === "carcass" ? { ...l, ...fields } : l)));
   const finishRow = (
-    <div className="grid grid-cols-1 gap-3 pl-8 text-xs text-grey-500 md:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 pl-8 md:grid-cols-4">
       {(
         [
           ...(cabinet
             ? ([["Vendor", <PoCabinetVendorSelect key="v" srNo={srNo} cabinet={cabinet} onCabinetChange={onCabinetChange} className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2 text-[13px] font-body text-grey-900 outline-none focus:border-primary" />]] as const)
             : []),
-          ["Internal", <PoFinishSelect key="i" kind="internal" value={common("internalColour")} onChange={(v) => applyAll({ internalColour: v })} />],
-          ["External", <PoFinishSelect key="e" kind="external" value={common("externalColour")} onChange={(v) => applyAll({ externalColour: v })} />],
+          ["Internal Brand & Colour", <PoFinishSelect key="i" kind="internal" value={common("internalColour")} onChange={(v) => applyAll({ internalColour: v })} />],
+          ["External Brand & Colour", <PoFinishSelect key="e" kind="external" value={common("externalColour")} onChange={(v) => applyAll({ externalColour: v })} />],
           ["Material", <PoRawMaterialSelect key="m" compact value={common("material")} onChange={(v) => applyAll({ material: v })} />],
         ] as const
       ).map(([label, field]) => (
-        <label key={label} className="flex min-w-0 items-center gap-2">
-          <span className="w-16 shrink-0">{label}</span>
-          <span className="min-w-0 flex-1">{field}</span>
-        </label>
+        <Field key={label} label={label}>
+          {field}
+        </Field>
       ))}
     </div>
   );
 
+  // Title row: the cabinet number and type. Everything else sits in the rows under it (see `fieldsRow`).
   const header = (
-    <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
-      <span className="flex min-w-0 max-w-[260px] shrink items-center gap-2">
-        <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-primary-transparent px-1.5 font-number text-sm font-semibold text-primary">{srNo}</span>
-        {cabinet ? (
-          <PoCabinetNameSelect value={cabinet.designType ?? ""} fallback={cabinet.label} onChange={(v, cabinetTypeId) => onCabinetChange({ ...cabinet, designType: v, cabinetTypeId })} />
-        ) : (
-          <span className="truncate font-heading text-base font-semibold text-grey-900">{name}</span>
-        )}
-      </span>
-      {cabinet && (
-        <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
-          <PoCabinetNameField value={cabinet.cabinetName ?? ""} onChange={(v) => onCabinetChange({ ...cabinet, cabinetName: v })} />
-          {(["width", "depth", "height", "qty"] as const).map((k) => (
-            <label key={k} className="flex shrink-0 items-center gap-1 text-xs text-grey-500">
-              {k === "qty" ? "Qty" : k[0].toUpperCase()}
-              <input
-                type="number"
-                min={k === "qty" ? 1 : 0}
-                aria-label={`Cabinet ${srNo} ${k}`}
-                className={dimInput}
-                value={cabinet[k]}
-                onChange={(e) => onCabinetChange({ ...cabinet, [k]: e.target.value === "" ? 0 : Number(e.target.value) })}
-              />
-            </label>
-          ))}
-          <input
-            aria-label={`Cabinet ${srNo} design`}
-            placeholder="Design"
-            className="h-8 w-32 shrink-0 rounded-md border border-grey-100 bg-card px-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
-            value={cabinet.design ?? ""}
-            onChange={(e) => onCabinetChange({ ...cabinet, design: e.target.value })}
-          />
-          <input
-            aria-label={`Cabinet ${srNo} remark`}
-            placeholder="Remark"
-            className="h-8 min-w-40 max-w-md flex-1 rounded-md border border-grey-100 bg-card px-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
-            value={cabinet.remark ?? ""}
-            onChange={(e) => onCabinetChange({ ...cabinet, remark: e.target.value })}
-          />
-          {group === "carcass" && <PoComponentsToggle unitName={cabinet.unitName} />}
-          {group === "carcass" && (
-            <Button type="button" size="icon-sm" variant="outline" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
-              <Copy className="h-3.5 w-3.5" />
-            </Button>
-          )}
-          {group === "carcass" && !isManual && (
-            <Button type="button" size="icon-sm" aria-label="Auto Populate" disabled={!cabinetType} onClick={autoPopulate} title="Auto Populate: recalculate this cabinet's carcass sizes from its W / D / H">
+    <span className="flex min-w-0 flex-1 items-center gap-2">
+      <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-ice-200 px-1.5 font-number text-sm font-semibold text-slate">{srNo}</span>
+      {cabinet ? (
+        <PoCabinetNameSelect value={cabinet.designType ?? ""} fallback={cabinet.label} onChange={(v, cabinetTypeId) => onCabinetChange({ ...cabinet, designType: v, cabinetTypeId })} />
+      ) : (
+        <span className="truncate font-heading text-base font-semibold text-grey-900">{name}</span>
+      )}
+    </span>
+  );
+
+  // Second row: Cabinet Name, W / D / H / Qty, Design, Remark, then the checkbox, Copy and Auto Populate. Labels sit above the boxes.
+  const fieldsRow = cabinet ? (
+    <div className="flex flex-wrap items-end gap-3 pl-8">
+      <div className="w-56">
+        <Field label="Cabinet Name">
+          <PoCabinetNameField stacked value={cabinet.cabinetName ?? ""} onChange={(v) => onCabinetChange({ ...cabinet, cabinetName: v })} />
+        </Field>
+      </div>
+      {(["width", "depth", "height", "qty"] as const).map((k) => (
+        <div key={k} className="w-20">
+          <Field label={k === "qty" ? "Qty" : k[0].toUpperCase()}>
+            <input
+              type="number"
+              min={k === "qty" ? 1 : 0}
+              aria-label={`Cabinet ${srNo} ${k}`}
+              className={`${fieldInput} text-right font-number`}
+              value={cabinet[k]}
+              onChange={(e) => onCabinetChange({ ...cabinet, [k]: e.target.value === "" ? 0 : Number(e.target.value) })}
+            />
+          </Field>
+        </div>
+      ))}
+      <div className="w-44">
+        <Field label="Design">
+          <input aria-label={`Cabinet ${srNo} design`} placeholder="Design" className={fieldInput} value={cabinet.design ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, design: e.target.value })} />
+        </Field>
+      </div>
+      <div className="min-w-48 flex-1">
+        <Field label="Remark">
+          <input aria-label={`Cabinet ${srNo} remark`} placeholder="Remark" className={fieldInput} value={cabinet.remark ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, remark: e.target.value })} />
+        </Field>
+      </div>
+      {group === "carcass" && (
+        <div className="flex h-9 shrink-0 items-center gap-2">
+          <PoComponentsToggle unitName={cabinet.unitName} />
+          <Button type="button" size="icon-sm" variant="outline" className="border-ice-200 bg-ice-200 text-slate hover:bg-ice-300" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
+            <Copy className="h-3.5 w-3.5" />
+          </Button>
+          {!isManual && (
+            <Button type="button" size="icon-sm" className="bg-slate text-white hover:bg-slate/85" aria-label="Auto Populate" disabled={!cabinetType} onClick={autoPopulate} title="Auto Populate: recalculate this cabinet's carcass sizes from its W / D / H">
               <Sparkles className="h-3.5 w-3.5" />
             </Button>
           )}
-        </span>
-    )}
+        </div>
+      )}
     </div>
-  );
+  ) : null;
 
   return (
-    <div className="rounded-lg border border-grey-100 bg-card p-3">
+    <div className="po-card rounded-lg border border-ice-200 bg-ice p-3">
       <PoLinesTable
         group={group}
         title={title}
@@ -140,7 +140,14 @@ export function PoCabinetBlock({
         srNo={srNo}
         vars={cabinet ? { W: cabinet.width, D: cabinet.depth, H: cabinet.height } : undefined}
         header={header}
-        subHeader={group === "carcass" ? finishRow : undefined}
+        subHeader={
+          fieldsRow || group === "carcass" ? (
+            <div className="flex flex-col gap-3">
+              {fieldsRow}
+              {group === "carcass" ? finishRow : null}
+            </div>
+          ) : undefined
+        }
         defaultCollapsed
         onChange={onChange}
       />

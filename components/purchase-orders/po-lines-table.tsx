@@ -266,14 +266,14 @@ export function PoLinesTable({
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full min-w-max table-fixed text-left">
-            <thead className="bg-[#DACCCC]">
+            <thead className="bg-ice-300">
               <tr>
                 {cols.map((c) => (
                   <th key={c.key} className={`${th} ${c.width} ${["width", "depth", "height", "qty", "sqft", "rate", "discountPct", "netRate", "amount"].includes(c.key) ? "text-right" : ""}`}>
                     {c.label}
                   </th>
                 ))}
-                <th className="sticky right-0 w-16 bg-[#DACCCC]" />
+                <th className="sticky right-0 w-16 bg-ice-300" />
               </tr>
             </thead>
             <tbody>

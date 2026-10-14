@@ -35,7 +35,7 @@ export function PoComponentsToggle({ unitName }: { unitName?: string }) {
           checked={on}
           // Not applied yet: the dialog below asks first.
           onChange={() => setConfirming(true)}
-          className="h-4 w-4 cursor-pointer accent-primary"
+          className="h-4 w-4 cursor-pointer accent-slate"
         />
       </label>
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
