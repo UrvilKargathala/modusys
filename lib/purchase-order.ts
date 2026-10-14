@@ -124,6 +124,12 @@ export type PoMaterial = {
   // Last W/D/H formula typed in a panel row's Width / Height (key: group|cabinet no|row no in that cabinet|width or height), e.g. "W-10".
   // Only shown while it still gives the cell's value.
   dimNotes?: Record<string, string>;
+  // Shutter / Cabinet Details: extra "Additional External Brand & Colour" picks (labels). For information only: shown in the
+  // editor and the PDF, never used for rates, rows or required-field checks.
+  additionalExternal?: { shutter?: string[]; cabinet?: string[] };
+  // Hardware tab, per merged hardware item (key = brand|description|article no|category|unit, lower case): Stock Qty typed by hand,
+  // the vendor picked in the Received popup, and the deliveries received (Received Qty = their total).
+  hardwareStock?: Record<string, { stock?: number; vendorId?: string; receipts?: { id: string; billNo: string; qty: number; date: string; remark: string }[] }>;
 };
 
 export const brandKey = (brand: string) => brand.trim().toLowerCase();

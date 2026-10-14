@@ -23,6 +23,7 @@ import { blankQuote, type Quote, type QuoteUnit } from "@/lib/mock/quote";
 import { applyShutterFinishToUnits } from "@/lib/quote-pricing";
 import { quotesStore, useQuotes } from "@/lib/store/quotes-store";
 import { quoteTemplateStore } from "@/lib/store/quote-template-store";
+import { FollowPriceListContext } from "@/components/templates/furniture-line-item-row";
 import { toastStore } from "@/lib/store/toast-store";
 
 function initialQuote() {
@@ -90,6 +91,27 @@ function CreateQuotePage() {
         for (const k of shutterKeys) overrides[k] = next[k];
         next.units = applyShutterFinishToUnits(next.units, overrides);
       }
+      // Changing the quote's Product Type never changes the Product Type of existing finish options: they keep the one the quote had
+      // (options made before this showed the quote's current type, so they are pinned to the old one here).
+      if (patch.productTypeId !== undefined && patch.productTypeId !== q.productTypeId && q.productTypeId && (next.finishOptions ?? []).some((o) => !o.productTypeId)) {
+        next.finishOptions = (next.finishOptions ?? []).map((o) => (o.productTypeId ? o : { ...o, productTypeId: q.productTypeId }));
+      }
+      // Finish Options (new quote only): once both the shutter External Colour and the Tandem Drawer Type are picked, option A is
+      // added with them and its Price follows the Final Offer Amount ("live"). When the External Colour or Tandem Drawer Type is
+      // changed afterwards, option A is locked at the price it had; the new selection is added with the Add Option button.
+      if (!editId && (patch.shutterFinishExternalColourId !== undefined || patch.tandemDrawerTypeId !== undefined)) {
+        const options = next.finishOptions ?? [];
+        const changed =
+          (patch.shutterFinishExternalColourId !== undefined && patch.shutterFinishExternalColourId !== q.shutterFinishExternalColourId) ||
+          (patch.tandemDrawerTypeId !== undefined && patch.tandemDrawerTypeId !== q.tandemDrawerTypeId);
+        if (options.length === 0 && next.shutterFinishExternalColourId && next.tandemDrawerTypeId) {
+          next.finishOptions = [
+            { id: `fo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, option: "", externalColourId: next.shutterFinishExternalColourId, tandemDrawerTypeId: next.tandemDrawerTypeId, productTypeId: next.productTypeId, price: 0, priceMode: "live" },
+          ];
+        } else if (changed && options.some((o) => o.priceMode === "live")) {
+          next.finishOptions = options.map((o) => (o.priceMode === "live" ? { ...o, priceMode: "locked" as const } : o));
+        }
+      }
       return next;
     });
 
@@ -132,6 +154,7 @@ function CreateQuotePage() {
   }
 
   return (
+    <FollowPriceListContext.Provider value={!editId}>
     <div className="flex flex-col gap-6">
       <div className="sticky -top-4 z-20 -mx-4 flex flex-col gap-3 border-b border-grey-100 bg-light px-4 py-4 lg:-top-6 lg:-mx-6 lg:px-6">
         <Breadcrumb>
@@ -221,6 +244,7 @@ function CreateQuotePage() {
         onConfirm={() => setQuote(initialQuote())}
       />
     </div>
+    </FollowPriceListContext.Provider>
   );
 }
 

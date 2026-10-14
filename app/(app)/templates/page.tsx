@@ -9,7 +9,7 @@ import { MaterialSpecSection } from "@/components/templates/material-spec-sectio
 import { PricingListSection } from "@/components/templates/pricing-list-section";
 import { CabinetTypeSection } from "@/components/templates/cabinet-type-section";
 import { UnitTypeSection } from "@/components/templates/unit-type-section";
-import { QuoteTemplateSection } from "@/components/templates/quote-template-section";
+import { TemplateHub } from "@/components/templates/template-hub";
 import { CalculatorSection } from "@/components/templates/calculator-section";
 
 const topTabs = [
@@ -17,7 +17,7 @@ const topTabs = [
   { value: "pricing-list", label: "Pricing List" },
   { value: "unit-type", label: "Unit Type" },
   { value: "cabinet-type", label: "Cabinet Type" },
-  { value: "quote-template", label: "Quote Template" },
+  { value: "template", label: "Template" },
   { value: "calculator", label: "Calculator" },
 ];
 
@@ -25,7 +25,9 @@ function TemplatesPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const tab = searchParams.get("tab") ?? "material-spec";
+  const rawTab = searchParams.get("tab") ?? "material-spec";
+  // Old links (?tab=quote-template / purchase-template) open the Template tab.
+  const tab = rawTab === "quote-template" || rawTab === "purchase-template" ? "template" : rawTab;
 
   const setTab = (value: string) => {
     // Sub-tab state (view/category) is per-tab, but the query keys are
@@ -62,8 +64,8 @@ function TemplatesPageContent() {
               <CabinetTypeSection />
             ) : t.value === "unit-type" ? (
               <UnitTypeSection />
-            ) : t.value === "quote-template" ? (
-              <QuoteTemplateSection />
+            ) : t.value === "template" ? (
+              <TemplateHub />
             ) : t.value === "calculator" ? (
               <CalculatorSection />
             ) : (

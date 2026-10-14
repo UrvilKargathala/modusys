@@ -6,10 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PdfField } from "@/components/templates/quote-template/pdf-field";
 import { toastStore } from "@/lib/store/toast-store";
-import { quoteTemplateStore, useQuoteTemplateSettings } from "@/lib/store/quote-template-store";
+import { useTemplateStore, useTemplateSettings } from "@/components/templates/quote-template/template-store-context";
 
 export function BrandingTab({ disabled }: { disabled: boolean }) {
-  const settings = useQuoteTemplateSettings();
+  const store = useTemplateStore();
+  const settings = useTemplateSettings();
   const { branding } = settings;
   const [saveTick, setSaveTick] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -22,7 +23,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
     }
     const reader = new FileReader();
     reader.onload = () => {
-      quoteTemplateStore.updateBranding({ logoDataUrl: reader.result as string });
+      store.updateBranding({ logoDataUrl: reader.result as string });
       bump();
     };
     reader.readAsDataURL(file);
@@ -51,7 +52,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
                   type="button"
                   aria-label="Remove logo"
                   onClick={() => {
-                    quoteTemplateStore.updateBranding({ logoDataUrl: null });
+                    store.updateBranding({ logoDataUrl: null });
                     bump();
                   }}
                   className="rounded p-1.5 text-grey-400 hover:bg-error-transparent hover:text-error"
@@ -80,7 +81,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
             key={String(branding.companyName)}
             defaultValue={branding.companyName}
             onBlur={(e) => {
-              quoteTemplateStore.updateBranding({ companyName: e.target.value });
+              store.updateBranding({ companyName: e.target.value });
               bump();
             }}
           />
@@ -93,7 +94,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
             key={String(branding.tagline)}
             defaultValue={branding.tagline}
             onBlur={(e) => {
-              quoteTemplateStore.updateBranding({ tagline: e.target.value });
+              store.updateBranding({ tagline: e.target.value });
               bump();
             }}
           />
@@ -106,7 +107,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
             key={String(branding.address)}
             defaultValue={branding.address}
             onBlur={(e) => {
-              quoteTemplateStore.updateBranding({ address: e.target.value });
+              store.updateBranding({ address: e.target.value });
               bump();
             }}
           />
@@ -119,7 +120,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
             key={String(branding.addressLine2)}
             defaultValue={branding.addressLine2}
             onBlur={(e) => {
-              quoteTemplateStore.updateBranding({ addressLine2: e.target.value });
+              store.updateBranding({ addressLine2: e.target.value });
               bump();
             }}
           />
@@ -133,7 +134,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
             key={String(branding.email)}
             defaultValue={branding.email}
             onBlur={(e) => {
-              quoteTemplateStore.updateBranding({ email: e.target.value });
+              store.updateBranding({ email: e.target.value });
               bump();
             }}
           />
@@ -146,7 +147,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
             key={String(branding.phone)}
             defaultValue={branding.phone}
             onBlur={(e) => {
-              quoteTemplateStore.updateBranding({ phone: e.target.value });
+              store.updateBranding({ phone: e.target.value });
               bump();
             }}
           />
@@ -172,7 +173,7 @@ export function BrandingTab({ disabled }: { disabled: boolean }) {
             onBlur={(e) => {
               const value = Number(e.target.value);
               if (!Number.isNaN(value) && value > 0) {
-                quoteTemplateStore.updateBranding({ defaultMarkupMultiplier: value });
+                store.updateBranding({ defaultMarkupMultiplier: value });
                 bump();
               }
             }}

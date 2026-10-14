@@ -4,6 +4,7 @@ import { useContext, useState } from "react";
 import { ChevronDown, ChevronRight, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
+import { PoComponentsToggle } from "@/components/purchase-orders/po-components-toggle";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { PoDefaultVendorContext, PoLinesTable, newBlankLine } from "@/components/purchase-orders/po-lines-table";
@@ -140,6 +141,7 @@ export function PoCabinetCard({
         )}
         <div className="flex items-center gap-3">
           <span className="font-number text-base font-semibold text-grey-900">{formatInr(total)}</span>
+          {cabinet && !isManual && <PoComponentsToggle unitName={cabinet.unitName} />}
           {cabinet && !isManual && (
             <Button
               type="button"

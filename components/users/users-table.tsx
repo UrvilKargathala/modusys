@@ -201,6 +201,7 @@ export function UsersTable({ users }: { users: OrgUser[] }) {
           <thead className="bg-[#DACCCC]">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
+                <th className="whitespace-nowrap px-4 py-2.5 text-left text-sm font-semibold uppercase tracking-wide text-grey-900">SR No</th>
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
@@ -217,13 +218,14 @@ export function UsersTable({ users }: { users: OrgUser[] }) {
           <tbody>
             {pagedRows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-8 text-center text-grey-400">
+                <td colSpan={columns.length + 1} className="px-4 py-8 text-center text-grey-400">
                   No users match your search.
                 </td>
               </tr>
             ) : (
-              pagedRows.map((row) => (
+              pagedRows.map((row, idx) => (
                 <tr key={row.id} className="border-b border-grey-100 last:border-0 hover:bg-light-600/60">
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="whitespace-nowrap px-4 py-3 text-grey-700">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}

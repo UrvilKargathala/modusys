@@ -1,10 +1,11 @@
 "use client";
 
 import { RepeatableTextList } from "@/components/templates/quote-template/repeatable-text-list";
-import { quoteTemplateStore, useQuoteTemplateSettings } from "@/lib/store/quote-template-store";
+import { useTemplateStore, useTemplateSettings } from "@/components/templates/quote-template/template-store-context";
 
 export function TermsTab({ disabled }: { disabled: boolean }) {
-  const settings = useQuoteTemplateSettings();
+  const store = useTemplateStore();
+  const settings = useTemplateSettings();
 
   return (
     <div className="flex flex-col gap-8">
@@ -18,10 +19,10 @@ export function TermsTab({ disabled }: { disabled: boolean }) {
           disabled={disabled}
           addLabel="Add Term"
           emptyLabel="No terms added yet."
-          onAdd={(text) => quoteTemplateStore.addTerm(text)}
-          onUpdate={(id, text) => quoteTemplateStore.updateTerm(id, text)}
-          onRemove={(id) => quoteTemplateStore.removeTerm(id)}
-          onMove={(index, direction) => quoteTemplateStore.moveTerm(index, direction)}
+          onAdd={(text) => store.addTerm(text)}
+          onUpdate={(id, text) => store.updateTerm(id, text)}
+          onRemove={(id) => store.removeTerm(id)}
+          onMove={(index, direction) => store.moveTerm(index, direction)}
         />
       </section>
 
@@ -35,10 +36,10 @@ export function TermsTab({ disabled }: { disabled: boolean }) {
           disabled={disabled}
           addLabel="Add Payment Term"
           emptyLabel="No payment terms added yet."
-          onAdd={(text) => quoteTemplateStore.addPaymentTerm(text)}
-          onUpdate={(id, text) => quoteTemplateStore.updatePaymentTerm(id, text)}
-          onRemove={(id) => quoteTemplateStore.removePaymentTerm(id)}
-          onMove={(index, direction) => quoteTemplateStore.movePaymentTerm(index, direction)}
+          onAdd={(text) => store.addPaymentTerm(text)}
+          onUpdate={(id, text) => store.updatePaymentTerm(id, text)}
+          onRemove={(id) => store.removePaymentTerm(id)}
+          onMove={(index, direction) => store.movePaymentTerm(index, direction)}
         />
       </section>
     </div>

@@ -17,8 +17,9 @@ import { materialSpecStore } from "@/lib/store/material-spec-store";
 import { quoteCabinetInfo } from "@/lib/purchase-order-from-quote";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
+import { PoHardwareTab } from "@/components/purchase-orders/po-hardware-tab";
 import { PoCabinetBlock } from "@/components/purchase-orders/po-cabinet-block";
-import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
+import { PoFinishMultiSelect, PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { useVendors, vendorsStore } from "@/lib/store/vendors-store";
@@ -60,7 +61,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   // The Carcass list (all cabinet blocks) starts closed; click the heading to open it.
   const [carcassOpen, setCarcassOpen] = useState(false);
   const [hardwareOpen, setHardwareOpen] = useState(false);
-  const [view, setView] = useState<"component" | "cabinet" | "pending" | "vendor">("component");
+  const [view, setView] = useState<"component" | "cabinet" | "pending" | "vendor" | "hardware">("component");
   // Rate pending: the rows without a rate when the tab was opened. Kept while you type rates so a row doesn't vanish mid-edit.
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [brandSearch, setBrandSearch] = useState("");
@@ -483,6 +484,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             <Label>External Brand & Colour <span className="text-error">*</span></Label>
             <PoFinishSelect kind="external" value={commonFinish("shutter", "externalColour")} onChange={(label) => applyFinish("shutter", "externalColour", label)} />
           </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Additional External Brand & Colour</Label>
+            <PoFinishMultiSelect value={draft.material.additionalExternal?.shutter ?? []} onChange={(v) => setMaterial({ additionalExternal: { ...draft.material.additionalExternal, shutter: v } })} />
+          </div>
         </div>
         <div className={card}>
           <h2 className="font-heading text-base font-semibold text-grey-900">Cabinet Details</h2>
@@ -498,6 +503,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             <Label>External Brand & Colour <span className="text-error">*</span></Label>
             <PoFinishSelect kind="external" value={commonFinish("cabinet", "externalColour")} onChange={(label) => applyFinish("cabinet", "externalColour", label)} />
           </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Additional External Brand & Colour</Label>
+            <PoFinishMultiSelect value={draft.material.additionalExternal?.cabinet ?? []} onChange={(v) => setMaterial({ additionalExternal: { ...draft.material.additionalExternal, cabinet: v } })} />
+          </div>
         </div>
       </div>
 
@@ -510,7 +519,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           )}
           <div className="ml-auto flex items-center gap-2">
             <div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Group rows by">
-              {(["component", "cabinet", "pending", "vendor"] as const).map((v) => (
+              {(["component", "cabinet", "pending", "vendor", "hardware"] as const).map((v) => (
                 <button
                   key={v}
                   type="button"
@@ -522,7 +531,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                   }}
                   className={`rounded-md px-3 py-1 text-sm font-body font-medium transition-colors ${shownView === v ? "bg-primary-transparent text-primary" : "text-grey-600 hover:bg-light-600"}`}
                 >
-                  {v === "component" ? "By component" : v === "cabinet" ? "By cabinet" : v === "vendor" ? "Vendor" : <>Rate pending <span className="font-number">({pendingCount})</span></>}
+                  {v === "component" ? "By component" : v === "cabinet" ? "By cabinet" : v === "vendor" ? "Vendor" : v === "hardware" ? "Hardware" : <>Rate pending <span className="font-number">({pendingCount})</span></>}
                 </button>
               ))}
             </div>
@@ -539,7 +548,16 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             No cabinets yet. Click Add Cabinet, then add its rows.
           </p>
         )}
-        {shownView === "vendor" ? (
+        {shownView === "hardware" ? (
+          <PoHardwareTab
+            lines={draft.lines}
+            stock={draft.material.hardwareStock ?? {}}
+            onStockChange={(key, patch) => {
+              const all = draft.material.hardwareStock ?? {};
+              setMaterial({ hardwareStock: { ...all, [key]: { ...all[key], ...patch } } });
+            }}
+          />
+        ) : shownView === "vendor" ? (
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>

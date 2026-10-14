@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { FinishOptionsTable } from "@/components/quotes/create/finish-options-table";
+import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
+import { quoteRawTotal, quoteWaterfall } from "@/lib/quote-pricing";
 import type { Quote, FinishOption } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +16,22 @@ export function RemarkAndFinishesSection({
   onChange: (patch: Partial<Quote>) => void;
 }) {
   const [collapsed, setCollapsed] = useState(true);
+
+  // A "live" option's Price is the quote's Final Offer Amount, kept up to date; "locked" prices never change.
+  const furnitureItems = useFurniturePriceItems();
+  const hardwareItems = useHardwarePriceItems();
+  const finalOffer = quoteWaterfall(
+    quoteRawTotal(quote.units, furnitureItems, hardwareItems),
+    quote.markupMultiplier,
+    quote.specialDiscountPct,
+    quote.installationFreightIncluded,
+    quote.installationFreightCost
+  ).finalOffer;
+  const options = quote.finishOptions ?? [];
+  useEffect(() => {
+    if (!options.some((o) => o.priceMode === "live" && o.price !== finalOffer)) return;
+    onChange({ finishOptions: options.map((o) => (o.priceMode === "live" ? { ...o, price: finalOffer } : o)) });
+  }, [finalOffer, options, onChange]);
 
   return (
     <section className={cn("flex flex-col gap-6 rounded-xl border border-grey-100 bg-card", collapsed ? "p-4" : "p-6")}>
@@ -29,7 +47,9 @@ export function RemarkAndFinishesSection({
 
       <div className={cn(collapsed && "hidden")}>
         <FinishOptionsTable
-          options={quote.finishOptions ?? []}
+          options={options}
+          // Add Option starts from what is selected now (shutter External Colour + Tandem Drawer Type) at the current Final Offer Amount.
+          current={{ externalColourId: quote.shutterFinishExternalColourId, tandemDrawerTypeId: quote.tandemDrawerTypeId, productTypeId: quote.productTypeId, price: finalOffer }}
           onChange={(finishOptions: FinishOption[]) => onChange({ finishOptions })}
         />
       </div>

@@ -5,10 +5,11 @@ import { FileText, Upload, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PdfField } from "@/components/templates/quote-template/pdf-field";
-import { quoteTemplateStore, useQuoteTemplateSettings } from "@/lib/store/quote-template-store";
+import { useTemplateStore, useTemplateSettings } from "@/components/templates/quote-template/template-store-context";
 
 export function LayoutTab({ disabled }: { disabled: boolean }) {
-  const settings = useQuoteTemplateSettings();
+  const store = useTemplateStore();
+  const settings = useTemplateSettings();
   const { layout } = settings;
   const [saveTick, setSaveTick] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -16,7 +17,7 @@ export function LayoutTab({ disabled }: { disabled: boolean }) {
   const bump = () => setSaveTick((t) => t + 1);
 
   const handleUpload = (file: File) => {
-    quoteTemplateStore.updateLayout({
+    store.updateLayout({
       referencePdfName: file.name,
       referencePdfUploadedAt: new Date().toISOString(),
     });
@@ -47,7 +48,7 @@ export function LayoutTab({ disabled }: { disabled: boolean }) {
                   type="button"
                   aria-label="Remove"
                   onClick={() => {
-                    quoteTemplateStore.updateLayout({ referencePdfName: null, referencePdfUploadedAt: null });
+                    store.updateLayout({ referencePdfName: null, referencePdfUploadedAt: null });
                     bump();
                   }}
                   className="rounded p-1.5 text-grey-400 hover:bg-error-transparent hover:text-error"
@@ -91,7 +92,7 @@ export function LayoutTab({ disabled }: { disabled: boolean }) {
           aria-checked={layout.showUnitLevelPricing}
           disabled={disabled}
           onClick={() => {
-            quoteTemplateStore.updateLayout({ showUnitLevelPricing: !layout.showUnitLevelPricing });
+            store.updateLayout({ showUnitLevelPricing: !layout.showUnitLevelPricing });
             bump();
           }}
           className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
@@ -114,7 +115,7 @@ export function LayoutTab({ disabled }: { disabled: boolean }) {
             key={String(layout.installationFreightText)}
             defaultValue={layout.installationFreightText}
             onBlur={(e) => {
-              quoteTemplateStore.updateLayout({ installationFreightText: e.target.value });
+              store.updateLayout({ installationFreightText: e.target.value });
               bump();
             }}
           />
@@ -127,7 +128,7 @@ export function LayoutTab({ disabled }: { disabled: boolean }) {
             key={String(layout.quoteValidityText)}
             defaultValue={layout.quoteValidityText}
             onBlur={(e) => {
-              quoteTemplateStore.updateLayout({ quoteValidityText: e.target.value });
+              store.updateLayout({ quoteValidityText: e.target.value });
               bump();
             }}
           />
@@ -140,7 +141,7 @@ export function LayoutTab({ disabled }: { disabled: boolean }) {
             key={String(layout.chequePayableTo)}
             defaultValue={layout.chequePayableTo}
             onBlur={(e) => {
-              quoteTemplateStore.updateLayout({ chequePayableTo: e.target.value });
+              store.updateLayout({ chequePayableTo: e.target.value });
               bump();
             }}
           />

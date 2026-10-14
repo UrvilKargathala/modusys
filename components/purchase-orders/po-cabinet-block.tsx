@@ -1,6 +1,7 @@
 "use client";
 
 import { Copy, Sparkles } from "lucide-react";
+import { PoComponentsToggle } from "@/components/purchase-orders/po-components-toggle";
 import { Button } from "@/components/ui/button";
 import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
@@ -114,6 +115,7 @@ export function PoCabinetBlock({
             value={cabinet.remark ?? ""}
             onChange={(e) => onCabinetChange({ ...cabinet, remark: e.target.value })}
           />
+          {group === "carcass" && <PoComponentsToggle unitName={cabinet.unitName} />}
           {group === "carcass" && (
             <Button type="button" size="icon-sm" variant="outline" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
               <Copy className="h-3.5 w-3.5" />

@@ -161,24 +161,6 @@ export function UnitTypeTable() {
                       {canEdit && (
                         <Tooltip>
                           <TooltipTrigger
-                            aria-label="Count components"
-                            render={<span />}
-                            className="inline-flex p-1.5"
-                          >
-                            <input
-                              type="checkbox"
-                              aria-label={`Count components of ${i.name}`}
-                              checked={counted(i)}
-                              onChange={() => unitTypeStore.setCountComponents(i.id, !counted(i))}
-                              className="h-4 w-4 cursor-pointer accent-primary"
-                            />
-                          </TooltipTrigger>
-                          <TooltipContent>{counted(i) ? "Counted, and shown in the purchase order PDF" : "Not counted, and left out of the purchase order PDF"}</TooltipContent>
-                        </Tooltip>
-                      )}
-                      {canEdit && (
-                        <Tooltip>
-                          <TooltipTrigger
                             aria-label="Edit"
                             onClick={() => setEditTarget(i)}
                             className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"

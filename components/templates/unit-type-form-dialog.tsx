@@ -30,6 +30,7 @@ function emptyValues(): NewUnitTypeInput {
     name: "",
     shortCode: "",
     active: true,
+    countComponents: true,
     brandId: "",
     description: "",
     cabinetTypeLinks: [],
@@ -89,6 +90,7 @@ export function UnitTypeFormDialog({
             name: item.name,
             shortCode: item.shortCode,
             active: item.active,
+            countComponents: item.countComponents !== false,
             brandId: item.brandId,
             description: item.description,
             cabinetTypeLinks: item.cabinetTypeLinks,
@@ -243,6 +245,21 @@ export function UnitTypeFormDialog({
                 <option value="inactive">Inactive</option>
               </select>
             </div>
+
+            <label className="mt-4 flex w-fit cursor-pointer items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={values.countComponents !== false}
+                onChange={(e) => setValues((v) => ({ ...v, countComponents: e.target.checked }))}
+                className="mt-0.5 h-4 w-4 cursor-pointer accent-primary"
+              />
+              <span className="flex flex-col">
+                <span className="text-sm font-body font-medium text-grey-900">Components visible</span>
+                <span className="text-xs font-body text-grey-400">
+                  Ticked: the Comp. count shows and its components print in the purchase order PDF. Unticked: the count shows 0 and only the cabinet title prints.
+                </span>
+              </span>
+            </label>
           </TabsContent>
 
           <TabsContent value="components" className="pt-4">

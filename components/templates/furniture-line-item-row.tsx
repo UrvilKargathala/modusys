@@ -1,7 +1,7 @@
 "use client";
 
 import { evaluateFormula } from "@/lib/quote-pricing";
-import { useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Copy, Trash2, AlertTriangle, Plus, ChevronDown, ChevronRight } from "lucide-react";
@@ -14,6 +14,10 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useFurniturePriceItems, pricingListStore } from "@/lib/store/pricing-list-store";
 import { cn } from "@/lib/utils";
 import type { FurnitureLineItem } from "@/lib/mock/unit-type";
+
+// True on the New Quote page (not when editing a saved quote): a component row's Rate then follows the price list for its
+// current combination, shown directly in the Rate box, until the user types a rate of their own.
+export const FollowPriceListContext = createContext(false);
 
 const materialFieldLabel: Record<string, string> = {
   componentTypeId: "Component Name",
@@ -74,6 +78,8 @@ export function FurnitureLineItemRow({
   const [collapsed, setCollapsed] = useState(!!collapsible);
 
   const furnitureItems = useFurniturePriceItems();
+  const followPriceList = useContext(FollowPriceListContext);
+  const [typedRate, setTypedRate] = useState(false);
   const combinationComplete =
     !!value.thicknessId && !!value.rawMaterialTypeId && !!value.internalColourId && !!value.externalColourId;
 
@@ -123,7 +129,13 @@ export function FurnitureLineItemRow({
   // Manual override wins — same rule quote-pricing.ts's effectiveFurnitureRate
   // applies for Amount/subtotal/quote-total math, kept in sync here so the
   // row's own display never disagrees with those totals.
-  const effectiveRate = value.rateOverride ?? match?.rate;
+  const useListRate = followPriceList && !typedRate && !!match;
+  const effectiveRate = useListRate ? match!.rate : (value.rateOverride ?? match?.rate);
+
+  // New Quote: keep the saved rate (used for Amount and totals) equal to the price-list rate, so nothing is left to reset.
+  useEffect(() => {
+    if (useListRate && value.rateOverride !== match!.rate) onChange({ rateOverride: match!.rate });
+  }, [useListRate, match, value.rateOverride, onChange]);
 
   return (
     <div
@@ -306,10 +318,11 @@ export function FurnitureLineItemRow({
               step="0.01"
               min={0}
               placeholder="0.00"
-              value={value.rateOverride ?? (match ? match.rate.toFixed(2) : "")}
+              value={useListRate ? match!.rate.toFixed(2) : (value.rateOverride ?? (match ? match.rate.toFixed(2) : ""))}
               readOnly={rateReadOnly}
               onChange={(e) => {
                 if (rateReadOnly) return;
+                setTypedRate(true);
                 const raw = e.target.value;
                 handleFieldChange({ rateOverride: raw === "" ? undefined : Number(raw) });
               }}
@@ -317,7 +330,7 @@ export function FurnitureLineItemRow({
             />
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">/sq.ft</span>
           </div>
-          {!rateReadOnly && value.rateOverride !== undefined && match && value.rateOverride !== match.rate && (
+          {!rateReadOnly && !followPriceList && value.rateOverride !== undefined && match && value.rateOverride !== match.rate && (
             <button
               type="button"
               onClick={() => handleFieldChange({ rateOverride: undefined })}

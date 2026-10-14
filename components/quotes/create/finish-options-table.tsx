@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Copy, Trash2 } from "lucide-react";
+import { Plus, Copy, Trash2, Lock } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useMaterialItems } from "@/lib/store/material-spec-store";
 import type { FinishOption } from "@/lib/mock/quote";
 
 // Option letter derives from row position: 0→A, 1→B, ..., 25→Z. Simple mod
@@ -26,7 +27,7 @@ function newOption(): FinishOption {
 // Controlled inputs that reformat their value on every keystroke fight the
 // caret and block typing. Keep the raw string while focused; format to
 // en-IN 2-decimal only on blur.
-function PriceInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function PriceInput({ value, onChange, locked = false }: { value: number; onChange: (v: number) => void; locked?: boolean }) {
   const [draft, setDraft] = useState<string | null>(null);
   const formatted = value ? value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
 
@@ -45,19 +46,26 @@ function PriceInput({ value, onChange }: { value: number; onChange: (v: number) 
         onChange(normalized ? Number(normalized) : 0);
       }}
       onBlur={() => setDraft(null)}
-      className="w-32 font-number font-semibold"
+      readOnly={locked}
+      className={`w-32 font-number font-semibold ${locked ? "cursor-not-allowed bg-light-600" : ""}`}
     />
   );
 }
 
 export function FinishOptionsTable({
   options,
+  current,
   onChange,
 }: {
   options: FinishOption[];
+  // What is selected in Material Specification right now, and the Final Offer Amount: the starting point of a new option.
+  current?: { externalColourId: string; tandemDrawerTypeId: string; productTypeId: string; price: number };
   onChange: (next: FinishOption[]) => void;
 }) {
   const [deleteTarget, setDeleteTarget] = useState<FinishOption | null>(null);
+  // Product Type column: the quote's Product Type as it was when the option was made (older options show the current one).
+  const productTypes = useMaterialItems("product-type");
+  const productTypeName = (row: FinishOption) => productTypes.find((m) => m.id === (row.productTypeId || current?.productTypeId))?.name ?? "—";
 
   const update = (id: string, patch: Partial<FinishOption>) =>
     onChange(options.map((o) => (o.id === id ? { ...o, ...patch } : o)));
@@ -66,7 +74,7 @@ export function FinishOptionsTable({
 
   const duplicate = (row: FinishOption) => {
     const idx = options.findIndex((o) => o.id === row.id);
-    const copy: FinishOption = { ...row, id: `fo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
+    const copy: FinishOption = { ...row, id: `fo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, ...(row.priceMode ? { priceMode: "locked" as const } : {}) };
     const next = [...options];
     next.splice(idx + 1, 0, copy);
     onChange(next);
@@ -76,7 +84,21 @@ export function FinishOptionsTable({
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-500">Finish Options</h3>
-        <Button type="button" size="sm" onClick={() => onChange([...options, newOption()])}>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => {
+            // The new option takes the current selection and price, and its price is locked; a live option is locked too.
+            const base = options.map((o) => (o.priceMode === "live" ? { ...o, priceMode: "locked" as const } : o));
+            const fromSpec = !!current && !!current.externalColourId && !!current.tandemDrawerTypeId && current.price > 0;
+            onChange([
+              ...base,
+              fromSpec
+                ? { ...newOption(), externalColourId: current.externalColourId, tandemDrawerTypeId: current.tandemDrawerTypeId, price: current.price, productTypeId: current.productTypeId, priceMode: "locked" as const }
+                : newOption(),
+            ]);
+          }}
+        >
           <Plus className="h-4 w-4" />
           Add Option
         </Button>
@@ -88,6 +110,9 @@ export function FinishOptionsTable({
             <tr>
               <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
                 Option
+              </th>
+              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
+                Product Type
               </th>
               <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
                 External Finish + Tandem Drawer
@@ -106,7 +131,7 @@ export function FinishOptionsTable({
           <tbody>
             {options.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-sm font-body text-grey-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-sm font-body text-grey-400">
                   No options yet. Click &quot;+ Add Option&quot; to add one.
                 </td>
               </tr>
@@ -116,6 +141,7 @@ export function FinishOptionsTable({
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-700">
                     {letterAt(idx)}
                   </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">{productTypeName(row)}</td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="min-w-40 flex-1">
@@ -139,7 +165,10 @@ export function FinishOptionsTable({
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3">
-                    <PriceInput value={row.price} onChange={(price) => update(row.id, { price })} />
+                    <div className="flex items-center gap-1.5" title={row.priceMode === "live" ? "Follows the Final Offer Amount until the External Colour or Tandem Drawer Type is changed" : row.priceMode === "locked" ? "Locked: this price no longer changes" : undefined}>
+                      <PriceInput value={row.price} locked={!!row.priceMode} onChange={(price) => update(row.id, { price })} />
+                      {row.priceMode && <Lock className="h-3.5 w-3.5 text-grey-400" />}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <Input

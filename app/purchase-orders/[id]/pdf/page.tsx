@@ -11,7 +11,7 @@ import { useVendors } from "@/lib/store/vendors-store";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { useUnitTypes } from "@/lib/store/unit-type-store";
-import { useQuoteTemplateSettings } from "@/lib/store/quote-template-store";
+import { usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
 
 // Print route for one PO: A4 landscape, white + black. "Print / Save as PDF"
 // uses the browser's own print engine (same approach as the quote's Print flow).
@@ -22,7 +22,7 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
   const part: PoExportPart = q === "components" || q === "hardware" || q === "cabinets" || q === "cutlist" ? q : "full";
   const orders = usePurchaseOrders();
   const vendors = useVendors();
-  const settings = useQuoteTemplateSettings();
+  const settings = usePurchaseTemplateSettings();
   const unitTypes = useUnitTypes();
   const po = orders.find((o) => o.id === id);
   const vendor = vendors.find((v) => v.id === po?.vendorId);
@@ -80,7 +80,7 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
         )}
       </div>
       <div className="po-sheet mx-auto max-w-[1400px]">
-        <PurchaseOrderSheet po={po} vendor={vendor} vendors={vendors} customer={customer} quoteNumber={quoteNumber} branding={settings.branding} part={part} noComponentCabinets={noComponentCabinets} />
+        <PurchaseOrderSheet po={po} vendor={vendor} vendors={vendors} customer={customer} quoteNumber={quoteNumber} branding={settings.branding} template={settings} part={part} noComponentCabinets={noComponentCabinets} />
       </div>
     </div>
   );

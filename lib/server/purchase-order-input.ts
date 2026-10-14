@@ -68,6 +68,25 @@ export function cleanMaterial(m: unknown) {
         .filter(([k, v]) => k && typeof v === "string")
         .map(([k, v]) => [str(k), str(v)])
     ),
+    additionalExternal: {
+      shutter: list((o.additionalExternal as Record<string, unknown> | undefined)?.shutter),
+      cabinet: list((o.additionalExternal as Record<string, unknown> | undefined)?.cabinet),
+    },
+    hardwareStock: Object.fromEntries(
+      Object.entries((o.hardwareStock ?? {}) as Record<string, Record<string, unknown>>)
+        .filter(([k]) => k)
+        .map(([k, v]) => {
+          const receipts = (Array.isArray(v?.receipts) ? (v.receipts as Record<string, unknown>[]) : []).map((r) => ({
+            id: str(r?.id) || `rc-${Math.random().toString(36).slice(2, 8)}`,
+            billNo: str(r?.billNo).slice(0, 80),
+            qty: num(r?.qty),
+            date: str(r?.date).slice(0, 10),
+            remark: str(r?.remark).slice(0, 300),
+          }));
+          return [str(k), { ...(typeof v?.stock === "number" && Number.isFinite(v.stock) ? { stock: v.stock } : {}), ...(str(v?.vendorId) ? { vendorId: str(v?.vendorId) } : {}), ...(receipts.length ? { receipts } : {}) }] as const;
+        })
+        .filter(([, v]) => Object.keys(v).length > 0)
+    ),
     dimNotes: Object.fromEntries(
       Object.entries((o.dimNotes ?? {}) as Record<string, unknown>)
         .filter(([k, v]) => k && typeof v === "string" && v)

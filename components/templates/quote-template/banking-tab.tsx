@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PdfField } from "@/components/templates/quote-template/pdf-field";
-import { quoteTemplateStore, useQuoteTemplateSettings } from "@/lib/store/quote-template-store";
+import { useTemplateStore, useTemplateSettings } from "@/components/templates/quote-template/template-store-context";
 
 function maskAccountNumber(value: string) {
   if (value.length <= 4) return value;
@@ -12,7 +12,8 @@ function maskAccountNumber(value: string) {
 }
 
 export function BankingTab({ disabled }: { disabled: boolean }) {
-  const settings = useQuoteTemplateSettings();
+  const store = useTemplateStore();
+  const settings = useTemplateSettings();
   const { banking } = settings;
   const [saveTick, setSaveTick] = useState(0);
   const [revealAccount, setRevealAccount] = useState(false);
@@ -28,7 +29,7 @@ export function BankingTab({ disabled }: { disabled: boolean }) {
             key={String(banking.bankName)}
             defaultValue={banking.bankName}
             onBlur={(e) => {
-              quoteTemplateStore.updateBanking({ bankName: e.target.value });
+              store.updateBanking({ bankName: e.target.value });
               bump();
             }}
           />
@@ -40,7 +41,7 @@ export function BankingTab({ disabled }: { disabled: boolean }) {
             key={String(banking.branch)}
             defaultValue={banking.branch}
             onBlur={(e) => {
-              quoteTemplateStore.updateBanking({ branch: e.target.value });
+              store.updateBanking({ branch: e.target.value });
               bump();
             }}
           />
@@ -52,7 +53,7 @@ export function BankingTab({ disabled }: { disabled: boolean }) {
             key={String(banking.accountName)}
             defaultValue={banking.accountName}
             onBlur={(e) => {
-              quoteTemplateStore.updateBanking({ accountName: e.target.value });
+              store.updateBanking({ accountName: e.target.value });
               bump();
             }}
           />
@@ -70,7 +71,7 @@ export function BankingTab({ disabled }: { disabled: boolean }) {
               defaultValue={banking.accountNumber}
               className="pr-8 font-number"
               onBlur={(e) => {
-                quoteTemplateStore.updateBanking({ accountNumber: e.target.value });
+                store.updateBanking({ accountNumber: e.target.value });
                 bump();
               }}
             />
@@ -91,7 +92,7 @@ export function BankingTab({ disabled }: { disabled: boolean }) {
             key={String(banking.ifscCode)}
             defaultValue={banking.ifscCode}
             onBlur={(e) => {
-              quoteTemplateStore.updateBanking({ ifscCode: e.target.value.toUpperCase() });
+              store.updateBanking({ ifscCode: e.target.value.toUpperCase() });
               bump();
             }}
           />

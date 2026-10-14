@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { PdfField } from "@/components/templates/quote-template/pdf-field";
-import { quoteTemplateStore, useQuoteTemplateSettings } from "@/lib/store/quote-template-store";
+import { useTemplateStore, useTemplateSettings } from "@/components/templates/quote-template/template-store-context";
 
 export function SignatureTab({ disabled }: { disabled: boolean }) {
-  const settings = useQuoteTemplateSettings();
+  const store = useTemplateStore();
+  const settings = useTemplateSettings();
   const { signature } = settings;
   const [saveTick, setSaveTick] = useState(0);
   const bump = () => setSaveTick((t) => t + 1);
@@ -21,7 +22,7 @@ export function SignatureTab({ disabled }: { disabled: boolean }) {
             key={String(signature.companyName)}
             defaultValue={signature.companyName}
             onBlur={(e) => {
-              quoteTemplateStore.updateSignature({ companyName: e.target.value });
+              store.updateSignature({ companyName: e.target.value });
               bump();
             }}
           />
@@ -34,7 +35,7 @@ export function SignatureTab({ disabled }: { disabled: boolean }) {
             key={String(signature.signatureTitle)}
             defaultValue={signature.signatureTitle}
             onBlur={(e) => {
-              quoteTemplateStore.updateSignature({ signatureTitle: e.target.value });
+              store.updateSignature({ signatureTitle: e.target.value });
               bump();
             }}
           />
@@ -50,7 +51,7 @@ export function SignatureTab({ disabled }: { disabled: boolean }) {
           rows={2}
           className="w-full rounded-lg border border-grey-100 bg-transparent px-2.5 py-1.5 text-sm font-body text-grey-700 outline-none focus:border-primary disabled:opacity-50 lg:max-w-2xl"
           onBlur={(e) => {
-            quoteTemplateStore.updateSignature({ additionalFooterText: e.target.value });
+            store.updateSignature({ additionalFooterText: e.target.value });
             bump();
           }}
         />

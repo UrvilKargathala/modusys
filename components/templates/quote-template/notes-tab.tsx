@@ -1,10 +1,11 @@
 "use client";
 
 import { RepeatableTextList } from "@/components/templates/quote-template/repeatable-text-list";
-import { quoteTemplateStore, useQuoteTemplateSettings } from "@/lib/store/quote-template-store";
+import { useTemplateStore, useTemplateSettings } from "@/components/templates/quote-template/template-store-context";
 
 export function NotesTab({ disabled }: { disabled: boolean }) {
-  const settings = useQuoteTemplateSettings();
+  const store = useTemplateStore();
+  const settings = useTemplateSettings();
 
   return (
     <div className="flex flex-col gap-3">
@@ -19,10 +20,10 @@ export function NotesTab({ disabled }: { disabled: boolean }) {
         disabled={disabled}
         addLabel="Add Note"
         emptyLabel="No notes added yet."
-        onAdd={(text) => quoteTemplateStore.addNote(text)}
-        onUpdate={(id, text) => quoteTemplateStore.updateNote(id, text)}
-        onRemove={(id) => quoteTemplateStore.removeNote(id)}
-        onMove={(index, direction) => quoteTemplateStore.moveNote(index, direction)}
+        onAdd={(text) => store.addNote(text)}
+        onUpdate={(id, text) => store.updateNote(id, text)}
+        onRemove={(id) => store.removeNote(id)}
+        onMove={(index, direction) => store.moveNote(index, direction)}
       />
     </div>
   );

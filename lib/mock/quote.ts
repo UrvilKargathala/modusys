@@ -76,8 +76,13 @@ export type FinishOption = {
   option: string;              // "A" | "B" | "C"
   externalColourId: string;    // Material Library → external-colour
   tandemDrawerTypeId: string;  // Material Specification → tandem-drawer-type
+  // The quote's Product Type when the option was made; absent on older options, which show the quote's current one.
+  productTypeId?: string;
   price: number;
   remarks?: string;
+  // "live": the Final Offer Amount, kept up to date automatically (option A on a new quote, until the spec changes).
+  // "locked": a price captured at one moment that no longer changes. Absent: a price typed by hand.
+  priceMode?: "live" | "locked";
 };
 
 export function blankQuoteUnit(): QuoteUnit {

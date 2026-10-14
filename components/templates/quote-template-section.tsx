@@ -13,7 +13,8 @@ import { NotesTab } from "@/components/templates/quote-template/notes-tab";
 import { TermsTab } from "@/components/templates/quote-template/terms-tab";
 import { SignatureTab } from "@/components/templates/quote-template/signature-tab";
 import { PreviewModal } from "@/components/templates/quote-template/preview-modal";
-import { useQuoteTemplateSettings } from "@/lib/store/quote-template-store";
+import { purchaseTemplateStore, quoteTemplateStore } from "@/lib/store/quote-template-store";
+import { TemplateStoreContext, useTemplateSettings } from "@/components/templates/quote-template/template-store-context";
 import { getCurrentUser } from "@/lib/session";
 
 const subTabs = [
@@ -25,13 +26,24 @@ const subTabs = [
   { value: "signature", label: "Signature" },
 ];
 
-export function QuoteTemplateSection() {
+// kind "purchase" = the Purchase Template: same tabs, its own saved settings, used by the purchase order PDFs.
+export function QuoteTemplateSection({ kind = "quote" }: { kind?: "quote" | "purchase" }) {
+  const store = kind === "purchase" ? purchaseTemplateStore : quoteTemplateStore;
+  return (
+    <TemplateStoreContext.Provider value={store}>
+      <TemplateEditor kind={kind} />
+    </TemplateStoreContext.Provider>
+  );
+}
+
+function TemplateEditor({ kind }: { kind: "quote" | "purchase" }) {
+  const purchase = kind === "purchase";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const subTab = searchParams.get("qtView") ?? "layout";
   const [previewOpen, setPreviewOpen] = useState(false);
-  const settings = useQuoteTemplateSettings();
+  const settings = useTemplateSettings();
 
   const role = getCurrentUser().role;
   const canView = role !== "staff";
@@ -39,7 +51,8 @@ export function QuoteTemplateSection() {
 
   const setSubTab = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", "quote-template");
+    params.set("tab", "template");
+    params.set("tpl", purchase ? "purchase" : "quote");
     params.set("qtView", value);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
@@ -48,7 +61,7 @@ export function QuoteTemplateSection() {
     return (
       <EmptyState
         icon={Lock}
-        message="Quote Template settings are only available to Super Admin and Admin."
+        message={`${purchase ? "Purchase" : "Quote"} Template settings are only available to Super Admin and Admin.`}
       />
     );
   }
@@ -57,15 +70,17 @@ export function QuoteTemplateSection() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="font-heading text-2xl font-semibold text-grey-900">Quote Template</h1>
+          <h1 className="font-heading text-2xl font-semibold text-grey-900">{purchase ? "Purchase Template" : "Quote Template"}</h1>
           <p className="text-sm font-body text-grey-400">
-            Configure the branding, banking, and clauses that render on every client-facing Quote PDF
+            {purchase ? "Configure the branding, banking, and clauses that render on every Purchase Order PDF" : "Configure the branding, banking, and clauses that render on every client-facing Quote PDF"}
           </p>
         </div>
-        <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)}>
-          <Eye className="h-4 w-4" />
-          Preview
-        </Button>
+        {!purchase && (
+          <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)}>
+            <Eye className="h-4 w-4" />
+            Preview
+          </Button>
+        )}
       </div>
 
       <Tabs value={subTab} onValueChange={(value) => setSubTab(String(value))}>

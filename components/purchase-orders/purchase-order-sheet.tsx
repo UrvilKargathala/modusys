@@ -1,5 +1,6 @@
 import type { Customer } from "@/lib/mock/pipeline";
 import { Fragment } from "react";
+import type { QuoteTemplateSettings } from "@/lib/mock/quote-template";
 import { CUT_LIST_HEADERS, HW_HEADERS, cabinetTitle, PANEL_HEADERS, cutListRows, byCabinet, carcassHeadingCells, groupsFor, poDetailSections, type PoExportPart } from "@/lib/purchase-order-export";
 import { COMPANY_GST, brandVendorName, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
 
@@ -46,7 +47,7 @@ const rowsList = (rows: [string, string][]) =>
   rows.map(([k, v], i) => (
     <div key={i} className="flex gap-2">
       <span className="w-20 shrink-0 text-grey-500">{k}</span>
-      <span className="min-w-0 font-medium text-grey-900"><Nums>{v || "—"}</Nums></span>
+      <span className="min-w-0 whitespace-pre-line font-medium text-grey-900"><Nums>{v || "—"}</Nums></span>
     </div>
   ));
 
@@ -56,6 +57,23 @@ function Info({ title, rows }: { title: string; rows: [string, string][] }) {
     <div className={`flex h-full flex-col overflow-hidden rounded-lg border break-inside-avoid ${tone.box}`}>
       <div className={`px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white ${tone.bar}`}>{title}</div>
       <div className="flex flex-1 flex-col gap-1 p-2.5">{rowsList(rows)}</div>
+    </div>
+  );
+}
+
+// A numbered list of template clauses (notes / terms / payment terms); nothing shows when the list is empty.
+function ClauseList({ title, items }: { title: string; items: { id: string; text: string }[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="overflow-hidden rounded-lg border border-grey-200">
+      <div className="bg-grey-800 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white">{title}</div>
+      <ol className="flex list-decimal flex-col gap-1 p-2.5 pl-6 text-[10px] text-grey-700">
+        {items.map((i) => (
+          <li key={i.id}>
+            <Nums>{i.text}</Nums>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }
@@ -247,7 +265,7 @@ function CabinetSummaryTable({ po, noComponentCabinets }: { po: PurchaseOrder; n
 }
 
 // Printable PO (A4 landscape): letterhead, detail cards, one colour-coded section per group, signature. No prices anywhere.
-export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber, branding, part = "full", noComponentCabinets = new Set<number>() }: { noComponentCabinets?: Set<number>; po: PurchaseOrder; vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: Branding; part?: PoExportPart; vendors?: Vendor[] }) {
+export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber, branding, part = "full", template, noComponentCabinets = new Set<number>() }: { template?: QuoteTemplateSettings; noComponentCabinets?: Set<number>; po: PurchaseOrder; vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: Branding; part?: PoExportPart; vendors?: Vendor[] }) {
   const groups = groupsFor(part).filter((g) => po.lines.some((l) => l.group === g.key));
   const partial = part === "components" || part === "hardware";
   const details = poDetailSections(po, { vendor, customer, quoteNumber, branding });
@@ -255,7 +273,12 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
     const sec = details.find((d) => d.title === title);
     if (!sec) return null;
     const short: Record<string, string> = { "Shutter Raw Material": "Raw Material", "Cabinet Raw Material": "Raw Material", "Internal Brand & Colour": "Internal", "External Brand & Colour": "External" };
-    const rows = (title === "Customer Details" ? sec.rows.filter(([k]) => k !== "Mobile" && k !== "Address") : sec.rows)
+    const extra = title === "Shutter Details" ? po.material.additionalExternal?.shutter : title === "Cabinet Details" ? po.material.additionalExternal?.cabinet : undefined;
+    const rows = [
+      ...(title === "Customer Details" ? sec.rows.filter(([k]) => k !== "Mobile" && k !== "Address") : sec.rows),
+      // Additional External Brand & Colour (information only), one per line.
+      ...(extra && extra.length ? ([["Additional External", extra.join("\n")]] as [string, string][]) : []),
+    ]
       .filter(([, v]) => v)
       .map(([k, v]) => [title === "Shutter Details" || title === "Cabinet Details" ? (short[k] ?? k) : k, v] as [string, string]);
     return <Info title={title} rows={rows} />;
@@ -352,10 +375,34 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
         </div>
       </div>
 
+      {/* Purchase Template: notes, terms, payment terms and bank details, one under the other (Purchase Order PDFs only, not the Material Slips) */}
+      {template && !partial && !cutList && (
+        <div className="flex flex-col gap-3">
+          <ClauseList title="Notes" items={template.notes} />
+          <ClauseList title="Terms" items={template.terms} />
+          <ClauseList title="Payment Terms" items={template.paymentTerms} />
+          {template.banking.bankName && (
+            <Info
+              title="Bank Details"
+              rows={[
+                ["Bank", template.banking.bankName],
+                ["Branch", template.banking.branch],
+                ["Account Name", template.banking.accountName],
+                ["Account No", template.banking.accountNumber],
+                ["IFSC", template.banking.ifscCode],
+              ]}
+            />
+          )}
+        </div>
+      )}
+
       <div className="mt-6 flex justify-end break-inside-avoid">
         <div className="flex w-80 flex-col items-center gap-12">
-          <p className="text-[14px] font-semibold">For, {branding.companyName}</p>
-          <p className="w-full pt-1 text-center">Authorised Signature</p>
+          <p className="text-[14px] font-semibold">For, {template?.signature.companyName || branding.companyName}</p>
+          <div className="flex w-full flex-col items-center gap-1 pt-1 text-center">
+            <p>{template?.signature.signatureTitle || "Authorised Signature"}</p>
+            {template?.signature.additionalFooterText && <p className="text-[10px] text-grey-500">{template.signature.additionalFooterText}</p>}
+          </div>
         </div>
       </div>
     </div>
