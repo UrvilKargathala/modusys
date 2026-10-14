@@ -29,18 +29,13 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
   const customer = useCustomers().find((c) => c.id === po?.customerId);
   const quoteNumber = useQuotes().find((q) => q.id === po?.quoteId)?.quoteNumber;
 
-  // Unit types unticked in Templates > Unit Type: their cabinets' Carcass rows are left out of the PDF
+  // Unit types unticked in Templates > Unit Type: their cabinets show just the cabinet title in Carcass, with no component rows
   // (Shutter, Other Panel and hardware stay; the PO itself and the Excel are unchanged). A cabinet is matched to its unit type by name.
   // ponytail: two unit types sharing one name both follow the first match.
   const hiddenNames = new Set(unitTypes.filter((u) => u.countComponents === false).map((u) => u.name));
-  // Material Slip keeps every cabinet row and instead leaves out the component rows under the unticked ones (noComponentCabinets).
   const noComponentCabinets = new Set(
     (po?.lines ?? []).filter((l) => l.group === "carcass" && hiddenNames.has(po?.material.cabinets?.[String(l.srNo)]?.unitName ?? "")).map((l) => l.srNo)
   );
-  const sheetPo =
-    po && hiddenNames.size > 0 && part !== "cabinets"
-      ? { ...po, lines: po.lines.filter((l) => l.group !== "carcass" || !hiddenNames.has(po.material.cabinets?.[String(l.srNo)]?.unitName ?? "")) }
-      : po;
 
   // The browser uses document.title as the default PDF file name.
   useEffect(() => {
@@ -85,7 +80,7 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
         )}
       </div>
       <div className="po-sheet mx-auto max-w-[1400px]">
-        <PurchaseOrderSheet po={sheetPo ?? po} vendor={vendor} vendors={vendors} customer={customer} quoteNumber={quoteNumber} branding={settings.branding} part={part} noComponentCabinets={noComponentCabinets} />
+        <PurchaseOrderSheet po={po} vendor={vendor} vendors={vendors} customer={customer} quoteNumber={quoteNumber} branding={settings.branding} part={part} noComponentCabinets={noComponentCabinets} />
       </div>
     </div>
   );

@@ -113,19 +113,23 @@ function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<
 }
 
 // plain = no cabinet heading rows (used in the Purchase Order (cabinet) PDF); the TOTAL row (qty, sq.ft) stays. Sr stays cabinet.row (1.1, 2.3) as in Full Details.
-function PanelTable({ group, title, lines, po, plain = false }: { group: PoGroup; title: string; lines: PurchaseOrderLine[]; po: PurchaseOrder; plain?: boolean }) {
-  const qty = lines.reduce((s, l) => s + l.qty, 0);
-  const sqft = lines.reduce((s, l) => s + l.sqft, 0);
+// hideRows = cabinets (Carcass only) whose unit type is unticked: only the cabinet title row shows, no component rows, and
+// they are not counted in the TOTAL.
+function PanelTable({ group, title, lines, po, plain = false, hideRows }: { group: PoGroup; title: string; lines: PurchaseOrderLine[]; po: PurchaseOrder; plain?: boolean; hideRows?: Set<number> }) {
+  const hidden = (srNo: number) => group === "carcass" && !!hideRows?.has(srNo);
+  const shown = lines.filter((l) => !hidden(l.srNo));
+  const qty = shown.reduce((s, l) => s + l.qty, 0);
+  const sqft = shown.reduce((s, l) => s + l.sqft, 0);
   return (
     <section className="break-inside-auto">
-      <Band group={group} title={title} count={lines.length} />
+      <Band group={group} title={title} count={shown.length} />
       <table className="w-full border-collapse text-[10px]">
         <thead><Header group={group} headers={noPrice(PANEL_HEADERS)} /></thead>
         <tbody>
           {byCabinet(po, group).map((c) => (
             <Fragment key={c.srNo}>
-              {!plain && <CarcassHeadingRow po={po} c={c} group={group} />}
-              {c.rows.map(({ l, sr }, i) => (
+              {(!plain || hidden(c.srNo)) && <CarcassHeadingRow po={po} c={c} group={group} />}
+              {(hidden(c.srNo) ? [] : c.rows).map(({ l, sr }, i) => (
                 <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
                   <td className={`${cell} po-num`}>{sr}</td>
                   <td className={cell}><Nums>{l.description}</Nums></td>
@@ -228,15 +232,15 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
 const PART_LABEL: Record<PoExportPart, string> = { full: "Full Details", components: "Components", hardware: "Hardware", cabinets: "Cabinets", cutlist: "Cut List" };
 
 // Material Slip: the component rows only (Top Panel, LH Side Panel...) for Carcass, Shutter and Other Panel, no cabinet
-// or unit rows and no hardware. Carcass rows of cabinets whose unit type is unticked (noComponentCabinets) are left out.
+// or unit rows and no hardware. Cabinets whose unit type is unticked (noComponentCabinets) show only their title in Carcass.
 function CabinetSummaryTable({ po, noComponentCabinets }: { po: PurchaseOrder; noComponentCabinets: Set<number> }) {
   return (
     <>
       {groupsFor("full").map((g) => {
         if (g.key === "hardware") return null;
-        const lines = po.lines.filter((l) => l.group === g.key && (g.key !== "carcass" || !noComponentCabinets.has(l.srNo)));
+        const lines = po.lines.filter((l) => l.group === g.key);
         if (lines.length === 0) return null;
-        return <PanelTable key={g.key} group={g.key} title={`${g.code}. ${g.label}`} lines={lines} po={{ ...po, lines }} plain />;
+        return <PanelTable key={g.key} group={g.key} title={`${g.code}. ${g.label}`} lines={lines} po={po} plain hideRows={noComponentCabinets} />;
       })}
     </>
   );
@@ -336,7 +340,7 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
         return g.key === "hardware" ? (
           <HardwareTable key={g.key} title={title} lines={lines} po={po} vendors={vendors} merged={part === "hardware"} />
         ) : (
-          <PanelTable key={g.key} group={g.key} title={title} lines={lines} po={po} />
+          <PanelTable key={g.key} group={g.key} title={title} lines={lines} po={po} hideRows={noComponentCabinets} />
         );
       })}
 
