@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/shared/select-field";
 import { Label } from "@/components/ui/label";
 import { RoleInfoPopover } from "@/components/users/role-info-popover";
 import { roles, type RoleKey } from "@/lib/constants/roles";
@@ -10,7 +11,7 @@ export function RoleSelectField({
 }: {
   id: string;
   value: RoleKey | "";
-  registerProps: React.ComponentProps<"select">;
+  registerProps: React.ComponentProps<typeof SelectField>;
   error?: string;
 }) {
   return (
@@ -19,7 +20,7 @@ export function RoleSelectField({
         <Label htmlFor={id}>Role</Label>
         <RoleInfoPopover roleKey={value} />
       </div>
-      <select
+      <SelectField
         id={id}
         {...registerProps}
         defaultValue=""
@@ -33,7 +34,7 @@ export function RoleSelectField({
             {role.label}
           </option>
         ))}
-      </select>
+      </SelectField>
       {error && <span className="text-xs font-body text-error">{error}</span>}
     </div>
   );

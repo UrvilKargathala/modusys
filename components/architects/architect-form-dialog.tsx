@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -316,7 +317,7 @@ export function ArchitectFormDialog({
           <div className="flex flex-col gap-1.5">
             <Label>Birthday</Label>
             <div className="grid grid-cols-3 gap-3">
-              <select
+              <SelectField
                 id="a-bday-day"
                 aria-label="Birthday day"
                 {...register("birthdayDay")}
@@ -328,8 +329,8 @@ export function ArchitectFormDialog({
                     {d}
                   </option>
                 ))}
-              </select>
-              <select
+              </SelectField>
+              <SelectField
                 id="a-bday-month"
                 aria-label="Birthday month"
                 {...register("birthdayMonth")}
@@ -341,8 +342,8 @@ export function ArchitectFormDialog({
                     {m}
                   </option>
                 ))}
-              </select>
-              <select
+              </SelectField>
+              <SelectField
                 id="a-bday-year"
                 aria-label="Birthday year"
                 {...register("birthdayYear")}
@@ -354,7 +355,7 @@ export function ArchitectFormDialog({
                     {y}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </div>
           </div>
 

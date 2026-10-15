@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { cn } from "@/lib/utils";
 import { Fragment, createContext, useContext, useState, type ReactNode } from "react";
 import { AlertTriangle, ChevronDown, ChevronRight, Copy, Plus, X } from "lucide-react";
@@ -292,7 +293,7 @@ export function PoLinesTable({
                   {cols.map((c) => (
                     <td key={c.key} className="px-1 py-1">
                       {c.key === "vendor" && !hardware ? (
-                        <select
+                        <SelectField
                           aria-label={`Row ${l.srNo} vendor`}
                           className={`${cell} truncate`}
                           value={l.vendorId ?? ""}
@@ -303,7 +304,7 @@ export function PoLinesTable({
                           {vendors.filter((v) => v.id !== vendorFor(l.srNo)).map((v) => (
                             <option key={v.id} value={v.id}>{v.name}</option>
                           ))}
-                        </select>
+                        </SelectField>
                       ) : c.key === "vendor" ? (
                         <span className="block truncate px-2 text-sm text-grey-700" title="Set in the Vendor tab">{brandVendor(l.brand) || "—"}</span>
                       ) : c.key === "netRate" ? (

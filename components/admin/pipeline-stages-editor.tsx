@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useEffect, useState } from "react";
 import { Plus, Trash2, ArchiveRestore, Archive, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -197,7 +198,7 @@ export function PipelineStagesEditor() {
                     }}
                     className="min-w-0 flex-1 rounded border border-transparent bg-transparent px-2 py-1 text-sm font-body text-grey-900 hover:border-grey-100 focus:border-primary focus:outline-none"
                   />
-                  <select
+                  <SelectField
                     value={s.color}
                     onChange={(e) => patch(s.key, { color: e.target.value as PipelineStageColor })}
                     className="rounded-md border border-grey-200 px-2 py-1 text-xs font-body text-grey-700"
@@ -205,7 +206,7 @@ export function PipelineStagesEditor() {
                     {COLORS.map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
-                  </select>
+                  </SelectField>
                   {s.retired && (
                     <span className="rounded-full bg-grey-100 px-2 py-0.5 text-[10px] font-body text-grey-500">
                       Retired

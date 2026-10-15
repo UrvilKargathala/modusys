@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useState } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
@@ -51,7 +52,7 @@ export function UnitTypeComponentsSection({
   const cabinetTypes = useCabinetTypes();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
-  // Custom Popover-based dropdown instead of a native <select> — a native
+  // Custom Popover-based dropdown instead of a native <SelectField> — a native
   // select's option list renders as OS-level browser chrome, and clicks on
   // it can get swallowed by the modal Dialog's focus trap.
   const [addOpen, setAddOpen] = useState(false);

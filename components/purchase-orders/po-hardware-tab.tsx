@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useContext, useMemo, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -86,12 +87,12 @@ function ReceivedDialog({
             return (
               <div key={r.id} className={`grid min-w-[60rem] items-center gap-2 ${cols}`}>
                 <span className="px-1 font-number text-sm text-grey-500">{i + 1}</span>
-                <select aria-label="Vendor" className={cell} value={r.vendorId ?? ""} onChange={(e) => patch(r.id, { vendorId: e.target.value })}>
+                <SelectField aria-label="Vendor" className={cell} value={r.vendorId ?? ""} onChange={(e) => patch(r.id, { vendorId: e.target.value })}>
                   <option value="">Select vendor</option>
                   {vendors.map((v) => (
                     <option key={v.id} value={v.id}>{v.name}</option>
                   ))}
-                </select>
+                </SelectField>
                 <span className="truncate font-number text-[13px] text-grey-900" title={vendor?.gst}>{vendor?.gst || "—"}</span>
                 <span className="truncate text-[13px] text-grey-900">{[vendor?.city, vendor?.state].filter(Boolean).join(", ") || "—"}</span>
                 <input aria-label="Bill No" className={cell} value={r.billNo} onChange={(e) => patch(r.id, { billNo: e.target.value })} />

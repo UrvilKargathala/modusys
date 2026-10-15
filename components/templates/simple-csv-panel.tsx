@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useRef, useState } from "react";
 import { FileSpreadsheet, Upload, FileDown, Info } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -210,7 +211,7 @@ export function SimpleCsvPanel({ label, kind }: { label: string; kind: "furnitur
 
   return (
     <div className="flex shrink-0 items-center gap-1">
-      <select
+      <SelectField
         aria-label="Import Mode"
         value={mode}
         onChange={(e) => setMode(e.target.value as ImportMode)}
@@ -219,7 +220,7 @@ export function SimpleCsvPanel({ label, kind }: { label: string; kind: "furnitur
         <option value="upsert">Upsert</option>
         <option value="insert-only">Insert Only</option>
         <option value="update-only">Update Only</option>
-      </select>
+      </SelectField>
       <Tooltip>
         <TooltipTrigger className="flex items-center text-grey-400 hover:text-grey-600">
           <Info className="h-4 w-4" />

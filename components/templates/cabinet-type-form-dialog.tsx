@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useEffect, useState } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
@@ -146,7 +147,7 @@ export function CabinetTypeFormDialog({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="ct-status">Status</Label>
-              <select
+              <SelectField
                 id="ct-status"
                 value={values.active ? "active" : "inactive"}
                 onChange={(e) => setValues((v) => ({ ...v, active: e.target.value === "active" }))}
@@ -154,7 +155,7 @@ export function CabinetTypeFormDialog({
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
-              </select>
+              </SelectField>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label>Brand *</Label>

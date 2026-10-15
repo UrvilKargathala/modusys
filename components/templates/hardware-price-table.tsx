@@ -1,4 +1,5 @@
 "use client";
+import { SelectField } from "@/components/shared/select-field";
 import { Nums } from "@/components/shared/nums";
 
 import { useMemo, useState } from "react";
@@ -136,7 +137,7 @@ export function HardwarePriceTable() {
               className="w-full rounded-lg border border-grey-100 bg-card py-1.5 pl-8 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
             />
           </div>
-          <select
+          <SelectField
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="rounded-lg border border-grey-100 bg-card px-3 py-1.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
@@ -147,8 +148,8 @@ export function HardwarePriceTable() {
                 {c.name}
               </option>
             ))}
-          </select>
-          <select
+          </SelectField>
+          <SelectField
             value={brandFilter}
             onChange={(e) => setBrandFilter(e.target.value)}
             className="rounded-lg border border-grey-100 bg-card px-3 py-1.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
@@ -159,7 +160,7 @@ export function HardwarePriceTable() {
                 {b.name}
               </option>
             ))}
-          </select>
+          </SelectField>
           <Button size="sm" onClick={() => setAddOpen(true)}>
             <Plus className="h-4 w-4" />
             Add Hardware
@@ -170,7 +171,7 @@ export function HardwarePriceTable() {
       {canEdit && selectedIds.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg bg-primary-transparent px-3 py-2 text-sm font-body text-primary">
           <span className="font-medium"><span className="font-number">{selectedIds.length}</span> selected</span>
-          <select
+          <SelectField
             defaultValue=""
             onChange={(e) => {
               const value = e.target.value;
@@ -192,8 +193,8 @@ export function HardwarePriceTable() {
                 {c.name}
               </option>
             ))}
-          </select>
-          <select
+          </SelectField>
+          <SelectField
             defaultValue=""
             onChange={(e) => {
               const value = e.target.value;
@@ -215,7 +216,7 @@ export function HardwarePriceTable() {
                 {b.name}
               </option>
             ))}
-          </select>
+          </SelectField>
           <button
             type="button"
             onClick={() =>

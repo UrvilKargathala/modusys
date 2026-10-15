@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -207,7 +208,7 @@ export function UsersEmployeesLinker() {
             </div>
             <label className="flex flex-col gap-1 text-xs font-body font-medium text-grey-500">
               Employee record
-              <select
+              <SelectField
                 value={pickerEmpId}
                 onChange={(e) => setPickerEmpId(e.target.value)}
                 className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900"
@@ -218,7 +219,7 @@ export function UsersEmployeesLinker() {
                     {e.name}{e.email ? ` · ${e.email}` : ""}{e.department ? ` · ${e.department}` : ""}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </label>
             <div className="flex gap-2">
               <Button

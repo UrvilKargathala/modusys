@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -88,7 +89,7 @@ export function PurchaseFurniturePriceFormDialog({
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="pfp-vendor">Vendor Name</Label>
-            <select
+            <SelectField
               id="pfp-vendor"
               className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
               value={values.vendorId ?? ""}
@@ -98,7 +99,7 @@ export function PurchaseFurniturePriceFormDialog({
               {vendors.map((v) => (
                 <option key={v.id} value={v.id}>{v.name}</option>
               ))}
-            </select>
+            </SelectField>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Thickness</Label>

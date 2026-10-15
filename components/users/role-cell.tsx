@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { AlertTriangle, ChevronDown } from "lucide-react";
 import { roles, type RoleKey } from "@/lib/constants/roles";
 import { usersStore } from "@/lib/store/users-store";
@@ -16,7 +17,7 @@ import { cn } from "@/lib/utils";
 export function RoleCell({ user }: { user: OrgUser }) {
   const isNoRole = user.role === "no-role";
 
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleChange = (e: { target: { value: string } }) => {
     const nextRole = e.target.value as RoleKey;
     usersStore.assignRole(user.id, nextRole);
     const roleLabel = roles.find((r) => r.key === nextRole)?.label ?? nextRole;
@@ -25,7 +26,7 @@ export function RoleCell({ user }: { user: OrgUser }) {
 
   return (
     <div className="relative inline-flex w-fit">
-      <select
+      <SelectField
         value={isNoRole ? "" : user.role}
         onChange={handleChange}
         aria-label={`Change role for ${user.name}`}
@@ -46,7 +47,7 @@ export function RoleCell({ user }: { user: OrgUser }) {
             {role.label}
           </option>
         ))}
-      </select>
+      </SelectField>
       {isNoRole ? (
         <AlertTriangle className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-warning-900" />
       ) : (

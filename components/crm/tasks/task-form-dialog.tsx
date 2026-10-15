@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -123,7 +124,7 @@ export function TaskFormDialog({
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="task-priority">Priority</Label>
-              <select
+              <SelectField
                 id="task-priority"
                 {...register("priority")}
                 className="w-full rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
@@ -133,7 +134,7 @@ export function TaskFormDialog({
                     {p.label}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </div>
           </div>
 
@@ -157,7 +158,7 @@ export function TaskFormDialog({
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="task-customer">Linked Customer (optional)</Label>
-            <select
+            <SelectField
               id="task-customer"
               {...register("customerId")}
               defaultValue=""
@@ -169,7 +170,7 @@ export function TaskFormDialog({
                   {c.name}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
 
           <DialogFooter>

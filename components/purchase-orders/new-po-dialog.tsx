@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -86,7 +87,7 @@ export function NewPoDialog({ open, onOpenChange }: { open: boolean; onOpenChang
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="np-vendor">Vendor (optional now)</Label>
-            <select
+            <SelectField
               id="np-vendor"
               value={vendorId}
               onChange={(e) => setVendorId(e.target.value)}
@@ -100,25 +101,25 @@ export function NewPoDialog({ open, onOpenChange }: { open: boolean; onOpenChang
                   {v.city ? ` — ${v.city}` : ""}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="np-customer">Customer (optional now)</Label>
-            <select id="np-customer" value={customerId} onChange={(e) => setCustomerId(e.target.value)} className={select}>
+            <SelectField id="np-customer" value={customerId} onChange={(e) => setCustomerId(e.target.value)} className={select}>
               <option value="">Select later…</option>
               {[...customers].sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
                 <option key={c.id} value={c.id}>{c.name} ({customerCode(c)})</option>
               ))}
-            </select>
+            </SelectField>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="np-ppt">Purchase Product Type (optional now)</Label>
-            <select id="np-ppt" value={productTypeId} onChange={(e) => setProductTypeId(e.target.value)} className={select}>
+            <SelectField id="np-ppt" value={productTypeId} onChange={(e) => setProductTypeId(e.target.value)} className={select}>
               <option value="">Select later…</option>
               {productTypes.map((m) => (
                 <option key={m.id} value={m.id}>{m.name}{m.description ? ` (${m.description})` : ""}</option>
               ))}
-            </select>
+            </SelectField>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="np-number">PO Number</Label>

@@ -1,5 +1,7 @@
 "use client";
 
+import { Nums } from "@/components/shared/nums";
+import { SelectField } from "@/components/shared/select-field";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -45,7 +47,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-2 text-sm font-body">
       <span className="w-24 shrink-0 text-grey-500">{label}</span>
-      <span className="text-grey-900">{value || "—"}</span>
+      <span className="text-grey-900"><Nums>{value || "—"}</Nums></span>
     </div>
   );
 }
@@ -302,7 +304,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   };
   const removeCabinet = (no: number) => {
     const { [String(no)]: _gone, ...rest } = draft.material.cabinets;
-    setMaterial({ cabinets: rest });
+    set({ lines: draft.lines.filter((l) => l.srNo !== no).map((l, i) => ({ ...l, position: i })), material: { ...draft.material, cabinets: rest } });
   };
 
   return (
@@ -389,7 +391,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className={vendorCard}>
           <h2 className="font-heading text-base font-semibold text-grey-900">Vendor <span className="text-error">*</span></h2>
-          <select
+          <SelectField
             value={draft.vendorId}
             onChange={(e) => {
               const v = vendors.find((x) => x.id === e.target.value);
@@ -407,7 +409,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 {v.name}{v.code ? ` (${v.code})` : ""}
               </option>
             ))}
-          </select>
+          </SelectField>
           {vendor && (
             <div className="flex flex-col gap-1">
               <Row label="Address" value={[vendor.address, vendor.city, vendor.state].filter(Boolean).join(", ")} />
@@ -427,7 +429,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           <h2 className="font-heading text-base font-semibold text-grey-900">Purchase Order Details</h2>
           <div className="flex items-center gap-2 text-sm font-body">
             <span className="w-24 shrink-0 text-grey-500">Customer <span className="text-error">*</span></span>
-            <select
+            <SelectField
               aria-label="Customer"
               className="h-9 min-w-0 flex-1 rounded-lg border border-grey-100 bg-card px-2 text-sm text-grey-900 outline-none focus:border-primary"
               value={draft.customerId ?? ""}
@@ -440,11 +442,11 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               {[...customers].sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
                 <option key={c.id} value={c.id}>{c.name} ({custCode(c)})</option>
               ))}
-            </select>
+            </SelectField>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="e-ppt">Purchase Product Type <span className="text-error">*</span></Label>
-            <select
+            <SelectField
               id="e-ppt"
               className={field}
               value={draft.material.productTypeId ?? ""}
@@ -458,7 +460,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                   {m.name}{m.description ? ` (${m.description})` : ""}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="e-po">PO Number <span className="text-error">*</span></Label>
@@ -630,7 +632,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                         <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(idx + 1).padStart(3, "0")}</td>
                         <td className="px-4 py-3 text-[13px] font-body text-grey-900">{brand}</td>
                         <td className="px-4 py-2">
-                          <select
+                          <SelectField
                             aria-label={`${brand} vendor`}
                             className={`${field} w-full max-w-sm text-[13px]`}
                             value={brandVendors[key] ?? ""}
@@ -641,7 +643,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                               <option key={v.id} value={v.id}>{v.name}</option>
                             ))}
                             <option value={NEW_VENDOR}>+ Add new vendor…</option>
-                          </select>
+                          </SelectField>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
@@ -815,10 +817,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             <div className="flex justify-between"><span>Total After Discount</span><span className="font-number">{formatInr(totals.taxable)}</span></div>
             <div className="flex items-center justify-between gap-2">
               <span>GST</span>
-              <select value={draft.gstMode} onChange={(e) => set({ gstMode: e.target.value as GstMode })} className={`${field} h-8`}>
+              <SelectField value={draft.gstMode} onChange={(e) => set({ gstMode: e.target.value as GstMode })} className={`${field} h-8`}>
                 <option value="intra">State + Central (9% + 9%)</option>
                 <option value="inter">Integrated (18%)</option>
-              </select>
+              </SelectField>
             </div>
             {draft.gstMode === "intra" ? (
               <>

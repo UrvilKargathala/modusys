@@ -1,3 +1,4 @@
+import { SelectField } from "@/components/shared/select-field";
 import { getManagedEmployeeIds } from "@/lib/server/managed-employees";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
@@ -209,7 +210,7 @@ export default async function ReportsPage({
             <>
               <label className="flex flex-col gap-1 text-xs font-body font-medium text-grey-500">
                 Department
-                <select
+                <SelectField
                   name="department"
                   defaultValue={sp.department || ""}
                   className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900"
@@ -218,11 +219,11 @@ export default async function ReportsPage({
                   {departments.map((d) => (
                     <option key={d} value={d}>{d}</option>
                   ))}
-                </select>
+                </SelectField>
               </label>
               <label className="flex flex-col gap-1 text-xs font-body font-medium text-grey-500">
                 Employee
-                <select
+                <SelectField
                   name="employeeId"
                   defaultValue={sp.employeeId || ""}
                   className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900"
@@ -231,7 +232,7 @@ export default async function ReportsPage({
                   {employees.map((e) => (
                     <option key={e.id} value={e.id}>{e.name}</option>
                   ))}
-                </select>
+                </SelectField>
               </label>
             </>
           )}

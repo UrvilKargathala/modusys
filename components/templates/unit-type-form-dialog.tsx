@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useEffect, useState } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
@@ -214,7 +215,7 @@ export function UnitTypeFormDialog({
               {/* Description field — hidden for now, re-enable when needed
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="ut-description">Description</Label>
-                <select
+                <SelectField
                   id="ut-description"
                   value={values.description}
                   onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))}
@@ -228,14 +229,14 @@ export function UnitTypeFormDialog({
                         {c.name} — {c.description}
                       </option>
                     ))}
-                </select>
+                </SelectField>
               </div>
               */}
             </div>
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="ut-status">Status</Label>
-              <select
+              <SelectField
                 id="ut-status"
                 value={values.active ? "active" : "inactive"}
                 onChange={(e) => setValues((v) => ({ ...v, active: e.target.value === "active" }))}
@@ -243,7 +244,7 @@ export function UnitTypeFormDialog({
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
-              </select>
+              </SelectField>
             </div>
 
             <label className="mt-4 flex w-fit cursor-pointer items-start gap-2.5">

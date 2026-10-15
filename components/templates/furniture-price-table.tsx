@@ -1,4 +1,5 @@
 "use client";
+import { SelectField } from "@/components/shared/select-field";
 import { Nums } from "@/components/shared/nums";
 
 import { useMemo, useState } from "react";
@@ -98,7 +99,7 @@ export function FurniturePriceTable() {
               className="w-full rounded-lg border border-grey-100 bg-card py-1.5 pl-8 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
             />
           </div>
-          <select
+          <SelectField
             value={filterDimension}
             onChange={(e) => {
               setFilterDimension(e.target.value as typeof filterDimension);
@@ -111,9 +112,9 @@ export function FurniturePriceTable() {
             <option value="rawMaterialTypeId">Raw Material Type</option>
             <option value="internalColourId">Internal Colour</option>
             <option value="externalColourId">External Colour</option>
-          </select>
+          </SelectField>
           {filterDimension !== "all" && (
-            <select
+            <SelectField
               value={filterValue}
               onChange={(e) => setFilterValue(e.target.value)}
               className="rounded-lg border border-grey-100 bg-card px-3 py-1.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
@@ -124,7 +125,7 @@ export function FurniturePriceTable() {
                   {o.name}
                 </option>
               ))}
-            </select>
+            </SelectField>
           )}
           <Button size="sm" onClick={() => setAddOpen(true)}>
             <Plus className="h-4 w-4" />

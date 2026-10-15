@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useMemo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -266,7 +267,7 @@ export function UnitTypeHardwareRow({
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`hw-brand-${value.id}`}>Brand</Label>
-          <select
+          <SelectField
             id={`hw-brand-${value.id}`}
             value={value.brandId ?? ""}
             onChange={(e) => handleBrandChange(e.target.value)}
@@ -278,7 +279,7 @@ export function UnitTypeHardwareRow({
                 {b.name}
               </option>
             ))}
-          </select>
+          </SelectField>
         </div>
 
         <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-3">

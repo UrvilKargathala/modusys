@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Calculator, Copy, Pencil, Plus, Trash2, AlertCircle, History } from "lucide-react";
@@ -158,19 +159,19 @@ export function PanelCalculatorForm() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="flex flex-col gap-1.5">
           <Label>Brand</Label>
-          <select
+          <SelectField
             value={brand}
             onChange={(e) => { setBrand(e.target.value); setProduct(""); setLength(""); setHeight(""); setSearched(false); setMatchedSpec(null); }}
             className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
           >
             <option value="">Select brand</option>
             {brands.map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
+          </SelectField>
         </div>
 
         <div className="flex flex-col gap-1.5">
           <Label>Product</Label>
-          <select
+          <SelectField
             value={product}
             disabled={!brand}
             onChange={(e) => { setProduct(e.target.value); setLength(""); setHeight(""); setSearched(false); setMatchedSpec(null); }}
@@ -178,7 +179,7 @@ export function PanelCalculatorForm() {
           >
             <option value="">Select product</option>
             {products.map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
+          </SelectField>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -194,7 +195,7 @@ export function PanelCalculatorForm() {
 
         <div className="flex flex-col gap-1.5">
           <Label>Length (mm)</Label>
-          <select
+          <SelectField
             value={length}
             disabled={!product}
             onChange={(e) => { setLength(e.target.value ? Number(e.target.value) : ""); setHeight(""); setSearched(false); setMatchedSpec(null); }}
@@ -202,12 +203,12 @@ export function PanelCalculatorForm() {
           >
             <option value="">Select length</option>
             {lengths.map((l) => <option key={l} value={l}>{l} mm</option>)}
-          </select>
+          </SelectField>
         </div>
 
         <div className="flex flex-col gap-1.5">
           <Label>Height (mm)</Label>
-          <select
+          <SelectField
             value={height}
             disabled={length === ""}
             onChange={(e) => { setHeight(e.target.value ? Number(e.target.value) : ""); setSearched(false); setMatchedSpec(null); }}
@@ -215,7 +216,7 @@ export function PanelCalculatorForm() {
           >
             <option value="">Select height</option>
             {heights.map((h) => <option key={h} value={h}>{h} mm</option>)}
-          </select>
+          </SelectField>
         </div>
       </div>
 

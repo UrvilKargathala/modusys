@@ -1,7 +1,10 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
+import { useUnitTypes } from "@/lib/store/unit-type-store";
 import { useContext, useState } from "react";
-import { ChevronDown, ChevronRight, Copy, Plus, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
 import { PoComponentsToggle } from "@/components/purchase-orders/po-components-toggle";
@@ -9,7 +12,7 @@ import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { PoDefaultVendorContext, PoLinesTable, newBlankLine } from "@/components/purchase-orders/po-lines-table";
 import { formatInr } from "@/lib/format";
-import { recalcCarcass } from "@/lib/purchase-order-from-quote";
+import { buildCarcassFromType, recalcCarcass } from "@/lib/purchase-order-from-quote";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { useVendors } from "@/lib/store/vendors-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
@@ -36,13 +39,13 @@ export function PoCabinetVendorSelect({ srNo, cabinet, onCabinetChange, classNam
   const vendors = useVendors();
   const poVendorId = useContext(PoDefaultVendorContext);
   return (
-    <select aria-label={`Cabinet ${srNo} vendor`} className={className} value={cabinet.vendorId ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, vendorId: e.target.value || undefined })}>
+    <SelectField aria-label={`Cabinet ${srNo} vendor`} className={className} value={cabinet.vendorId ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, vendorId: e.target.value || undefined })}>
       {/* Blank = follows the PO's vendor: shown by name. */}
       <option value="">{vendors.find((v) => v.id === poVendorId)?.name ?? "Select vendor"}</option>
       {vendors.filter((v) => v.id !== poVendorId).map((v) => (
         <option key={v.id} value={v.id}>{v.name}</option>
       ))}
-    </select>
+    </SelectField>
   );
 }
 
@@ -70,6 +73,8 @@ export function PoCabinetCard({
   const designType = mine[0]?.designType ?? "";
   const total = mine.reduce((s, l) => s + lineAmount(l), 0);
 
+  const unitTypes = useUnitTypes();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const cabinetType = useCabinetTypes().find((t) => t.id === cabinet?.cabinetTypeId);
 
   // Recalculate the sizes of this cabinet's existing carcass rows for the W/D/H/Qty in the header.
@@ -77,6 +82,18 @@ export function PoCabinetCard({
   const autoPopulate = () => {
     if (!cabinet || !cabinetType) return;
     const mineCarcass = lines.filter((l) => l.srNo === srNo && l.group === "carcass");
+    // A cabinet with no carcass rows yet, or only a blank one (added by hand): fill it with all the components of its cabinet type.
+    // Blank starter rows (nothing typed) don't count: they are replaced.
+    if (mineCarcass.every((l) => !l.description && !l.width && !l.height)) {
+      const rows = buildCarcassFromType({ cabinetType, cabinet, srNo, materials: materialSpecStore.getSnapshot() });
+      if (rows.length === 0) {
+        toastStore.show("This cabinet type has no components to add.", "error");
+        return;
+      }
+      onChange([...lines.filter((l) => !mineCarcass.includes(l)), ...rows.map((r, i) => ({ ...r, id: `new-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}` }))].map((l, i) => ({ ...l, position: i })));
+      toastStore.show(`Cabinet ${srNo}: ${rows.length} carcass row${rows.length === 1 ? "" : "s"} added from ${cabinetType.name}`, "success");
+      return;
+    }
     const { lines: next, recalculated } = recalcCarcass({ cabinetType, cabinet, lines: mineCarcass, materials: materialSpecStore.getSnapshot() });
     const byId = new Map(next.map((l) => [l.id, l]));
     onChange(lines.map((l) => byId.get(l.id) ?? l));
@@ -135,7 +152,7 @@ export function PoCabinetCard({
           <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-primary/20 px-1.5 font-number text-sm font-semibold text-primary">{srNo}</span>
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-heading text-base font-semibold text-grey-900">
-              {cabinet?.unitName || name || `Cabinet ${srNo}`}
+              {cabinet?.unitName || name || cabinet?.designType || `Cabinet ${srNo}`}
               {designType && <span className="ml-2 font-number text-sm font-normal text-grey-500">{designType}</span>}
             </span>
             {cabinet?.space && <span className="text-xs font-body text-grey-500">{cabinet.space}</span>}
@@ -148,6 +165,11 @@ export function PoCabinetCard({
           {cabinet && onCopyCabinet && (
             <Button type="button" size="icon-sm" variant="outline" className="border-primary/30 bg-primary/15 text-primary hover:bg-primary/25" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
               <Copy className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {cabinet && (
+            <Button type="button" size="icon-sm" variant="outline" className="border-error/30 bg-error-transparent text-error hover:bg-error-100" aria-label="Delete cabinet" title="Delete this cabinet and all its rows" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           )}
           {cabinet && !isManual && (
@@ -195,7 +217,16 @@ export function PoCabinetCard({
       )}
 
       {cabinet && (
-        <div className="grid grid-cols-1 gap-3 pl-8 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 pl-8 md:grid-cols-5">
+          <Field label="Unit Type">
+            <SelectField aria-label={`Cabinet ${srNo} unit type`} className={fieldInput} value={cabinet.unitName ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, unitName: e.target.value })}>
+              <option value="">Select unit type</option>
+              {cabinet.unitName && !unitTypes.some((u) => u.name === cabinet.unitName) && <option value={cabinet.unitName}>{cabinet.unitName}</option>}
+              {unitTypes.map((u) => (
+                <option key={u.id} value={u.name}>{u.name}</option>
+              ))}
+            </SelectField>
+          </Field>
           <Field label="Vendor">
             <PoCabinetVendorSelect srNo={srNo} cabinet={cabinet} onCabinetChange={onCabinetChange} />
           </Field>
@@ -246,6 +277,13 @@ export function PoCabinetCard({
           </div>
         </>
       )}
+    <ConfirmDialog
+      open={deleteOpen}
+      onOpenChange={setDeleteOpen}
+      title={`Delete cabinet ${srNo}?`}
+      description={mine.length ? `This removes the cabinet and its ${mine.length} row${mine.length === 1 ? "" : "s"}. It can't be undone until you Cancel the PO without saving.` : "This removes the empty cabinet."}
+      onConfirm={onRemove}
+    />
     </div>
     </div>
   );

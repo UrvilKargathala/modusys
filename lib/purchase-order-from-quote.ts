@@ -167,3 +167,49 @@ export function quoteCabinetInfo(quote: Quote): Map<number, { cabinetTypeId: str
   for (const unit of quote.units) for (const cabinet of unit.cabinets) out.set(++sr, { cabinetTypeId: cabinet.cabinetTypeId, unitQty: unitQty(unit) });
   return out;
 }
+
+// Carcass rows for a cabinet that has none yet (a cabinet added by hand): one row per component of its cabinet type,
+// sized from the cabinet's W / D / H and qty. Same formulas as the quote and as recalcCarcass.
+export function buildCarcassFromType({
+  cabinetType,
+  cabinet,
+  srNo,
+  materials,
+}: {
+  cabinetType: CabinetType;
+  cabinet: PoCabinet;
+  srNo: number;
+  materials: MaterialItem[];
+}): PoLineDraft[] {
+  const name = (id?: string) => (id ? materials.find((m) => m.id === id)?.name ?? "" : "");
+  const vars = { W: cabinet.width, D: cabinet.depth, H: cabinet.height };
+  const out: PoLineDraft[] = [];
+  for (const comp of cabinetType.components) {
+    const width = Math.round(evaluateFormula(comp.widthFormula, vars));
+    const height = Math.round(evaluateFormula(comp.heightFormula, vars));
+    if (!width || !height) continue;
+    const qty = comp.qty * Math.max(1, cabinet.qty) * Math.max(1, cabinet.unitQty || 1);
+    out.push({
+      group: "carcass",
+      srNo,
+      position: 0,
+      description: name(comp.componentTypeId) || "Carcass",
+      designType: "",
+      width,
+      depth: parseFloat(name(comp.thicknessId)) || 0,
+      height,
+      qty,
+      sqft: panelSqft(width, height, qty),
+      internalColour: "",
+      externalColour: "",
+      material: name(comp.rawMaterialTypeId),
+      articleNo: "",
+      brand: "",
+      category: "",
+      unit: "",
+      rate: 0,
+      remarks: "",
+    });
+  }
+  return out;
+}

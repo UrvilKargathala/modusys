@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -83,7 +84,7 @@ export function LeaveApplyForm({ onDone }: { onDone?: () => void } = {}) {
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <Label>Leave Type</Label>
-          <select
+          <SelectField
             value={leaveType}
             onChange={(e) => setLeaveType(e.target.value)}
             className="h-10 rounded-md border border-grey-200 px-3 text-sm font-body text-grey-900 focus:border-primary focus:outline-none"
@@ -93,7 +94,7 @@ export function LeaveApplyForm({ onDone }: { onDone?: () => void } = {}) {
                 {t.label}
               </option>
             ))}
-          </select>
+          </SelectField>
         </div>
 
         {leaveType === "OTHER" && (

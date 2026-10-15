@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -93,7 +94,7 @@ export function CreatePoDialog({ quote, onOpenChange }: { quote: Quote | null; o
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="po-vendor">Vendor *</Label>
-            <select
+            <SelectField
               id="po-vendor"
               value={vendorId}
               onChange={(e) => setVendorId(e.target.value)}
@@ -106,7 +107,7 @@ export function CreatePoDialog({ quote, onOpenChange }: { quote: Quote | null; o
                   {v.city ? ` — ${v.city}` : ""}
                 </option>
               ))}
-            </select>
+            </SelectField>
             {vendors.length === 0 && (
               <span className="text-xs font-body text-grey-500">No vendors yet — add one under Purchase Orders → Vendors.</span>
             )}

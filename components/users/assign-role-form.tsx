@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -36,7 +37,7 @@ export function AssignRoleForm({ onDone }: { onDone: () => void }) {
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="assign-user">User</Label>
-        <select
+        <SelectField
           id="assign-user"
           {...register("userId")}
           defaultValue=""
@@ -50,7 +51,7 @@ export function AssignRoleForm({ onDone }: { onDone: () => void }) {
               {u.name} · {u.email}
             </option>
           ))}
-        </select>
+        </SelectField>
         {errors.userId && <span className="text-xs font-body text-error">{errors.userId.message}</span>}
       </div>
 

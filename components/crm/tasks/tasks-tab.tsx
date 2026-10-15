@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
@@ -93,7 +94,7 @@ export function TasksTab() {
           {canSeeAll && scope === "all" && (
             <>
               <div className="h-5 w-px bg-grey-100" />
-              <select
+              <SelectField
                 value={assigneeFilter}
                 onChange={(e) => setAssigneeFilter(e.target.value)}
                 aria-label="Show tasks for"
@@ -108,7 +109,7 @@ export function TasksTab() {
                       {u.name}
                     </option>
                   ))}
-              </select>
+              </SelectField>
             </>
           )}
         </div>

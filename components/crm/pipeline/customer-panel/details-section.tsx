@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { EditableField } from "@/components/crm/pipeline/customer-panel/editable-field";
@@ -71,7 +72,7 @@ export function DetailsSection({ customer }: { customer: Customer }) {
 
       <div className="flex flex-col gap-1">
         <label htmlFor="site-manager" className="text-xs font-body text-grey-500">Site Manager</label>
-        <select
+        <SelectField
           id="site-manager"
           value={customer.siteManagerId ?? ""}
           onChange={(e) => {
@@ -84,7 +85,7 @@ export function DetailsSection({ customer }: { customer: Customer }) {
           {siteManagers.map((u) => (
             <option key={u.id} value={u.id}>{u.name}</option>
           ))}
-        </select>
+        </SelectField>
       </div>
 
       <div className="flex flex-col gap-2">

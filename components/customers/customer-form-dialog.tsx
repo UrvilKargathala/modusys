@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/shared/select-field";
 import { customerCodeFrom } from "@/lib/purchase-order";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -241,7 +242,7 @@ export function CustomerFormDialog({
                 + Add Architect
               </button>
             </div>
-            <select
+            <SelectField
               id="c-architect"
               {...register("architectId")}
               className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
@@ -252,7 +253,7 @@ export function CustomerFormDialog({
                   {architectFullName(a)}{a.company ? ` — ${a.company}` : ""}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -286,7 +287,7 @@ export function CustomerFormDialog({
           <div className="flex flex-col gap-1.5">
             <Label>Birthday</Label>
             <div className="grid grid-cols-3 gap-3">
-              <select
+              <SelectField
                 id="c-bday-day"
                 aria-label="Birthday day"
                 {...register("birthdayDay")}
@@ -298,8 +299,8 @@ export function CustomerFormDialog({
                     {d}
                   </option>
                 ))}
-              </select>
-              <select
+              </SelectField>
+              <SelectField
                 id="c-bday-month"
                 aria-label="Birthday month"
                 {...register("birthdayMonth")}
@@ -311,8 +312,8 @@ export function CustomerFormDialog({
                     {m}
                   </option>
                 ))}
-              </select>
-              <select
+              </SelectField>
+              <SelectField
                 id="c-bday-year"
                 aria-label="Birthday year"
                 {...register("birthdayYear")}
@@ -324,7 +325,7 @@ export function CustomerFormDialog({
                     {y}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </div>
           </div>
 
