@@ -1,4 +1,5 @@
 "use client";
+import { Nums } from "@/components/shared/nums";
 
 import { useState } from "react";
 import { Plus, Pencil, Copy, Trash2, PackageSearch, Search } from "lucide-react";
@@ -123,9 +124,9 @@ export function CabinetTypeTable() {
               {paged.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body font-medium text-grey-900">{i.name}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{i.shortCode}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{brandName(i.brandId)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body font-medium text-grey-900"><Nums>{i.name}</Nums></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700"><Nums>{i.shortCode}</Nums></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700"><Nums>{brandName(i.brandId)}</Nums></td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-700">{i.components.length}</td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <span

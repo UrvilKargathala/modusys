@@ -1,5 +1,7 @@
 "use client";
 
+import { statusConfig, type StatusKey } from "@/lib/status";
+import { StatusMenu } from "@/components/shared/status-menu";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, ShoppingCart, Eye, Plus, Trash2, Copy, Download, FileText, FileSpreadsheet } from "lucide-react";
@@ -19,6 +21,9 @@ import Link from "next/link";
 import { formatInr } from "@/lib/format";
 import { formatPoDate } from "@/components/purchase-orders/po-dates";
 import { PO_STATUSES, PO_STATUS_LABEL, PO_STATUS_STYLE, poTotals, type PoStatus, type PurchaseOrder } from "@/lib/purchase-order";
+
+// The same status colours as the Quotes picker.
+const PO_TO_QUOTE_TONE: Record<PoStatus, StatusKey> = { pending: "in-production", "part-completed": "installation", completed: "completed" };
 
 export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: () => void; quoteId?: string | null; onClearQuote?: () => void }) {
   const router = useRouter();
@@ -173,20 +178,12 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
                   <td className="px-4 py-1.5 text-right font-number text-sm text-grey-900">{formatInr(total)}</td>
                   <td className="px-4 py-1.5">
                     {/* Changeable here like the Quotes status. Completing needs the PO's required fields filled in. */}
-                    <select
-                      aria-label={`Status of ${po.poNumber || "this PO"}`}
+                    <StatusMenu
+                      label={`Status of ${po.poNumber || "this PO"}`}
                       value={po.status}
-                      onChange={(e) => void changeStatus(po, e.target.value as PoStatus)}
-                      className={cn(
-                        "h-7 cursor-pointer rounded-full border border-grey-100 px-2.5 text-xs font-body font-medium outline-none focus:border-primary",
-                        PO_STATUS_STYLE[po.status]
-                      )}
-                    >
-                      {/* Solid options: the open list would otherwise take the pill's see-through colour. */}
-                      {PO_STATUSES.map((st) => (
-                        <option key={st} value={st} className="bg-white text-grey-900">{PO_STATUS_LABEL[st]}</option>
-                      ))}
-                    </select>
+                      options={PO_STATUSES.map((st) => ({ value: st, label: PO_STATUS_LABEL[st], className: st === "pending" ? "bg-error-transparent text-error-700" : `${statusConfig[PO_TO_QUOTE_TONE[st]].bg} ${statusConfig[PO_TO_QUOTE_TONE[st]].color}` }))}
+                      onChange={(v) => void changeStatus(po, v as PoStatus)}
+                    />
                   </td>
                   <td className="px-4 py-1.5">
                     <div className="flex items-center justify-end">

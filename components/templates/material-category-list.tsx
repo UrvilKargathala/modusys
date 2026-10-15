@@ -1,4 +1,5 @@
 "use client";
+import { Nums } from "@/components/shared/nums";
 
 import { useMemo, useState } from "react";
 import { Search, Plus, Pencil, Trash2, Copy, ListTree, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
@@ -179,15 +180,15 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                   {showSrNo && (
                     <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
                   )}
-                  {pair && <td className="px-4 py-3 text-[13px] font-body text-grey-900">{i.description || "—"}</td>}
+                  {pair && <td className="px-4 py-3 text-[13px] font-body text-grey-900"><Nums>{i.description || "—"}</Nums></td>}
                   <td className="px-4 py-3 text-[13px] font-body text-grey-900">
-                    {i.name}
+                    <Nums>{i.name}</Nums>
                     {category.longDescription && i.description && (
-                      <p className="mt-0.5 text-xs font-body text-grey-400">{i.description}</p>
+                      <p className="mt-0.5 text-xs font-body text-grey-400"><Nums>{i.description}</Nums></p>
                     )}
                   </td>
                   {!pair && !category.longDescription && !category.noDescription && (
-                    <td className="px-4 py-3 text-[13px] font-body text-grey-500">{i.description || "—"}</td>
+                    <td className="px-4 py-3 text-[13px] font-body text-grey-500"><Nums>{i.description || "—"}</Nums></td>
                   )}
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">

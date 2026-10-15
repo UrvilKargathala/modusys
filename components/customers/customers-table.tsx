@@ -10,6 +10,7 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { Search, Eye, Pencil, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Nums } from "@/components/shared/nums";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -66,7 +67,7 @@ export function CustomersTable() {
   const columns = useMemo<ColumnDef<Customer>[]>(
     () => [
       { accessorKey: "name", header: "Name", cell: ({ row }) => <NameCell customer={row.original} /> },
-      { accessorKey: "address", header: "Address", cell: ({ row }) => <span className="text-sm">{row.original.address}</span> },
+      { accessorKey: "address", header: "Address", cell: ({ row }) => <span className="text-sm"><Nums>{row.original.address}</Nums></span> },
       {
         accessorKey: "stage",
         header: "Stage",

@@ -1,4 +1,5 @@
 "use client";
+import { Nums } from "@/components/shared/nums";
 
 import { useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Copy, PackageSearch, Search } from "lucide-react";
@@ -130,11 +131,11 @@ export function PurchaseFurniturePriceTable() {
                 <tr key={i.id} className="border-t border-grey-100">
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number font-medium text-grey-900">{i.variantId || <span className="text-grey-300">—</span>}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-900">{vendors.find((v) => v.id === i.vendorId)?.name || <span className="text-grey-400">Any vendor</span>}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body font-medium text-grey-900">{nameOf(thicknesses, i.thicknessId)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-900">{nameOf(rawMaterialTypes, i.rawMaterialTypeId)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{brandCodeOf(internals, i.internalColourId)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{brandCodeOf(externals, i.externalColourId)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-900"><Nums>{vendors.find((v) => v.id === i.vendorId)?.name || <span className="text-grey-400">Any vendor</span>}</Nums></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body font-medium text-grey-900"><Nums>{nameOf(thicknesses, i.thicknessId)}</Nums></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-900"><Nums>{nameOf(rawMaterialTypes, i.rawMaterialTypeId)}</Nums></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700"><Nums>{brandCodeOf(internals, i.internalColourId)}</Nums></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700"><Nums>{brandCodeOf(externals, i.externalColourId)}</Nums></td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number font-semibold text-grey-900">{i.rate.toFixed(2)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">

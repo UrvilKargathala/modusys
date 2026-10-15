@@ -1,5 +1,6 @@
 "use client";
 
+import { StatusMenu } from "@/components/shared/status-menu";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ClipboardList, Eye, Search } from "lucide-react";
@@ -76,19 +77,16 @@ export default function ProcurementPage() {
                       <span className="text-sm text-grey-400">Quote deleted</span>
                     ) : quote.status === "in-procurement" || quote.status === "in-production" ? (
                       // Moving to In Purchase here works the same as on the quote: the Pending PO is created from this copy.
-                      <select
-                        aria-label={`Status of ${quote.quoteNumber}`}
+                      <StatusMenu
+                        label={`Status of ${quote.quoteNumber}`}
                         value={quote.status}
-                        onChange={(e) => {
-                          const status = e.target.value as StatusKey;
+                        options={(["in-procurement", "in-production"] as StatusKey[]).map((k) => ({ value: k, label: statusConfig[k].label, className: k === "in-production" ? "bg-error-transparent text-error-700" : `${statusConfig[k].bg} ${statusConfig[k].color}` }))}
+                        onChange={(v) => {
+                          const status = v as StatusKey;
                           quotesStore.saveQuote({ ...quote, status });
                           toastStore.show(`${quote.quoteNumber} set to ${statusConfig[status].label}`, "success");
                         }}
-                        className={`h-8 rounded-full border-0 px-3 text-xs font-body font-medium outline-none ${statusConfig[quote.status as StatusKey].bg} ${statusConfig[quote.status as StatusKey].color}`}
-                      >
-                        <option value="in-procurement">In Procurement</option>
-                        <option value="in-production">In Purchase</option>
-                      </select>
+                      />
                     ) : (
                       <StatusBadge status={quote.status as StatusKey} />
                     )}

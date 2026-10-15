@@ -1,4 +1,5 @@
 "use client";
+import { Nums } from "@/components/shared/nums";
 
 import { useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Copy, PackageSearch, Search } from "lucide-react";
@@ -288,16 +289,16 @@ export function HardwarePriceTable() {
                     </td>
                   )}
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body font-medium text-grey-900">{i.articleNo}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body font-medium text-grey-900"><Nums>{i.articleNo}</Nums></td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <span className="whitespace-nowrap rounded-full bg-grey-transparent px-2 py-0.5 text-xs font-body text-grey-600">
                       {categoryName(i.categoryId)}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{brandName(i.brandId)}</td>
-                  <td className="max-w-xs px-4 py-3 text-[13px] font-body text-grey-500">{i.description || "—"}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{levelTypeName(i.levelTypeId)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700">{unitName(i.unitId)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700"><Nums>{brandName(i.brandId)}</Nums></td>
+                  <td className="max-w-xs px-4 py-3 text-[13px] font-body text-grey-500"><Nums>{i.description || "—"}</Nums></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700"><Nums>{levelTypeName(i.levelTypeId)}</Nums></td>
+                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700"><Nums>{unitName(i.unitId)}</Nums></td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-700">₹{i.mrp}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-700">{i.discountPct}%</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number font-semibold text-grey-900">

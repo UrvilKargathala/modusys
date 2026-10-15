@@ -1,4 +1,5 @@
 "use client";
+import { Nums } from "@/components/shared/nums";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -95,8 +96,8 @@ export function PanelSpecList() {
             <tbody>
               {paged.map((s) => (
                 <tr key={s.id} className="border-t border-grey-100">
-                  <td className="px-4 py-3 text-[13px] font-body text-grey-900">{s.brand}</td>
-                  <td className="px-4 py-3 text-[13px] font-body text-grey-900">{s.product}</td>
+                  <td className="px-4 py-3 text-[13px] font-body text-grey-900"><Nums>{s.brand}</Nums></td>
+                  <td className="px-4 py-3 text-[13px] font-body text-grey-900"><Nums>{s.product}</Nums></td>
                   <td className="px-4 py-3 text-right text-[13px] font-number text-grey-700">{s.length} mm</td>
                   <td className="px-4 py-3 text-right text-[13px] font-number text-grey-700">{s.height} mm</td>
                   <td className="px-4 py-3 text-right text-[13px] text-grey-900">

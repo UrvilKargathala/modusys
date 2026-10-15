@@ -1,4 +1,5 @@
 "use client";
+import { Nums } from "@/components/shared/nums";
 
 import { useState } from "react";
 import { Plus, Pencil, Copy, Trash2, PackageSearch, Search } from "lucide-react";
@@ -139,9 +140,9 @@ export function UnitTypeTable() {
               {paged.map((i, idx) => (
                 <tr key={i.id} className="border-t border-grey-100">
                   <td className="whitespace-nowrap px-3 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
-                  <td className="max-w-xs px-3 py-3 text-[13px] font-body font-medium text-grey-900"><div className="line-clamp-2">{i.name}</div></td>
-                  <td className="whitespace-nowrap px-3 py-3 text-[13px] font-body text-grey-700">{i.shortCode}</td>
-                  <td className="whitespace-nowrap px-3 py-3 text-[13px] font-body text-grey-700">{cabinetTypeLabel(i.cabinetTypeLinks)}</td>
+                  <td className="max-w-xs px-3 py-3 text-[13px] font-body font-medium text-grey-900"><div className="line-clamp-2"><Nums>{i.name}</Nums></div></td>
+                  <td className="whitespace-nowrap px-3 py-3 text-[13px] font-body text-grey-700"><Nums>{i.shortCode}</Nums></td>
+                  <td className="whitespace-nowrap px-3 py-3 text-[13px] font-body text-grey-700"><Nums>{cabinetTypeLabel(i.cabinetTypeLinks)}</Nums></td>
                   <td className="whitespace-nowrap px-2 py-3 text-[13px] font-number text-grey-700">{compCount(i)}</td>
                   <td className="whitespace-nowrap px-2 py-3 text-[13px] font-number text-grey-700">{i.externalFinishes.length}</td>
                   <td className="whitespace-nowrap px-2 py-3 text-[13px] font-number text-grey-700">{i.hardware.length}</td>
