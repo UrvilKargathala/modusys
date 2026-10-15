@@ -29,10 +29,10 @@ export const PoDimNotesContext = createContext<{ notes: Record<string, string>; 
 export const PoBrandVendorContext = createContext<(brand: string) => string>(() => "");
 
 export const GROUP_BAND: Record<PoGroup, string> = {
-  carcass: "border-primary bg-primary/[0.08]",
-  shutter: "border-info bg-info-100",
-  "other-panel": "border-warning bg-warning-100",
-  hardware: "border-secondary bg-secondary-transparent",
+  carcass: "border-primary bg-white",
+  shutter: "border-info bg-white",
+  "other-panel": "border-warning bg-white",
+  hardware: "border-secondary bg-white",
 };
 
 const cell =
@@ -273,7 +273,7 @@ export function PoLinesTable({
       {collapsed ? null : mine.length === 0 ? (
         <p className="rounded-lg border border-dashed border-grey-100 py-4 text-center text-sm font-body text-grey-400">No rows</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-grey-100">
+        <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
           <table className="w-full min-w-max table-fixed text-left">
             <thead className="bg-[#DACCCC]">
               <tr>

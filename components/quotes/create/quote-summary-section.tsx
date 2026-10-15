@@ -20,7 +20,7 @@ export function QuoteSummarySection({
   const [collapsed, setCollapsed] = useState(true);
 
   return (
-    <section className={cn("flex flex-col gap-4 quote-form rounded-xl border border-grey-100 bg-card", collapsed ? "p-4" : "p-6")}>
+    <section className={cn("flex flex-col gap-4 quote-form rounded-xl border border-blush bg-blush", collapsed ? "p-4" : "p-6")}>
       <button
         type="button"
         onClick={() => setCollapsed((c) => !c)}

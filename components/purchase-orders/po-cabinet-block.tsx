@@ -133,7 +133,7 @@ export function PoCabinetBlock({
 
   return (
     <div className="rounded-2xl bg-blush p-3">
-    <div className="rounded-xl bg-white p-3">
+    <div className="rounded-xl bg-blush p-3">
       <PoLinesTable
         group={group}
         title={title}

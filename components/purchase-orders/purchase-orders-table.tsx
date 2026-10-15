@@ -162,16 +162,16 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
             <tbody>
               {paged.map(({ po, customer, quote, total }) => (
                 <tr key={po.id} className="border-t border-grey-100">
-                  <td className="px-4 py-3 font-number text-sm text-grey-900">
+                  <td className="px-4 py-1.5 font-number text-sm text-grey-900">
                     <Link href={`/purchase-orders/${po.id}`} className="text-primary hover:underline">{po.poNumber || <span className="text-grey-400">Not set</span>}</Link>
                   </td>
-                  <td className="px-4 py-3 font-number text-sm text-grey-700">{formatPoDate(po.poDate)}</td>
-                  <td className="px-4 py-3 font-number text-sm text-grey-700">{formatPoDate(po.requiredDate)}</td>
-                  <td className="px-4 py-3 text-sm font-body text-grey-900">{po.vendorName || <span className="text-grey-400">No vendor yet</span>}</td>
-                  <td className="px-4 py-3 text-sm font-body text-grey-700">{customer || "—"}</td>
-                  <td className="px-4 py-3 font-number text-sm text-grey-700">{quote || "—"}</td>
-                  <td className="px-4 py-3 text-right font-number text-sm text-grey-900">{formatInr(total)}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-1.5 font-number text-sm text-grey-700">{formatPoDate(po.poDate)}</td>
+                  <td className="px-4 py-1.5 font-number text-sm text-grey-700">{formatPoDate(po.requiredDate)}</td>
+                  <td className="px-4 py-1.5 text-sm font-body text-grey-900">{po.vendorName || <span className="text-grey-400">No vendor yet</span>}</td>
+                  <td className="px-4 py-1.5 text-sm font-body text-grey-700">{customer || "—"}</td>
+                  <td className="px-4 py-1.5 font-number text-sm text-grey-700">{quote || "—"}</td>
+                  <td className="px-4 py-1.5 text-right font-number text-sm text-grey-900">{formatInr(total)}</td>
+                  <td className="px-4 py-1.5">
                     {/* Changeable here like the Quotes status. Completing needs the PO's required fields filled in. */}
                     <select
                       aria-label={`Status of ${po.poNumber || "this PO"}`}
@@ -188,7 +188,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
                       ))}
                     </select>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-1.5">
                     <div className="flex items-center justify-end">
                       <Tooltip>
                         <TooltipTrigger

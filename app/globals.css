@@ -538,3 +538,12 @@
     font-size: 16px !important;
   }
 }
+
+/* Quote form sections sit on blush: every read-only box and the date field show a solid white background, helper text is darker. */
+.quote-form .bg-light-600,
+.quote-form input[type="date"] {
+  background-color: #fff;
+}
+.quote-form .text-grey-400 {
+  color: var(--color-grey-600);
+}

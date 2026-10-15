@@ -58,17 +58,17 @@ export function CategorySummary({ quote }: { quote: Quote }) {
   return (
     <div className="flex flex-col gap-3">
       <h3 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-900">Category Summary</h3>
-      <div className="overflow-x-auto rounded-lg border border-grey-100">
+      <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
         <table className="w-full text-left">
-          <thead className="bg-[#D9C8C9]">
+          <thead className="bg-primary">
             <tr>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
+              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-white">
                 Category
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-bold uppercase tracking-wide text-grey-900">
+              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-bold uppercase tracking-wide text-white">
                 Sq.ft
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-bold uppercase tracking-wide text-grey-900">
+              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-bold uppercase tracking-wide text-white">
                 Amount
               </th>
             </tr>

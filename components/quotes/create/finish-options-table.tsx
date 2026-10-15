@@ -100,26 +100,26 @@ export function FinishOptionsTable({
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-grey-100">
+      <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
         <table className="w-full text-left">
-          <thead className="bg-[#DACCCB]">
+          <thead className="bg-primary">
             <tr>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
+              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-white">
                 Option
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
+              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-white">
                 Product Type
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
+              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-white">
                 External Finish + Tandem Drawer
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
+              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-white">
                 Price
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
+              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-white">
                 Remarks
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-bold uppercase tracking-wide text-grey-900">
+              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-bold uppercase tracking-wide text-white">
                 Actions
               </th>
             </tr>

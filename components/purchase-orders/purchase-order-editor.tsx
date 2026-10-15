@@ -614,7 +614,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 {hardwareBrands.length === 0 ? "No hardware brands in this PO yet. Click Add Brand." : "No brands match your search."}
               </p>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-grey-100">
+              <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
                 <table className="w-full text-left">
                   <thead className="bg-[#DACCCC]">
                     <tr>
@@ -710,7 +710,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                       const c = cabinetFor(no);
                       return (
                         <div key={no} className="rounded-2xl bg-blush p-3">
-                          <div className="rounded-xl bg-white p-3">
+                          <div className="rounded-xl bg-blush p-3">
                           <PoLinesTable
                             group={g.key}
                             title={g.label}

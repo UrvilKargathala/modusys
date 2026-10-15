@@ -72,7 +72,7 @@ export function MaterialSpecificationSection({
     });
 
   return (
-    <section className={cn("flex flex-col gap-6 quote-form rounded-xl border border-grey-100 bg-card", collapsed ? "p-4" : "p-6")}>
+    <section className={cn("flex flex-col gap-6 quote-form rounded-xl border border-blush bg-blush", collapsed ? "p-4" : "p-6")}>
       <button
         type="button"
         onClick={() => setCollapsed((c) => !c)}
@@ -103,7 +103,7 @@ export function MaterialSpecificationSection({
         {/* Structured shutter finish breakdown — sits in both grid columns so
             the 4 sub-selects can lay out 2×2 on wide screens without cramping
             the surrounding single-column fields. */}
-        <div className="lg:col-span-2 po-brand flex flex-col gap-3 rounded-lg border border-blush bg-blush/45 p-4">
+        <div className="lg:col-span-2 po-brand flex flex-col gap-3 rounded-lg border border-primary/30 bg-white p-4">
           <div className="text-sm font-body font-semibold text-grey-900">Shutter Finish Details</div>
           <Field label="Variant ID" required>
             <VariantIdSelect selectedId={matchedVariant?.id} onSelect={applyVariant} />

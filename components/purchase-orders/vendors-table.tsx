@@ -71,15 +71,15 @@ export function VendorsTable() {
             <tbody>
               {paged.map((v) => (
                 <tr key={v.id} className="border-t border-grey-100">
-                  <td className="px-4 py-3 text-sm font-body text-grey-900">{v.name}</td>
-                  <td className="px-4 py-3 font-number text-sm text-grey-700">{v.code || "—"}</td>
-                  <td className="px-4 py-3 text-sm font-body text-grey-700">{[v.city, v.state].filter(Boolean).join(", ") || "—"}</td>
-                  <td className="px-4 py-3 font-number text-sm text-grey-700">{v.gst || "—"}</td>
-                  <td className="px-4 py-3 text-sm font-body text-grey-700">
+                  <td className="px-4 py-1.5 text-sm font-body text-grey-900">{v.name}</td>
+                  <td className="px-4 py-1.5 font-number text-sm text-grey-700">{v.code || "—"}</td>
+                  <td className="px-4 py-1.5 text-sm font-body text-grey-700">{[v.city, v.state].filter(Boolean).join(", ") || "—"}</td>
+                  <td className="px-4 py-1.5 font-number text-sm text-grey-700">{v.gst || "—"}</td>
+                  <td className="px-4 py-1.5 text-sm font-body text-grey-700">
                     {v.contacts.length ? v.contacts.map((c) => [c.name, c.phone].filter(Boolean).join(": ")).join(" · ") : "—"}
                   </td>
-                  <td className="px-4 py-3 text-sm font-body text-grey-700">{v.emails?.length ? v.emails.join(", ") : "—"}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-1.5 text-sm font-body text-grey-700">{v.emails?.length ? v.emails.join(", ") : "—"}</td>
+                  <td className="px-4 py-1.5">
                     <div className="flex items-center justify-end gap-1">
                       <Tooltip>
                         <TooltipTrigger

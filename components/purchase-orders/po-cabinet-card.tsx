@@ -101,7 +101,7 @@ export function PoCabinetCard({
 
   return (
     <div className="rounded-2xl bg-blush p-3">
-    <div className="flex flex-col gap-3 rounded-xl bg-white p-3">
+    <div className="flex flex-col gap-3 rounded-xl bg-blush p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {isManual && cabinet ? (
           <div className="flex min-w-0 items-center gap-2">

@@ -66,12 +66,12 @@ export default function ProcurementPage() {
             <tbody>
               {paged.map(({ r, quote, customer }) => (
                 <tr key={r.id} className="border-t border-grey-100">
-                  <td className="px-4 py-3 font-number text-sm">
+                  <td className="px-4 py-1.5 font-number text-sm">
                     <Link href={`/procurement/${r.id}`} className="text-primary hover:underline">{r.number}</Link>
                   </td>
-                  <td className="px-4 py-3 font-number text-sm text-grey-700">{r.data.quoteNumber}</td>
-                  <td className="px-4 py-3 text-sm font-body text-grey-900">{customer || "—"}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-1.5 font-number text-sm text-grey-700">{r.data.quoteNumber}</td>
+                  <td className="px-4 py-1.5 text-sm font-body text-grey-900">{customer || "—"}</td>
+                  <td className="px-4 py-1.5">
                     {!quote ? (
                       <span className="text-sm text-grey-400">Quote deleted</span>
                     ) : quote.status === "in-procurement" || quote.status === "in-production" ? (
@@ -93,9 +93,9 @@ export default function ProcurementPage() {
                       <StatusBadge status={quote.status as StatusKey} />
                     )}
                   </td>
-                  <td className="px-4 py-3 font-number text-sm text-grey-700">{fmt(r.createdAt)}</td>
-                  <td className="px-4 py-3 font-number text-sm text-grey-700">{fmt(r.updatedAt)}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-1.5 font-number text-sm text-grey-700">{fmt(r.createdAt)}</td>
+                  <td className="px-4 py-1.5 font-number text-sm text-grey-700">{fmt(r.updatedAt)}</td>
+                  <td className="px-4 py-1.5 text-right">
                     <Link href={`/procurement/${r.id}`} aria-label="Open" className="inline-flex rounded-md p-1.5 text-grey-400 hover:bg-light-600 hover:text-primary">
                       <Eye className="h-4 w-4" />
                     </Link>

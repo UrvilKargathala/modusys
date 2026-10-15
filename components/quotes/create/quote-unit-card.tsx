@@ -281,7 +281,7 @@ export function QuoteUnitCard({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("flex flex-col gap-4 rounded-xl border border-[#D9C8C9] bg-[#D9C8C9] p-4", isDragging && "opacity-50")}
+      className={cn("flex flex-col gap-4 rounded-xl border border-primary/30 bg-white/50 p-4", isDragging && "opacity-50")}
     >
       <div className="flex w-full flex-wrap items-center justify-end gap-3">
         <span className="text-sm font-body text-grey-500">Total: <span className="font-number">{totalSqFt.toFixed(2)} sq.ft</span></span>

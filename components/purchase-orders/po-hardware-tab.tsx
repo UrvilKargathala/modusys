@@ -158,7 +158,7 @@ export function PoHardwareTab({
   const open = rows.find((r) => r.key === receiving);
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-grey-100">
+    <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
       <table className="w-full min-w-max text-left">
         <thead className="bg-[#DACCCC]">
           <tr>
