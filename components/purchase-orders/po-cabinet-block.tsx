@@ -117,7 +117,7 @@ export function PoCabinetBlock({
       </div>
       {group === "carcass" && (
         <div className="flex h-9 shrink-0 items-center gap-2">
-          <PoComponentsToggle unitName={cabinet.unitName} />
+          <PoComponentsToggle unitName={cabinet.unitName} cabinet={cabinet} onCabinetChange={onCabinetChange} />
           <Button type="button" size="icon-sm" variant="outline" className="border-primary/30 bg-primary/15 text-primary hover:bg-primary/25" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
             <Copy className="h-3.5 w-3.5" />
           </Button>

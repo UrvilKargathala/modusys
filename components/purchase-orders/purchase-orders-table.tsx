@@ -2,7 +2,7 @@
 
 import { statusConfig, type StatusKey } from "@/lib/status";
 import { StatusMenu } from "@/components/shared/status-menu";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, ShoppingCart, Eye, Plus, Trash2, Copy, Download, FileText, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,22 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
     }
   };
   const [toDelete, setToDelete] = useState<PurchaseOrder | null>(null);
-  const [status, setStatus] = useState<PoStatus>("pending");
+  // The status tab you last opened comes back when you return from a PO (Cancel / Back / Save). Kept for this browser tab only.
+  const tabKey = `po-status-tab-${direct ? "direct" : "po"}`;
+  const [status, setStatusState] = useState<PoStatus>("pending");
+  const setStatus = (st: PoStatus) => {
+    setStatusState(st);
+    try {
+      sessionStorage.setItem(tabKey, st);
+    } catch {}
+  };
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(tabKey) as PoStatus | null;
+      if (saved && statuses.includes(saved)) setStatusState(saved);
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabKey]);
 
   const customerName = useMemo(() => new Map(customers.map((c) => [c.id, c.name])), [customers]);
   const quoteNumber = useMemo(() => new Map(quotes.map((q) => [q.id, q.quoteNumber])), [quotes]);

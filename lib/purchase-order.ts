@@ -122,6 +122,8 @@ export type PoCabinet = {
   internalColour?: string;
   externalColour?: string;
   material?: string;
+  // This cabinet's own "Components visible" tick; unset = follow the Unit Type's tick.
+  componentsVisible?: boolean;
 };
 
 export type PoMaterial = {

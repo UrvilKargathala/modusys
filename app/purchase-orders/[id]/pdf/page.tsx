@@ -34,7 +34,11 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
   // ponytail: two unit types sharing one name both follow the first match.
   const hiddenNames = new Set(unitTypes.filter((u) => u.countComponents === false).map((u) => u.name));
   const noComponentCabinets = new Set(
-    (po?.lines ?? []).filter((l) => l.group === "carcass" && hiddenNames.has(po?.material.cabinets?.[String(l.srNo)]?.unitName ?? "")).map((l) => l.srNo)
+    // A cabinet's own tick (componentsVisible) wins over its Unit Type's.
+    (po?.lines ?? []).filter((l) => {
+      const c = po?.material.cabinets?.[String(l.srNo)];
+      return l.group === "carcass" && (c?.componentsVisible !== undefined ? !c.componentsVisible : hiddenNames.has(c?.unitName ?? ""));
+    }).map((l) => l.srNo)
   );
 
   // The browser uses document.title as the default PDF file name.

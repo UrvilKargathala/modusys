@@ -11,23 +11,25 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { useUnitTypes, unitTypeStore } from "@/lib/store/unit-type-store";
+import { useUnitTypes } from "@/lib/store/unit-type-store";
+import type { PoCabinet } from "@/lib/purchase-order";
 
 // The Unit Type's "Components visible" tick, shown on the PO's cabinet header (matched by the cabinet's unit name).
 // It is the same saved tick as Templates > Unit Type > Basic Info: unticked keeps the cabinet title only (no component rows)
 // in the purchase order PDFs, for every PO that uses that unit type. Nothing shows for a cabinet with no matching unit type.
 // Changing it shows a message first and only applies when confirmed.
-export function PoComponentsToggle({ unitName }: { unitName?: string }) {
+export function PoComponentsToggle({ unitName, cabinet, onCabinetChange }: { unitName?: string; cabinet: PoCabinet; onCabinetChange: (cabinet: PoCabinet) => void }) {
   const unitTypes = useUnitTypes();
   const [confirming, setConfirming] = useState(false);
   const unitType = unitName ? unitTypes.find((u) => !u.deleted && u.name === unitName) : undefined;
   if (!unitType) return null;
-  const on = unitType.countComponents !== false;
+  // This cabinet's own tick; until it is set, it shows the Unit Type's tick. Changing it only changes this cabinet.
+  const on = cabinet.componentsVisible ?? unitType.countComponents !== false;
   return (
     <>
       <label
         className="flex h-8 cursor-pointer items-center px-1"
-        title={`Components visible: ${on ? "ticked, its components print in the PDF" : "unticked, only the cabinet title prints"}. Same tick as Templates > Unit Type for "${unitType.name}", so it applies to every PO using it.`}
+        title={`Components visible: ${on ? "ticked, its components print in the PDF" : "unticked, only the cabinet title prints"}. Only this cabinet; Templates > Unit Type keeps its own tick.`}
       >
         <input
           type="checkbox"
@@ -44,16 +46,16 @@ export function PoComponentsToggle({ unitName }: { unitName?: string }) {
             <AlertDialogTitle>{on ? "Hide the components?" : "Show the components?"}</AlertDialogTitle>
             <AlertDialogDescription>
               {on
-                ? `Only the cabinet title of "${unitType.name}" will print in the purchase order PDFs, without its component rows, and its Comp. count will show 0.`
-                : `The component rows of "${unitType.name}" will print again in the purchase order PDFs, and its Comp. count will show its components.`}{" "}
-              This is the unit type&apos;s own setting, so it applies to every purchase order that uses it.
+                ? `Only the title of this "${unitType.name}" cabinet will print in the purchase order PDFs, without its component rows.`
+                : `The component rows of this "${unitType.name}" cabinet will print again in the purchase order PDFs.`}{" "}
+              This applies to this cabinet only.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                unitTypeStore.setCountComponents(unitType.id, !on);
+                onCabinetChange({ ...cabinet, componentsVisible: !on });
                 setConfirming(false);
               }}
             >

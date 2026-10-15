@@ -173,7 +173,7 @@ export function PoCabinetCard({
         )}
         <div className="flex items-center gap-3">
           <span className="font-number text-base font-semibold text-grey-900">{formatInr(total)}</span>
-          {cabinet && !isManual && <PoComponentsToggle unitName={cabinet.unitName} />}
+          {cabinet && !isManual && <PoComponentsToggle unitName={cabinet.unitName} cabinet={cabinet} onCabinetChange={onCabinetChange} />}
           {cabinet && onCopyCabinet && (
             <Button type="button" size="icon-sm" variant="outline" className="border-primary/30 bg-primary/15 text-primary hover:bg-primary/25" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
               <Copy className="h-3.5 w-3.5" />
