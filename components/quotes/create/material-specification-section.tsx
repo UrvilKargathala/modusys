@@ -13,8 +13,8 @@ import { cn } from "@/lib/utils";
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[170px_1fr] sm:gap-3">
-      <Label className="whitespace-nowrap sm:pt-2 sm:leading-tight">{label}{required && <span className="text-error"> *</span>}</Label>
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <Label className="leading-tight">{label}{required && <span className="text-error"> *</span>}</Label>
       <div className="min-w-0">{children}</div>
     </div>
   );
@@ -72,7 +72,7 @@ export function MaterialSpecificationSection({
     });
 
   return (
-    <section className={cn("flex flex-col gap-6 rounded-xl border border-grey-100 bg-card", collapsed ? "p-4" : "p-6")}>
+    <section className={cn("flex flex-col gap-6 quote-form rounded-xl border border-grey-100 bg-card", collapsed ? "p-4" : "p-6")}>
       <button
         type="button"
         onClick={() => setCollapsed((c) => !c)}
@@ -103,8 +103,8 @@ export function MaterialSpecificationSection({
         {/* Structured shutter finish breakdown — sits in both grid columns so
             the 4 sub-selects can lay out 2×2 on wide screens without cramping
             the surrounding single-column fields. */}
-        <div className="lg:col-span-2 flex flex-col gap-3 rounded-lg border border-grey-100 bg-light-600/40 p-4">
-          <div className="text-sm font-body font-medium text-grey-700">Shutter Finish Details</div>
+        <div className="lg:col-span-2 po-brand flex flex-col gap-3 rounded-lg border border-blush bg-blush/45 p-4">
+          <div className="text-sm font-body font-semibold text-grey-900">Shutter Finish Details</div>
           <Field label="Variant ID" required>
             <VariantIdSelect selectedId={matchedVariant?.id} onSelect={applyVariant} />
             {shutterComplete && !matchedVariant && (

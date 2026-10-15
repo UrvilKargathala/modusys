@@ -198,7 +198,7 @@ export function serializePurchaseOrder(po: PurchaseOrder & { lines: PurchaseOrde
     discountPct: po.discountPct,
     material: { shutterRawMaterial: "", otherRawMaterial: "", cabinetRawMaterial: "", cabinetOtherRawMaterial: "", internalColours: [], externalColours: [], cabinets: {}, ...((po.material as Partial<PoMaterial> | null) ?? {}) },
     gstMode: po.gstMode as GstMode,
-    status: (po.status === "completed" ? "completed" : "pending") as PoStatus,
+    status: (po.status === "completed" || po.status === "part-completed" ? po.status : "pending") as PoStatus,
     roundOff: po.roundOff,
     remarks: po.remarks,
     createdAt: po.createdAt.toISOString(),

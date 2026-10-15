@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { COMPANY_GST, PO_GROUPS, lineAmount, poTotals, type PurchaseOrder, type Vendor } from "@/lib/purchase-order";
+import { COMPANY_GST, PO_GROUPS, PO_STATUS_LABEL, lineAmount, poTotals, type PurchaseOrder, type Vendor } from "@/lib/purchase-order";
 import type { Customer } from "@/lib/mock/pipeline";
 
 export type PoBranding = { companyName: string; address: string; email: string; phone: string };
@@ -36,7 +36,7 @@ export function poDetailSections(po: PurchaseOrder, { vendor, customer, quoteNum
         ["Quote", quoteNumber ?? ""],
       ],
     },
-    { title: "Purchase Order Details", rows: [["PO No", po.poNumber], ["PO Date", fmtDate(po.poDate)], ["Required Date", fmtDate(po.requiredDate)], ["Status", po.status === "completed" ? "Completed" : "Pending"]] },
+    { title: "Purchase Order Details", rows: [["PO No", po.poNumber], ["PO Date", fmtDate(po.poDate)], ["Required Date", fmtDate(po.requiredDate)], ["Status", PO_STATUS_LABEL[po.status] ?? "Pending"]] },
     {
       title: "Shutter Details",
       rows: [["Shutter Raw Material", po.material.shutterRawMaterial], ["Internal Brand & Colour", distinctFinish(po, ["shutter"], "internalColour")], ["External Brand & Colour", distinctFinish(po, ["shutter"], "externalColour")]],

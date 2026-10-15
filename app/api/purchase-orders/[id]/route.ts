@@ -39,7 +39,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     }
     data.vendorId = vid;
   }
-  if (b.status !== undefined) data.status = b.status === "completed" ? "completed" : "pending";
+  if (b.status !== undefined) data.status = b.status === "completed" || b.status === "part-completed" ? b.status : "pending";
   if (b.discountPct !== undefined) data.discountPct = Number(b.discountPct) || 0;
   if (b.roundOff !== undefined) data.roundOff = Number(b.roundOff) || 0;
   if (b.gstMode !== undefined) data.gstMode = b.gstMode === "inter" ? "inter" : "intra";

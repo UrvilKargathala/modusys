@@ -78,12 +78,13 @@ export function cleanMaterial(m: unknown) {
         .map(([k, v]) => {
           const receipts = (Array.isArray(v?.receipts) ? (v.receipts as Record<string, unknown>[]) : []).map((r) => ({
             id: str(r?.id) || `rc-${Math.random().toString(36).slice(2, 8)}`,
+            ...(str(r?.vendorId) ? { vendorId: str(r?.vendorId) } : {}),
             billNo: str(r?.billNo).slice(0, 80),
             qty: num(r?.qty),
             date: str(r?.date).slice(0, 10),
             remark: str(r?.remark).slice(0, 300),
           }));
-          return [str(k), { ...(typeof v?.stock === "number" && Number.isFinite(v.stock) ? { stock: v.stock } : {}), ...(str(v?.vendorId) ? { vendorId: str(v?.vendorId) } : {}), ...(receipts.length ? { receipts } : {}) }] as const;
+          return [str(k), { ...(typeof v?.stock === "number" && Number.isFinite(v.stock) ? { stock: v.stock } : {}), ...(receipts.length ? { receipts } : {}) }] as const;
         })
         .filter(([, v]) => Object.keys(v).length > 0)
     ),

@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { Fragment, createContext, useContext, useState, type ReactNode } from "react";
 import { AlertTriangle, ChevronDown, ChevronRight, Copy, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,13 @@ export const PoDefaultVendorContext = createContext("");
 // Saved W/D/H formula notes (PO material.dimNotes) and how to set one. Without a provider the table keeps them locally.
 export const PoDimNotesContext = createContext<{ notes: Record<string, string>; set: (key: string, value: string) => void } | null>(null);
 export const PoBrandVendorContext = createContext<(brand: string) => string>(() => "");
+
+export const GROUP_BAND: Record<PoGroup, string> = {
+  carcass: "border-primary bg-primary/[0.08]",
+  shutter: "border-info bg-info-100",
+  "other-panel": "border-warning bg-warning-100",
+  hardware: "border-secondary bg-secondary-transparent",
+};
 
 const cell =
   "h-8 w-full rounded-md border border-transparent bg-transparent px-2 text-sm font-body text-grey-900 outline-none hover:border-grey-100 focus:border-primary focus:bg-card";
@@ -234,7 +242,8 @@ export function PoLinesTable({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
+      {/* A group heading (Carcass, Shutter, ...) is a tinted band with a coloured left edge, like the quote page. */}
+      <div className={cn("flex items-center justify-between", !header && `rounded-md border-l-4 px-3 py-2 ${GROUP_BAND[group]}`)}>
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}
@@ -266,14 +275,14 @@ export function PoLinesTable({
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full min-w-max table-fixed text-left">
-            <thead className="bg-ice-300">
+            <thead className="bg-[#DACCCC]">
               <tr>
                 {cols.map((c) => (
                   <th key={c.key} className={`${th} ${c.width} ${["width", "depth", "height", "qty", "sqft", "rate", "discountPct", "netRate", "amount"].includes(c.key) ? "text-right" : ""}`}>
                     {c.label}
                   </th>
                 ))}
-                <th className="sticky right-0 w-16 bg-ice-300" />
+                <th className="sticky right-0 w-16 bg-[#DACCCC]" />
               </tr>
             </thead>
             <tbody>

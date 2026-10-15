@@ -74,7 +74,7 @@ export function PoCabinetBlock({
   // Title row: the cabinet number and type. Everything else sits in the rows under it (see `fieldsRow`).
   const header = (
     <span className="flex min-w-0 flex-1 items-center gap-2">
-      <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-ice-200 px-1.5 font-number text-sm font-semibold text-slate">{srNo}</span>
+      <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-primary/20 px-1.5 font-number text-sm font-semibold text-primary">{srNo}</span>
       {cabinet ? (
         <PoCabinetNameSelect value={cabinet.designType ?? ""} fallback={cabinet.label} onChange={(v, cabinetTypeId) => onCabinetChange({ ...cabinet, designType: v, cabinetTypeId })} />
       ) : (
@@ -118,11 +118,11 @@ export function PoCabinetBlock({
       {group === "carcass" && (
         <div className="flex h-9 shrink-0 items-center gap-2">
           <PoComponentsToggle unitName={cabinet.unitName} />
-          <Button type="button" size="icon-sm" variant="outline" className="border-ice-200 bg-ice-200 text-slate hover:bg-ice-300" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
+          <Button type="button" size="icon-sm" variant="outline" className="border-primary/30 bg-primary/15 text-primary hover:bg-primary/25" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
             <Copy className="h-3.5 w-3.5" />
           </Button>
           {!isManual && (
-            <Button type="button" size="icon-sm" className="bg-slate text-white hover:bg-slate/85" aria-label="Auto Populate" disabled={!cabinetType} onClick={autoPopulate} title="Auto Populate: recalculate this cabinet's carcass sizes from its W / D / H">
+            <Button type="button" size="icon-sm" aria-label="Auto Populate" disabled={!cabinetType} onClick={autoPopulate} title="Auto Populate: recalculate this cabinet's carcass sizes from its W / D / H">
               <Sparkles className="h-3.5 w-3.5" />
             </Button>
           )}
@@ -132,7 +132,8 @@ export function PoCabinetBlock({
   ) : null;
 
   return (
-    <div className="po-card rounded-lg border border-ice-200 bg-ice p-3">
+    <div className="rounded-2xl bg-blush p-3">
+    <div className="rounded-xl bg-white p-3">
       <PoLinesTable
         group={group}
         title={title}
@@ -151,6 +152,7 @@ export function PoCabinetBlock({
         defaultCollapsed
         onChange={onChange}
       />
+    </div>
     </div>
   );
 }

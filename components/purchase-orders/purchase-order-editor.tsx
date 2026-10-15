@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PoCabinetCard } from "@/components/purchase-orders/po-cabinet-card";
-import { PoBrandVendorContext, PoDefaultVendorContext, PoDimNotesContext, PoLinesTable, PoVendorContext } from "@/components/purchase-orders/po-lines-table";
+import { GROUP_BAND, PoBrandVendorContext, PoDefaultVendorContext, PoDimNotesContext, PoLinesTable, PoVendorContext } from "@/components/purchase-orders/po-lines-table";
 import { applyPurchaseRates, purchaseRateFor } from "@/lib/purchase-order-rate";
 import { useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { usePurchaseFurniturePriceItems } from "@/lib/store/purchase-furniture-store";
@@ -28,7 +28,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
-import { PO_GROUPS, customerCode, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
+import { PO_GROUPS, PO_STATUS_LABEL, PO_STATUS_STYLE, customerCode, lineAmount, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
 
 const NEW_VENDOR = "__new-vendor__";
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
@@ -328,9 +328,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 Purchase Order {draft.poNumber ? <span className="font-number">{draft.poNumber}</span> : <span className="text-grey-400">(no PO number yet)</span>}
               </span>
               <span
-                className={`rounded-full px-2.5 py-0.5 font-body text-xs font-medium ${draft.status === "completed" ? "bg-success-transparent text-success" : "bg-warning-transparent text-warning-900"}`}
+                className={`rounded-full px-2.5 py-0.5 font-body text-xs font-medium ${PO_STATUS_STYLE[draft.status]}`}
               >
-                {draft.status === "completed" ? "Completed" : "Pending"}
+                {PO_STATUS_LABEL[draft.status]}
               </span>
             </h1>
             <p className="text-sm font-body text-grey-500">{dirty ? "Unsaved changes" : "All changes saved"}</p>
@@ -343,10 +343,18 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               Reopen
             </Button>
           ) : (
-            <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => setStatus("completed")}>
-              <CheckCircle2 className="h-4 w-4" />
-              Mark as Completed
-            </Button>
+            <>
+              {draft.status === "pending" && (
+                <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => setStatus("part-completed")}>
+                  <CheckCircle2 className="h-4 w-4" />
+                  Mark Part Completed
+                </Button>
+              )}
+              <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => setStatus("completed")}>
+                <CheckCircle2 className="h-4 w-4" />
+                Mark as Completed
+              </Button>
+            </>
           )}
           <Button
             type="button"
@@ -537,7 +545,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                     if (v === "pending") setPendingIds(new Set(draft.lines.filter((l) => !l.rate).map((l) => l.id)));
                     setView(v);
                   }}
-                  className={`rounded-md px-3 py-1 text-sm font-body font-medium transition-colors ${shownView === v ? "bg-primary-transparent text-primary" : "text-grey-600 hover:bg-light-600"}`}
+                  className={`rounded-md px-3 py-1 text-sm font-body font-medium transition-colors ${shownView === v ? "bg-blush font-semibold text-grey-900" : "text-grey-600 hover:bg-light-600"}`}
                 >
                   {v === "component" ? "By Component" : v === "cabinet" ? "By Unit" : v === "vendor" ? "Vendor" : v === "hardware" ? "Hardware" : <>Rate Pending <span className="font-number">({pendingCount})</span></>}
                 </button>
@@ -608,7 +616,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             ) : (
               <div className="overflow-x-auto rounded-lg border border-grey-100">
                 <table className="w-full text-left">
-                  <thead className="bg-ice-300">
+                  <thead className="bg-[#DACCCC]">
                     <tr>
                       <th className="w-24 whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">SR No</th>
                       <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Brand</th>
@@ -666,6 +674,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 title={g.label}
                 lines={draft.lines}
                 only={(l) => pendingIds.has(l.id)}
+                // Each section starts closed: open the ones you need.
+                defaultCollapsed
                 varsFor={(no) => {
                   const c = cabinetFor(no);
                   return c ? { W: c.width, D: c.depth, H: c.height } : undefined;
@@ -678,25 +688,29 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           ? PO_GROUPS.filter((g) => draft.lines.some((l) => l.group === g.key)).map((g) =>
             g.key === "hardware" ? (
               <div key={g.key} className="flex flex-col gap-3">
-                <button
-                  type="button"
-                  onClick={() => setHardwareOpen((o) => !o)}
-                  aria-label={`${hardwareOpen ? "Collapse" : "Expand"} ${g.label}`}
-                  aria-expanded={hardwareOpen}
-                  className="flex items-center gap-1.5 self-start rounded-md text-left hover:text-primary"
-                >
-                  {hardwareOpen ? <ChevronDown className="h-4 w-4 text-grey-500" /> : <ChevronRight className="h-4 w-4 text-grey-500" />}
-                  <h3 className="font-heading text-base font-semibold text-grey-900">
-                    {g.label} <span className="font-number text-sm font-normal text-grey-500">({draft.lines.filter((l) => l.group === g.key).length})</span>
-                  </h3>
-                </button>
+                <div className={`flex items-center justify-between gap-3 rounded-md border-l-4 px-3 py-2 ${GROUP_BAND.hardware}`}>
+                  <button
+                    type="button"
+                    onClick={() => setHardwareOpen((o) => !o)}
+                    aria-label={`${hardwareOpen ? "Collapse" : "Expand"} ${g.label}`}
+                    aria-expanded={hardwareOpen}
+                    className="flex items-center gap-1.5 rounded-md text-left hover:text-primary"
+                  >
+                    {hardwareOpen ? <ChevronDown className="h-4 w-4 text-grey-500" /> : <ChevronRight className="h-4 w-4 text-grey-500" />}
+                    <h3 className="font-heading text-base font-semibold text-grey-900">
+                      {g.label} <span className="font-number text-sm font-normal text-grey-500">({draft.lines.filter((l) => l.group === g.key).length})</span>
+                    </h3>
+                  </button>
+                  <span className="font-number text-sm text-grey-700">{formatInr(draft.lines.filter((l) => l.group === g.key).reduce((t, l) => t + lineAmount(l), 0))}</span>
+                </div>
                 {hardwareOpen &&
                   cabinetNos
                     .filter((no) => draft.lines.some((l) => l.group === g.key && l.srNo === no))
                     .map((no) => {
                       const c = cabinetFor(no);
                       return (
-                        <div key={no} className="po-card rounded-lg border border-ice-200 bg-ice p-3">
+                        <div key={no} className="rounded-2xl bg-blush p-3">
+                          <div className="rounded-xl bg-white p-3">
                           <PoLinesTable
                             group={g.key}
                             title={g.label}
@@ -706,6 +720,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                             header={<span className="ml-1 flex-1 text-left font-heading text-base font-semibold text-grey-900">{no}. {c?.designType || c?.label || `Cabinet ${no}`}</span>}
                             onChange={(lines) => set({ lines })}
                           />
+                          </div>
                         </div>
                       );
                     })}
@@ -725,18 +740,21 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               />
             ) : (
               <div key={g.key} className="flex flex-col gap-3">
-                <button
-                  type="button"
-                  onClick={() => setCarcassOpen((o) => !o)}
-                  aria-label={`${carcassOpen ? "Collapse" : "Expand"} ${g.label}`}
-                  aria-expanded={carcassOpen}
-                  className="flex items-center gap-1.5 self-start rounded-md text-left hover:text-primary"
-                >
-                  {carcassOpen ? <ChevronDown className="h-4 w-4 text-grey-500" /> : <ChevronRight className="h-4 w-4 text-grey-500" />}
-                  <h3 className="font-heading text-base font-semibold text-grey-900">
-                    {g.label} <span className="font-number text-sm font-normal text-grey-500">({draft.lines.filter((l) => l.group === g.key).length})</span>
-                  </h3>
-                </button>
+                <div className={`flex items-center justify-between gap-3 rounded-md border-l-4 px-3 py-2 ${GROUP_BAND.carcass}`}>
+                  <button
+                    type="button"
+                    onClick={() => setCarcassOpen((o) => !o)}
+                    aria-label={`${carcassOpen ? "Collapse" : "Expand"} ${g.label}`}
+                    aria-expanded={carcassOpen}
+                    className="flex items-center gap-1.5 rounded-md text-left hover:text-primary"
+                  >
+                    {carcassOpen ? <ChevronDown className="h-4 w-4 text-grey-500" /> : <ChevronRight className="h-4 w-4 text-grey-500" />}
+                    <h3 className="font-heading text-base font-semibold text-grey-900">
+                      {g.label} <span className="font-number text-sm font-normal text-grey-500">({draft.lines.filter((l) => l.group === g.key).length})</span>
+                    </h3>
+                  </button>
+                  <span className="font-number text-sm text-grey-700">{formatInr(draft.lines.filter((l) => l.group === g.key).reduce((t, l) => t + lineAmount(l), 0))}</span>
+                </div>
                 {carcassOpen && cabinetNos
                   .filter((no) => draft.lines.some((l) => l.group === g.key && l.srNo === no))
                   .map((no) => (

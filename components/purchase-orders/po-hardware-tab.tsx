@@ -9,9 +9,9 @@ import { formatInr } from "@/lib/format";
 import { useVendors } from "@/lib/store/vendors-store";
 import { lineAmount, type PurchaseOrderLine } from "@/lib/purchase-order";
 
-// One delivery of a hardware item: bill no, qty, date and a remark. Received Qty = the sum of its deliveries.
-export type HardwareReceipt = { id: string; billNo: string; qty: number; date: string; remark: string };
-export type HardwareStock = Record<string, { stock?: number; vendorId?: string; receipts?: HardwareReceipt[] }>;
+// One delivery of a hardware item: its vendor, bill no, qty, date and a remark. Received Qty = the sum of its deliveries.
+export type HardwareReceipt = { id: string; vendorId?: string; billNo: string; qty: number; date: string; remark: string };
+export type HardwareStock = Record<string, { stock?: number; receipts?: HardwareReceipt[] }>;
 
 // Same item = same brand, description, article no, category and unit, across every cabinet.
 export const hardwareKey = (l: PurchaseOrderLine) => [l.brand, l.description, l.articleNo, l.category, l.unit].join("|").toLowerCase();
@@ -52,72 +52,58 @@ const sum = (rs?: HardwareReceipt[]) => (rs ?? []).reduce((t, r) => t + (r.qty |
 
 const newReceipt = (): HardwareReceipt => ({ id: `rc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, billNo: "", qty: 0, date: new Date().toISOString().slice(0, 10), remark: "" });
 
-// Popup for one hardware item: a numbered list of deliveries (bill no, qty, date, remark); + adds another one.
+// Popup for one hardware item: a numbered list of deliveries, each with its own vendor (picked by hand, GST No and City read
+// from it), bill no, qty, date and remark; + adds another one.
 function ReceivedDialog({
   title,
-  vendorId: savedVendorId,
   receipts,
   onSave,
   onClose,
 }: {
   title: string;
-  // The vendor picked here earlier ("" = none yet; it is not filled in automatically).
-  vendorId: string;
   receipts: HardwareReceipt[];
-  onSave: (receipts: HardwareReceipt[], vendorId: string) => void;
+  onSave: (receipts: HardwareReceipt[]) => void;
   onClose: () => void;
 }) {
   const vendors = useVendors();
-  const [vendorId, setVendorId] = useState(savedVendorId);
-  const vendor = vendors.find((v) => v.id === vendorId);
   const [rows, setRows] = useState<HardwareReceipt[]>(receipts.length ? receipts.map((r) => ({ ...r })) : [newReceipt()]);
   const patch = (id: string, fields: Partial<HardwareReceipt>) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...fields } : r)));
   const cell = "h-8 w-full rounded-md border border-grey-100 bg-card px-2 text-[13px] font-body text-grey-900 outline-none focus:border-primary";
+  const cols = "grid-cols-[2rem_1.5fr_1.1fr_1fr_1fr_5rem_8.5rem_1.1fr_2rem]";
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-6xl">
         <DialogHeader>
           <DialogTitle>Received Qty</DialogTitle>
           <DialogDescription>{title}</DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-3 gap-3 rounded-lg border border-grey-100 bg-light-600 px-3 py-2">
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-grey-500">Vendor</span>
-            <select
-              aria-label="Vendor"
-              value={vendorId}
-              onChange={(e) => setVendorId(e.target.value)}
-              className="h-8 w-full min-w-0 rounded-md border border-grey-100 bg-card px-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
-            >
-              <option value="">Select vendor</option>
-              {vendors.map((v) => (
-                <option key={v.id} value={v.id}>{v.name}</option>
-              ))}
-            </select>
+        <div className="flex flex-col gap-2 overflow-x-auto">
+          <div className={`grid min-w-[60rem] items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-grey-500 ${cols}`}>
+            <span>Sr</span><span>Vendor</span><span>GST No</span><span>City</span><span>Bill No</span><span className="text-right">Qty</span><span>Date</span><span>Remark</span><span />
           </div>
-          {[["GST No", vendor?.gst], ["City", [vendor?.city, vendor?.state].filter(Boolean).join(", ")]].map(([k, v]) => (
-            <div key={k} className="flex min-w-0 flex-col gap-1">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-grey-500">{k}</span>
-              <span className="flex h-8 items-center truncate font-number text-sm text-grey-900">{v || "—"}</span>
-            </div>
-          ))}
-        </div>
-        <div className="flex flex-col gap-2">
-          <div className="grid grid-cols-[2.5rem_1fr_6rem_9rem_1.2fr_2rem] items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-grey-500">
-            <span>Sr</span><span>Bill No</span><span className="text-right">Qty</span><span>Date</span><span>Remark</span><span />
-          </div>
-          {rows.map((r, i) => (
-            <div key={r.id} className="grid grid-cols-[2.5rem_1fr_6rem_9rem_1.2fr_2rem] items-center gap-2">
-              <span className="px-1 font-number text-sm text-grey-500">{i + 1}</span>
-              <input aria-label="Bill No" className={cell} value={r.billNo} onChange={(e) => patch(r.id, { billNo: e.target.value })} />
-              <input aria-label="Qty" type="number" min={0} step="any" className={`${cell} text-right font-number ${noSpin}`} value={r.qty || ""} onChange={(e) => patch(r.id, { qty: Math.max(0, Number(e.target.value) || 0) })} />
-              <input aria-label="Date" type="date" className={cell} value={r.date} onChange={(e) => patch(r.id, { date: e.target.value })} />
-              <input aria-label="Remark" className={cell} value={r.remark} onChange={(e) => patch(r.id, { remark: e.target.value })} />
-              <button type="button" aria-label="Remove" onClick={() => setRows((rs) => rs.filter((x) => x.id !== r.id))} className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
+          {rows.map((r, i) => {
+            const vendor = vendors.find((v) => v.id === r.vendorId);
+            return (
+              <div key={r.id} className={`grid min-w-[60rem] items-center gap-2 ${cols}`}>
+                <span className="px-1 font-number text-sm text-grey-500">{i + 1}</span>
+                <select aria-label="Vendor" className={cell} value={r.vendorId ?? ""} onChange={(e) => patch(r.id, { vendorId: e.target.value })}>
+                  <option value="">Select vendor</option>
+                  {vendors.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name}</option>
+                  ))}
+                </select>
+                <span className="truncate font-number text-[13px] text-grey-900" title={vendor?.gst}>{vendor?.gst || "—"}</span>
+                <span className="truncate text-[13px] text-grey-900">{[vendor?.city, vendor?.state].filter(Boolean).join(", ") || "—"}</span>
+                <input aria-label="Bill No" className={cell} value={r.billNo} onChange={(e) => patch(r.id, { billNo: e.target.value })} />
+                <input aria-label="Qty" type="number" min={0} step="any" className={`${cell} text-right font-number ${noSpin}`} value={r.qty || ""} onChange={(e) => patch(r.id, { qty: Math.max(0, Number(e.target.value) || 0) })} />
+                <input aria-label="Date" type="date" className={cell} value={r.date} onChange={(e) => patch(r.id, { date: e.target.value })} />
+                <input aria-label="Remark" className={cell} value={r.remark} onChange={(e) => patch(r.id, { remark: e.target.value })} />
+                <button type="button" aria-label="Remove" onClick={() => setRows((rs) => rs.filter((x) => x.id !== r.id))} className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            );
+          })}
           <div>
             <Button type="button" variant="outline" size="sm" onClick={() => setRows((rs) => [...rs, newReceipt()])}>
               <Plus className="h-3.5 w-3.5" />
@@ -128,7 +114,7 @@ function ReceivedDialog({
         <DialogFooter>
           <span className="mr-auto self-center text-sm font-body text-grey-500">Total received: <span className="font-number font-semibold text-grey-900">{q(sum(rows))}</span></span>
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="button" onClick={() => onSave(rows.filter((r) => r.billNo.trim() || r.qty || r.remark.trim()), vendorId)}>Save</Button>
+          <Button type="button" onClick={() => onSave(rows.filter((r) => r.billNo.trim() || r.qty || r.remark.trim() || r.vendorId))}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -145,7 +131,7 @@ export function PoHardwareTab({
 }: {
   lines: PurchaseOrderLine[];
   stock: HardwareStock;
-  onStockChange: (key: string, patch: { stock?: number; vendorId?: string; receipts?: HardwareReceipt[] }) => void;
+  onStockChange: (key: string, patch: { stock?: number; receipts?: HardwareReceipt[] }) => void;
 }) {
   const brandVendor = useContext(PoBrandVendorContext);
   const [receiving, setReceiving] = useState<string | null>(null);
@@ -174,7 +160,7 @@ export function PoHardwareTab({
   return (
     <div className="overflow-x-auto rounded-lg border border-grey-100">
       <table className="w-full min-w-max text-left">
-        <thead className="bg-ice-300">
+        <thead className="bg-[#DACCCC]">
           <tr>
             {["Sr", "Brand", "Vendor", "Description", "Article No", "Category", "Unit"].map((h) => <th key={h} className={th}>{h}</th>)}
             {["Qty", "MRP", "Discount %", "Amount"].map((h) => <th key={h} className={`${th} text-right`}>{h}</th>)}
@@ -222,10 +208,9 @@ export function PoHardwareTab({
         <ReceivedDialog
           key={open.key}
           title={`${open.l.brand ? `${open.l.brand} · ` : ""}${open.l.description}`}
-          vendorId={stock[open.key]?.vendorId ?? ""}
           receipts={stock[open.key]?.receipts ?? []}
-          onSave={(receipts, vendorId) => {
-            onStockChange(open.key, { receipts, vendorId });
+          onSave={(receipts) => {
+            onStockChange(open.key, { receipts });
             setReceiving(null);
           }}
           onClose={() => setReceiving(null)}

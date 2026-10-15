@@ -100,7 +100,8 @@ export function PoCabinetCard({
     onChange(lines.map((l) => (l.srNo === srNo && l.group === "carcass" ? { ...l, ...fields } : l)));
 
   return (
-    <div className="flex flex-col gap-3 po-card rounded-lg border border-ice-200 bg-ice p-3">
+    <div className="rounded-2xl bg-blush p-3">
+    <div className="flex flex-col gap-3 rounded-xl bg-white p-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {isManual && cabinet ? (
           <div className="flex min-w-0 items-center gap-2">
@@ -112,7 +113,7 @@ export function PoCabinetCard({
               className="flex items-center gap-2 hover:text-primary"
             >
               {collapsed ? <ChevronRight className="h-4 w-4 shrink-0 text-grey-500" /> : <ChevronDown className="h-4 w-4 shrink-0 text-grey-500" />}
-              <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-ice-200 px-1.5 font-number text-sm font-semibold text-slate">{srNo}</span>
+              <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-primary/20 px-1.5 font-number text-sm font-semibold text-primary">{srNo}</span>
             </button>
             <input
               aria-label={`Cabinet ${srNo} name`}
@@ -131,7 +132,7 @@ export function PoCabinetCard({
           className="flex min-w-0 items-center gap-2 text-left hover:text-primary"
         >
           {collapsed ? <ChevronRight className="h-4 w-4 shrink-0 text-grey-500" /> : <ChevronDown className="h-4 w-4 shrink-0 text-grey-500" />}
-          <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-ice-200 px-1.5 font-number text-sm font-semibold text-slate">{srNo}</span>
+          <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-primary/20 px-1.5 font-number text-sm font-semibold text-primary">{srNo}</span>
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-heading text-base font-semibold text-grey-900">
               {cabinet?.unitName || name || `Cabinet ${srNo}`}
@@ -145,7 +146,7 @@ export function PoCabinetCard({
           <span className="font-number text-base font-semibold text-grey-900">{formatInr(total)}</span>
           {cabinet && !isManual && <PoComponentsToggle unitName={cabinet.unitName} />}
           {cabinet && onCopyCabinet && (
-            <Button type="button" size="icon-sm" variant="outline" className="border-ice-200 bg-ice-200 text-slate hover:bg-ice-300" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
+            <Button type="button" size="icon-sm" variant="outline" className="border-primary/30 bg-primary/15 text-primary hover:bg-primary/25" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
               <Copy className="h-3.5 w-3.5" />
             </Button>
           )}
@@ -153,7 +154,6 @@ export function PoCabinetCard({
             <Button
               type="button"
               size="icon-sm"
-              className="bg-slate text-white hover:bg-slate/85"
               aria-label="Auto Populate"
               disabled={!cabinetType}
               title={cabinetType ? "Auto Populate: recalculate this cabinet's carcass sizes from its W / D / H" : "This cabinet's type isn't available (older PO or deleted type)"}
@@ -225,6 +225,8 @@ export function PoCabinetCard({
               lines={lines}
               srNo={srNo}
               vars={cabinet ? { W: cabinet.width, D: cabinet.depth, H: cabinet.height } : undefined}
+              // Each section (Carcass, Shutter, ...) starts closed: open the ones you need.
+              defaultCollapsed
               onChange={onChange}
             />
           ))}
@@ -244,6 +246,7 @@ export function PoCabinetCard({
           </div>
         </>
       )}
+    </div>
     </div>
   );
 }

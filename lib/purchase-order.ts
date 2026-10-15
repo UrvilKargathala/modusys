@@ -52,7 +52,16 @@ export type PurchaseOrderLine = {
 export type GstMode = "intra" | "inter";
 
 // Pending until someone presses Mark as Completed.
-export type PoStatus = "pending" | "completed";
+export type PoStatus = "pending" | "part-completed" | "completed";
+export const PO_STATUSES: PoStatus[] = ["pending", "part-completed", "completed"];
+export const PO_STATUS_LABEL: Record<PoStatus, string> = { pending: "Pending", "part-completed": "Part Completed", completed: "Completed" };
+// One pill colour per status: pending yellow, part completed blue, completed green. A soft fill, a border in the colour and
+// dark text, so the label stays readable (the colour's own text shade was too pale on its light fill).
+export const PO_STATUS_STYLE: Record<PoStatus, string> = {
+  pending: "border border-warning bg-warning-200 font-semibold text-grey-900",
+  "part-completed": "border border-info bg-info-200 font-semibold text-grey-900",
+  completed: "border border-success bg-success-200 font-semibold text-grey-900",
+};
 
 export type PurchaseOrder = {
   id: string;
@@ -128,8 +137,8 @@ export type PoMaterial = {
   // editor and the PDF, never used for rates, rows or required-field checks.
   additionalExternal?: { shutter?: string[]; cabinet?: string[] };
   // Hardware tab, per merged hardware item (key = brand|description|article no|category|unit, lower case): Stock Qty typed by hand,
-  // the vendor picked in the Received popup, and the deliveries received (Received Qty = their total).
-  hardwareStock?: Record<string, { stock?: number; vendorId?: string; receipts?: { id: string; billNo: string; qty: number; date: string; remark: string }[] }>;
+  // and the deliveries received, each with its own vendor (Received Qty = their total).
+  hardwareStock?: Record<string, { stock?: number; receipts?: { id: string; vendorId?: string; billNo: string; qty: number; date: string; remark: string }[] }>;
 };
 
 export const brandKey = (brand: string) => brand.trim().toLowerCase();

@@ -18,7 +18,7 @@ import { useQuotes } from "@/lib/store/quotes-store";
 import Link from "next/link";
 import { formatInr } from "@/lib/format";
 import { formatPoDate } from "@/components/purchase-orders/po-dates";
-import { poTotals, type PoStatus, type PurchaseOrder } from "@/lib/purchase-order";
+import { PO_STATUSES, PO_STATUS_LABEL, PO_STATUS_STYLE, poTotals, type PoStatus, type PurchaseOrder } from "@/lib/purchase-order";
 
 export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: () => void; quoteId?: string | null; onClearQuote?: () => void }) {
   const router = useRouter();
@@ -77,7 +77,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
     }
     try {
       await purchaseOrdersStore.update(po.id, { status });
-      toastStore.show(`${po.poNumber || "PO"} marked ${status === "completed" ? "Completed" : "Pending"}`, "success");
+      toastStore.show(`${po.poNumber || "PO"} marked ${PO_STATUS_LABEL[status]}`, "success");
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not change status", "error");
     }
@@ -97,7 +97,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2" role="tablist" aria-label="Purchase order status">
-          {(["pending", "completed"] as const).map((st) => (
+          {PO_STATUSES.map((st) => (
             <button
               key={st}
               type="button"
@@ -109,7 +109,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
                 status === st ? "border-primary bg-primary-transparent text-primary" : "border-grey-100 bg-card text-grey-600 hover:bg-light-600"
               )}
             >
-              {st === "pending" ? "Pending" : "Completed"} <span className="font-number">({count(st)})</span>
+              {PO_STATUS_LABEL[st]} <span className="font-number">({count(st)})</span>
             </button>
           ))}
         </div>
@@ -138,7 +138,9 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
           message={
             status === "pending"
               ? "No pending purchase orders. One appears here when a quote is set to In Purchase, or you can create one by hand."
-              : "No completed purchase orders yet."
+              : status === "part-completed"
+                ? "No part completed purchase orders yet."
+                : "No completed purchase orders yet."
           }
           cta={status === "pending" && onNew ? { label: "Create Purchase Order", onClick: onNew } : undefined}
         />
@@ -177,11 +179,13 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
                       onChange={(e) => void changeStatus(po, e.target.value as PoStatus)}
                       className={cn(
                         "h-7 cursor-pointer rounded-full border border-grey-100 px-2.5 text-xs font-body font-medium outline-none focus:border-primary",
-                        po.status === "completed" ? "bg-success-transparent text-success" : "bg-warning-100 text-warning-900"
+                        PO_STATUS_STYLE[po.status]
                       )}
                     >
-                      <option value="pending">Pending</option>
-                      <option value="completed">Completed</option>
+                      {/* Solid options: the open list would otherwise take the pill's see-through colour. */}
+                      {PO_STATUSES.map((st) => (
+                        <option key={st} value={st} className="bg-white text-grey-900">{PO_STATUS_LABEL[st]}</option>
+                      ))}
                     </select>
                   </td>
                   <td className="px-4 py-3">

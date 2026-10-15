@@ -14,8 +14,7 @@ import { remarkWithStatusNote, type StatusKey } from "@/lib/status";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
 
-// Stack label + input on mobile, put the label on the left on sm+ so the
-// row is horizontal and reads narrower.
+// Label above the box, so every box in a row starts at the same place whatever its label is.
 function Field({
   label,
   htmlFor,
@@ -30,8 +29,8 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <div className="grid min-w-0 grid-cols-1 items-start gap-1 sm:grid-cols-[auto_1fr] sm:gap-2">
-      <Label htmlFor={htmlFor} className="whitespace-nowrap sm:pt-2 sm:leading-tight">{label}{required && <span className="text-error"> *</span>}</Label>
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <Label htmlFor={htmlFor} className="leading-tight">{label}{required && <span className="text-error"> *</span>}</Label>
       <div className="flex min-w-0 flex-col gap-1">
         {children}
         {helper && <span className="text-xs font-body text-grey-400">{helper}</span>}
@@ -69,7 +68,7 @@ export function ClientDetailsSection({
   );
 
   return (
-    <section className={cn("flex flex-col gap-6 rounded-xl border border-grey-100 bg-card", collapsed ? "p-4" : "p-6")}>
+    <section className={cn("flex flex-col gap-6 quote-form rounded-xl border border-grey-100 bg-card", collapsed ? "p-4" : "p-6")}>
       <button
         type="button"
         onClick={() => setCollapsed((c) => !c)}

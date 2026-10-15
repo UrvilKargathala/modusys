@@ -49,6 +49,8 @@
   --color-slate: #3b4b5a;
   /* Ice blue: the cabinet cards in By Component / By Unit */
   --color-ice: #e4f1fb;
+  /* Blush: the frame of each cabinet card in By Component / By Unit, like a unit on the quote page */
+  --color-blush: #d9c8c9;
   --color-ice-200: #bcd8ee;
   --color-ice-300: #cfe3f4;
   --color-success: #27ae60;
@@ -466,6 +468,17 @@
 }
 .po-card [class~="border-grey-100"] {
   border-color: color-mix(in srgb, var(--color-slate) 40%, white);
+}
+
+/* The cabinet cards (By Component / By Unit) use the brand colour for the borders of the boxes inside. */
+.po-brand [class~="border-grey-100"] {
+  border-color: color-mix(in srgb, var(--color-primary) 45%, white);
+}
+
+/* Quote form sections: the field titles are bold and near-black. */
+.quote-form [data-slot="label"] {
+  color: var(--color-grey-900);
+  font-weight: 600;
 }
 
 /* Numbers in the purchase order PDFs are set in Manrope. */
