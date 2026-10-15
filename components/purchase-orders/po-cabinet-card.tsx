@@ -57,6 +57,8 @@ export function PoCabinetCard({
   onChange,
   onRemove,
   onCopyCabinet,
+  direct,
+  detailDefaults,
 }: {
   srNo: number;
   lines: PurchaseOrderLine[];
@@ -65,6 +67,10 @@ export function PoCabinetCard({
   onChange: (lines: PurchaseOrderLine[]) => void;
   onRemove: () => void;
   onCopyCabinet?: () => void;
+  // Direct Purchase Order: no Unit Type and no Add rows buttons (its Shutter and Other Panel have their own tabs).
+  direct?: boolean;
+  // Direct PO: the Cabinet Details card's values, used while this cabinet has none of its own.
+  detailDefaults?: { internalColour: string; externalColour: string; material: string };
 }) {
   const mine = lines.filter((l) => l.srNo === srNo);
   // Collapsed by default: a PO can have dozens of cabinets, so open only the ones you need.
@@ -75,6 +81,7 @@ export function PoCabinetCard({
 
   const unitTypes = useUnitTypes();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [pendingFields, setPendingFields] = useState<Partial<PurchaseOrderLine> | null>(null);
   const cabinetType = useCabinetTypes().find((t) => t.id === cabinet?.cabinetTypeId);
 
   // Recalculate the sizes of this cabinet's existing carcass rows for the W/D/H/Qty in the header.
@@ -85,7 +92,7 @@ export function PoCabinetCard({
     // A cabinet with no carcass rows yet, or only a blank one (added by hand): fill it with all the components of its cabinet type.
     // Blank starter rows (nothing typed) don't count: they are replaced.
     if (mineCarcass.every((l) => !l.description && !l.width && !l.height)) {
-      const rows = buildCarcassFromType({ cabinetType, cabinet, srNo, materials: materialSpecStore.getSnapshot() });
+      const rows = buildCarcassFromType({ cabinetType, cabinet: { ...cabinet, internalColour: cabinet.internalColour || detailDefaults?.internalColour, externalColour: cabinet.externalColour || detailDefaults?.externalColour, material: cabinet.material || detailDefaults?.material }, srNo, materials: materialSpecStore.getSnapshot() });
       if (rows.length === 0) {
         toastStore.show("This cabinet type has no components to add.", "error");
         return;
@@ -112,9 +119,14 @@ export function PoCabinetCard({
   // This cabinet's internal / external brand & colour and material, applied to all its carcass rows (same as By component).
   const carcassRows = mine.filter((l) => l.group === "carcass");
   const commonCarcass = (k: "internalColour" | "externalColour" | "material") =>
-    mostUsed(carcassRows.map((l) => l[k]));
-  const applyCarcass = (fields: Partial<PurchaseOrderLine>) =>
-    onChange(lines.map((l) => (l.srNo === srNo && l.group === "carcass" ? { ...l, ...fields } : l)));
+    mostUsed(carcassRows.map((l) => l[k])) || (cabinet?.[k] ?? "") || (detailDefaults?.[k] ?? "");
+  // Also remembered on the cabinet, so a cabinet without rows yet gives them to the rows Auto Populate adds.
+  // Direct PO: changing a value this cabinet already has asks first (it changes its Carcass rows too). The Cabinet Details card is not touched.
+  const askCarcass = (k: "internalColour" | "externalColour" | "material", v: string) => (direct && commonCarcass(k) ? setPendingFields({ [k]: v }) : applyCarcass({ [k]: v }));
+  const applyCarcass = (fields: Partial<PurchaseOrderLine>) => {
+    if (cabinet && carcassRows.length === 0) onCabinetChange({ ...cabinet, ...fields } as PoCabinet);
+    else onChange(lines.map((l) => (l.srNo === srNo && l.group === "carcass" ? { ...l, ...fields } : l)));
+  };
 
   return (
     <div className="rounded-2xl bg-blush p-3">
@@ -217,8 +229,8 @@ export function PoCabinetCard({
       )}
 
       {cabinet && (
-        <div className="grid grid-cols-1 gap-3 pl-8 md:grid-cols-5">
-          <Field label="Unit Type">
+        <div className={`grid grid-cols-1 gap-3 pl-8 ${direct ? "md:grid-cols-4" : "md:grid-cols-5"}`}>
+          {!direct && <Field label="Unit Type">
             <SelectField aria-label={`Cabinet ${srNo} unit type`} className={fieldInput} value={cabinet.unitName ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, unitName: e.target.value })}>
               <option value="">Select unit type</option>
               {cabinet.unitName && !unitTypes.some((u) => u.name === cabinet.unitName) && <option value={cabinet.unitName}>{cabinet.unitName}</option>}
@@ -226,20 +238,20 @@ export function PoCabinetCard({
                 <option key={u.id} value={u.name}>{u.name}</option>
               ))}
             </SelectField>
-          </Field>
+          </Field>}
           <Field label="Vendor">
             <PoCabinetVendorSelect srNo={srNo} cabinet={cabinet} onCabinetChange={onCabinetChange} />
           </Field>
-          {mine.some((l) => l.group === "carcass") && (
+          {(direct || mine.some((l) => l.group === "carcass")) && (
             <>
           <Field label="Internal Brand & Colour">
-            <PoFinishSelect kind="internal" value={commonCarcass("internalColour")} onChange={(v) => applyCarcass({ internalColour: v })} />
+            <PoFinishSelect kind="internal" value={commonCarcass("internalColour")} onChange={(v) => askCarcass("internalColour", v)} />
           </Field>
           <Field label="External Brand & Colour">
-            <PoFinishSelect kind="external" value={commonCarcass("externalColour")} onChange={(v) => applyCarcass({ externalColour: v })} />
+            <PoFinishSelect kind="external" value={commonCarcass("externalColour")} onChange={(v) => askCarcass("externalColour", v)} />
           </Field>
           <Field label="Material">
-            <PoRawMaterialSelect value={commonCarcass("material")} onChange={(v) => applyCarcass({ material: v })} />
+            <PoRawMaterialSelect value={commonCarcass("material")} onChange={(v) => askCarcass("material", v)} />
           </Field>
             </>
           )}
@@ -262,8 +274,8 @@ export function PoCabinetCard({
             />
           ))}
           <div className="flex flex-wrap items-center gap-2">
-            {emptyGroups.length > 0 && <span className="text-xs font-body text-grey-500">Add rows:</span>}
-            {emptyGroups.map((g) => (
+            {!direct && emptyGroups.length > 0 && <span className="text-xs font-body text-grey-500">Add rows:</span>}
+            {!direct && emptyGroups.map((g) => (
               <Button key={g.key} type="button" variant="outline" size="sm" onClick={() => onChange([...lines, newBlankLine(g.key, srNo, designType, lines.length)])}>
                 <Plus className="h-3.5 w-3.5" />
                 {g.label}
@@ -277,6 +289,17 @@ export function PoCabinetCard({
           </div>
         </>
       )}
+    <ConfirmDialog
+      open={!!pendingFields}
+      onOpenChange={(o) => !o && setPendingFields(null)}
+      title="Change this cabinet?"
+      description={carcassRows.length ? `This also updates the Material and colours of the ${carcassRows.length} Carcass row${carcassRows.length === 1 ? "" : "s"} in this cabinet. Continue?` : "This changes the Material and colours of this cabinet. Continue?"}
+      confirmLabel="Continue"
+      onConfirm={() => {
+        if (pendingFields) applyCarcass(pendingFields);
+        setPendingFields(null);
+      }}
+    />
     <ConfirmDialog
       open={deleteOpen}
       onOpenChange={setDeleteOpen}

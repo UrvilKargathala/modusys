@@ -166,6 +166,7 @@ export function PoLinesTable({
   subHeader,
   defaultCollapsed = false,
   only,
+  newRowDefaults,
   onChange,
 }: {
   group: PoGroup;
@@ -184,6 +185,8 @@ export function PoLinesTable({
   defaultCollapsed?: boolean;
   // Show only these rows (e.g. Rate pending); hides Add Row.
   only?: (l: PurchaseOrderLine) => boolean;
+  // Values a new row starts with (e.g. a Direct PO takes the finishes from the Shutter Details card).
+  newRowDefaults?: Partial<PurchaseOrderLine>;
   onChange: (lines: PurchaseOrderLine[]) => void;
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -238,7 +241,7 @@ export function PoLinesTable({
   const add = () => {
     setCollapsed(false);
     const no = srNo ?? mine[mine.length - 1]?.srNo ?? 0;
-    onChange([...lines, newBlankLine(group, no, srNo === undefined ? "" : (lines.find((l) => l.srNo === srNo)?.designType ?? ""), lines.length)]);
+    onChange([...lines, { ...newBlankLine(group, no, srNo === undefined ? "" : (lines.find((l) => l.srNo === srNo)?.designType ?? ""), lines.length), ...newRowDefaults }]);
   };
 
   return (

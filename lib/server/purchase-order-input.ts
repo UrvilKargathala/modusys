@@ -35,7 +35,7 @@ export function cleanLines(input: unknown) {
 export function cleanMaterial(m: unknown) {
   const o = (m ?? {}) as Record<string, unknown>;
   const list = (v: unknown) => (Array.isArray(v) ? v.map(str).filter(Boolean) : []);
-  const cabinets: Record<string, { label: string; unitName: string; space: string; width: number; depth: number; height: number; qty: number; cabinetTypeId: string; unitQty: number; designType: string; remark: string; design: string; cabinetName: string; vendorId: string }> = {};
+  const cabinets: Record<string, { label: string; unitName: string; space: string; width: number; depth: number; height: number; qty: number; cabinetTypeId: string; unitQty: number; designType: string; remark: string; design: string; cabinetName: string; vendorId: string; internalColour: string; externalColour: string; material: string }> = {};
   for (const [k, v] of Object.entries((o.cabinets ?? {}) as Record<string, Record<string, unknown>>)) {
     cabinets[k] = {
       label: str(v?.label),
@@ -52,6 +52,9 @@ export function cleanMaterial(m: unknown) {
       design: str(v?.design),
       cabinetName: str(v?.cabinetName),
       vendorId: str(v?.vendorId),
+      internalColour: str(v?.internalColour),
+      externalColour: str(v?.externalColour),
+      material: str(v?.material),
     };
   }
   return {
@@ -63,6 +66,8 @@ export function cleanMaterial(m: unknown) {
     externalColours: list(o.externalColours),
     cabinets,
     productTypeId: str(o.productTypeId) || undefined,
+    direct: o.direct === true ? true : undefined,
+    approxDeliveryDate: str(o.approxDeliveryDate) || undefined,
     brandVendors: Object.fromEntries(
       Object.entries((o.brandVendors ?? {}) as Record<string, unknown>)
         .filter(([k, v]) => k && typeof v === "string")

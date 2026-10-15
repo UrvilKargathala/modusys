@@ -69,7 +69,7 @@ export function TopNavbar() {
                   {item.group}
                   <ChevronDown className="h-3.5 w-3.5" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className="min-w-52">
+                <DropdownMenuContent align="center" className="w-max min-w-52">
                   {members.map((m) => (
                     <DropdownMenuItem
                       key={m.href}
@@ -113,7 +113,7 @@ export function TopNavbar() {
             {currentUser.role === "super-admin" && <AttendanceHealthDot />}
             <ChevronDown className="h-3.5 w-3.5" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="center" className="min-w-52">
+          <DropdownMenuContent align="center" className="w-max min-w-52">
             {attendanceItems
               .filter((item) => canSeeNav(item, currentUser.role))
               .map((item) => (
@@ -143,7 +143,7 @@ export function TopNavbar() {
             Admin
             <ChevronDown className="h-3.5 w-3.5" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="center" className="min-w-52">
+          <DropdownMenuContent align="center" className="w-max min-w-52">
             {administrationItems
               .filter((item) => canSeeNav(item, currentUser.role))
               .map((item) => (

@@ -547,3 +547,14 @@
 .quote-form .text-grey-400 {
   color: var(--color-grey-600);
 }
+
+/* No up / down arrows on number boxes (Direct Purchase Orders). */
+.no-spin input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.no-spin input[type="number"]::-webkit-inner-spin-button,
+.no-spin input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

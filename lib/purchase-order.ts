@@ -52,15 +52,21 @@ export type PurchaseOrderLine = {
 export type GstMode = "intra" | "inter";
 
 // Pending until someone presses Mark as Completed.
-export type PoStatus = "pending" | "part-completed" | "completed";
+export type PoStatus = "pending" | "part-completed" | "completed" | "confirmed" | "in-production" | "delivered";
 export const PO_STATUSES: PoStatus[] = ["pending", "part-completed", "completed"];
-export const PO_STATUS_LABEL: Record<PoStatus, string> = { pending: "Pending", "part-completed": "Part Completed", completed: "Completed" };
+// Direct Purchase Orders have their own flow.
+export const DIRECT_PO_STATUSES: PoStatus[] = ["pending", "confirmed", "in-production", "delivered"];
+export const asPoStatus = (s: unknown): PoStatus => ([...PO_STATUSES, ...DIRECT_PO_STATUSES] as unknown[]).includes(s) ? (s as PoStatus) : "pending";
+export const PO_STATUS_LABEL: Record<PoStatus, string> = { pending: "Pending", "part-completed": "Part Completed", completed: "Completed", confirmed: "Confirmed", "in-production": "In Production", delivered: "Delivered" };
 // One pill colour per status: pending yellow, part completed blue, completed green. A soft fill, a border in the colour and
 // dark text, so the label stays readable (the colour's own text shade was too pale on its light fill).
 export const PO_STATUS_STYLE: Record<PoStatus, string> = {
   pending: "border border-warning bg-warning-200 font-semibold text-grey-900",
   "part-completed": "border border-info bg-info-200 font-semibold text-grey-900",
   completed: "border border-success bg-success-200 font-semibold text-grey-900",
+  confirmed: "border border-indigo bg-indigo-200 font-semibold text-grey-900",
+  "in-production": "border border-warning bg-warning-200 font-semibold text-grey-900",
+  delivered: "border border-teal bg-teal-200 font-semibold text-grey-900",
 };
 
 export type PurchaseOrder = {
@@ -112,9 +118,17 @@ export type PoCabinet = {
   cabinetName?: string;
   // This cabinet's own vendor (rates come from its prices); blank = the PO's vendor. Never changes the PO's Vendor section.
   vendorId?: string;
+  // Carcass finishes / material picked on the cabinet before it has rows (a Direct PO); new carcass rows take them.
+  internalColour?: string;
+  externalColour?: string;
+  material?: string;
 };
 
 export type PoMaterial = {
+  // A Direct Purchase Order (not from a quote): listed under Direct Purchase Orders, not under Purchase Orders.
+  direct?: boolean;
+  // Approximate delivery date (yyyy-mm-dd), typed on the PO.
+  approxDeliveryDate?: string;
   // Purchase Material Library > Purchase Product Type picked on the PO (its id); its Code goes into the PO number.
   productTypeId?: string;
   shutterRawMaterial: string;

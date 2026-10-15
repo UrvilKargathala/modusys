@@ -1,10 +1,11 @@
 "use client";
 
+import { StatusMenu } from "@/components/shared/status-menu";
 import { Nums } from "@/components/shared/nums";
 import { SelectField } from "@/components/shared/select-field";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, FileText, Plus, RotateCcw, Save, Search, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
-import { PO_GROUPS, PO_STATUS_LABEL, PO_STATUS_STYLE, customerCode, lineAmount, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
+import { DIRECT_PO_STATUSES, PO_GROUPS, PO_STATUS_LABEL, PO_STATUS_STYLE, customerCode, lineAmount, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
 
 const NEW_VENDOR = "__new-vendor__";
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
@@ -54,6 +55,7 @@ function Row({ label, value }: { label: string; value: string }) {
 
 export function PurchaseOrderEditor({ id }: { id: string }) {
   const router = useRouter();
+  const base = usePathname().startsWith("/direct-purchase-orders") ? "/direct-purchase-orders" : "/purchase-orders";
   const orders = usePurchaseOrders();
   const vendors = useVendors();
   const customers = useCustomers();
@@ -69,8 +71,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const [discardOpen, setDiscardOpen] = useState(false);
   // By component: all cabinets' Carcass rows together, then Shutter, etc. By cabinet: one card per cabinet.
   // The Carcass list (all cabinet blocks) starts closed; click the heading to open it.
-  const [carcassOpen, setCarcassOpen] = useState(false);
-  const [hardwareOpen, setHardwareOpen] = useState(false);
+  const [carcassOpen, setCarcassOpen] = useState(true);
+  const [hardwareOpen, setHardwareOpen] = useState(true);
   const [view, setView] = useState<"component" | "cabinet" | "pending" | "vendor" | "hardware">("component");
   // Rate pending: the rows without a rate when the tab was opened. Kept while you type rates so a row doesn't vanish mid-edit.
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
@@ -97,8 +99,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const totals = useMemo(() => (draft ? poTotals(draft) : null), [draft]);
   // Cabinets in quote order; internal/external lists are what the rows actually use.
   const cabinetNos = useMemo(
-    () => (draft ? [...new Set([...draft.lines.map((l) => l.srNo), ...Object.keys(draft.material.cabinets ?? {}).map(Number)])].sort((a, b) => a - b) : []),
-    [draft]
+    () => (draft ? [...new Set([...draft.lines.map((l) => l.srNo), ...Object.keys(draft.material.cabinets ?? {}).map(Number)])].filter((n) => n > 0 || !base.startsWith("/direct")).sort((a, b) => a - b) : []),
+    [draft, base]
   );
   const usedFinishes = useMemo(() => {
     const distinct = (xs: string[]) => [...new Set(xs.filter(Boolean))];
@@ -118,21 +120,29 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     const rows = draft?.lines.filter((l) => inScope(scope, l.group)) ?? [];
     return mostUsed(rows.map((l) => l[key]));
   };
+  // Direct PO: cabinets that hold their own value for this field take the new one too (blank ones follow the card live).
+  const syncCabinets = (m: PurchaseOrder["material"], scope: "shutter" | "cabinet", key: "internalColour" | "externalColour" | "material", value: string) =>
+    base.startsWith("/direct") && scope === "cabinet" && m.cabinets
+      ? { ...m, cabinets: Object.fromEntries(Object.entries(m.cabinets).map(([k, c]) => [k, c[key] ? { ...c, [key]: value } : c])) }
+      : m;
   const applyFinish = (scope: "shutter" | "cabinet", key: "internalColour" | "externalColour", label: string) =>
     draft &&
     setDraft({
       ...draft,
-      material: { ...draft.material, finishes: { ...draft.material.finishes, [finishKey(scope, key)]: label } },
+      material: syncCabinets({ ...draft.material, finishes: { ...draft.material.finishes, [finishKey(scope, key)]: label } }, scope, key, label),
       lines: draft.lines.map((l) => (inScope(scope, l.group) ? { ...l, [key]: label } : l)),
     });
 
+  const [compGroup, setCompGroup] = useState<string>("");
+  const [directTab, setDirectTab] = useState<"carcass" | "shutter" | "other-panel" | "hardware">("carcass");
+  const [pendingApply, setPendingApply] = useState<{ scope: "shutter" | "cabinet"; run: () => void } | null>(null);
   const fromQuote = useMemo(() => (draft?.quoteId ? quoteCabinetInfo(quotes.find((q) => q.id === draft.quoteId) ?? ({ units: [] } as never)) : new Map<number, { cabinetTypeId: string; unitQty: number }>()), [draft?.quoteId, quotes]);
 
   if (!draft || !totals) {
     return purchaseOrdersStore.isLoaded() && !saved ? (
       <div className="flex flex-col items-start gap-3">
         <p className="text-sm font-body text-grey-700">This purchase order doesn&apos;t exist (or was deleted).</p>
-        <Link href="/purchase-orders" className="text-sm font-body text-primary hover:underline">
+        <Link href={base} className="text-sm font-body text-primary hover:underline">
           Back to Purchase Orders
         </Link>
       </div>
@@ -233,21 +243,32 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   };
 
   // A PO with no rows yet (new manual PO) starts in the cabinet view, where cabinets and rows are added.
-  const shownView = draft.lines.length === 0 ? "cabinet" : view;
+  const isDirect = base.startsWith("/direct");
+  // A Direct PO shows only the cabinet list (cabinet types added with Add Cabinet Type).
+  const shownView = isDirect || draft.lines.length === 0 ? "cabinet" : view;
 
   const addCabinet = () => {
     const no = Math.max(0, ...cabinetNos) + 1;
     setMaterial({
       cabinets: {
         ...draft.material.cabinets,
-        [String(no)]: { label: "", unitName: "", space: "", width: 0, depth: 0, height: 0, qty: 1, cabinetTypeId: "", unitQty: 1 },
+        [String(no)]: {
+          label: "", unitName: "", space: "", width: 0, depth: 0, height: 0, qty: 1, cabinetTypeId: "", unitQty: 1,
+          // A Direct PO's cabinet starts with what the Cabinet Details card has.
+          ...(isDirect ? { internalColour: draft.material.finishes?.cabinetInternalColour ?? "", externalColour: draft.material.finishes?.cabinetExternalColour ?? "", material: draft.material.cabinetRawMaterial } : {}),
+        },
       },
     });
   };
   // Picking a raw material in Shutter / Cabinet Details also sets the Material column of that scope's rows.
+  // Direct PO: changing the Material or a colour in Shutter / Cabinet Details also changes rows already added, so ask first.
+  const askApply = (scope: "shutter" | "cabinet", run: () => void) => {
+    if (isDirect && (draft.lines.some((l) => inScope(scope, l.group)) || (scope === "cabinet" && Object.values(draft.material.cabinets ?? {}).some((c) => c.internalColour || c.externalColour || c.material)))) setPendingApply({ scope, run });
+    else run();
+  };
   const applyMaterial = (scope: "shutter" | "cabinet", key: "shutterRawMaterial" | "cabinetRawMaterial", name: string) =>
     set({
-      material: { ...draft.material, [key]: name },
+      material: syncCabinets({ ...draft.material, [key]: name }, scope, "material", name),
       lines: draft.lines.map((l) => (inScope(scope, l.group) ? { ...l, material: name } : l)),
     });
 
@@ -318,10 +339,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         set: (key, value) => setDraft((d) => (d ? { ...d, material: { ...d.material, dimNotes: { ...d.material.dimNotes, [key]: value } } } : d)),
       }}
     >
-    <div className="flex flex-col gap-6">
+    <div className={`flex flex-col gap-6${isDirect ? " no-spin" : ""}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Link href="/purchase-orders" aria-label="Back" className="rounded-md p-1.5 text-grey-500 hover:bg-light-600">
+          <Link href={base} aria-label="Back" className="rounded-md p-1.5 text-grey-500 hover:bg-light-600">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
@@ -339,7 +360,14 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {draft.status === "completed" ? (
+          {isDirect ? (
+            <StatusMenu
+              label="Status"
+              value={draft.status}
+              options={DIRECT_PO_STATUSES.map((st) => ({ value: st, label: PO_STATUS_LABEL[st], className: PO_STATUS_STYLE[st] }))}
+              onChange={(v) => setStatus(v as PurchaseOrder["status"])}
+            />
+          ) : draft.status === "completed" ? (
             <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => setStatus("pending")}>
               <RotateCcw className="h-4 w-4" />
               Reopen
@@ -374,13 +402,13 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             Delete
           </Button>
           {/* Cancel: back to the purchase orders list. With unsaved edits it asks first, then throws them away. */}
-          <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => (dirty ? setDiscardOpen(true) : router.push("/purchase-orders"))}>
+          <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => (dirty ? setDiscardOpen(true) : router.push(base))}>
             <X className="h-4 w-4" />
             Cancel
           </Button>
           <Button type="button" size="sm" disabled={!dirty || saving} onClick={async () => {
             // Save, then back to the purchase orders list; stays here if the save didn't go through.
-            if (await save()) router.push("/purchase-orders");
+            if (await save()) router.push(base);
           }}>
             <Save className="h-4 w-4" />
             {saving ? "Saving…" : "Save"}
@@ -485,6 +513,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               <Input id="e-req" type="date" value={draft.requiredDate} onChange={(e) => set({ requiredDate: e.target.value })} className="bg-white font-number" />
             </div>
           </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="e-approx">Approx Delivery Date</Label>
+            <Input id="e-approx" type="date" value={draft.material.approxDeliveryDate ?? ""} onChange={(e) => setMaterial({ approxDeliveryDate: e.target.value || undefined })} className="bg-white font-number" />
+          </div>
           <Row label="Quote" value={quote?.quoteNumber ?? ""} />
         </div>
 
@@ -492,15 +524,15 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           <h2 className="font-heading text-base font-semibold text-grey-900">Shutter Details</h2>
           <div className="flex flex-col gap-1.5">
             <Label>Shutter Raw Material <span className="text-error">*</span></Label>
-            <PoRawMaterialSelect value={draft.material.shutterRawMaterial} onChange={(v) => applyMaterial("shutter", "shutterRawMaterial", v)} />
+            <PoRawMaterialSelect value={draft.material.shutterRawMaterial} onChange={(v) => askApply("shutter", () => applyMaterial("shutter", "shutterRawMaterial", v))} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Internal Brand & Colour <span className="text-error">*</span></Label>
-            <PoFinishSelect kind="internal" value={commonFinish("shutter", "internalColour")} onChange={(label) => applyFinish("shutter", "internalColour", label)} />
+            <PoFinishSelect kind="internal" value={commonFinish("shutter", "internalColour")} onChange={(label) => askApply("shutter", () => applyFinish("shutter", "internalColour", label))} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>External Brand & Colour <span className="text-error">*</span></Label>
-            <PoFinishSelect kind="external" value={commonFinish("shutter", "externalColour")} onChange={(label) => applyFinish("shutter", "externalColour", label)} />
+            <PoFinishSelect kind="external" value={commonFinish("shutter", "externalColour")} onChange={(label) => askApply("shutter", () => applyFinish("shutter", "externalColour", label))} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Additional External Brand & Colour</Label>
@@ -511,15 +543,15 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           <h2 className="font-heading text-base font-semibold text-grey-900">Cabinet Details</h2>
           <div className="flex flex-col gap-1.5">
             <Label>Cabinet Raw Material <span className="text-error">*</span></Label>
-            <PoRawMaterialSelect value={draft.material.cabinetRawMaterial} onChange={(v) => applyMaterial("cabinet", "cabinetRawMaterial", v)} />
+            <PoRawMaterialSelect value={draft.material.cabinetRawMaterial} onChange={(v) => askApply("cabinet", () => applyMaterial("cabinet", "cabinetRawMaterial", v))} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Internal Brand & Colour <span className="text-error">*</span></Label>
-            <PoFinishSelect kind="internal" value={commonFinish("cabinet", "internalColour")} onChange={(label) => applyFinish("cabinet", "internalColour", label)} />
+            <PoFinishSelect kind="internal" value={commonFinish("cabinet", "internalColour")} onChange={(label) => askApply("cabinet", () => applyFinish("cabinet", "internalColour", label))} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>External Brand & Colour <span className="text-error">*</span></Label>
-            <PoFinishSelect kind="external" value={commonFinish("cabinet", "externalColour")} onChange={(label) => applyFinish("cabinet", "externalColour", label)} />
+            <PoFinishSelect kind="external" value={commonFinish("cabinet", "externalColour")} onChange={(label) => askApply("cabinet", () => applyFinish("cabinet", "externalColour", label))} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Additional External Brand & Colour</Label>
@@ -532,11 +564,27 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         <div className="flex items-center justify-between gap-3">
           {shownView === "cabinet" && (
             <h2 className="font-heading text-base font-semibold text-grey-900">
-              Cabinets <span className="font-number text-sm font-normal text-grey-500">({cabinetNos.length})</span>
+              {isDirect ? "Items" : <>Cabinets <span className="font-number text-sm font-normal text-grey-500">({cabinetNos.length})</span></>}
             </h2>
           )}
           <div className="ml-auto flex items-center gap-2">
-            <div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Group rows by">
+            {isDirect && (
+              <div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Direct purchase order sections">
+                {([["carcass", "Cabinet"], ["shutter", "Shutter"], ["other-panel", "Other Panel"], ["hardware", "Hardware"]] as const).map(([k, label]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="tab"
+                    aria-selected={directTab === k}
+                    onClick={() => setDirectTab(k)}
+                    className={`rounded-md px-3 py-1 text-sm font-body font-medium transition-colors ${directTab === k ? "bg-blush font-semibold text-grey-900" : "text-grey-600 hover:bg-light-600"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {!isDirect && (<div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Group rows by">
               {(["component", "cabinet", "pending", "vendor", "hardware"] as const).map((v) => (
                 <button
                   key={v}
@@ -552,21 +600,41 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                   {v === "component" ? "By Component" : v === "cabinet" ? "By Unit" : v === "vendor" ? "Vendor" : v === "hardware" ? "Hardware" : <>Rate Pending <span className="font-number">({pendingCount})</span></>}
                 </button>
               ))}
-            </div>
-            {shownView === "cabinet" && (
+            </div>)}
+            {shownView === "cabinet" && (!isDirect || directTab === "carcass") && (
               <Button type="button" variant="outline" size="sm" onClick={addCabinet}>
                 <Plus className="h-4 w-4" />
-                Add Cabinet
+                {isDirect ? "Add Cabinet Type" : "Add Cabinet"}
               </Button>
             )}
           </div>
         </div>
-        {cabinetNos.length === 0 && (
+        {cabinetNos.length === 0 && !isDirect && (
           <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">
             No cabinets yet. Click Add Cabinet, then add its rows.
           </p>
         )}
-        {shownView === "hardware" ? (
+        {isDirect && directTab !== "carcass" ? (
+          <PoLinesTable
+            key={directTab}
+            group={directTab}
+            title={{ carcass: "Carcass", shutter: "Shutter", "other-panel": "Other Panel", hardware: "Hardware" }[directTab]}
+            // New Shutter rows take the Shutter Details card's material and finishes; Other Panel rows take the Cabinet Details card's.
+            newRowDefaults={
+              directTab === "shutter"
+                ? { material: draft.material.shutterRawMaterial, internalColour: draft.material.finishes?.shutterInternalColour ?? "", externalColour: draft.material.finishes?.shutterExternalColour ?? "" }
+                : directTab === "other-panel"
+                  ? { material: draft.material.cabinetRawMaterial, internalColour: draft.material.finishes?.cabinetInternalColour ?? "", externalColour: draft.material.finishes?.cabinetExternalColour ?? "" }
+                  : undefined
+            }
+            lines={draft.lines}
+            varsFor={(no) => {
+              const c = cabinetFor(no);
+              return c ? { W: c.width, D: c.depth, H: c.height } : undefined;
+            }}
+            onChange={(lines) => set({ lines })}
+          />
+        ) : shownView === "hardware" ? (
           <PoHardwareTab
             lines={draft.lines}
             stock={draft.material.hardwareStock ?? {}}
@@ -687,7 +755,25 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             ))
           )
         ) : shownView === "component"
-          ? PO_GROUPS.filter((g) => draft.lines.some((l) => l.group === g.key)).map((g) =>
+          ? [PO_GROUPS.filter((g) => draft.lines.some((l) => l.group === g.key))].flatMap((present) => {
+            // Carcass | Shutter | Other Panel | Hardware as tabs across; only the picked group's table shows below.
+            const picked = present.find((g) => g.key === compGroup) ?? present[0];
+            return [
+              <div key="group-tabs" className="flex w-fit rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Group">
+                {present.map((g) => (
+                  <button
+                    key={g.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={picked?.key === g.key}
+                    onClick={() => setCompGroup(g.key)}
+                    className={`rounded-md px-3 py-1 text-sm font-body font-medium transition-colors ${picked?.key === g.key ? "bg-blush font-semibold text-grey-900" : "text-grey-600 hover:bg-light-600"}`}
+                  >
+                    {g.label} <span className="font-number text-xs font-normal text-grey-500">({draft.lines.filter((l) => l.group === g.key).length})</span>
+                  </button>
+                ))}
+              </div>,
+              ...(picked ? [picked] : []).map((g) =>
             g.key === "hardware" ? (
               <div key={g.key} className="flex flex-col gap-3">
                 <div className={`flex items-center justify-between gap-3 rounded-md border-l-4 px-3 py-2 ${GROUP_BAND.hardware}`}>
@@ -733,7 +819,6 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 group={g.key}
                 title={g.label}
                 lines={draft.lines}
-                defaultCollapsed
                 varsFor={(no) => {
                   const c = cabinetFor(no);
                   return c ? { W: c.width, D: c.depth, H: c.height } : undefined;
@@ -774,7 +859,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                   ))}
               </div>
             )
-          )
+          )];
+          })
           : cabinetNos.map((no) => (
               <PoCabinetCard
                 key={no}
@@ -784,6 +870,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 onCabinetChange={(next) => setCabinet(no, next)}
                 onChange={(lines) => set({ lines })}
                 onRemove={() => removeCabinet(no)}
+                direct={isDirect}
+                detailDefaults={isDirect ? { internalColour: draft.material.finishes?.cabinetInternalColour ?? "", externalColour: draft.material.finishes?.cabinetExternalColour ?? "", material: draft.material.cabinetRawMaterial } : undefined}
                 onCopyCabinet={() => copyCabinet(no)}
               />
             ))}
@@ -863,12 +951,23 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         }}
       />
       <ConfirmDialog
+        open={!!pendingApply}
+        onOpenChange={(o) => !o && setPendingApply(null)}
+        title="Change the rows already added?"
+        description={`This also updates the Material and colours of the rows already added in ${pendingApply?.scope === "shutter" ? "Shutter" : "Carcass and Other Panel"}. Continue?`}
+        confirmLabel="Continue"
+        onConfirm={() => {
+          pendingApply?.run();
+          setPendingApply(null);
+        }}
+      />
+      <ConfirmDialog
         open={discardOpen}
         onOpenChange={setDiscardOpen}
         title="Discard your changes?"
         description="You have unsaved changes on this purchase order. They will be lost and you will go back to the purchase orders list."
         confirmLabel="Discard"
-        onConfirm={() => router.push("/purchase-orders")}
+        onConfirm={() => router.push(base)}
       />
       <ConfirmDialog
         open={deleteOpen}
@@ -879,7 +978,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           try {
             await purchaseOrdersStore.remove(id);
             toastStore.show("Purchase order deleted", "success");
-            router.push("/purchase-orders");
+            router.push(base);
           } catch (e) {
             toastStore.show(e instanceof Error ? e.message : "Could not delete", "error");
           }

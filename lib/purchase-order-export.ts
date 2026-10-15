@@ -64,6 +64,10 @@ export const PO_PDF_PARTS: { key: PoExportPart; label: string }[] = [
   { key: "hardware", label: "Material Slip Hardware only" },
   { key: "cabinets", label: "Purchase Order" },
 ];
+// Direct Purchase Orders name two of the PDFs differently.
+export const DIRECT_PO_PDF_PARTS: { key: PoExportPart; label: string }[] = PO_PDF_PARTS.map((p) =>
+  p.key === "components" ? { ...p, label: "Purchase Order With Components" } : p.key === "hardware" ? { ...p, label: "Material Requirement Slip (Hardware only)" } : p
+);
 export const groupsFor = (part: PoExportPart) =>
   PO_GROUPS.filter((g) => part !== "cabinets") .filter((g) => part === "full" || (part === "hardware" ? g.key === "hardware" : g.key !== "hardware"));
 

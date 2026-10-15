@@ -11,7 +11,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { EmptyState } from "@/components/shared/empty-state";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { PO_EXCEL_PARTS, PO_PDF_PARTS } from "@/lib/purchase-order-export";
+import { DIRECT_PO_PDF_PARTS, PO_EXCEL_PARTS, PO_PDF_PARTS } from "@/lib/purchase-order-export";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { toastStore } from "@/lib/store/toast-store";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
@@ -20,14 +20,18 @@ import { useQuotes } from "@/lib/store/quotes-store";
 import Link from "next/link";
 import { formatInr } from "@/lib/format";
 import { formatPoDate } from "@/components/purchase-orders/po-dates";
-import { PO_STATUSES, PO_STATUS_LABEL, PO_STATUS_STYLE, poTotals, type PoStatus, type PurchaseOrder } from "@/lib/purchase-order";
+import { DIRECT_PO_STATUSES, PO_STATUSES, PO_STATUS_LABEL, PO_STATUS_STYLE, poTotals, type PoStatus, type PurchaseOrder } from "@/lib/purchase-order";
 
 // The same status colours as the Quotes picker.
-const PO_TO_QUOTE_TONE: Record<PoStatus, StatusKey> = { pending: "in-production", "part-completed": "installation", completed: "completed" };
+const PO_TO_QUOTE_TONE: Record<PoStatus, StatusKey> = { pending: "in-production", "part-completed": "installation", completed: "completed", confirmed: "in-procurement", "in-production": "in-production", delivered: "completed" };
 
-export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: () => void; quoteId?: string | null; onClearQuote?: () => void }) {
+export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = false }: { onNew?: () => void; quoteId?: string | null; onClearQuote?: () => void; direct?: boolean }) {
   const router = useRouter();
-  const orders = usePurchaseOrders();
+  // Direct Purchase Orders have their own list and pages; both lists use this table.
+  const base = direct ? "/direct-purchase-orders" : "/purchase-orders";
+  const statuses = direct ? DIRECT_PO_STATUSES : PO_STATUSES;
+  const allOrders = usePurchaseOrders();
+  const orders = useMemo(() => allOrders.filter((o) => !!o.material.direct === direct), [allOrders, direct]);
   const customers = useCustomers();
   const quotes = useQuotes();
   const [search, setSearch] = useState("");
@@ -37,7 +41,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
     try {
       const created = await purchaseOrdersStore.create({ ...rest, poNumber: "", lines: lines.map(({ id: _l, ...l }) => l) });
       toastStore.show("Purchase order copied", "success");
-      router.push(`/purchase-orders/${created.id}`);
+      router.push(`${base}/${created.id}`);
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not copy", "error");
     }
@@ -102,7 +106,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2" role="tablist" aria-label="Purchase order status">
-          {PO_STATUSES.map((st) => (
+          {statuses.map((st) => (
             <button
               key={st}
               type="button"
@@ -131,7 +135,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
           {onNew && (
             <Button size="sm" onClick={onNew}>
               <Plus className="h-4 w-4" />
-              Create Purchase Order
+              {direct ? "Create Direct Purchase Order" : "Create Purchase Order"}
             </Button>
           )}
         </div>
@@ -142,12 +146,10 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
           icon={ShoppingCart}
           message={
             status === "pending"
-              ? "No pending purchase orders. One appears here when a quote is set to In Purchase, or you can create one by hand."
-              : status === "part-completed"
-                ? "No part completed purchase orders yet."
-                : "No completed purchase orders yet."
+              ? direct ? "No pending direct purchase orders." : "No pending purchase orders. One appears here when a quote is set to In Purchase, or you can create one by hand."
+              : `No ${PO_STATUS_LABEL[status].toLowerCase()} purchase orders yet.`
           }
-          cta={status === "pending" && onNew ? { label: "Create Purchase Order", onClick: onNew } : undefined}
+          cta={status === "pending" && onNew ? { label: direct ? "Create Direct Purchase Order" : "Create Purchase Order", onClick: onNew } : undefined}
         />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
@@ -168,7 +170,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
               {paged.map(({ po, customer, quote, total }) => (
                 <tr key={po.id} className="border-t border-grey-100">
                   <td className="px-4 py-1.5 font-number text-sm text-grey-900">
-                    <Link href={`/purchase-orders/${po.id}`} className="text-primary hover:underline">{po.poNumber || <span className="text-grey-400">Not set</span>}</Link>
+                    <Link href={`${base}/${po.id}`} className="text-primary hover:underline">{po.poNumber || <span className="text-grey-400">Not set</span>}</Link>
                   </td>
                   <td className="px-4 py-1.5 font-number text-sm text-grey-700">{formatPoDate(po.poDate)}</td>
                   <td className="px-4 py-1.5 font-number text-sm text-grey-700">{formatPoDate(po.requiredDate)}</td>
@@ -181,7 +183,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
                     <StatusMenu
                       label={`Status of ${po.poNumber || "this PO"}`}
                       value={po.status}
-                      options={PO_STATUSES.map((st) => ({ value: st, label: PO_STATUS_LABEL[st], className: st === "pending" ? "bg-error-transparent text-error-700" : `${statusConfig[PO_TO_QUOTE_TONE[st]].bg} ${statusConfig[PO_TO_QUOTE_TONE[st]].color}` }))}
+                      options={statuses.map((st) => ({ value: st, label: PO_STATUS_LABEL[st], className: st === "pending" ? "bg-error-transparent text-error-700" : `${statusConfig[PO_TO_QUOTE_TONE[st]].bg} ${statusConfig[PO_TO_QUOTE_TONE[st]].color}` }))}
                       onChange={(v) => void changeStatus(po, v as PoStatus)}
                     />
                   </td>
@@ -190,7 +192,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
                       <Tooltip>
                         <TooltipTrigger
                           aria-label="View"
-                          onClick={() => router.push(`/purchase-orders/${po.id}`)}
+                          onClick={() => router.push(`${base}/${po.id}`)}
                           className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
                         >
                           <Eye className="h-4 w-4" />
@@ -205,10 +207,10 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote }: { onNew?: 
                         >
                           <Download className="h-4 w-4" />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="min-w-72">
+                        <DropdownMenuContent align="end" className="w-max min-w-72">
                           <DropdownMenuGroup>
                           <DropdownMenuLabel>PDF</DropdownMenuLabel>
-                          {PO_PDF_PARTS.map((p) => (
+                          {(direct ? DIRECT_PO_PDF_PARTS : PO_PDF_PARTS).map((p) => (
                             <DropdownMenuItem key={`pdf-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf${p.key === "full" ? "" : `?part=${p.key}`}`, "_blank")}>
                               <FileText className="h-4 w-4 text-grey-400" />
                               {p.label}

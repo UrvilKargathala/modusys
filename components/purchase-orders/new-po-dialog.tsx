@@ -20,7 +20,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 // Manual purchase order, not tied to a quote: vendor, customer and product type are optional here (fill them in
 // later). The PO number is generated from them (PO-<vendor code>-<product type code>-<customer code>-NN), and the cabinets and rows are added by hand in the editor. It starts as Pending.
-export function NewPoDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function NewPoDialog({ open, onOpenChange, direct = false }: { open: boolean; onOpenChange: (open: boolean) => void; direct?: boolean }) {
   const router = useRouter();
   const vendors = useVendors();
   const orders = usePurchaseOrders();
@@ -60,7 +60,7 @@ export function NewPoDialog({ open, onOpenChange }: { open: boolean; onOpenChang
         vendorId,
         quoteId: null,
         customerId: customerId || null,
-        material: { ...blankMaterial(), productTypeId: productTypeId || undefined },
+        material: { ...blankMaterial(), productTypeId: productTypeId || undefined, ...(direct ? { direct: true } : {}) },
         discountPct: 0,
         gstMode: vendor ? gstModeFor(vendor.state) : "intra",
         roundOff: 0,
@@ -69,7 +69,7 @@ export function NewPoDialog({ open, onOpenChange }: { open: boolean; onOpenChang
       });
       toastStore.show("Purchase order created — add its cabinets and rows", "success");
       onOpenChange(false);
-      router.push(`/purchase-orders/${po.id}`);
+      router.push(`${direct ? "/direct-purchase-orders" : "/purchase-orders"}/${po.id}`);
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not create purchase order", "error");
     } finally {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { serializePurchaseOrder } from "@/lib/server/serialize";
+import { asPoStatus } from "@/lib/purchase-order";
 import { requireRole } from "@/lib/server/require-user";
 import { cleanLines, cleanMaterial } from "@/lib/server/purchase-order-input";
 
@@ -39,7 +40,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     }
     data.vendorId = vid;
   }
-  if (b.status !== undefined) data.status = b.status === "completed" || b.status === "part-completed" ? b.status : "pending";
+  if (b.status !== undefined) data.status = asPoStatus(b.status);
   if (b.discountPct !== undefined) data.discountPct = Number(b.discountPct) || 0;
   if (b.roundOff !== undefined) data.roundOff = Number(b.roundOff) || 0;
   if (b.gstMode !== undefined) data.gstMode = b.gstMode === "inter" ? "inter" : "intra";
