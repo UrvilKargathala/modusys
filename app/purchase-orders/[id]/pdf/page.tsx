@@ -19,7 +19,7 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
   const { id } = use(params);
   const q = useSearchParams().get("part");
   const excel = useSearchParams().get("format") === "excel";
-  const part: PoExportPart = q === "components" || q === "hardware" || q === "cabinets" || q === "cutlist" ? q : "full";
+  const part: PoExportPart = q === "components" || q === "hardware" || q === "cabinets" || q === "cutlist" || q === "ledger" ? q : "full";
   const orders = usePurchaseOrders();
   const vendors = useVendors();
   const settings = usePurchaseTemplateSettings();
@@ -66,7 +66,7 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
         {excel ? (
         <button
           type="button"
-          onClick={() => downloadPoExcel(po, part, { vendor, customer, quoteNumber, branding: settings.branding })}
+          onClick={() => downloadPoExcel(po, part, { vendor, vendors, customer, quoteNumber, branding: settings.branding })}
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-body font-medium text-white hover:opacity-90"
         >
           <FileSpreadsheet className="h-4 w-4" />

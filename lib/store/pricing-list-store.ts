@@ -21,9 +21,13 @@ const listeners = new Set<() => void>();
 
 const putFurniture = makeDebouncedPut("/api/pricing/furniture");
 const putHardware = makeDebouncedPut("/api/pricing/hardware");
+// A collection is only saved after it has been loaded from the server once. Otherwise a tab that failed to load (and shows the
+// sample rows) would overwrite the real prices with them on its next edit.
+let furnitureLoaded = false;
+let hardwareLoaded = false;
 function persist() {
-  putFurniture(furnitureItems);
-  putHardware(hardwareItems);
+  if (furnitureLoaded) putFurniture(furnitureItems);
+  if (hardwareLoaded) putHardware(hardwareItems);
 }
 
 function emit() {
@@ -34,12 +38,14 @@ function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
   void fetchJson<FurniturePriceItem[]>("/api/pricing/furniture").then((data) => {
+    if (data) furnitureLoaded = true;
     if (data && data.length > 0) {
       furnitureItems = data;
       emit();
     }
   });
   void fetchJson<HardwarePriceItem[]>("/api/pricing/hardware").then((data) => {
+    if (data) hardwareLoaded = true;
     if (data && data.length > 0) {
       hardwareItems = data;
       emit();

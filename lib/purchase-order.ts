@@ -131,6 +131,13 @@ export type PoMaterial = {
   direct?: boolean;
   // Approximate delivery date (yyyy-mm-dd), typed on the PO.
   approxDeliveryDate?: string;
+  // A tick to mark the row in the Order Tracker Excel.
+  highlight?: boolean;
+  // Order Tracker columns: the Purchase Order Type (name picked from the Purchase Material Library) and the vendor's proforma invoice.
+  orderType?: string;
+  vendorPiNo?: string;
+  vendorPiDate?: string;
+  vendorPiAmount?: number;
   // Purchase Material Library > Purchase Product Type picked on the PO (its id); its Code goes into the PO number.
   productTypeId?: string;
   shutterRawMaterial: string;

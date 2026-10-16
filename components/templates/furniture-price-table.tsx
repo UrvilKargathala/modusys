@@ -9,8 +9,11 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { FurniturePriceFormDialog } from "@/components/templates/furniture-price-form-dialog";
-import { DeletePriceItemDialog } from "@/components/templates/delete-price-item-dialog";
+import { DeletePriceItemDialog, type PriceUsageRef } from "@/components/templates/delete-price-item-dialog";
 import { useFurniturePriceItems, pricingListStore } from "@/lib/store/pricing-list-store";
+import { useQuotes } from "@/lib/store/quotes-store";
+import { useUnitTypes } from "@/lib/store/unit-type-store";
+import type { FurnitureLineItem } from "@/lib/mock/unit-type";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
@@ -39,6 +42,34 @@ export function FurniturePriceTable() {
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<FurniturePriceItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FurniturePriceItem | null>(null);
+  const quotes = useQuotes();
+  const unitTypes = useUnitTypes();
+  // Where a price is used: a line item uses it when thickness, raw material and both finishes match. Shows the quote or unit type
+  // and which sections (Carcass / Shutter / Other Panel) hold such a line.
+  const deleteUsedIn: PriceUsageRef[] = (() => {
+    if (!deleteTarget) return [];
+    const hit = (l: FurnitureLineItem) =>
+      l.thicknessId === deleteTarget.thicknessId && l.rawMaterialTypeId === deleteTarget.rawMaterialTypeId && l.internalColourId === deleteTarget.internalColourId && l.externalColourId === deleteTarget.externalColourId;
+    const where = (sections: [string, FurnitureLineItem[]][]) => sections.filter(([, ls]) => ls.some(hit)).map(([n]) => n).join(", ");
+    return [
+      ...unitTypes
+        .filter((u) => !u.deleted)
+        .map((u) => ({ u, w: where([["Carcass", u.components], ["Shutter", u.externalFinishes], ["Other Panel", u.otherPanels]]) }))
+        .filter((x) => x.w)
+        .map(({ u, w }) => ({ id: u.id, label: `${u.name} — ${u.shortCode} (${w})`, kind: "unit-type" as const })),
+      ...quotes
+        .map((q) => ({
+          q,
+          w: where([
+            ["Carcass", q.units.flatMap((u) => u.cabinets.flatMap((c) => c.components))],
+            ["Shutter", q.units.flatMap((u) => u.cabinets.flatMap((c) => c.externalFinishes))],
+            ["Other Panel", q.units.flatMap((u) => u.cabinets.flatMap((c) => c.panels))],
+          ]),
+        }))
+        .filter((x) => x.w)
+        .map(({ q, w }) => ({ id: q.id, label: `${q.quoteNumber} — ${q.status} (${w})`, kind: "quote" as const })),
+    ];
+  })();
 
   const filterOptions = useMemo(() => {
     if (filterDimension === "all") return [];
@@ -240,6 +271,7 @@ export function FurniturePriceTable() {
         onOpenChange={(open) => !open && setDeleteTarget(null)}
         title={deleteTarget ? `${materialName(deleteTarget.thicknessId)} ${materialName(deleteTarget.rawMaterialTypeId)}` : null}
         onConfirm={handleDelete}
+        usedIn={deleteUsedIn}
       />
     </div>
   );

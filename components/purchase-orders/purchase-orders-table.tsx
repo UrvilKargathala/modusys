@@ -1,6 +1,7 @@
 "use client";
 
 import { statusConfig, type StatusKey } from "@/lib/status";
+import { downloadOrderTracker } from "@/lib/order-tracker-export";
 import { StatusMenu } from "@/components/shared/status-menu";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -11,7 +12,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { EmptyState } from "@/components/shared/empty-state";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { DIRECT_PO_PDF_PARTS, PO_EXCEL_PARTS, PO_PDF_PARTS } from "@/lib/purchase-order-export";
+import { PO_EXCEL_PARTS, PO_PDF_PARTS } from "@/lib/purchase-order-export";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { toastStore } from "@/lib/store/toast-store";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
@@ -138,6 +139,10 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => downloadOrderTracker(orders, customers, `order-tracker${direct ? "-direct" : ""}.xlsx`)}>
+            <Download className="h-4 w-4" />
+            Order Tracker (Excel)
+          </Button>
           <div className="relative w-64">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
             <input
@@ -225,7 +230,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                         <DropdownMenuContent align="end" className="w-max min-w-72">
                           <DropdownMenuGroup>
                           <DropdownMenuLabel>PDF</DropdownMenuLabel>
-                          {(direct ? DIRECT_PO_PDF_PARTS : PO_PDF_PARTS).map((p) => (
+                          {PO_PDF_PARTS.map((p) => (
                             <DropdownMenuItem key={`pdf-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf${p.key === "full" ? "" : `?part=${p.key}`}`, "_blank")}>
                               <FileText className="h-4 w-4 text-grey-400" />
                               {p.label}

@@ -1,7 +1,8 @@
+import { hardwareKey } from "@/components/purchase-orders/po-hardware-tab";
 import type { Customer } from "@/lib/mock/pipeline";
 import { Fragment } from "react";
 import type { QuoteTemplateSettings } from "@/lib/mock/quote-template";
-import { CUT_LIST_HEADERS, HW_HEADERS, cabinetTitle, PANEL_HEADERS, cutListRows, byCabinet, carcassHeadingCells, groupsFor, poDetailSections, type PoExportPart } from "@/lib/purchase-order-export";
+import { LEDGER_HEADERS, ledgerItems, CUT_LIST_HEADERS, HW_HEADERS, cabinetTitle, PANEL_HEADERS, cutListRows, byCabinet, carcassHeadingCells, groupsFor, poDetailSections, type PoExportPart } from "@/lib/purchase-order-export";
 import { COMPANY_GST, brandVendorName, mostUsed, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
 
 type Branding = { companyName: string; address: string; email: string; phone: string; logoDataUrl?: string | null };
@@ -9,11 +10,11 @@ type Branding = { companyName: string; address: string; email: string; phone: st
 // One colour per section so a vendor can find Carcass / Shutter / Other Panel / Hardware at a glance.
 // Solid colour for the section band and table header, the light tint for cabinet rows. Prints in colour
 // (the print page sets print-color-adjust: exact).
-const THEME: Record<PoGroup, { band: string; head: string; tint: string; text: string; border: string }> = {
-  carcass: { band: "bg-primary", head: "bg-primary-transparent", tint: "bg-primary-transparent", text: "text-primary", border: "border-primary" },
-  shutter: { band: "bg-info", head: "bg-info-transparent", tint: "bg-info-transparent", text: "text-info", border: "border-info" },
-  "other-panel": { band: "bg-teal-900", head: "bg-teal-100", tint: "bg-teal-100", text: "text-teal-900", border: "border-teal-900" },
-  hardware: { band: "bg-orange", head: "bg-orange-transparent", tint: "bg-orange-transparent", text: "text-orange", border: "border-orange" },
+const THEME: Record<PoGroup, { band: string; soft: string; head: string; tint: string; text: string; border: string }> = {
+  carcass: { band: "bg-success", soft: "bg-success/20 text-grey-900", head: "bg-success-transparent", tint: "bg-success-transparent", text: "text-success", border: "border-success" },
+  shutter: { band: "bg-info", soft: "bg-info/20 text-grey-900", head: "bg-info-transparent", tint: "bg-info-transparent", text: "text-info", border: "border-info" },
+  "other-panel": { band: "bg-teal-900", soft: "bg-teal-900/20 text-grey-900", head: "bg-teal-100", tint: "bg-teal-100", text: "text-teal-900", border: "border-teal-900" },
+  hardware: { band: "bg-orange", soft: "bg-orange/20 text-grey-900", head: "bg-orange-transparent", tint: "bg-orange-transparent", text: "text-orange", border: "border-orange" },
 };
 
 const cell = "border border-grey-100 px-1.5 py-1 align-top";
@@ -25,12 +26,12 @@ const noPrice = (h: string[]) => h.filter((x) => !PRICE_HEADERS.has(x));
 
 // One colour per detail card (title bar, border and a light tint), so the six read as separate blocks.
 const CARD_TONE: Record<string, { bar: string; box: string }> = {
-  "Company Details": { bar: "bg-primary", box: "border-primary bg-primary-transparent" },
-  "Vendor Details": { bar: "bg-indigo", box: "border-indigo bg-indigo-transparent" },
-  "Customer Details": { bar: "bg-purple", box: "border-purple bg-purple-transparent" },
-  "Purchase Order Details": { bar: "bg-orange", box: "border-orange bg-orange-transparent" },
-  "Shutter Details": { bar: "bg-cyan", box: "border-cyan bg-cyan-transparent" },
-  "Cabinet Details": { bar: "bg-success", box: "border-success bg-success-transparent" },
+  "Company Details": { bar: "bg-primary/20 text-primary", box: "border-primary bg-primary-transparent" },
+  "Vendor Details": { bar: "bg-indigo/20 text-indigo", box: "border-indigo bg-indigo-transparent" },
+  "Customer Details": { bar: "bg-purple/20 text-purple", box: "border-purple bg-purple-transparent" },
+  "Purchase Order Details": { bar: "bg-orange/20 text-orange", box: "border-orange bg-orange-transparent" },
+  "Shutter Details": { bar: "bg-cyan/20 text-cyan", box: "border-cyan bg-cyan-transparent" },
+  "Cabinet Details": { bar: "bg-success/20 text-success", box: "border-success bg-success-transparent" },
 };
 // Text with its digits set in Manrope (the PDFs' number font); letters keep the normal font.
 function Nums({ children }: { children: string }) {
@@ -52,10 +53,10 @@ const rowsList = (rows: [string, string][]) =>
   ));
 
 function Info({ title, rows }: { title: string; rows: [string, string][] }) {
-  const tone = CARD_TONE[title] ?? { bar: "bg-grey-800", box: "border-grey-100" };
+  const tone = CARD_TONE[title] ?? { bar: "bg-grey-800/10 text-grey-800", box: "border-grey-100" };
   return (
     <div className={`flex h-full flex-col overflow-hidden rounded-lg border break-inside-avoid ${tone.box}`}>
-      <div className={`px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white ${tone.bar}`}>{title}</div>
+      <div className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider ${tone.bar}`}>{title}</div>
       <div className="flex flex-1 flex-col gap-1 p-2.5">{rowsList(rows)}</div>
     </div>
   );
@@ -66,7 +67,7 @@ function ClauseList({ title, items }: { title: string; items: { id: string; text
   if (items.length === 0) return null;
   return (
     <div className="overflow-hidden rounded-lg border border-grey-200">
-      <div className="bg-grey-800 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-white">{title}</div>
+      <div className="bg-grey-800/10 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-grey-800">{title}</div>
       <ol className="flex list-decimal flex-col gap-1 p-2.5 pl-6 text-[10px] text-grey-700">
         {items.map((i) => (
           <li key={i.id}>
@@ -81,9 +82,9 @@ function ClauseList({ title, items }: { title: string; items: { id: string; text
 // Section title bar: "A. CARCASS · 30 rows".
 function Band({ group, title, count, unit = "rows" }: { group: PoGroup; title: string; count: number; unit?: string }) {
   return (
-    <div className={`flex items-center justify-between rounded-t-lg px-3 py-2 text-white ${THEME[group].band}`}>
-      <span className="text-[12px] font-semibold uppercase tracking-wider">{title}</span>
-      <span className="text-[11px]">{count} {unit}</span>
+    <div className={`flex items-center justify-between rounded-t-lg px-3 py-2 ${THEME[group].soft}`}>
+      <span className="text-[12px] font-bold uppercase tracking-wider">{title}</span>
+      <span className="text-[11px] font-bold">{count} {unit}</span>
     </div>
   );
 }
@@ -92,7 +93,7 @@ function Header({ group, headers }: { group: PoGroup; headers: string[] }) {
   return (
     <tr>
       {headers.map((h) => (
-        <th key={h} className={`${cell} ${THEME[group].head} ${THEME[group].text} font-semibold uppercase ${RIGHT.has(h) ? "text-right" : "text-left"}`}>{h}</th>
+        <th key={h} className={`${cell} ${THEME[group].head} text-grey-900 font-bold uppercase ${RIGHT.has(h) ? "text-right" : "text-left"}`}>{h}</th>
       ))}
     </tr>
   );
@@ -237,8 +238,9 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
                   <td className={cell}><Nums>{l.remarks}</Nums></td>
                   {merged && (
                     <>
-                      <td className={`${cell} w-16`} />
-                      <td className={`${cell} w-16`} />
+                      {/* Stock Qty and Order Qty from the PO's Hardware tab: Order Qty = Qty - Stock Qty (never below 0). */}
+                      <td className={`${cell} w-16 text-center po-num`}>{po.material.hardwareStock?.[hardwareKey(l)]?.stock !== undefined ? po.material.hardwareStock[hardwareKey(l)].stock!.toFixed(2) : ""}</td>
+                      <td className={`${cell} w-16 text-center po-num`}>{Math.max(0, l.qty - (po.material.hardwareStock?.[hardwareKey(l)]?.stock ?? 0)).toFixed(2)}</td>
                     </>
                   )}
                 </tr>
@@ -251,7 +253,61 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
   );
 }
 
-const PART_LABEL: Record<PoExportPart, string> = { full: "Full Details", components: "Components", hardware: "Hardware", cabinets: "Cabinets", cutlist: "Cut List" };
+const PART_LABEL: Record<PoExportPart, string> = { full: "Unit Wise All Details", components: "Components", hardware: "Hardware", cabinets: "Cabinets", cutlist: "Cut List", ledger: "Hardware Product Ledger" };
+
+// Hardware Product Ledger: each hardware item with its stock, every delivery received and the balance.
+function LedgerTable({ po, vendors }: { po: PurchaseOrder; vendors?: Vendor[] }) {
+  const items = ledgerItems(po, vendors);
+  return (
+    <section className="break-inside-auto">
+      <Band group="hardware" title="Hardware Product Ledger" count={items.length} unit="items" />
+      <table className="w-full border-collapse text-[10px]">
+        <thead>
+          <tr>
+            {["Sr No", "Brand", "Category", "Article No", "Product Name", "Req. Qty", "Stock Qty"].map((h) => (
+              <th key={h} rowSpan={2} className={`${cell} ${THEME.hardware.head} ${THEME.hardware.text} font-semibold uppercase ${h.endsWith("Qty") ? "text-right" : "text-left"}`}>{h}</th>
+            ))}
+            <th colSpan={6} className={`${cell} ${THEME.hardware.head} ${THEME.hardware.text} text-center font-semibold uppercase`}>Received Detail</th>
+            <th rowSpan={2} className={`${cell} ${THEME.hardware.head} ${THEME.hardware.text} text-right font-semibold uppercase`}>Balance Qty</th>
+          </tr>
+          <tr>
+            {["Bill No", "Bill Date", "Received Qty", "Amount", "Vendor Name", "Remark"].map((h) => (
+              <th key={h} className={`${cell} ${THEME.hardware.head} ${THEME.hardware.text} font-semibold uppercase ${h === "Received Qty" || h === "Amount" ? "text-right" : "text-left"}`}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((it, itemIdx) => {
+            const rows = it.receipts.length ? it.receipts : [null];
+            return rows.map((r, i) => (
+              // A new Sr No starts with a darker line above it, so the items stand apart.
+              <tr key={`${it.sr}-${i}`} className={`break-inside-avoid ${i === 0 && itemIdx > 0 ? "[&>td]:border-t-2 [&>td]:border-t-grey-600" : ""}`}>
+                {i === 0 && (
+                  <>
+                    <td rowSpan={rows.length} className={`${cell} po-num`}>{it.sr}</td>
+                    <td rowSpan={rows.length} className={cell}>{it.brand}</td>
+                    <td rowSpan={rows.length} className={cell}>{it.category}</td>
+                    <td rowSpan={rows.length} className={cell}><Nums>{it.articleNo}</Nums></td>
+                    <td rowSpan={rows.length} className={cell}><Nums>{it.name}</Nums></td>
+                    <td rowSpan={rows.length} className={`${cell} text-right po-num`}>{num(it.req)}</td>
+                    <td rowSpan={rows.length} className={`${cell} text-right po-num`}>{it.stock !== undefined ? it.stock.toFixed(2) : ""}</td>
+                  </>
+                )}
+                <td className={`${cell} po-num`}>{r?.billNo ?? ""}</td>
+                <td className={`${cell} po-num`}>{r?.date ? r.date.slice(0, 10).split("-").reverse().join("/") : ""}</td>
+                <td className={`${cell} text-right po-num`}>{r ? num(r.qty) : ""}</td>
+                <td className={`${cell} text-right po-num`}>{r ? r.amount.toFixed(2) : ""}</td>
+                <td className={cell}><Nums>{r?.vendorName ?? ""}</Nums></td>
+                <td className={cell}><Nums>{r?.remark ?? ""}</Nums></td>
+                {i === 0 && <td rowSpan={rows.length} className={`${cell} text-right font-semibold po-num`}>{it.balance.toFixed(2)}</td>}
+              </tr>
+            ));
+          })}
+        </tbody>
+      </table>
+    </section>
+  );
+}
 
 // Direct Purchase Order, Purchase Order PDF: Carcass lists each cabinet with its details (as on the cabinet card), not its components.
 const DIRECT_CABINET_HEADERS = ["Sr", "Cabinet Type", "Cabinet Name", "W", "D", "H", "Qty", "Design", "Remark", "Vendor", "Internal Brand & Colour", "External Brand & Colour", "Material"];
@@ -347,12 +403,9 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
 
   return (
     <div className="flex flex-col gap-4 bg-white p-6 font-heading text-[11px] text-grey-900 [&_*]:font-heading">
-      {/* Letterhead */}
-      <div className="flex items-stretch justify-between gap-6 overflow-hidden rounded-xl border border-grey-100">
-        <div className="flex items-center gap-8 p-4">
-          {/* The logo uploaded in Quote Template > Branding, else The Furn's own. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={branding.logoDataUrl || "/the-furn-logo.png"} alt="" className="h-16 w-28 shrink-0 object-contain" />
+      {/* Letterhead: company details and the logo (right) in the box; the PDF name, sub-label and PO number sit outside it, under the logo, on a brand-colour band. */}
+      <div className="flex flex-col items-end gap-2">
+        <div className="flex w-full items-center justify-between gap-6 border-b-2 border-primary p-4">
           <div className="flex flex-col gap-0.5">
             <h1 className="text-xl font-bold uppercase tracking-wide text-primary">{branding.companyName}</h1>
             <p className="text-grey-600"><Nums>{branding.address}</Nums></p>
@@ -360,16 +413,35 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
               <Nums>{branding.email}</Nums> &nbsp;·&nbsp; <Nums>{branding.phone}</Nums> &nbsp;·&nbsp; GST <Nums>{COMPANY_GST}</Nums>
             </p>
           </div>
+          {/* The logo uploaded in Quote Template > Branding, else The Furn's own, drawn in the brand colour: the file is dark on white, so
+              a lighten blend over a brand-colour backing keeps the white and turns the dark strokes into the brand colour. */}
+          <div className="isolate inline-flex shrink-0 bg-primary">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={branding.logoDataUrl || "/the-furn-logo.png"} alt="" className="h-16 w-auto mix-blend-lighten" />
+          </div>
         </div>
-        <div className="flex min-w-60 flex-col items-end justify-center gap-1 bg-primary px-6 py-4 text-white">
-          <span className="text-lg font-bold uppercase tracking-wider">{part === "components" || part === "hardware" ? "Material Slip" : "Purchase Order"}</span>
-          {part !== "cabinets" && <span className="text-[11px] opacity-90">{PART_LABEL[part]}</span>}
-          <span className="text-[13px] font-semibold"><Nums>{po.poNumber || "Number not set"}</Nums></span>
+        <div className="flex items-center gap-3 whitespace-nowrap rounded-xl bg-primary px-5 py-2 text-white">
+          <span className="text-base font-bold uppercase tracking-wider">
+            {part === "ledger" ? "Hardware Product Ledger" : part === "components" || part === "hardware" ? "Material Slip" : "Purchase Order"}
+          </span>
+          {part !== "cabinets" && part !== "ledger" && <span className="text-[11px] opacity-90">· {PART_LABEL[part]}</span>}
+          <span className="text-[13px] font-semibold">· <Nums>{po.poNumber || "Number not set"}</Nums></span>
         </div>
       </div>
 
       {/* Details */}
-      {partial ? (
+      {part === "ledger" ? (
+        // Hardware Product Ledger: customer, vendor and PO details (no shutter or cabinet cards).
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-4 gap-2">
+            {details.filter((sec) => sec.title === "Customer Details").map((sec) => (
+              <Info key={sec.title} title={sec.title} rows={sec.rows} />
+            ))}
+            {card("Vendor Details")}
+            {card("Purchase Order Details")}
+          </div>
+        </div>
+      ) : partial ? (
         // Material Slip (Components only / Hardware only): just the customer card, with Mobile and Address.
         <div className="grid grid-cols-3 gap-3">
           {details.filter((sec) => sec.title === "Customer Details").map((sec) => (
@@ -401,6 +473,7 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
 
       {part === "cabinets" && <CabinetSummaryTable po={po} noComponentCabinets={noComponentCabinets} vendor={vendor} vendors={vendors} />}
       {cutList}
+      {part === "ledger" && <LedgerTable po={po} vendors={vendors} />}
 
       {!cutList && groups.map((g) => {
         const lines = po.lines.filter((l) => l.group === g.key);
@@ -421,7 +494,7 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
       </div>
 
       {/* Purchase Template: notes, terms, payment terms and bank details, one under the other (Purchase Order PDFs only, not the Material Slips) */}
-      {template && !partial && !cutList && (
+      {template && !partial && !cutList && part !== "ledger" && (
         <div className="flex flex-col gap-3">
           <ClauseList title="Notes" items={template.notes} />
           <ClauseList title="Terms" items={template.terms} />

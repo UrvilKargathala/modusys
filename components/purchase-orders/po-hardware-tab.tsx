@@ -5,6 +5,7 @@ import { useContext, useMemo, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PoBrandVendorContext } from "@/components/purchase-orders/po-lines-table";
 import { formatInr } from "@/lib/format";
 import { useVendors } from "@/lib/store/vendors-store";
@@ -68,6 +69,7 @@ function ReceivedDialog({
 }) {
   const vendors = useVendors();
   const [rows, setRows] = useState<HardwareReceipt[]>(receipts.length ? receipts.map((r) => ({ ...r })) : [newReceipt()]);
+  const [removeId, setRemoveId] = useState<string | null>(null);
   const patch = (id: string, fields: Partial<HardwareReceipt>) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...fields } : r)));
   const cell = "h-8 w-full rounded-md border border-grey-100 bg-card px-2 text-[13px] font-body text-grey-900 outline-none focus:border-primary";
   const cols = "grid-cols-[2rem_1.5fr_1.1fr_1fr_1fr_5rem_8.5rem_1.1fr_2rem]";
@@ -99,7 +101,7 @@ function ReceivedDialog({
                 <input aria-label="Qty" type="number" min={0} step="any" className={`${cell} text-right font-number ${noSpin}`} value={r.qty || ""} onChange={(e) => patch(r.id, { qty: Math.max(0, Number(e.target.value) || 0) })} />
                 <input aria-label="Date" type="date" className={cell} value={r.date} onChange={(e) => patch(r.id, { date: e.target.value })} />
                 <input aria-label="Remark" className={cell} value={r.remark} onChange={(e) => patch(r.id, { remark: e.target.value })} />
-                <button type="button" aria-label="Remove" onClick={() => setRows((rs) => rs.filter((x) => x.id !== r.id))} className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error">
+                <button type="button" aria-label="Remove" onClick={() => setRemoveId(r.id)} className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -118,6 +120,16 @@ function ReceivedDialog({
           <Button type="button" onClick={() => onSave(rows.filter((r) => r.billNo.trim() || r.qty || r.remark.trim() || r.vendorId))}>Save</Button>
         </DialogFooter>
       </DialogContent>
+      <ConfirmDialog
+        open={removeId !== null}
+        onOpenChange={(o) => !o && setRemoveId(null)}
+        title="Delete this delivery?"
+        description="This removes the row from the list. It is only saved when you press Save."
+        onConfirm={() => {
+          setRows((rs) => rs.filter((x) => x.id !== removeId));
+          setRemoveId(null);
+        }}
+      />
     </Dialog>
   );
 }

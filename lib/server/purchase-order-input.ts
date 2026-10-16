@@ -69,6 +69,11 @@ export function cleanMaterial(m: unknown) {
     productTypeId: str(o.productTypeId) || undefined,
     direct: o.direct === true ? true : undefined,
     approxDeliveryDate: str(o.approxDeliveryDate) || undefined,
+    highlight: o.highlight === true ? true : undefined,
+    orderType: str(o.orderType) || undefined,
+    vendorPiNo: str(o.vendorPiNo) || undefined,
+    vendorPiDate: str(o.vendorPiDate) || undefined,
+    vendorPiAmount: o.vendorPiAmount === undefined || o.vendorPiAmount === null || o.vendorPiAmount === "" ? undefined : num(o.vendorPiAmount),
     brandVendors: Object.fromEntries(
       Object.entries((o.brandVendors ?? {}) as Record<string, unknown>)
         .filter(([k, v]) => k && typeof v === "string")

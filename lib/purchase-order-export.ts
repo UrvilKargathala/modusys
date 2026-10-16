@@ -3,7 +3,7 @@ import { COMPANY_GST, PO_GROUPS, PO_STATUS_LABEL, lineAmount, poTotals, type Pur
 import type { Customer } from "@/lib/mock/pipeline";
 
 export type PoBranding = { companyName: string; address: string; email: string; phone: string };
-export type PoExportContext = { vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: PoBranding };
+export type PoExportContext = { vendor?: Vendor; vendors?: Vendor[]; customer?: Customer; quoteNumber?: string; branding: PoBranding };
 
 const fmtDate = (iso: string) => (iso ? iso.slice(0, 10).split("-").reverse().join("/") : "");
 const distinctFinish = (po: PurchaseOrder, groups: string[], key: "internalColour" | "externalColour") =>
@@ -51,25 +51,22 @@ export function poDetailSections(po: PurchaseOrder, { vendor, customer, quoteNum
 // What a download covers: the full PO, only the panel components (carcass, shutter, other panel), or only hardware.
 // "cabinets" = the Purchase Order sheet: one row per cabinet (size, design, finishes), no component rows. PDF only.
 // "cutlist" = Excel only: one Cut List sheet of every panel component (sizes + finishes, no prices, no Details sheet).
-export type PoExportPart = "full" | "components" | "hardware" | "cabinets" | "cutlist";
+export type PoExportPart = "full" | "components" | "hardware" | "cabinets" | "cutlist" | "ledger";
 export const PO_EXPORT_PARTS: { key: PoExportPart; label: string }[] = [
-  { key: "full", label: "Full details" },
+  { key: "full", label: "Unit Wise All Details" },
   { key: "components", label: "Components only" },
   { key: "hardware", label: "Hardware only" },
 ];
-export const PO_EXCEL_PARTS: { key: PoExportPart; label: string }[] = [...PO_EXPORT_PARTS, { key: "cutlist", label: "Cut List" }];
+export const PO_EXCEL_PARTS: { key: PoExportPart; label: string }[] = [...PO_EXPORT_PARTS, { key: "cutlist", label: "Cut List" }, { key: "ledger", label: "Hardware Product Ledger" }];
 export const PO_PDF_PARTS: { key: PoExportPart; label: string }[] = [
-  { key: "full", label: "Full details" },
-  { key: "components", label: "Material Slip Components only" },
-  { key: "hardware", label: "Material Slip Hardware only" },
+  { key: "full", label: "Unit Wise All Details" },
+  { key: "components", label: "Purchase Order With Components" },
+  { key: "hardware", label: "Material Requirement Slip (Hardware only)" },
   { key: "cabinets", label: "Purchase Order" },
+  { key: "ledger", label: "Hardware Product Ledger" },
 ];
-// Direct Purchase Orders name two of the PDFs differently.
-export const DIRECT_PO_PDF_PARTS: { key: PoExportPart; label: string }[] = PO_PDF_PARTS.map((p) =>
-  p.key === "components" ? { ...p, label: "Purchase Order With Components" } : p.key === "hardware" ? { ...p, label: "Material Requirement Slip (Hardware only)" } : p
-);
 export const groupsFor = (part: PoExportPart) =>
-  PO_GROUPS.filter((g) => part !== "cabinets") .filter((g) => part === "full" || (part === "hardware" ? g.key === "hardware" : g.key !== "hardware"));
+  PO_GROUPS.filter((g) => part !== "cabinets" && part !== "ledger").filter((g) => part === "full" || (part === "hardware" ? g.key === "hardware" : g.key !== "hardware"));
 
 // A group's rows split by cabinet, in cabinet order: the cabinet's name, then its rows numbered 1.1, 1.2...
 export function byCabinet(po: PurchaseOrder, group: string) {
@@ -145,6 +142,7 @@ export const PANEL_HEADERS = ["Sr", "Description", "Design", "Width", "Thk", "He
 // A Details sheet (all header blocks + totals) on every download, then one sheet per group.
 export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoExportContext) {
   if (part === "cutlist") return downloadCutList(po);
+  if (part === "ledger") return downloadLedger(po, ctx);
   const wb = XLSX.utils.book_new();
   // Components / Hardware only: totals of just those rows (same as the PDF).
   const partial = part === "components" || part === "hardware";
@@ -203,4 +201,62 @@ function downloadCutList(po: PurchaseOrder) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Cut List");
   XLSX.writeFile(wb, `PO-${po.poNumber || "draft"}-cut-list.xlsx`);
+}
+
+
+// Hardware Product Ledger: every hardware item of the PO merged across cabinets (same item = same brand, description, article no,
+// category and unit), with what is needed, the stock, each delivery received (bill no, date, qty, amount, vendor) and the balance.
+// Order Qty = Qty - Stock Qty (never below 0); Balance Qty = Order Qty - Received Qty (never below 0).
+export type LedgerItem = {
+  sr: number;
+  brand: string;
+  category: string;
+  articleNo: string;
+  name: string;
+  req: number;
+  stock?: number;
+  receipts: { billNo: string; date: string; qty: number; amount: number; vendorName: string; remark: string }[];
+  balance: number;
+};
+export function ledgerItems(po: PurchaseOrder, vendors: Vendor[] = []): LedgerItem[] {
+  const cmp = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true });
+  const byKey = new Map<string, PurchaseOrder["lines"][number]>();
+  for (const l of po.lines.filter((x) => x.group === "hardware")) {
+    const key = [l.brand, l.description, l.articleNo, l.category, l.unit].join("|").toLowerCase();
+    const hit = byKey.get(key);
+    byKey.set(key, hit ? { ...hit, qty: hit.qty + l.qty } : { ...l });
+  }
+  return [...byKey.entries()]
+    .sort(([, a], [, b]) => cmp(a.brand, b.brand) || cmp(a.category, b.category) || cmp(a.description, b.description))
+    .map(([key, l], i) => {
+      const st = po.material.hardwareStock?.[key];
+      const net = l.rate * (1 - (l.discountPct ?? 0) / 100);
+      const receipts = (st?.receipts ?? []).map((r) => ({ billNo: r.billNo, date: r.date, qty: r.qty, amount: Number((r.qty * net).toFixed(2)), vendorName: vendors.find((v) => v.id === r.vendorId)?.name ?? "", remark: r.remark }));
+      const received = receipts.reduce((t, r) => t + r.qty, 0);
+      const order = Math.max(0, l.qty - (st?.stock ?? 0));
+      return { sr: i + 1, brand: l.brand, category: l.category, articleNo: l.articleNo, name: l.description, req: l.qty, stock: st?.stock, receipts, balance: Math.max(0, order - received) };
+    });
+}
+export const LEDGER_HEADERS = ["Sr No", "Brand", "Category", "Article No", "Product Name", "Req. Qty", "Stock Qty", "Bill No", "Bill Date", "Received Qty", "Amount", "Vendor Name", "Remark", "Balance Qty"];
+
+function downloadLedger(po: PurchaseOrder, ctx: PoExportContext) {
+  const aoa: (string | number)[][] = [[ctx.branding.companyName], ["HARDWARE PRODUCT LEDGER", "", "PO No", po.poNumber]];
+  for (const sec of poDetailSections(po, ctx).filter((x) => x.title !== "Shutter Details" && x.title !== "Cabinet Details")) {
+    aoa.push([], [sec.title.toUpperCase()], ...sec.rows);
+  }
+  aoa.push([]);
+  const start = aoa.length;
+  aoa.push(["Sr No", "Brand", "Category", "Article No", "Product Name", "Req. Qty", "Stock Qty", "Received Detail", "", "", "", "", "", "Balance Qty"]);
+  aoa.push(["", "", "", "", "", "", "", "Bill No", "Bill Date", "Received Qty", "Amount", "Vendor Name", "Remark", ""]);
+  for (const it of ledgerItems(po, ctx.vendors)) {
+    const first = it.receipts[0];
+    aoa.push([it.sr, it.brand, it.category, it.articleNo, it.name, it.req, it.stock ?? "", first?.billNo ?? "", first ? fmtDate(first.date) : "", first?.qty ?? "", first?.amount ?? "", first?.vendorName ?? "", first?.remark ?? "", it.balance]);
+    for (const r of it.receipts.slice(1)) aoa.push(["", "", "", "", "", "", "", r.billNo, fmtDate(r.date), r.qty, r.amount, r.vendorName, r.remark, ""]);
+  }
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!merges"] = [{ s: { r: start, c: 7 }, e: { r: start, c: 12 } }];
+  ws["!cols"] = [8, 16, 16, 16, 46, 10, 10, 12, 12, 12, 12, 24, 24, 12].map((wch) => ({ wch }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Hardware Product Ledger");
+  XLSX.writeFile(wb, `PO-${po.poNumber || "draft"}-hardware-ledger.xlsx`);
 }

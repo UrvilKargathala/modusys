@@ -36,13 +36,31 @@ import { DIRECT_PO_STATUSES, PO_GROUPS, PO_STATUS_LABEL, PO_STATUS_STYLE, custom
 const NEW_VENDOR = "__new-vendor__";
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
 const card = "flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-5 shadow-sm";
-// The four cards at the top of a PO each take one colour of the PO palette (sand, taupe, stone, slate), as a light tint.
-// A light tint with a thin matching border and a strong top edge in the colour itself.
-const tintCard = (tone: string) => `po-card flex flex-col gap-4 rounded-xl border border-t-4 p-5 shadow-sm ${tone}`;
-const vendorCard = tintCard("border-slate/40 border-t-slate bg-slate/30");
-const poCard = tintCard("border-taupe/50 border-t-taupe bg-taupe/40");
-const shutterCard = tintCard("border-stone/60 border-t-stone bg-stone/40");
-const cabinetCard = tintCard("border-sand border-t-sand bg-sand/60");
+
+// A collapsible section like the quote's: a tinted bar with a chevron, a short summary on the right, and the fields in a grid when open.
+function PoSection({ title, summary, tone, children }: { title: React.ReactNode; summary?: string; tone: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className={`po-card rounded-xl border border-t-4 p-4 shadow-sm ${tone}`}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-2 text-left">
+        {open ? <ChevronDown className="h-4 w-4 shrink-0 text-grey-600" /> : <ChevronRight className="h-4 w-4 shrink-0 text-grey-600" />}
+        <h2 className="font-heading text-lg font-semibold text-grey-900">{title}</h2>
+        {summary && !open && <span className="ml-auto truncate pl-4 text-sm font-body text-grey-600">{summary}</span>}
+      </button>
+      {open && <div className="grid gap-x-6 gap-y-4 pt-4 md:grid-cols-2 xl:grid-cols-4">{children}</div>}
+    </section>
+  );
+}
+
+// A read-only value with its label above (used in the Vendor section).
+function Info({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+  return (
+    <div className={`flex flex-col gap-1 text-sm font-body ${wide ? "col-span-full" : ""}`}>
+      <span className="text-xs font-semibold text-grey-700">{label}</span>
+      <span className="whitespace-pre-line text-grey-900"><Nums>{value || "—"}</Nums></span>
+    </div>
+  );
+}
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -416,9 +434,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className={vendorCard}>
-          <h2 className="font-heading text-base font-semibold text-grey-900">Vendor <span className="text-error">*</span></h2>
+      <div className="flex flex-col gap-3">
+        <PoSection tone="border-slate/40 border-t-slate bg-slate/30" title={<>Vendor <span className="text-error">*</span></>} summary={vendor?.name}>
+          <div className="flex flex-col gap-1.5">
+          <Label>Vendor Name</Label>
           <SelectField
             value={draft.vendorId}
             onChange={(e) => {
@@ -438,28 +457,24 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               </option>
             ))}
           </SelectField>
+          </div>
           {vendor && (
-            <div className="flex flex-col gap-1">
-              <Row label="Address" value={[vendor.address, vendor.city, vendor.state].filter(Boolean).join(", ")} />
-              {vendor.code && <Row label="Code" value={vendor.code} />}
-              <Row label="GST No" value={vendor.gst} />
-              {(vendor.emails ?? []).map((e, i) => (
-                <Row key={`e${i}`} label={i === 0 ? "Email" : ""} value={e} />
-              ))}
-              {vendor.contacts.map((c, i) => (
-                <Row key={i} label={i === 0 ? "Contact" : ""} value={[c.name, c.phone].filter(Boolean).join(": ")} />
-              ))}
-            </div>
+            <>
+              {vendor.code && <Info label="Code" value={vendor.code} />}
+              <Info label="GST No" value={vendor.gst} />
+              {vendor.contacts.length > 0 && <Info label="Contact" value={vendor.contacts.map((c) => [c.name, c.phone].filter(Boolean).join(": ")).join("\n")} />}
+              {(vendor.emails ?? []).length > 0 && <Info label="Email" value={(vendor.emails ?? []).join(", ")} />}
+              <Info label="Address" value={[vendor.address, vendor.city, vendor.state].filter(Boolean).join(", ")} wide />
+            </>
           )}
-        </div>
+        </PoSection>
 
-        <div className={poCard}>
-          <h2 className="font-heading text-base font-semibold text-grey-900">Purchase Order Details</h2>
-          <div className="flex items-center gap-2 text-sm font-body">
-            <span className="w-24 shrink-0 text-grey-500">Customer <span className="text-error">*</span></span>
+        <PoSection tone="border-taupe/50 border-t-taupe bg-taupe/40" title={<>Purchase Order Details{quote?.quoteNumber && <span className="ml-2 font-number text-base font-normal text-grey-700">({quote.quoteNumber})</span>}</>} summary={draft.poNumber}>
+          <div className="flex flex-col gap-1.5">
+            <Label>Customer <span className="text-error">*</span></Label>
             <SelectField
               aria-label="Customer"
-              className="h-9 min-w-0 flex-1 rounded-lg border border-grey-100 bg-card px-2 text-sm text-grey-900 outline-none focus:border-primary"
+              className={field}
               value={draft.customerId ?? ""}
               onChange={(e) => {
                 const c = customers.find((x) => x.id === e.target.value);
@@ -513,15 +528,42 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               <Input id="e-req" type="date" value={draft.requiredDate} onChange={(e) => set({ requiredDate: e.target.value })} className="bg-white font-number" />
             </div>
           </div>
+          <>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="e-approx">Approx Delivery Date</Label>
             <Input id="e-approx" type="date" value={draft.material.approxDeliveryDate ?? ""} onChange={(e) => setMaterial({ approxDeliveryDate: e.target.value || undefined })} className="bg-white font-number" />
           </div>
-          <Row label="Quote" value={quote?.quoteNumber ?? ""} />
-        </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="e-otype">Purchase Order Type</Label>
+            <SelectField id="e-otype" className={field} value={draft.material.orderType ?? ""} onChange={(e) => setMaterial({ orderType: e.target.value || undefined })}>
+              <option value="">Select order type…</option>
+              {materials.filter((m) => m.category === "purchase-order-type" && !m.deleted).map((m) => (
+                <option key={m.id} value={m.name}>{m.name}</option>
+              ))}
+            </SelectField>
+          </div>
+          <div className="contents">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="e-pino">Vendor PI No</Label>
+              <Input id="e-pino" value={draft.material.vendorPiNo ?? ""} onChange={(e) => setMaterial({ vendorPiNo: e.target.value || undefined })} className="bg-white font-number" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="e-pidate">Vendor PI Date</Label>
+              <Input id="e-pidate" type="date" value={draft.material.vendorPiDate ?? ""} onChange={(e) => setMaterial({ vendorPiDate: e.target.value || undefined })} className="bg-white font-number" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="e-piamt">Vendor PI Amount</Label>
+            <Input id="e-piamt" type="number" min={0} value={draft.material.vendorPiAmount ?? ""} onChange={(e) => setMaterial({ vendorPiAmount: e.target.value === "" ? undefined : Number(e.target.value) })} className="bg-white font-number" />
+          </div>
+          <label className="col-span-full flex w-fit cursor-pointer items-center gap-2 text-sm font-body text-grey-700">
+            <input type="checkbox" checked={!!draft.material.highlight} onChange={(e) => setMaterial({ highlight: e.target.checked || undefined })} className="h-4 w-4 accent-primary" />
+            Highlight in Order Tracker
+          </label>
+          </>
+        </PoSection>
 
-        <div className={shutterCard}>
-          <h2 className="font-heading text-base font-semibold text-grey-900">Shutter Details</h2>
+        <PoSection tone="border-stone/60 border-t-stone bg-stone/40" title="Shutter Details" summary={draft.material.shutterRawMaterial}>
           <div className="flex flex-col gap-1.5">
             <Label>Shutter Raw Material <span className="text-error">*</span></Label>
             <PoRawMaterialSelect value={draft.material.shutterRawMaterial} onChange={(v) => askApply("shutter", () => applyMaterial("shutter", "shutterRawMaterial", v))} />
@@ -538,9 +580,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             <Label>Additional External Brand & Colour</Label>
             <PoFinishMultiSelect value={draft.material.additionalExternal?.shutter ?? []} onChange={(v) => setMaterial({ additionalExternal: { ...draft.material.additionalExternal, shutter: v } })} />
           </div>
-        </div>
-        <div className={cabinetCard}>
-          <h2 className="font-heading text-base font-semibold text-grey-900">Cabinet Details</h2>
+        </PoSection>
+        <PoSection tone="border-sand border-t-sand bg-sand/60" title="Cabinet Details" summary={draft.material.cabinetRawMaterial}>
           <div className="flex flex-col gap-1.5">
             <Label>Cabinet Raw Material <span className="text-error">*</span></Label>
             <PoRawMaterialSelect value={draft.material.cabinetRawMaterial} onChange={(v) => askApply("cabinet", () => applyMaterial("cabinet", "cabinetRawMaterial", v))} />
@@ -557,7 +598,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             <Label>Additional External Brand & Colour</Label>
             <PoFinishMultiSelect value={draft.material.additionalExternal?.cabinet ?? []} onChange={(v) => setMaterial({ additionalExternal: { ...draft.material.additionalExternal, cabinet: v } })} />
           </div>
-        </div>
+        </PoSection>
       </div>
 
       <div className={card}>
