@@ -168,7 +168,7 @@ export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoEx
         const h = carcassHeadingCells(po, c);
         aoaG.push([h.name, "", h.design, h.width, h.depth, h.height, h.qty, Number(h.sqft.toFixed(2)), "", Number(h.amount.toFixed(2)), h.material, h.internal, h.external, h.remark]);
       } else aoaG.push([cabinetTitle(po, c)]);
-      fillsG.push(undefined);
+      fillsG.push(g.key !== "hardware" ? highlightFor(po, { group: g.key, externalColour: carcassHeadingCells(po, c).external }) : undefined);
       for (const { l, sr } of c.rows) {
         fillsG.push(highlightFor(po, l));
         aoaG.push(

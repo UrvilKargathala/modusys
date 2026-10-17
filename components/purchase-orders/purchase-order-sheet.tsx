@@ -133,7 +133,7 @@ function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<
       <td className={`${t} text-right po-num`}>{h.sqft.toFixed(2)}</td>
       <td className={t}><Nums>{h.material}</Nums></td>
       <td className={t}><Nums>{h.internal}</Nums></td>
-      <td className={t}><Nums>{h.external}</Nums></td>
+      <td className={t} style={highlightFor(po, { group, externalColour: h.external }) ? { backgroundColor: highlightFor(po, { group, externalColour: h.external }), color: "#fff" } : undefined}><Nums>{h.external}</Nums></td>
       <td className={t}>{h.remark}</td>
     </tr>
   );
@@ -353,7 +353,13 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
                 <td className={cell}><Nums>{c.remark ?? ""}</Nums></td>
                 <td className={cell}><Nums>{vendorName}</Nums></td>
                 <td className={cell}><Nums>{common("internalColour")}</Nums></td>
-                <td className={cell}><Nums>{common("externalColour")}</Nums></td>
+                <td
+                  className={cell}
+                  // An Additional External pick with a colour chosen highlights the cabinets that use it, as it does the rows.
+                  style={highlightFor(po, { group: "carcass", externalColour: common("externalColour") }) ? { backgroundColor: highlightFor(po, { group: "carcass", externalColour: common("externalColour") }), color: "#fff" } : undefined}
+                >
+                  <Nums>{common("externalColour")}</Nums>
+                </td>
                 <td className={cell}><Nums>{common("material")}</Nums></td>
               </tr>
             );
