@@ -25,12 +25,13 @@ import { PoCabinetBlock } from "@/components/purchase-orders/po-cabinet-block";
 import { PoFinishMultiSelect, PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
-import { useVendors, vendorsStore } from "@/lib/store/vendors-store";
+import { useDealers, useVendors, vendorsStore } from "@/lib/store/vendors-store";
 import { VendorFormDialog } from "@/components/purchase-orders/vendor-form-dialog";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
+import { PoLibraryContext, libKey } from "@/components/purchase-orders/po-library-context";
 import { materialCategories, statusColourStyle } from "@/lib/mock/material-spec";
 import { MaterialItemFormDialog } from "@/components/templates/material-item-form-dialog";
 import { PO_GROUPS, asPoStatus, poStatusLabel, poStatusList, poStatusStyle, customerCode, lineAmount, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
@@ -75,17 +76,23 @@ function Row({ label, value }: { label: string; value: string }) {
 
 export function PurchaseOrderEditor({ id }: { id: string }) {
   const router = useRouter();
-  const base = usePathname().startsWith("/direct-purchase-orders") ? "/direct-purchase-orders" : "/purchase-orders";
+  const pathname = usePathname();
+  const isProforma = pathname.startsWith("/proforma-invoices");
+  const lib = isProforma ? "proforma" : "purchase";
+  const base = isProforma ? "/proforma-invoices" : pathname.startsWith("/direct-purchase-orders") ? "/direct-purchase-orders" : "/purchase-orders";
   const orders = usePurchaseOrders();
   const [orderTypeDialog, setOrderTypeDialog] = useState(false);
   const [productTypeDialog, setProductTypeDialog] = useState(false);
   // The colour picked for each status added in Purchase Material Library > Purchase Order Status.
   const statusColours = Object.fromEntries(
     useSyncExternalStore(materialSpecStore.subscribe, materialSpecStore.getSnapshot, materialSpecStore.getServerSnapshot)
-      .filter((m) => m.category === "purchase-order-status" && !m.deleted)
+      .filter((m) => m.category === libKey(lib, "purchase-order-status") && !m.deleted)
       .map((m) => [asPoStatus(m.name), m.description])
   );
-  const vendors = useVendors();
+  const vendorList = useVendors();
+  const dealerList = useDealers();
+  // A Proforma Invoice picks its dealer where the others pick a vendor.
+  const vendors = isProforma ? dealerList : vendorList;
   const customers = useCustomers();
   const custCode = customerCode;
   const quotes = useQuotes();
@@ -127,8 +134,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const totals = useMemo(() => (draft ? poTotals(draft) : null), [draft]);
   // Cabinets in quote order; internal/external lists are what the rows actually use.
   const cabinetNos = useMemo(
-    () => (draft ? [...new Set([...draft.lines.map((l) => l.srNo), ...Object.keys(draft.material.cabinets ?? {}).map(Number)])].filter((n) => n > 0 || !base.startsWith("/direct")).sort((a, b) => a - b) : []),
-    [draft, base]
+    () => (draft ? [...new Set([...draft.lines.map((l) => l.srNo), ...Object.keys(draft.material.cabinets ?? {}).map(Number)])].filter((n) => n > 0 || !(base.startsWith("/direct") || isProforma)).sort((a, b) => a - b) : []),
+    [draft, base, isProforma]
   );
   const usedFinishes = useMemo(() => {
     const distinct = (xs: string[]) => [...new Set(xs.filter(Boolean))];
@@ -150,7 +157,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   };
   // Direct PO: cabinets that hold their own value for this field take the new one too (blank ones follow the card live).
   const syncCabinets = (m: PurchaseOrder["material"], scope: "shutter" | "cabinet", key: "internalColour" | "externalColour" | "material", value: string) =>
-    base.startsWith("/direct") && scope === "cabinet" && m.cabinets
+    (base.startsWith("/direct") || isProforma) && scope === "cabinet" && m.cabinets
       ? { ...m, cabinets: Object.fromEntries(Object.entries(m.cabinets).map(([k, c]) => [k, c[key] ? { ...c, [key]: value } : c])) }
       : m;
   const applyFinish = (scope: "shutter" | "cabinet", key: "internalColour" | "externalColour", label: string) =>
@@ -169,9 +176,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   if (!draft || !totals) {
     return purchaseOrdersStore.isLoaded() && !saved ? (
       <div className="flex flex-col items-start gap-3">
-        <p className="text-sm font-body text-grey-700">This purchase order doesn&apos;t exist (or was deleted).</p>
+        <p className="text-sm font-body text-grey-700">{isProforma ? "This proforma invoice" : "This purchase order"} doesn&apos;t exist (or was deleted).</p>
         <Link href={base} className="text-sm font-body text-primary hover:underline">
-          Back to Purchase Orders
+          {isProforma ? "Back to Proforma Invoices" : "Back to Purchase Orders"}
         </Link>
       </div>
     ) : (
@@ -204,7 +211,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   };
   const setMaterial = (fields: Partial<PurchaseOrder["material"]>) => set({ material: { ...draft.material, ...fields } });
 
-  const productTypes = materials.filter((m) => m.category === "purchase-product-type" && !m.deleted);
+  const productTypes = materials.filter((m) => m.category === libKey(lib, "purchase-product-type") && !m.deleted);
 
   // Saves the given draft (default: what's on screen). A blank vendor / PO number is fine while Pending.
   // Required before saving: vendor, customer, product type, PO number and date, and every Shutter / Cabinet Details field.
@@ -212,11 +219,11 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     const fin = (scope: "shutter" | "cabinet", key: "internalColour" | "externalColour") =>
       d.material.finishes?.[`${scope}${key === "internalColour" ? "Internal" : "External"}Colour`] ?? commonFinish(scope, key);
     return [
-      [!d.vendorId, "Vendor"],
-      [!d.customerId, "Customer"],
-      [!d.material.productTypeId, "Purchase Product Type"],
-      [!d.poNumber.trim(), "PO Number"],
-      [!d.poDate, "PO Date"],
+      [!d.vendorId, isProforma ? "Dealer" : "Vendor"],
+      ...(isProforma ? [] : [[!d.customerId, "Customer"]]),
+      [!d.material.productTypeId, isProforma ? "Proforma Product Type" : "Purchase Product Type"],
+      [!d.poNumber.trim(), isProforma ? "PI Number" : "PO Number"],
+      [!d.poDate, isProforma ? "PI Date" : "PO Date"],
       [!d.material.shutterRawMaterial, "Shutter Raw Material"],
       [!fin("shutter", "internalColour"), "Shutter Internal Brand & Colour"],
       [!fin("shutter", "externalColour"), "Shutter External Brand & Colour"],
@@ -255,7 +262,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   // Any status. Delivered needs a vendor and a PO number; it saves everything on screen too.
   const setStatus = (status: PurchaseOrder["status"]) => {
     if (status === "delivered" && !isDirect && (!draft.vendorId || !draft.poNumber.trim())) {
-      toastStore.show("Add a vendor and a PO number before marking it Delivered", "error");
+      toastStore.show(isProforma ? "Add a dealer and a PI number before marking it Delivered" : "Add a vendor and a PO number before marking it Delivered", "error");
       return;
     }
     const next = { ...draft, status };
@@ -271,7 +278,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   };
 
   // A PO with no rows yet (new manual PO) starts in the cabinet view, where cabinets and rows are added.
-  const isDirect = base.startsWith("/direct");
+  const isDirect = base.startsWith("/direct") || isProforma;
   // A Direct PO shows only the cabinet list (cabinet types added with Add Cabinet Type).
   const shownView = isDirect || draft.lines.length === 0 ? "cabinet" : view;
 
@@ -357,6 +364,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   };
 
   return (
+    <PoLibraryContext.Provider value={isProforma ? "proforma" : "purchase"}>
     <PoVendorContext.Provider value={(no) => draft.material.cabinets?.[String(no)]?.vendorId || draft.vendorId}>
     <PoDefaultVendorContext.Provider value={draft.vendorId}>
     <PoBrandVendorContext.Provider value={brandVendorName}>
@@ -376,7 +384,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           <div>
             <h1 className="flex flex-wrap items-center gap-2 font-heading text-2xl font-semibold text-grey-900">
               <span>
-                Purchase Order {draft.poNumber ? <span className="font-number">{draft.poNumber}</span> : <span className="text-grey-400">(no PO number yet)</span>}
+                {isProforma ? "Proforma Invoice" : "Purchase Order"} {draft.poNumber ? <span className="font-number">{draft.poNumber}</span> : <span className="text-grey-400">{isProforma ? "(no PI number yet)" : "(no PO number yet)"}</span>}
               </span>
               <span
                 className={`rounded-full px-2.5 py-0.5 font-body text-xs font-medium ${statusColours[draft.status] ? "border" : poStatusStyle(draft.status)}`}
@@ -393,7 +401,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           <StatusMenu
             label="Status"
             value={asPoStatus(draft.status)}
-            options={poStatusList(orders.filter((o) => !!o.material.direct === isDirect), materials.filter((m) => m.category === "purchase-order-status" && !m.deleted).map((m) => m.name)).map((st) => ({ value: st, label: poStatusLabel(st), className: statusColours[st] ? "border" : poStatusStyle(st), style: statusColourStyle(statusColours[st]) }))}
+            options={poStatusList(orders.filter((o) => (isProforma ? !!o.material.proforma : !!o.material.direct === isDirect && !o.material.proforma)), materials.filter((m) => m.category === libKey(lib, "purchase-order-status") && !m.deleted).map((m) => m.name)).map((st) => ({ value: st, label: poStatusLabel(st), className: statusColours[st] ? "border" : poStatusStyle(st), style: statusColourStyle(statusColours[st]) }))}
             onChange={(v) => setStatus(v)}
           />
           <Button
@@ -427,9 +435,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       </div>
 
       <div className="flex flex-col gap-3">
-        <PoSection tone="border-slate/40 border-t-slate bg-slate/30" title={<>Vendor <span className="text-error">*</span></>} summary={vendor?.name}>
+        <PoSection tone="border-slate/40 border-t-slate bg-slate/30" title={<>{isProforma ? "Dealer Details" : "Vendor"} <span className="text-error">*</span></>} summary={vendor?.name}>
           <div className="flex flex-col gap-1.5">
-          <Label>Vendor Name</Label>
+          <Label>{isProforma ? "Dealer Name" : "Vendor Name"}</Label>
           <SelectField
             value={draft.vendorId}
             onChange={(e) => {
@@ -461,7 +469,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           )}
         </PoSection>
 
-        <PoSection tone="border-taupe/50 border-t-taupe bg-taupe/40" title={<>Purchase Order Details{quote?.quoteNumber && <span className="ml-2 font-number text-base font-normal text-grey-700">({quote.quoteNumber})</span>}</>} summary={draft.poNumber}>
+        <PoSection tone="border-taupe/50 border-t-taupe bg-taupe/40" title={<>{isProforma ? "Proforma Details" : "Purchase Order Details"}{quote?.quoteNumber && <span className="ml-2 font-number text-base font-normal text-grey-700">({quote.quoteNumber})</span>}</>} summary={draft.poNumber}>
+          {!isProforma && (
           <div className="flex flex-col gap-1.5">
             <Label>Customer <span className="text-error">*</span></Label>
             <SelectField
@@ -479,8 +488,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               ))}
             </SelectField>
           </div>
+          )}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="e-ppt">Purchase Product Type <span className="text-error">*</span></Label>
+            <Label htmlFor="e-ppt">{isProforma ? "Proforma Product Type" : "Purchase Product Type"} <span className="text-error">*</span></Label>
             <SelectField
               id="e-ppt"
               className={field}
@@ -488,8 +498,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               onChange={(e) =>
                 set({ material: { ...draft.material, productTypeId: e.target.value || undefined } })
               }
-              addLabel="Add new purchase product type"
-              searchPlaceholder="Search purchase product type"
+              addLabel={isProforma ? "Add new proforma product type" : "Add new purchase product type"}
+              searchPlaceholder={isProforma ? "Search proforma product type" : "Search purchase product type"}
               // Opens the same Add form as Purchase Material Library > Purchase Product Type; the new type is picked here.
               onAddClick={() => setProductTypeDialog(true)}
             >
@@ -502,15 +512,15 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             </SelectField>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="e-po">PO Number <span className="text-error">*</span></Label>
-            <Input id="e-po" value={draft.poNumber} onChange={(e) => set({ poNumber: e.target.value })} placeholder="Type the PO number" className="bg-white font-number" />
+            <Label htmlFor="e-po">{isProforma ? "PI Number" : "PO Number"} <span className="text-error">*</span></Label>
+            <Input id="e-po" value={draft.poNumber} onChange={(e) => set({ poNumber: e.target.value })} placeholder={isProforma ? "Type the PI number" : "Type the PO number"} className="bg-white font-number" />
             {draft.poNumber.trim() && orders.some((o) => o.id !== draft.id && o.poNumber.trim().toLowerCase() === draft.poNumber.trim().toLowerCase()) && (
-              <span className="text-xs font-body text-error">Another purchase order already uses this number.</span>
+              <span className="text-xs font-body text-error">{isProforma ? "Another proforma invoice already uses this number." : "Another purchase order already uses this number."}</span>
             )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="e-date">PO Date <span className="text-error">*</span></Label>
+              <Label htmlFor="e-date">{isProforma ? "PI Date" : "PO Date"} <span className="text-error">*</span></Label>
               <Input
                 id="e-date"
                 type="date"
@@ -530,37 +540,39 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             <Input id="e-approx" type="date" value={draft.material.approxDeliveryDate ?? ""} onChange={(e) => setMaterial({ approxDeliveryDate: e.target.value || undefined })} className="bg-white font-number" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="e-otype">Purchase Order Type</Label>
+            <Label htmlFor="e-otype">{isProforma ? "Proforma Type" : "Purchase Order Type"}</Label>
             <SelectField
               id="e-otype"
               className={field}
               value={draft.material.orderType ?? ""}
               onChange={(e) => setMaterial({ orderType: e.target.value || undefined })}
-              addLabel="Add new purchase order type"
-              searchPlaceholder="Search purchase order type"
+              addLabel={isProforma ? "Add new proforma type" : "Add new purchase order type"}
+              searchPlaceholder={isProforma ? "Search proforma type" : "Search purchase order type"}
               // Opens the same Add form as Purchase Material Library > Purchase Order Type; the new type is picked here.
               onAddClick={() => setOrderTypeDialog(true)}
             >
-              <option value="">Select order type…</option>
-              {materials.filter((m) => m.category === "purchase-order-type" && !m.deleted).map((m) => (
+              <option value="">{isProforma ? "Select proforma type…" : "Select order type…"}</option>
+              {materials.filter((m) => m.category === libKey(lib, "purchase-order-type") && !m.deleted).map((m) => (
                 <option key={m.id} value={m.name}>{m.name}</option>
               ))}
             </SelectField>
           </div>
           <div className="contents">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="e-pino">Vendor PI No</Label>
+              <Label htmlFor="e-pino">{isProforma ? "Dealer Ref" : "Vendor PI No"}</Label>
               <Input id="e-pino" value={draft.material.vendorPiNo ?? ""} onChange={(e) => setMaterial({ vendorPiNo: e.target.value || undefined })} className="bg-white font-number" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="e-pidate">Vendor PI Date</Label>
+              <Label htmlFor="e-pidate">{isProforma ? "Dealer Ref Date" : "Vendor PI Date"}</Label>
               <Input id="e-pidate" type="date" value={draft.material.vendorPiDate ?? ""} onChange={(e) => setMaterial({ vendorPiDate: e.target.value || undefined })} className="bg-white font-number" />
             </div>
           </div>
+          {!isProforma && (
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="e-piamt">Vendor PI Amount</Label>
             <Input id="e-piamt" type="number" min={0} step="any" inputMode="decimal" value={draft.material.vendorPiAmount ?? ""} onChange={(e) => setMaterial({ vendorPiAmount: e.target.value === "" ? undefined : Number(e.target.value) })} className="bg-white font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
           </div>
+          )}
           <label className="col-span-full flex w-fit cursor-pointer items-center gap-2 text-sm font-body text-grey-700">
             <input type="checkbox" checked={!!draft.material.highlight} onChange={(e) => setMaterial({ highlight: e.target.checked || undefined })} className="h-4 w-4 accent-primary" />
             Highlight in Order Tracker
@@ -925,6 +937,15 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 onCopyCabinet={() => copyCabinet(no)}
               />
             ))}
+        {/* The same Add button under the last cabinet, so one can be added without scrolling back up. */}
+        {shownView === "cabinet" && (!isDirect || directTab === "carcass") && cabinetNos.length > 0 && (
+          <div className="flex justify-end">
+            <Button type="button" variant="outline" size="sm" onClick={addCabinet}>
+              <Plus className="h-4 w-4" />
+              {isDirect ? "Add Cabinet Type" : "Add Cabinet"}
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -1015,7 +1036,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         open={discardOpen}
         onOpenChange={setDiscardOpen}
         title="Discard your changes?"
-        description="You have unsaved changes on this purchase order. They will be lost and you will go back to the purchase orders list."
+        description={isProforma ? "You have unsaved changes on this proforma invoice. They will be lost and you will go back to the proforma invoices list." : "You have unsaved changes on this purchase order. They will be lost and you will go back to the purchase orders list."}
         confirmLabel="Discard"
         onConfirm={() => router.push(base)}
       />
@@ -1023,7 +1044,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title={`Delete PO ${draft.poNumber}?`}
-        description="This removes the purchase order and its lines. The quote it came from is not affected."
+        description={isProforma ? "This removes the proforma invoice and its lines." : "This removes the purchase order and its lines. The quote it came from is not affected."}
         onConfirm={async () => {
           try {
             await purchaseOrdersStore.remove(id);
@@ -1037,18 +1058,18 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       <MaterialItemFormDialog
         open={productTypeDialog}
         onOpenChange={setProductTypeDialog}
-        category={materialCategories.find((c) => c.key === "purchase-product-type")!}
+        category={materialCategories.find((c) => c.key === libKey(lib, "purchase-product-type"))!}
         onSubmit={(values) => {
-          const created = materialSpecStore.createItem({ category: "purchase-product-type", ...values });
+          const created = materialSpecStore.createItem({ category: libKey(lib, "purchase-product-type"), ...values });
           set({ material: { ...draft.material, productTypeId: created.id } });
         }}
       />
       <MaterialItemFormDialog
         open={orderTypeDialog}
         onOpenChange={setOrderTypeDialog}
-        category={materialCategories.find((c) => c.key === "purchase-order-type")!}
+        category={materialCategories.find((c) => c.key === libKey(lib, "purchase-order-type"))!}
         onSubmit={(values) => {
-          materialSpecStore.createItem({ category: "purchase-order-type", ...values });
+          materialSpecStore.createItem({ category: libKey(lib, "purchase-order-type"), ...values });
           setMaterial({ orderType: values.name });
         }}
       />
@@ -1057,5 +1078,6 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     </PoBrandVendorContext.Provider>
     </PoDefaultVendorContext.Provider>
     </PoVendorContext.Provider>
+    </PoLibraryContext.Provider>
   );
 }

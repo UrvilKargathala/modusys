@@ -10,6 +10,12 @@ export type Vendor = {
   code: string;
   contacts: VendorContact[];
   emails: string[];
+  // "vendor" (default) or "dealer" (Proforma Invoices keep their own dealer list).
+  kind?: "vendor" | "dealer";
+  // Dealer details (Proforma Invoices).
+  category?: string;
+  area?: string;
+  salesPerson?: string;
   createdAt: string;
 };
 
@@ -143,6 +149,8 @@ export type PoCabinet = {
 export type PoMaterial = {
   // A Direct Purchase Order (not from a quote): listed under Direct Purchase Orders, not under Purchase Orders.
   direct?: boolean;
+  // A Proforma Invoice: a copy of a Direct Purchase Order kept in its own list (it is also marked direct, so it behaves like one).
+  proforma?: boolean;
   // Approximate delivery date (yyyy-mm-dd), typed on the PO.
   approxDeliveryDate?: string;
   // A tick to mark the row in the Order Tracker Excel.

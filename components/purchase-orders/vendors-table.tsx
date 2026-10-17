@@ -8,14 +8,18 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 import { VendorFormDialog } from "@/components/purchase-orders/vendor-form-dialog";
-import { useVendors, vendorsStore } from "@/lib/store/vendors-store";
+import { useDealers, useVendors, vendorsStore } from "@/lib/store/vendors-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
 import type { Vendor } from "@/lib/purchase-order";
 
-export function VendorsTable() {
+// The vendor list (Purchase Orders) or, with `dealers`, the dealer list (Proforma Invoices): same table, own data.
+export function VendorsTable({ dealers = false }: { dealers?: boolean }) {
   const canDelete = getCurrentUser().role === "super-admin";
-  const vendors = useVendors();
+  const vendorList = useVendors();
+  const dealerList = useDealers();
+  const vendors = dealers ? dealerList : vendorList;
+  const word = dealers ? "Dealer" : "Vendor";
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Vendor | null>(null);
@@ -29,7 +33,7 @@ export function VendorsTable() {
 
   const add = async (values: Parameters<typeof vendorsStore.createVendor>[0]) => {
     try {
-      await vendorsStore.createVendor(values);
+      await vendorsStore.createVendor(dealers ? { ...values, kind: "dealer" } : values);
       toastStore.show(`${values.name} added`, "success");
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not save vendor", "error");
@@ -44,24 +48,24 @@ export function VendorsTable() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search vendors..."
+            placeholder={`Search ${word.toLowerCase()}s...`}
             className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
           />
         </div>
         <Button size="sm" onClick={() => setAddOpen(true)}>
           <Plus className="h-4 w-4" />
-          Add Vendor
+          Add {word}
         </Button>
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState icon={Store} message="No vendors yet. Add one to start creating purchase orders." cta={{ label: "Add Vendor", onClick: () => setAddOpen(true) }} />
+        <EmptyState icon={Store} message={dealers ? "No dealers yet. Add one to start creating proforma invoices." : "No vendors yet. Add one to start creating purchase orders."} cta={{ label: `Add ${word}`, onClick: () => setAddOpen(true) }} />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full text-left">
             <thead className="bg-[#DACCCC]">
               <tr>
-                {["Vendor", "Code", "City / State", "GST No", "Contact", "Email", ""].map((h) => (
+                {(dealers ? [word, "Code", "Category", "Area", "Sales Person", "City / State", "GST No", "Contact", "Email", ""] : [word, "Code", "City / State", "GST No", "Contact", "Email", ""]).map((h) => (
                   <th key={h} className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
                     {h}
                   </th>
@@ -73,6 +77,13 @@ export function VendorsTable() {
                 <tr key={v.id} className="border-t border-grey-100">
                   <td className="px-4 py-1.5 text-sm font-body text-grey-900">{v.name}</td>
                   <td className="px-4 py-1.5 font-number text-sm text-grey-700">{v.code || "—"}</td>
+                  {dealers && (
+                    <>
+                      <td className="px-4 py-1.5 text-sm font-body text-grey-700">{v.category || "—"}</td>
+                      <td className="px-4 py-1.5 text-sm font-body text-grey-700">{v.area || "—"}</td>
+                      <td className="px-4 py-1.5 text-sm font-body text-grey-700">{v.salesPerson || "—"}</td>
+                    </>
+                  )}
                   <td className="px-4 py-1.5 text-sm font-body text-grey-700">{[v.city, v.state].filter(Boolean).join(", ") || "—"}</td>
                   <td className="px-4 py-1.5 font-number text-sm text-grey-700">{v.gst || "—"}</td>
                   <td className="px-4 py-1.5 text-sm font-body text-grey-700">
@@ -114,23 +125,24 @@ export function VendorsTable() {
 
       <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
 
-      <VendorFormDialog open={addOpen} onOpenChange={setAddOpen} onSubmit={add} />
+      <VendorFormDialog dealer={dealers} open={addOpen} onOpenChange={setAddOpen} onSubmit={add} />
       {editTarget && (
         <VendorFormDialog
+          dealer={dealers}
           open
           onOpenChange={(o) => !o && setEditTarget(null)}
           vendor={editTarget}
           onSubmit={(values) => {
             vendorsStore.updateVendor(editTarget.id, values);
-            toastStore.show("Vendor updated", "success");
+            toastStore.show(`${word} updated`, "success");
           }}
         />
       )}
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(o) => !o && setDeleteTarget(null)}
-        title={`Delete ${deleteTarget?.name ?? "vendor"}?`}
-        description="Existing purchase orders keep this vendor's name; it just disappears from the vendor list."
+        title={`Delete ${deleteTarget?.name ?? word.toLowerCase()}?`}
+        description={`Existing ${dealers ? "proforma invoices" : "purchase orders"} keep this ${word.toLowerCase()}'s name; it just disappears from the ${word.toLowerCase()} list.`}
         onConfirm={() => {
           if (!deleteTarget) return;
           const gone = deleteTarget;

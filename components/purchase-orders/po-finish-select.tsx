@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import { useLibKey } from "@/components/purchase-orders/po-library-context";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { useMaterialItems, materialSpecStore } from "@/lib/store/material-spec-store";
 import type { MaterialItem } from "@/lib/mock/material-spec";
@@ -23,7 +24,7 @@ export function PoFinishSelect({
   value: string;
   onChange: (label: string) => void;
 }) {
-  const category = kind === "internal" ? "purchase-internal" : "purchase-external";
+  const category = useLibKey(kind === "internal" ? "purchase-internal" : "purchase-external");
   const items = useMaterialItems(category);
   const selected = items.find((i) => finishLabel(i) === value);
   return (
@@ -54,7 +55,7 @@ export function PoFinishMultiSelect({
   onColorChange?: (label: string, hex: string) => void;
 }) {
   const pickers = useRef<Record<string, HTMLInputElement | null>>({});
-  const items = useMaterialItems("purchase-external");
+  const items = useMaterialItems(useLibKey("purchase-external"));
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const q = query.toLowerCase();

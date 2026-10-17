@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   if (auth.response) return auth.response;
   const b = await req.json();
   const name = String(b.name ?? "").trim();
-  if (!name) return NextResponse.json({ error: "Vendor name is required" }, { status: 400 });
+  if (!name) return NextResponse.json({ error: b.kind === "dealer" ? "Dealer name is required" : "Vendor name is required" }, { status: 400 });
   const vendor = await prisma.vendor.create({
     data: {
       name,
@@ -38,6 +38,10 @@ export async function POST(req: Request) {
       code: String(b.code ?? "").trim(),
       contacts: cleanContacts(b.contacts),
       emails: cleanEmails(b.emails),
+      kind: b.kind === "dealer" ? "dealer" : "vendor",
+      category: String(b.category ?? "").trim(),
+      area: String(b.area ?? "").trim(),
+      salesPerson: String(b.salesPerson ?? "").trim(),
     },
   });
   return NextResponse.json(serializeVendor(vendor), { status: 201 });

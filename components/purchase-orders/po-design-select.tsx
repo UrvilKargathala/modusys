@@ -5,6 +5,7 @@ import { CabinetTypeFormDialog } from "@/components/templates/cabinet-type-form-
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { TextReferenceSelect } from "@/components/shared/text-reference-select";
 import { cabinetTypeStore, useCabinetTypes } from "@/lib/store/cabinet-type-store";
+import { useLibKey } from "@/components/purchase-orders/po-library-context";
 import { useMaterialItems, materialSpecStore } from "@/lib/store/material-spec-store";
 
 // A cabinet's type, picked from Templates > Cabinet Type (active types). The name is saved as text and the
@@ -38,11 +39,12 @@ export function PoCabinetNameSelect({ value, fallback, onChange, field = false }
 
 // A labelled Cabinet Name field (own value, separate from the heading), from the same library list.
 export function PoCabinetNameField({ value, onChange, stacked = false }: { value: string; onChange: (name: string) => void; stacked?: boolean }) {
-  const items = useMaterialItems("purchase-cabinet-type");
+  const cabinetNameKey = useLibKey("purchase-cabinet-type");
+  const items = useMaterialItems(cabinetNameKey);
   if (stacked)
     return (
       <MaterialReferenceSelect
-        category="purchase-cabinet-type"
+        category={cabinetNameKey}
         nameOnly
         value={items.find((i) => i.name === value)?.id ?? ""}
         triggerClassName="h-9 text-[13px]"
@@ -54,7 +56,7 @@ export function PoCabinetNameField({ value, onChange, stacked = false }: { value
       Cabinet Name
       <div className="w-36">
         <MaterialReferenceSelect
-          category="purchase-cabinet-type"
+          category={cabinetNameKey}
           nameOnly
           value={items.find((i) => i.name === value)?.id ?? ""}
           triggerClassName="h-8 py-1 text-[13px]"

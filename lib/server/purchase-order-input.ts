@@ -68,6 +68,7 @@ export function cleanMaterial(m: unknown) {
     cabinets,
     productTypeId: str(o.productTypeId) || undefined,
     direct: o.direct === true ? true : undefined,
+    proforma: o.proforma === true ? true : undefined,
     approxDeliveryDate: str(o.approxDeliveryDate) || undefined,
     highlight: o.highlight === true ? true : undefined,
     orderType: str(o.orderType) || undefined,

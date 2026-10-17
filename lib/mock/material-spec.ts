@@ -1,4 +1,4 @@
-export type MaterialCategoryGroup = "specification" | "library" | "purchase-library";
+export type MaterialCategoryGroup = "specification" | "library" | "purchase-library" | "proforma-library";
 
 export type MaterialCategoryKey =
   // Material Specification
@@ -29,7 +29,17 @@ export type MaterialCategoryKey =
   | "purchase-cabinet-type"
   | "purchase-product-type"
   | "purchase-order-type"
-  | "purchase-order-status";
+  | "purchase-order-status"
+  // Proforma Library: the same lists as the Purchase Material Library, with their own data (used on Proforma Invoices)
+  | "proforma-internal"
+  | "proforma-external"
+  | "proforma-cabinet-type"
+  | "proforma-product-type"
+  | "proforma-order-type"
+  | "proforma-order-status"
+  | "proforma-dealer-category"
+  | "proforma-dealer-area"
+  | "proforma-sales-person";
 
 export type MaterialCategory = {
   key: MaterialCategoryKey;
@@ -80,6 +90,15 @@ export const materialCategories: MaterialCategory[] = [
   { key: "purchase-product-type", group: "purchase-library", label: "Purchase Product Type", codeAndName: true },
   { key: "purchase-order-type", group: "purchase-library", label: "Purchase Order Type", noDescription: true },
   { key: "purchase-order-status", group: "purchase-library", label: "Purchase Order Status", noDescription: true, statusColour: true },
+  { key: "proforma-internal", group: "proforma-library", label: "Internal Colour", brandAndCode: true },
+  { key: "proforma-external", group: "proforma-library", label: "External Colour", brandAndCode: true },
+  { key: "proforma-cabinet-type", group: "proforma-library", label: "Cabinet Name", noDescription: true },
+  { key: "proforma-product-type", group: "proforma-library", label: "Proforma Product Type", codeAndName: true },
+  { key: "proforma-order-type", group: "proforma-library", label: "Proforma Type", noDescription: true },
+  { key: "proforma-order-status", group: "proforma-library", label: "Proforma Status", noDescription: true, statusColour: true },
+  { key: "proforma-dealer-category", group: "proforma-library", label: "Dealer Category", noDescription: true },
+  { key: "proforma-dealer-area", group: "proforma-library", label: "Dealer Area", noDescription: true },
+  { key: "proforma-sales-person", group: "proforma-library", label: "Dealer Sales Person", noDescription: true },
 ];
 
 export function getMaterialCategory(key: MaterialCategoryKey) {

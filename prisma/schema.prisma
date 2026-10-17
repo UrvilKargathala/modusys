@@ -697,6 +697,12 @@ model Vendor {
   code      String    @default("")
   contacts  Json      @default("[]")
   emails    Json      @default("[]")
+  // "vendor" (Purchase Orders) or "dealer" (Proforma Invoices); each has its own list.
+  kind      String    @default("vendor")
+  // Dealer details (Proforma Invoices); empty for vendors.
+  category    String  @default("")
+  area        String  @default("")
+  salesPerson String  @default("")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?

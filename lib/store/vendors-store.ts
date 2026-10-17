@@ -84,6 +84,19 @@ export const vendorsStore = {
   },
 };
 
+// The three views of the one list: vendors only (Purchase Orders), dealers only (Proforma Invoices), and everything (looking a name up by id).
+let cache: { src: Vendor[]; vendors: Vendor[]; dealers: Vendor[] } = { src: EMPTY, vendors: EMPTY, dealers: EMPTY };
+function split() {
+  const src = vendorsStore.getSnapshot();
+  if (cache.src !== src) cache = { src, vendors: src.filter((v) => v.kind !== "dealer"), dealers: src.filter((v) => v.kind === "dealer") };
+  return cache;
+}
 export function useVendors() {
+  return useSyncExternalStore(vendorsStore.subscribe, () => split().vendors, () => EMPTY);
+}
+export function useDealers() {
+  return useSyncExternalStore(vendorsStore.subscribe, () => split().dealers, () => EMPTY);
+}
+export function useAllVendors() {
   return useSyncExternalStore(vendorsStore.subscribe, vendorsStore.getSnapshot, vendorsStore.getServerSnapshot);
 }

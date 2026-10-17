@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -10,6 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import type { Vendor } from "@/lib/purchase-order";
+import { SelectField } from "@/components/shared/select-field";
+import { MaterialItemFormDialog } from "@/components/templates/material-item-form-dialog";
+import { useMaterialItems, materialSpecStore } from "@/lib/store/material-spec-store";
+import { materialCategories, type MaterialCategoryKey } from "@/lib/mock/material-spec";
 import type { VendorInput } from "@/lib/store/vendors-store";
 
 const gstPattern = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
@@ -20,6 +24,10 @@ const schema = z.object({
   address: z.string(),
   city: z.string(),
   state: z.string(),
+  // Dealer details (shown for dealers only).
+  category: z.string().optional(),
+  area: z.string().optional(),
+  salesPerson: z.string().optional(),
   gst: z.string().refine((v) => v === "" || gstPattern.test(v.trim().toUpperCase()), {
     message: "Enter a valid 15-character GST number",
   }),
@@ -32,22 +40,27 @@ type Values = z.infer<typeof schema>;
 
 // Two email boxes to start (Email 1, Email 2); "+ Add Email" adds more.
 const emailRows = (list: string[] = []) => [...list, "", ""].slice(0, Math.max(2, list.length)).map((value) => ({ value }));
-const empty = (): Values => ({ name: "", code: "", address: "", city: "", state: "", gst: "", contacts: [{ name: "", phone: "" }], emails: emailRows() });
+const empty = (): Values => ({ name: "", code: "", address: "", city: "", state: "", category: "", area: "", salesPerson: "", gst: "", contacts: [{ name: "", phone: "" }], emails: emailRows() });
 
 export function VendorFormDialog({
   open,
   onOpenChange,
   vendor,
+  dealer = false,
   onSubmit,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   // Absent = Add mode; present = Edit mode.
   vendor?: Vendor;
+  // A Proforma Invoice dealer (same form, "Dealer" wording).
+  dealer?: boolean;
   onSubmit: (values: VendorInput) => Promise<void> | void;
 }) {
   const {
     register,
+    watch,
+    setValue,
     control,
     handleSubmit,
     reset,
@@ -60,7 +73,7 @@ export function VendorFormDialog({
     if (!open) return;
     reset(
       vendor
-        ? { ...vendor, code: vendor.code ?? "", contacts: vendor.contacts.length ? vendor.contacts : [{ name: "", phone: "" }], emails: emailRows(vendor.emails ?? []) }
+        ? { ...vendor, code: vendor.code ?? "", category: vendor.category ?? "", area: vendor.area ?? "", salesPerson: vendor.salesPerson ?? "", contacts: vendor.contacts.length ? vendor.contacts : [{ name: "", phone: "" }], emails: emailRows(vendor.emails ?? []) }
         : empty()
     );
   }, [open, vendor, reset]);
@@ -81,21 +94,30 @@ export function VendorFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{vendor ? "Edit Vendor" : "Add Vendor"}</DialogTitle>
+          <DialogTitle>{vendor ? `Edit ${dealer ? "Dealer" : "Vendor"}` : `Add ${dealer ? "Dealer" : "Vendor"}`}</DialogTitle>
           <DialogDescription>
-            {vendor ? "Update this vendor's details." : "Add a vendor purchase orders can be sent to."}
+            {vendor ? `Update this ${dealer ? "dealer" : "vendor"}'s details.` : dealer ? "Add a dealer proforma invoices can be made for." : "Add a vendor purchase orders can be sent to."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(submit)} noValidate className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="v-name">Vendor Name *</Label>
+            <Label htmlFor="v-name">{dealer ? "Dealer" : "Vendor"} Name *</Label>
             <Input id="v-name" placeholder="e.g. Vishwakarma Furniture" {...register("name")} />
             {errors.name && <span className="text-xs font-body text-error">{errors.name.message}</span>}
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="v-code">Vendor Code</Label>
+            <Label htmlFor="v-code">{dealer ? "Dealer" : "Vendor"} Code</Label>
             <Input id="v-code" placeholder="e.g. VEN-001" className="font-number" {...register("code")} />
           </div>
+          {dealer && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <LibraryPick id="v-category" label="Category" category="proforma-dealer-category" value={watch("category") ?? ""} onPick={(v) => setValue("category", v, { shouldDirty: true })} />
+                <LibraryPick id="v-area" label="Area" category="proforma-dealer-area" value={watch("area") ?? ""} onPick={(v) => setValue("area", v, { shouldDirty: true })} />
+              </div>
+              <LibraryPick id="v-sales" label="Sales Person" category="proforma-sales-person" value={watch("salesPerson") ?? ""} onPick={(v) => setValue("salesPerson", v, { shouldDirty: true })} />
+            </>
+          )}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="v-address">Address</Label>
             <Input id="v-address" {...register("address")} />
@@ -171,11 +193,46 @@ export function VendorFormDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {vendor ? "Save Changes" : "Add Vendor"}
+              {vendor ? "Save Changes" : dealer ? "Add Dealer" : "Add Vendor"}
             </Button>
           </div>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// A dropdown over a Proforma Library list (Dealer Category / Area / Sales Person); "+ Add new" opens the library's own Add form.
+function LibraryPick({ id, label, category, value, onPick }: { id: string; label: string; category: MaterialCategoryKey; value: string; onPick: (v: string) => void }) {
+  const items = useMaterialItems(category);
+  const [addOpen, setAddOpen] = useState(false);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <SelectField
+        id={id}
+        value={value}
+        onChange={(e) => onPick(e.target.value)}
+        addLabel={`Add new ${label.toLowerCase()}`}
+        searchPlaceholder={`Search ${label.toLowerCase()}`}
+        onAddClick={() => setAddOpen(true)}
+        className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
+      >
+        <option value="">Select…</option>
+        {value && !items.some((i) => i.name === value) && <option value={value}>{value}</option>}
+        {items.map((i) => (
+          <option key={i.id} value={i.name}>{i.name}</option>
+        ))}
+      </SelectField>
+      <MaterialItemFormDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        category={materialCategories.find((c) => c.key === category)!}
+        onSubmit={(values) => {
+          materialSpecStore.createItem({ category, ...values });
+          onPick(values.name);
+        }}
+      />
+    </div>
   );
 }

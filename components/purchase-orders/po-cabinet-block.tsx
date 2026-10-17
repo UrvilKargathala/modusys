@@ -7,7 +7,7 @@ import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-o
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
-import { Field, fieldInput, PoCabinetVendorSelect } from "@/components/purchase-orders/po-cabinet-card";
+import { Field, fieldInput, selectOnClick, PoCabinetVendorSelect } from "@/components/purchase-orders/po-cabinet-card";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
@@ -98,6 +98,7 @@ export function PoCabinetBlock({
               type="number"
               min={k === "qty" ? 1 : 0}
               aria-label={`Cabinet ${srNo} ${k}`}
+              {...selectOnClick}
               className={`${fieldInput} text-right font-number`}
               value={cabinet[k]}
               onChange={(e) => onCabinetChange({ ...cabinet, [k]: e.target.value === "" ? 0 : Number(e.target.value) })}
@@ -107,12 +108,12 @@ export function PoCabinetBlock({
       ))}
       <div className="w-44">
         <Field label="Design">
-          <input aria-label={`Cabinet ${srNo} design`} placeholder="Design" className={fieldInput} value={cabinet.design ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, design: e.target.value })} />
+          <input aria-label={`Cabinet ${srNo} design`} {...selectOnClick} placeholder="Design" className={fieldInput} value={cabinet.design ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, design: e.target.value })} />
         </Field>
       </div>
       <div className="min-w-48 flex-1">
         <Field label="Remark">
-          <input aria-label={`Cabinet ${srNo} remark`} placeholder="Remark" className={fieldInput} value={cabinet.remark ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, remark: e.target.value })} />
+          <input aria-label={`Cabinet ${srNo} remark`} {...selectOnClick} placeholder="Remark" className={fieldInput} value={cabinet.remark ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, remark: e.target.value })} />
         </Field>
       </div>
       {group === "carcass" && (

@@ -10,7 +10,34 @@ const distinctFinish = (po: PurchaseOrder, groups: string[], key: "internalColou
   [...new Set(po.lines.filter((l) => groups.includes(l.group)).map((l) => l[key]).filter(Boolean))].join(", ");
 
 // The header blocks every PO download carries (PDF and Excel): company, vendor, customer, PO, shutter and cabinet details.
-export function poDetailSections(po: PurchaseOrder, { vendor, customer, quoteNumber, branding }: PoExportContext): { title: string; rows: [string, string][] }[] {
+// A Proforma Invoice's wording: the same blocks with Dealer / Proforma / PI names, no customer card, and the dealer's category, area and sales person.
+const PROFORMA_WORDS: Record<string, string> = {
+  "Vendor Details": "Dealer Details",
+  "Purchase Order Details": "Proforma Details",
+  "Vendor Name": "Dealer Name",
+  "Vendor Code": "Dealer Code",
+  "PO No": "PI No",
+  "PO Date": "PI Date",
+};
+export const proformaWord = (t: string) => PROFORMA_WORDS[t] ?? t;
+// A download name and menu label for a proforma invoice use "PI" / "Proforma Invoice" where a purchase order uses "PO" / "Purchase Order".
+export const docPrefix = (po: PurchaseOrder) => (po.material.proforma ? "PI" : "PO");
+export const partLabel = (label: string, proforma: boolean) => (proforma ? label.replace("Purchase Order", "Proforma Invoice") : label);
+
+export function poDetailSections(po: PurchaseOrder, ctx: PoExportContext): { title: string; rows: [string, string][] }[] {
+  const base = poDetailSectionsBase(po, ctx);
+  if (!po.material.proforma) return base;
+  return base
+    .filter((sec) => sec.title !== "Customer Details")
+    .map((sec) => {
+      const rows = sec.title === "Vendor Details" && ctx.vendor
+        ? ([...sec.rows, ...(ctx.vendor.category ? [["Category", ctx.vendor.category]] : []), ...(ctx.vendor.area ? [["Area", ctx.vendor.area]] : []), ...(ctx.vendor.salesPerson ? [["Sales Person", ctx.vendor.salesPerson]] : [])] as [string, string][])
+        : sec.rows;
+      return { title: proformaWord(sec.title), rows: rows.map(([k, v]) => [proformaWord(k), v] as [string, string]) };
+    });
+}
+
+function poDetailSectionsBase(po: PurchaseOrder, { vendor, customer, quoteNumber, branding }: PoExportContext): { title: string; rows: [string, string][] }[] {
   const c = vendor?.contacts ?? [];
   return [
     { title: "Company Details", rows: [["Company", branding.companyName], ["Address", branding.address], ["Email", branding.email], ["Contact", branding.phone], ["GST No", COMPANY_GST]] },
@@ -184,9 +211,9 @@ export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoEx
   const suffixX = part === "full" ? "" : part === "components" ? "-components" : "-hardware";
   // Rows picked out by an Additional External colour are filled with it. The plain writer cannot colour cells, so those files
   // are written with ExcelJS; files with no highlighted row keep the plain writer.
-  if (sheetFills.some((sh) => sh.fills.some(Boolean))) return void writeHighlighted(po, details, sheetFills, `PO-${po.poNumber || "draft"}${suffixX}.xlsx`);
+  if (sheetFills.some((sh) => sh.fills.some(Boolean))) return void writeHighlighted(po, details, sheetFills, `${docPrefix(po)}-${po.poNumber || "draft"}${suffixX}.xlsx`);
   const suffix = part === "full" ? "" : part === "components" ? "-components" : "-hardware";
-  XLSX.writeFile(wb, `PO-${po.poNumber || "draft"}${suffix}.xlsx`);
+  XLSX.writeFile(wb, `${docPrefix(po)}-${po.poNumber || "draft"}${suffix}.xlsx`);
 }
 
 // Cut List: Carcass, Shutter and Other Panel rows only (component names with their cabinet type, no unit names), with what the cutting needs.
@@ -210,7 +237,7 @@ function downloadCutList(po: PurchaseOrder) {
   ws["!cols"] = [6, 22, 34, 28, 8, 8, 6, 6, 8, 18, 30, 30, 20].map((wch) => ({ wch }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Cut List");
-  XLSX.writeFile(wb, `PO-${po.poNumber || "draft"}-cut-list.xlsx`);
+  XLSX.writeFile(wb, `${docPrefix(po)}-${po.poNumber || "draft"}-cut-list.xlsx`);
 }
 
 
@@ -268,7 +295,7 @@ function downloadLedger(po: PurchaseOrder, ctx: PoExportContext) {
   ws["!cols"] = [8, 16, 16, 16, 46, 10, 10, 12, 12, 12, 12, 24, 24, 12].map((wch) => ({ wch }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Hardware Product Ledger");
-  XLSX.writeFile(wb, `PO-${po.poNumber || "draft"}-hardware-ledger.xlsx`);
+  XLSX.writeFile(wb, `${docPrefix(po)}-${po.poNumber || "draft"}-hardware-ledger.xlsx`);
 }
 
 

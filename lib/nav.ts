@@ -45,6 +45,7 @@ export const navigationItems: NavItem[] = [
   { label: "Procurement Orders (From QT)", href: "/procurement", icon: ClipboardList, roles: ADMIN_UP, group: "Orders" },
   { label: "Purchase Orders (From PR)", href: "/purchase-orders", icon: ShoppingCart, roles: ADMIN_UP, group: "Orders" },
   { label: "Direct Purchase Orders", href: "/direct-purchase-orders", icon: ShoppingCart, roles: ADMIN_UP, group: "Orders" },
+  { label: "Proforma Invoices", href: "/proforma-invoices", icon: FileText, roles: ADMIN_UP, group: "Orders" },
   { label: "Customers", href: "/customers", icon: Contact, group: "Contacts" },
   { label: "Architects", href: "/architects", icon: Building2, group: "Contacts" },
   { label: "Templates", href: "/templates", icon: LayoutTemplate, roles: ADMIN_UP },

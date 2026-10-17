@@ -181,6 +181,10 @@ export function serializeVendor(v: Vendor) {
     code: v.code,
     contacts: (v.contacts as VendorContact[] | null) ?? [],
     emails: (v.emails as string[] | null) ?? [],
+    kind: v.kind === "dealer" ? ("dealer" as const) : ("vendor" as const),
+    category: v.category,
+    area: v.area,
+    salesPerson: v.salesPerson,
     createdAt: v.createdAt.toISOString(),
   };
 }

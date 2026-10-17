@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useVendors } from "@/lib/store/vendors-store";
+import { useDealers, useVendors } from "@/lib/store/vendors-store";
 import { useCustomers } from "@/lib/store/customers-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
@@ -20,24 +20,36 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 // Manual purchase order, not tied to a quote: vendor, customer and product type are optional here (fill them in
 // later). The PO number is generated from them (PO-<vendor code>-<product type code>-<customer code>-NN), and the cabinets and rows are added by hand in the editor. It starts as Pending.
-export function NewPoDialog({ open, onOpenChange, direct = false }: { open: boolean; onOpenChange: (open: boolean) => void; direct?: boolean }) {
+export function NewPoDialog({ open, onOpenChange, direct = false, proforma = false }: { open: boolean; onOpenChange: (open: boolean) => void; direct?: boolean; proforma?: boolean }) {
   const router = useRouter();
-  const vendors = useVendors();
+  const vendorList = useVendors();
+  const dealerList = useDealers();
+  // A Proforma Invoice picks a dealer (kept as the invoice's vendor); the others pick a vendor.
+  const vendors = proforma ? dealerList : vendorList;
   const orders = usePurchaseOrders();
   const customers = useCustomers();
   const materials = useSyncExternalStore(materialSpecStore.subscribe, materialSpecStore.getSnapshot, materialSpecStore.getServerSnapshot);
-  const productTypes = materials.filter((m) => m.category === "purchase-product-type" && !m.deleted);
+  const productTypes = materials.filter((m) => m.category === (proforma ? "proforma-product-type" : "purchase-product-type") && !m.deleted);
   const [vendorId, setVendorId] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [productTypeId, setProductTypeId] = useState("");
   const vendor = vendors.find((v) => v.id === vendorId);
   const customer = customers.find((c) => c.id === customerId);
   const productType = productTypes.find((m) => m.id === productTypeId);
-  const poNumber =
+  const poNumberAuto =
     vendor || customer || productType
       ? buildPoNumber([vendor?.code, productType?.description, customer ? customerCode(customer) : undefined], orders.map((o) => o.poNumber))
       : "";
   const [poDate, setPoDate] = useState(today());
+  // Proforma Invoice number: PI-DDMMYY-<product type code>-NN, e.g. PI-171026-KT-01, then -02 ... for the same date and product type.
+  const piNumber = (() => {
+    const [y, m, d] = poDate.split("-");
+    if (!y || !m || !d) return "";
+    const base = ["PI", `${d}${m}${y.slice(2)}`, productType?.description].filter(Boolean).join("-");
+    const last = Math.max(0, ...orders.map((o) => (o.poNumber.startsWith(`${base}-`) ? Number(o.poNumber.slice(base.length + 1)) || 0 : 0)));
+    return `${base}-${String(last + 1).padStart(2, "0")}`;
+  })();
+  const poNumber = proforma ? piNumber : poNumberAuto;
   const [requiredDate, setRequiredDate] = useState(addDaysIso(today(), 10));
   const [busy, setBusy] = useState(false);
 
@@ -60,16 +72,16 @@ export function NewPoDialog({ open, onOpenChange, direct = false }: { open: bool
         vendorId,
         quoteId: null,
         customerId: customerId || null,
-        material: { ...blankMaterial(), productTypeId: productTypeId || undefined, ...(direct ? { direct: true } : {}) },
+        material: { ...blankMaterial(), productTypeId: productTypeId || undefined, ...(direct || proforma ? { direct: true } : {}), ...(proforma ? { proforma: true } : {}) },
         discountPct: 0,
         gstMode: vendor ? gstModeFor(vendor.state) : "intra",
         roundOff: 0,
         remarks: "",
         lines: [],
       });
-      toastStore.show("Purchase order created — add its cabinets and rows", "success");
+      toastStore.show(proforma ? "Proforma invoice created — add its cabinets and rows" : "Purchase order created — add its cabinets and rows", "success");
       onOpenChange(false);
-      router.push(`${direct ? "/direct-purchase-orders" : "/purchase-orders"}/${po.id}`);
+      router.push(`${proforma ? "/proforma-invoices" : direct ? "/direct-purchase-orders" : "/purchase-orders"}/${po.id}`);
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not create purchase order", "error");
     } finally {
@@ -81,12 +93,12 @@ export function NewPoDialog({ open, onOpenChange, direct = false }: { open: bool
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Purchase Order</DialogTitle>
-          <DialogDescription>A purchase order made directly, without a quote. You add its cabinets and rows on the next screen.</DialogDescription>
+          <DialogTitle>{proforma ? "Create Proforma Invoice" : "Create Purchase Order"}</DialogTitle>
+          <DialogDescription>{proforma ? "A proforma invoice made directly, without a quote. You add its cabinets and rows on the next screen." : "A purchase order made directly, without a quote. You add its cabinets and rows on the next screen."}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="np-vendor">Vendor (optional now)</Label>
+            <Label htmlFor="np-vendor">{proforma ? "Dealer" : "Vendor"} (optional now)</Label>
             <SelectField
               id="np-vendor"
               value={vendorId}
@@ -103,6 +115,7 @@ export function NewPoDialog({ open, onOpenChange, direct = false }: { open: bool
               ))}
             </SelectField>
           </div>
+          {!proforma && (
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="np-customer">Customer (optional now)</Label>
             <SelectField id="np-customer" value={customerId} onChange={(e) => setCustomerId(e.target.value)} className={select}>
@@ -112,8 +125,9 @@ export function NewPoDialog({ open, onOpenChange, direct = false }: { open: bool
               ))}
             </SelectField>
           </div>
+          )}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="np-ppt">Purchase Product Type (optional now)</Label>
+            <Label htmlFor="np-ppt">{proforma ? "Proforma Product Type" : "Purchase Product Type"} (optional now)</Label>
             <SelectField id="np-ppt" value={productTypeId} onChange={(e) => setProductTypeId(e.target.value)} className={select}>
               <option value="">Select later…</option>
               {productTypes.map((m) => (
@@ -122,15 +136,15 @@ export function NewPoDialog({ open, onOpenChange, direct = false }: { open: bool
             </SelectField>
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="np-number">PO Number</Label>
+            <Label htmlFor="np-number">{proforma ? "PI Number" : "PO Number"}</Label>
             <div id="np-number" className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 font-number text-sm font-medium text-grey-700">
               {poNumber || "—"}
             </div>
-            <span className="text-xs font-body text-grey-400">Auto-generated: PO-Vendor code-Product type code-Customer code.</span>
+            <span className="text-xs font-body text-grey-400">{proforma ? "Auto-generated: PI-DDMMYY-Product type code-number (like PI-171026-KT-01)." : "Auto-generated: PO-Vendor code-Product type code-Customer code."}</span>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="np-date">PO Date</Label>
+              <Label htmlFor="np-date">{proforma ? "PI Date" : "PO Date"}</Label>
               <Input
                 id="np-date"
                 type="date"
@@ -152,7 +166,7 @@ export function NewPoDialog({ open, onOpenChange, direct = false }: { open: bool
               Cancel
             </Button>
             <Button type="button" disabled={busy} onClick={submit}>
-              {busy ? "Creating…" : "Create Purchase Order"}
+              {busy ? "Creating…" : proforma ? "Create Proforma Invoice" : "Create Purchase Order"}
             </Button>
           </div>
         </div>

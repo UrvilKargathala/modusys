@@ -30,7 +30,7 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
   const brandCode = !!category.brandAndCode;
   // Brand + Colour Code and Code + Name share a layout: the `description` column first, then `name`.
   const pair = brandCode || !!category.codeAndName;
-  const showSrNo = category.group === "library" || category.group === "purchase-library";
+  const showSrNo = category.group === "library" || category.group === "purchase-library" || category.group === "proforma-library";
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ key: "name" | "description"; asc: boolean }>({ key: "name", asc: true });
   const [addOpen, setAddOpen] = useState(false);
@@ -82,7 +82,7 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
   };
 
   // Cabinet Name has no Internal/External pair: Copy makes a second entry with the same name to edit.
-  const isCabinetName = category.key === "purchase-cabinet-type";
+  const isCabinetName = category.key === "purchase-cabinet-type" || category.key === "proforma-cabinet-type";
   const duplicate = (i: MaterialItem) => {
     materialSpecStore.createItem({ category: category.key, name: `${i.name} (copy)`, description: i.description });
     toastStore.show(`${i.name} copied`, "success");

@@ -3,7 +3,7 @@ import type { Customer } from "@/lib/mock/pipeline";
 import { Fragment } from "react";
 import type { QuoteTemplateSettings } from "@/lib/mock/quote-template";
 import { LEDGER_HEADERS, ledgerItems, CUT_LIST_HEADERS, HW_HEADERS, cabinetTitle, PANEL_HEADERS, cutListRows, byCabinet, carcassHeadingCells, groupsFor, poDetailSections, type PoExportPart } from "@/lib/purchase-order-export";
-import { COMPANY_GST, brandVendorName, highlightFor, sortOtherPanel, mostUsed, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
+import { COMPANY_GST, brandVendorName, highlightFor, lineAmount, sortOtherPanel, mostUsed, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
 
 type Branding = { companyName: string; address: string; email: string; phone: string; logoDataUrl?: string | null };
 
@@ -23,12 +23,16 @@ const RED_FILL = "bg-error-200 font-semibold text-error";
 const num = (n: number, d = 0) => (n ? n.toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d }) : "");
 const RIGHT = new Set(["Width", "Thk", "Depth", "Height", "Qty", "Items", "Sq.Ft", "W", "D", "H"]);
 // The PO PDF carries no prices at all (the Excel export still does).
+// A Proforma Invoice shows prices: Sq.Ft, Rate and Amount come last (as in its Carcass table).
+const PANEL_HEADERS_PRICED = ["Sr", "Description", "Design", "Width", "Thk", "Height", "Qty", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remarks", "Sq.Ft", "Rate", "Amount"];
 const PRICE_HEADERS = new Set(["Rate", "MRP", "Discount %", "Amount"]);
 const noPrice = (h: string[]) => h.filter((x) => !PRICE_HEADERS.has(x));
 
 // One colour per detail card (title bar, border and a light tint), so the six read as separate blocks.
 const CARD_TONE: Record<string, { bar: string; box: string }> = {
   "Company Details": { bar: "bg-primary/20 text-primary", box: "border-primary bg-primary-transparent" },
+  "Dealer Details": { bar: "bg-indigo/20 text-indigo", box: "border-indigo bg-indigo-transparent" },
+  "Proforma Details": { bar: "bg-orange/20 text-orange", box: "border-orange bg-orange-transparent" },
   "Vendor Details": { bar: "bg-indigo/20 text-indigo", box: "border-indigo bg-indigo-transparent" },
   "Customer Details": { bar: "bg-purple/20 text-purple", box: "border-purple bg-purple-transparent" },
   "Purchase Order Details": { bar: "bg-orange/20 text-orange", box: "border-orange bg-orange-transparent" },
@@ -132,11 +136,18 @@ function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<
       <td className={`${t} text-right po-num`}>{num(h.depth)}</td>
       <td className={`${t} text-right po-num`}>{num(h.height)}</td>
       <td className={`${t} text-right po-num`}>{num(h.qty)}</td>
-      <td className={`${t} text-right po-num`}>{h.sqft.toFixed(2)}</td>
+      {!po.material.proforma && <td className={`${t} text-right po-num`}>{h.sqft.toFixed(2)}</td>}
       <td className={t}><Nums>{h.material}</Nums></td>
       <td className={t}><Nums>{h.internal}</Nums></td>
       <td className={t} style={highlightFor(po, { group, externalColour: h.external }) ? { backgroundColor: highlightFor(po, { group, externalColour: h.external }), color: "#fff" } : undefined}><Nums>{h.external}</Nums></td>
       <td className={`${t} ${h.remark ? "!bg-error-200 !text-error" : ""}`}>{h.remark}</td>
+      {po.material.proforma && (
+        <>
+          <td className={`${t} text-right po-num`}>{h.sqft.toFixed(2)}</td>
+          <td className={t} />
+          <td className={`${t} text-right po-num`}>{h.amount.toFixed(2)}</td>
+        </>
+      )}
     </tr>
   );
 }
@@ -149,6 +160,9 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows }: { grou
   const shown = lines.filter((l) => !hidden(l.srNo));
   const qty = shown.reduce((s, l) => s + l.qty, 0);
   const sqft = shown.reduce((s, l) => s + l.sqft, 0);
+  // A Proforma Invoice shows prices: a Rate and an Amount on every row and the amount in the total.
+  const money = !!po.material.proforma;
+  const amount = shown.reduce((s, l) => s + lineAmount(l), 0);
   // Direct Purchase Order: Shutter and Other Panel rows have no cabinet, so no cabinet heading and Sr runs 1, 2, 3.
   const flat = !!po.material.direct && (group === "shutter" || group === "other-panel");
   // Other Panel sorted (Description or Thk) in the editor: listed flat in that order, each row keeping its cabinet.row number.
@@ -162,7 +176,7 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows }: { grou
     <section className="break-inside-auto">
       <Band group={group} title={title} count={shown.length} />
       <table className="w-full border-collapse text-[10px]">
-        <thead><Header group={group} headers={noPrice(PANEL_HEADERS)} /></thead>
+        <thead><Header group={group} headers={money ? PANEL_HEADERS_PRICED : noPrice(PANEL_HEADERS)} /></thead>
         <tbody>
           {sections.map((c) => (
             <Fragment key={c.srNo}>
@@ -176,11 +190,18 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows }: { grou
                   <td className={`${cell} text-right po-num`}>{l.depth ? `${l.depth}` : ""}</td>
                   <td className={`${cell} text-right po-num`}>{num(l.height)}</td>
                   <td className={`${cell} text-right po-num`}>{num(l.qty)}</td>
-                  <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(2)}</td>
+                  {!money && <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(2)}</td>}
                   <td className={cell}><Nums>{l.material}</Nums></td>
                   <td className={cell}><Nums>{l.internalColour}</Nums></td>
                   <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#fff" } : undefined}><Nums>{l.externalColour}</Nums></td>
                   <td className={`${cell} ${l.remarks ? "bg-error-200 text-error" : ""}`}><Nums>{l.remarks}</Nums></td>
+                  {money && (
+                    <>
+                      <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(2)}</td>
+                      <td className={`${cell} text-right po-num`}>{l.rate ? l.rate.toFixed(2) : ""}</td>
+                      <td className={`${cell} text-right po-num`}>{lineAmount(l).toFixed(2)}</td>
+                    </>
+                  )}
                 </tr>
               ))}
             </Fragment>
@@ -188,8 +209,15 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows }: { grou
           <tr className={`font-semibold ${THEME[group].head}`}>
             <td className={`${cell} text-right`} colSpan={6}>TOTAL</td>
             <td className={`${cell} text-right po-num`}>{num(qty)}</td>
-            <td className={`${cell} text-right po-num`}>{sqft.toFixed(2)}</td>
+            {!money && <td className={`${cell} text-right po-num`}>{sqft.toFixed(2)}</td>}
             <td className={cell} colSpan={4} />
+            {money && (
+              <>
+                <td className={`${cell} text-right po-num`}>{sqft.toFixed(2)}</td>
+                <td className={cell} />
+                <td className={`${cell} text-right po-num`}>{amount.toFixed(2)}</td>
+              </>
+            )}
           </tr>
         </tbody>
       </table>
@@ -225,7 +253,7 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
     <section className="break-inside-auto">
       <Band group="hardware" title={title} count={merged ? sections[0].rows.length : lines.length} />
       <table className="w-full border-collapse text-[10px]">
-        <thead><Header group="hardware" headers={noPrice(merged ? HW_MERGED_HEADERS : HW_HEADERS)} /></thead>
+        <thead><Header group="hardware" headers={merged || !po.material.proforma ? noPrice(merged ? HW_MERGED_HEADERS : HW_HEADERS) : HW_HEADERS} /></thead>
         <tbody>
           {sections.map((c) => (
             <Fragment key={c.srNo}>
@@ -251,6 +279,14 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
                   )}
                   <td className={cell}>{l.unit}</td>
                   <td className={`${cell} text-right po-num`}>{num(l.qty)}</td>
+                  {!merged && po.material.proforma && (
+                    <>
+                      <td className={`${cell} text-right po-num`}>{l.rate ? l.rate.toFixed(2) : ""}</td>
+                      <td className={`${cell} text-right po-num`}>{l.discountPct ? l.discountPct : ""}</td>
+                      <td className={`${cell} text-right po-num`}>{l.rate ? (l.rate * (1 - (l.discountPct ?? 0) / 100)).toFixed(2) : ""}</td>
+                      <td className={`${cell} text-right po-num`}>{lineAmount(l).toFixed(2)}</td>
+                    </>
+                  )}
                   <td className={`${cell} ${l.remarks ? "bg-error-200 text-error" : ""}`}><Nums>{l.remarks}</Nums></td>
                   {merged && (
                     <>
@@ -327,6 +363,7 @@ function LedgerTable({ po, vendors }: { po: PurchaseOrder; vendors?: Vendor[] })
 
 // Direct Purchase Order, Purchase Order PDF: Carcass lists each cabinet with its details (as on the cabinet card), not its components.
 const DIRECT_CABINET_HEADERS = ["Sr", "Cabinet Type", "Cabinet Name", "W", "D", "H", "Qty", "Design", "Remark", "Internal Brand & Colour", "External Brand & Colour", "Material"];
+const DIRECT_CABINET_HEADERS_PRICED = [...DIRECT_CABINET_HEADERS, "Sq.Ft", "Amount"];
 function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder; title: string; vendor?: Vendor; vendors?: Vendor[] }) {
   const nos = Object.keys(po.material.cabinets ?? {}).map(Number).filter((n) => n > 0).sort((a, b) => a - b);
   if (nos.length === 0) return null;
@@ -334,7 +371,7 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
     <section className="break-inside-auto">
       <Band group="carcass" title={title} count={nos.length} unit="cabinets" />
       <table className="w-full border-collapse text-[10px]">
-        <thead><Header group="carcass" headers={DIRECT_CABINET_HEADERS} /></thead>
+        <thead><Header group="carcass" headers={po.material.proforma ? DIRECT_CABINET_HEADERS_PRICED : DIRECT_CABINET_HEADERS} /></thead>
         <tbody>
           {nos.map((no, i) => {
             const c = po.material.cabinets![String(no)];
@@ -361,6 +398,12 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
                   <Nums>{common("externalColour")}</Nums>
                 </td>
                 <td className={cell}><Nums>{common("material")}</Nums></td>
+                {po.material.proforma && (
+                  <>
+                    <td className={`${cell} text-right po-num`}>{rows.reduce((t, l) => t + l.sqft, 0).toFixed(2)}</td>
+                    <td className={`${cell} text-right po-num`}>{rows.reduce((t, l) => t + lineAmount(l), 0).toFixed(2)}</td>
+                  </>
+                )}
               </tr>
             );
           })}
@@ -450,7 +493,7 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
         </div>
         <div className="flex items-center gap-3 whitespace-nowrap rounded-xl bg-primary px-5 py-2 text-white">
           <span className="text-base font-bold uppercase tracking-wider">
-            {part === "ledger" ? "Hardware Product Ledger" : part === "components" || part === "hardware" ? "Material Slip" : "Purchase Order"}
+            {part === "ledger" ? "Hardware Product Ledger" : part === "components" || part === "hardware" ? "Material Slip" : po.material.proforma ? "Proforma Invoice" : "Purchase Order"}
           </span>
           {part !== "cabinets" && part !== "ledger" && <span className="text-[11px] opacity-90">· {PART_LABEL[part]}</span>}
           <span className="text-[13px] font-semibold">· <Nums>{po.poNumber || "Number not set"}</Nums></span>
@@ -465,8 +508,8 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
             {details.filter((sec) => sec.title === "Customer Details").map((sec) => (
               <Info key={sec.title} title={sec.title} rows={sec.rows} />
             ))}
-            {card("Vendor Details")}
-            {card("Purchase Order Details")}
+            {card(po.material.proforma ? "Dealer Details" : "Vendor Details")}
+            {card(po.material.proforma ? "Proforma Details" : "Purchase Order Details")}
           </div>
         </div>
       ) : partial ? (
@@ -480,10 +523,10 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
         // Purchase Order PDFs: one row of four equal-height cards: Vendor, Shutter, Cabinet, PO details (no Customer card).
         // Company details are in the letterhead.
         <div className="grid grid-cols-4 gap-2">
-          {card("Vendor Details")}
+          {card(po.material.proforma ? "Dealer Details" : "Vendor Details")}
           {card("Shutter Details")}
           {card("Cabinet Details")}
-          {card("Purchase Order Details")}
+          {card(po.material.proforma ? "Proforma Details" : "Purchase Order Details")}
         </div>
       )}
 

@@ -13,7 +13,7 @@ export function MaterialSpecSection() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const rawSubTab = searchParams.get("view");
-  const subTab: MaterialCategoryGroup = rawSubTab === "specification" || rawSubTab === "library" || rawSubTab === "purchase-library" ? rawSubTab : "specification";
+  const subTab: MaterialCategoryGroup = rawSubTab === "specification" || rawSubTab === "library" || rawSubTab === "purchase-library" || rawSubTab === "proforma-library" ? rawSubTab : "specification";
 
   const setSubTab = (value: MaterialCategoryGroup) => {
     const params = new URLSearchParams(searchParams);
@@ -52,6 +52,7 @@ export function MaterialSpecSection() {
             <TabsTrigger value="specification">Material Specification</TabsTrigger>
             <TabsTrigger value="library">Material Library</TabsTrigger>
             <TabsTrigger value="purchase-library">Purchase Material Library</TabsTrigger>
+            <TabsTrigger value="proforma-library">Proforma Library</TabsTrigger>
           </TabsList>
           <CsvImportExportPanel />
         </div>

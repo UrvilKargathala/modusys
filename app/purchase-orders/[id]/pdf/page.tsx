@@ -7,7 +7,7 @@ import { FileSpreadsheet, Printer } from "lucide-react";
 import { downloadPoExcel } from "@/lib/purchase-order-export";
 import { PurchaseOrderSheet } from "@/components/purchase-orders/purchase-order-sheet";
 import { usePurchaseOrders, purchaseOrdersStore } from "@/lib/store/purchase-orders-store";
-import { useVendors } from "@/lib/store/vendors-store";
+import { useAllVendors } from "@/lib/store/vendors-store";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { useUnitTypes } from "@/lib/store/unit-type-store";
@@ -21,7 +21,7 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
   const excel = useSearchParams().get("format") === "excel";
   const part: PoExportPart = q === "components" || q === "hardware" || q === "cabinets" || q === "cutlist" || q === "ledger" ? q : "full";
   const orders = usePurchaseOrders();
-  const vendors = useVendors();
+  const vendors = useAllVendors();
   const settings = usePurchaseTemplateSettings();
   const unitTypes = useUnitTypes();
   const po = orders.find((o) => o.id === id);
@@ -43,7 +43,7 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
 
   // The browser uses document.title as the default PDF file name.
   useEffect(() => {
-    if (po) document.title = `PO-${po.poNumber}${part === "full" ? "" : `-${part === "components" || part === "hardware" ? `material-slip-${part}` : part}`}`;
+    if (po) document.title = `${po.material.proforma ? "PI" : "PO"}-${po.poNumber}${part === "full" ? "" : `-${part === "components" || part === "hardware" ? `material-slip-${part}` : part}`}`;
   }, [po, part]);
 
   if (!po) {

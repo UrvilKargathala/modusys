@@ -3,6 +3,7 @@
 import { SelectField } from "@/components/shared/select-field";
 import { cn } from "@/lib/utils";
 import { Fragment, createContext, useContext, useState, type ReactNode } from "react";
+import { PoLibraryContext } from "@/components/purchase-orders/po-library-context";
 import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, ChevronRight, ChevronsUpDown, Copy, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -216,11 +217,14 @@ export function PoLinesTable({
   const brandVendor = useContext(PoBrandVendorContext);
   const [pricePrefill, setPricePrefill] = useState<Partial<NewPurchaseFurnitureInput> | null>(null);
   const hardware = group === "hardware";
-  const cols = (hardware ? HW_COLS : PANEL_COLS).filter((c) => srNo === undefined || c.key !== "designType");
+  // A Proforma Invoice has one dealer for the whole invoice, so its tables (Carcass, Shutter, Other Panel and Hardware) have no Vendor column.
+  const proforma = useContext(PoLibraryContext) === "proforma";
+  const cols = (hardware ? HW_COLS : PANEL_COLS).filter((c) => (srNo === undefined || c.key !== "designType") && !(proforma && c.key === "vendor"));
   const sortable = group === "other-panel" && srNo === undefined && !!onSortChange;
   const mineAll = lines.filter((l) => l.group === group && (srNo === undefined || l.srNo === srNo) && (!only || only(l)));
   const mine = sortable ? sortOtherPanel(mineAll, sort) : mineAll;
   const total = mine.reduce((s, l) => s + lineAmount(l), 0);
+  const totalSqft = hardware ? 0 : mine.reduce((s, l) => s + l.sqft, 0);
 
   // A panel rate typed on one row goes to every other panel row (Carcass, Shutter, Other Panel) with the same
   // internal + external finish, thickness, material and vendor: that combination is one price.
@@ -277,6 +281,8 @@ export function PoLinesTable({
         </button>
         {header}
         <div className="flex items-center gap-3">
+          {/* A Proforma Invoice shows the total sq.ft before the amount. */}
+          {proforma && !hardware && <span className="font-number text-sm text-grey-500">{totalSqft.toFixed(2)} sq.ft</span>}
           <span className="font-number text-sm text-grey-700">{formatInr(total)}</span>
           {!only && (
             <Button type="button" variant="outline" size="sm" onClick={add}>

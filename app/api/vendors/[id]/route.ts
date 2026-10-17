@@ -25,6 +25,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
       .filter((x) => x.name || x.phone);
   }
   if (b.code !== undefined) data.code = String(b.code).trim();
+  for (const k of ["category", "area", "salesPerson"] as const) if (b[k] !== undefined) data[k] = String(b[k]).trim();
   if (Array.isArray(b.emails)) data.emails = (b.emails as unknown[]).map((x) => String(x ?? "").trim()).filter(Boolean);
   if (b.deletedAt !== undefined) data.deletedAt = b.deletedAt === null ? null : new Date(b.deletedAt);
   if (data.name !== undefined && !String(data.name).trim()) {

@@ -12,7 +12,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { EmptyState } from "@/components/shared/empty-state";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { PO_EXCEL_PARTS, PO_PDF_PARTS } from "@/lib/purchase-order-export";
+import { PO_EXCEL_PARTS, PO_PDF_PARTS, partLabel } from "@/lib/purchase-order-export";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { toastStore } from "@/lib/store/toast-store";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
@@ -29,14 +29,14 @@ import { asPoStatus, poStatusLabel, poStatusList, poTotals, type PoStatus, type 
 const PO_TO_QUOTE_TONE: Record<string, StatusKey> = { pending: "in-production", confirmed: "in-procurement", "in-production": "in-production", delivered: "completed" };
 const statusClass = (st: string) => (st === "pending" ? "bg-error-transparent text-error-700" : PO_TO_QUOTE_TONE[st] ? `${statusConfig[PO_TO_QUOTE_TONE[st]].bg} ${statusConfig[PO_TO_QUOTE_TONE[st]].color}` : "bg-grey-transparent text-grey-700");
 
-export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = false }: { onNew?: () => void; quoteId?: string | null; onClearQuote?: () => void; direct?: boolean }) {
+export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = false, proforma = false }: { onNew?: () => void; quoteId?: string | null; onClearQuote?: () => void; direct?: boolean; proforma?: boolean }) {
   const router = useRouter();
   // Direct Purchase Orders have their own list and pages; both lists use this table.
-  const base = direct ? "/direct-purchase-orders" : "/purchase-orders";
+  const base = proforma ? "/proforma-invoices" : direct ? "/direct-purchase-orders" : "/purchase-orders";
   const allOrders = usePurchaseOrders();
-  const orders = useMemo(() => allOrders.filter((o) => !!o.material.direct === direct), [allOrders, direct]);
+  const orders = useMemo(() => allOrders.filter((o) => (proforma ? !!o.material.proforma : !!o.material.direct === direct && !o.material.proforma)), [allOrders, direct, proforma]);
   // The four built-in statuses, the ones added in Purchase Material Library > Purchase Order Status, and any other name still in use.
-  const materials = useMaterialItems("purchase-order-status");
+  const materials = useMaterialItems(proforma ? "proforma-order-status" : "purchase-order-status");
   // A status added in the library carries the colour picked there.
   const colours = useMemo(() => Object.fromEntries(materials.map((m) => [asPoStatus(m.name), m.description])), [materials]);
   const statuses = useMemo(() => poStatusList(orders, materials.map((m) => m.name)), [orders, materials]);
@@ -56,7 +56,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   };
   const [toDelete, setToDelete] = useState<PurchaseOrder | null>(null);
   // The status tab you last opened comes back when you return from a PO (Cancel / Back / Save). Kept for this browser tab only.
-  const tabKey = `po-status-tab-${direct ? "direct" : "po"}`;
+  const tabKey = `po-status-tab-${proforma ? "proforma" : direct ? "direct" : "po"}`;
   const [statusPick, setStatusState] = useState<PoStatus>("pending");
   const status = statuses.includes(statusPick) ? statusPick : "pending";
   const setStatus = (st: PoStatus) => {
@@ -147,7 +147,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => downloadOrderTracker(orders, customers, `order-tracker${direct ? "-direct" : ""}.xlsx`)}>
+          <Button size="sm" variant="outline" onClick={() => downloadOrderTracker(orders, customers, `order-tracker${proforma ? "-proforma" : direct ? "-direct" : ""}.xlsx`)}>
             <Download className="h-4 w-4" />
             Order Tracker (Excel)
           </Button>
@@ -163,7 +163,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           {onNew && (
             <Button size="sm" onClick={onNew}>
               <Plus className="h-4 w-4" />
-              {direct ? "Create Direct Purchase Order" : "Create Purchase Order"}
+              {proforma ? "Create Proforma Invoice" : direct ? "Create Direct Purchase Order" : "Create Purchase Order"}
             </Button>
           )}
         </div>
@@ -174,17 +174,17 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           icon={ShoppingCart}
           message={
             status === "pending"
-              ? direct ? "No pending direct purchase orders." : "No pending purchase orders. One appears here when a quote is set to In Purchase, or you can create one by hand."
+              ? proforma ? "No pending proforma invoices." : direct ? "No pending direct purchase orders." : "No pending purchase orders. One appears here when a quote is set to In Purchase, or you can create one by hand."
               : `No ${poStatusLabel(status).toLowerCase()} purchase orders yet.`
           }
-          cta={status === "pending" && onNew ? { label: direct ? "Create Direct Purchase Order" : "Create Purchase Order", onClick: onNew } : undefined}
+          cta={status === "pending" && onNew ? { label: proforma ? "Create Proforma Invoice" : direct ? "Create Direct Purchase Order" : "Create Purchase Order", onClick: onNew } : undefined}
         />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full text-left">
             <thead className="bg-[#DACCCC]">
               <tr>
-                {["PO No", "Date", "Required", "Vendor", "Customer", "Quote", "Amount", "Status", "Actions"].map((h) => (
+                {[proforma ? "PI No" : "PO No", proforma ? "PI Date" : "Date", "Required", proforma ? "Dealer" : "Vendor", "Customer", "Quote", "Amount", "Status", "Actions"].map((h) => (
                   <th
                     key={h}
                     className={`px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900 ${h === "Amount" ? "text-right" : h === "Actions" ? "text-right" : ""}`}
@@ -241,7 +241,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                           {PO_PDF_PARTS.map((p) => (
                             <DropdownMenuItem key={`pdf-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf${p.key === "full" ? "" : `?part=${p.key}`}`, "_blank")}>
                               <FileText className="h-4 w-4 text-grey-400" />
-                              {p.label}
+                              {partLabel(p.label, proforma)}
                             </DropdownMenuItem>
                           ))}
                           </DropdownMenuGroup>
@@ -251,7 +251,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                           {PO_EXCEL_PARTS.map((p) => (
                             <DropdownMenuItem key={`xls-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?format=excel${p.key === "full" ? "" : `&part=${p.key}`}`, "_blank")}>
                               <FileSpreadsheet className="h-4 w-4 text-grey-400" />
-                              {p.label}
+                              {partLabel(p.label, proforma)}
                             </DropdownMenuItem>
                           ))}
                           </DropdownMenuGroup>
