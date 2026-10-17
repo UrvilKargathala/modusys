@@ -326,7 +326,7 @@ function LedgerTable({ po, vendors }: { po: PurchaseOrder; vendors?: Vendor[] })
 }
 
 // Direct Purchase Order, Purchase Order PDF: Carcass lists each cabinet with its details (as on the cabinet card), not its components.
-const DIRECT_CABINET_HEADERS = ["Sr", "Cabinet Type", "Cabinet Name", "W", "D", "H", "Qty", "Design", "Remark", "Vendor", "Internal Brand & Colour", "External Brand & Colour", "Material"];
+const DIRECT_CABINET_HEADERS = ["Sr", "Cabinet Type", "Cabinet Name", "W", "D", "H", "Qty", "Design", "Remark", "Internal Brand & Colour", "External Brand & Colour", "Material"];
 function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder; title: string; vendor?: Vendor; vendors?: Vendor[] }) {
   const nos = Object.keys(po.material.cabinets ?? {}).map(Number).filter((n) => n > 0).sort((a, b) => a - b);
   if (nos.length === 0) return null;
@@ -341,7 +341,6 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
             const rows = po.lines.filter((l) => l.srNo === no && l.group === "carcass");
             // The cabinet's own Carcass rows first (what the editor shows for it), then the value kept on the cabinet; never another cabinet's.
             const common = (k: "internalColour" | "externalColour" | "material") => mostUsed(rows.map((l) => l[k])) || c[k] || "";
-            const vendorName = (c.vendorId && vendors?.find((v) => v.id === c.vendorId)?.name) || vendor?.name || "";
             return (
               <tr key={no} className={i % 2 ? "bg-light-600" : ""}>
                 <td className={`${cell} po-num`}>{no}</td>
@@ -353,7 +352,6 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
                 <td className={`${cell} text-right po-num`}>{num(c.qty)}</td>
                 <td className={`${cell} ${c.design ? RED_FILL : ""}`}><Nums>{c.design ?? ""}</Nums></td>
                 <td className={`${cell} ${c.remark ? "bg-error-200 text-error" : ""}`}><Nums>{c.remark ?? ""}</Nums></td>
-                <td className={cell}><Nums>{vendorName}</Nums></td>
                 <td className={cell}><Nums>{common("internalColour")}</Nums></td>
                 <td
                   className={cell}
