@@ -260,9 +260,16 @@ export function mostUsed(values: string[]): string {
 // Shutter rows look at the Shutter Details picks; Carcass and Other Panel rows look at the Cabinet Details picks.
 export function highlightFor(po: PurchaseOrder, l: Pick<PurchaseOrderLine, "group" | "externalColour">): string | undefined {
   if (l.group === "hardware" || !l.externalColour) return undefined;
-  const side = l.group === "shutter" ? "shutter" : "cabinet";
-  if (!(po.material.additionalExternal?.[side] ?? []).includes(l.externalColour)) return undefined;
-  return po.material.additionalColors?.[side]?.[l.externalColour];
+  const own = l.group === "shutter" ? "shutter" : "cabinet";
+  const other = own === "shutter" ? "cabinet" : "shutter";
+  // A pick's colour is looked up on the row's own side first, then on the other card (the same colour pick may be made on either).
+  for (const side of [own, other] as const) {
+    if ((po.material.additionalExternal?.[side] ?? []).includes(l.externalColour)) {
+      const c = po.material.additionalColors?.[side]?.[l.externalColour];
+      if (c) return c;
+    }
+  }
+  return undefined;
 }
 
 // Other Panel rows in the saved sort order (Description or Thk), ties kept in their original order.

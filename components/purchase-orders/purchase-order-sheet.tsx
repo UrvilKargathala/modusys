@@ -18,6 +18,8 @@ const THEME: Record<PoGroup, { band: string; soft: string; head: string; tint: s
 };
 
 const cell = "border border-grey-100 px-1.5 py-1 align-top";
+// Design and Remark cells that have a value are filled a light red.
+const RED_FILL = "bg-error-200 font-semibold text-error";
 const num = (n: number, d = 0) => (n ? n.toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d }) : "");
 const RIGHT = new Set(["Width", "Thk", "Depth", "Height", "Qty", "Items", "Sq.Ft", "W", "D", "H"]);
 // The PO PDF carries no prices at all (the Excel export still does).
@@ -125,7 +127,7 @@ function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<
   return (
     <tr className="break-inside-avoid">
       <td className={t} colSpan={2}>{h.name}</td>
-      <td className={`${t} ${h.design ? "!bg-error !text-white" : ""}`}>{h.design}</td>
+      <td className={`${t} ${h.design ? "!bg-error-200 !font-semibold !text-error" : ""}`}>{h.design}</td>
       <td className={`${t} text-right po-num`}>{num(h.width)}</td>
       <td className={`${t} text-right po-num`}>{num(h.depth)}</td>
       <td className={`${t} text-right po-num`}>{num(h.height)}</td>
@@ -134,7 +136,7 @@ function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<
       <td className={t}><Nums>{h.material}</Nums></td>
       <td className={t}><Nums>{h.internal}</Nums></td>
       <td className={t} style={highlightFor(po, { group, externalColour: h.external }) ? { backgroundColor: highlightFor(po, { group, externalColour: h.external }), color: "#fff" } : undefined}><Nums>{h.external}</Nums></td>
-      <td className={t}>{h.remark}</td>
+      <td className={`${t} ${h.remark ? "!bg-error-200 !text-error" : ""}`}>{h.remark}</td>
     </tr>
   );
 }
@@ -169,7 +171,7 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows }: { grou
                 <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
                   <td className={`${cell} po-num`}>{sr}</td>
                   <td className={cell}><Nums>{l.description}</Nums></td>
-                  <td className={`${cell} ${l.designType ? "bg-error font-semibold text-white" : ""}`}>{l.designType}</td>
+                  <td className={`${cell} ${l.designType ? RED_FILL : ""}`}>{l.designType}</td>
                   <td className={`${cell} text-right po-num`}>{num(l.width)}</td>
                   <td className={`${cell} text-right po-num`}>{l.depth ? `${l.depth}` : ""}</td>
                   <td className={`${cell} text-right po-num`}>{num(l.height)}</td>
@@ -178,7 +180,7 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows }: { grou
                   <td className={cell}><Nums>{l.material}</Nums></td>
                   <td className={cell}><Nums>{l.internalColour}</Nums></td>
                   <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#fff" } : undefined}><Nums>{l.externalColour}</Nums></td>
-                  <td className={cell}><Nums>{l.remarks}</Nums></td>
+                  <td className={`${cell} ${l.remarks ? "bg-error-200 text-error" : ""}`}><Nums>{l.remarks}</Nums></td>
                 </tr>
               ))}
             </Fragment>
@@ -242,14 +244,14 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
                   ) : (
                     <>
                       <td className={cell}><Nums>{l.description}</Nums></td>
-                      <td className={`${cell} ${l.designType ? "bg-error font-semibold text-white" : ""}`}>{l.designType}</td>
+                      <td className={`${cell} ${l.designType ? RED_FILL : ""}`}>{l.designType}</td>
                       <td className={cell}>{l.articleNo}</td>
                       <td className={cell}>{l.category}</td>
                     </>
                   )}
                   <td className={cell}>{l.unit}</td>
                   <td className={`${cell} text-right po-num`}>{num(l.qty)}</td>
-                  <td className={cell}><Nums>{l.remarks}</Nums></td>
+                  <td className={`${cell} ${l.remarks ? "bg-error-200 text-error" : ""}`}><Nums>{l.remarks}</Nums></td>
                   {merged && (
                     <>
                       {/* Stock Qty and Order Qty from the PO's Hardware tab: Order Qty = Qty - Stock Qty (never below 0). */}
@@ -349,8 +351,8 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
                 <td className={`${cell} text-right po-num`}>{num(c.depth)}</td>
                 <td className={`${cell} text-right po-num`}>{num(c.height)}</td>
                 <td className={`${cell} text-right po-num`}>{num(c.qty)}</td>
-                <td className={cell}><Nums>{c.design ?? ""}</Nums></td>
-                <td className={cell}><Nums>{c.remark ?? ""}</Nums></td>
+                <td className={`${cell} ${c.design ? RED_FILL : ""}`}><Nums>{c.design ?? ""}</Nums></td>
+                <td className={`${cell} ${c.remark ? "bg-error-200 text-error" : ""}`}><Nums>{c.remark ?? ""}</Nums></td>
                 <td className={cell}><Nums>{vendorName}</Nums></td>
                 <td className={cell}><Nums>{common("internalColour")}</Nums></td>
                 <td
