@@ -337,7 +337,8 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
           {nos.map((no, i) => {
             const c = po.material.cabinets![String(no)];
             const rows = po.lines.filter((l) => l.srNo === no && l.group === "carcass");
-            const common = (k: "internalColour" | "externalColour" | "material") => c[k] || mostUsed(rows.map((l) => l[k]));
+            // The cabinet's own Carcass rows first (what the editor shows for it), then the value kept on the cabinet; never another cabinet's.
+            const common = (k: "internalColour" | "externalColour" | "material") => mostUsed(rows.map((l) => l[k])) || c[k] || "";
             const vendorName = (c.vendorId && vendors?.find((v) => v.id === c.vendorId)?.name) || vendor?.name || "";
             return (
               <tr key={no} className={i % 2 ? "bg-light-600" : ""}>

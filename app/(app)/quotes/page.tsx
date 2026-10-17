@@ -82,7 +82,7 @@ export default function QuotesPage() {
   const rawMaterialTypes = useMaterialItems("raw-material-type");
   const internalColours = useMaterialItems("internal-colour");
   const externalColours = useMaterialItems("external-colour");
-  const hingesTypes = useMaterialItems("hinges-type");
+  const tandemDrawerTypes = useMaterialItems("tandem-drawer-type");
   const furnitureComponents = useMaterialItems("furniture-component");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusKey | "all">("all");
@@ -105,9 +105,10 @@ export default function QuotesPage() {
   const productTypeName = (id: string) => productTypes.find((p) => p.id === id)?.name ?? "—";
   const productTypeLabel = (q: Quote) => {
     const base = productTypeName(q.productTypeId);
-    const hinges = hingesTypes.find((h) => h.id === q.hingesTypeId)?.name;
+    // In brackets: the Tandem Drawer Type and the External Colour (the Shutter Finish); the Product Type itself stays as picked.
+    const tandem = tandemDrawerTypes.find((t) => t.id === q.tandemDrawerTypeId)?.name;
     const shutter = externalColours.find((c) => c.id === q.shutterFinishId)?.name;
-    const parts = [hinges, shutter].filter(Boolean);
+    const parts = [tandem, shutter].filter(Boolean);
     return parts.length > 0 ? `${base} (${parts.join(" + ")})` : base;
   };
   const finalAmount = (q: Quote) =>
