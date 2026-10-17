@@ -83,6 +83,20 @@ export function cleanMaterial(m: unknown) {
       shutter: list((o.additionalExternal as Record<string, unknown> | undefined)?.shutter),
       cabinet: list((o.additionalExternal as Record<string, unknown> | undefined)?.cabinet),
     },
+    otherPanelSort: (() => {
+      const v = o.otherPanelSort as { key?: unknown; dir?: unknown } | undefined;
+      return v && (v.key === "description" || v.key === "depth") && (v.dir === "asc" || v.dir === "desc") ? { key: v.key, dir: v.dir } : undefined;
+    })(),
+    additionalColors: (() => {
+      const raw = (o.additionalColors ?? {}) as Record<string, unknown>;
+      const side = (v: unknown) =>
+        Object.fromEntries(
+          Object.entries((v ?? {}) as Record<string, unknown>)
+            .filter(([k, c]) => k && typeof c === "string" && /^#[0-9a-fA-F]{6}$/.test(c))
+            .map(([k, c]) => [str(k), String(c)])
+        );
+      return { shutter: side(raw.shutter), cabinet: side(raw.cabinet) };
+    })(),
     hardwareStock: Object.fromEntries(
       Object.entries((o.hardwareStock ?? {}) as Record<string, Record<string, unknown>>)
         .filter(([k]) => k)

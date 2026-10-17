@@ -76,7 +76,7 @@ export async function createPendingPoForQuote(quote: Quote): Promise<void> {
     });
     if (created) toastStore.show(`${quote.quoteNumber} is In Purchase — a Pending purchase order was created (${po.lines.length} rows).`, "success");
     // The PO already exists (made earlier): re-read procurement's copy into it, keeping what was typed on it.
-    else if (po.status === "completed") toastStore.show(`${quote.quoteNumber}: its purchase order is Completed, so it was not changed.`, "error");
+    else if (po.status === "delivered") toastStore.show(`${quote.quoteNumber}: its purchase order is Delivered, so it was not changed.`, "error");
     else {
       await purchaseOrdersStore.update(po.id, mergeIntoPo(po, material, lines));
       toastStore.show(`${quote.quoteNumber}: the purchase order was updated from procurement.`, "success");

@@ -44,6 +44,8 @@ export function MaterialItemFormDialog({
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     setError,
     formState: { errors, isSubmitting, isValid },
   } = useForm<ItemFormValues>({
@@ -89,7 +91,7 @@ export function MaterialItemFormDialog({
       setError("name", { message: `This ${category.label.toLowerCase()} name already exists.` });
       return;
     }
-    onSubmit(values);
+    onSubmit(category.statusColour ? { ...values, description: values.description || "#fde68a" } : values);
     onOpenChange(false);
   };
 
@@ -128,6 +130,19 @@ export function MaterialItemFormDialog({
               </span>
             )}
           </div>
+
+          {category.statusColour && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="mi-colour">Colour</Label>
+              <input
+                id="mi-colour"
+                type="color"
+                value={watch("description") || "#fde68a"}
+                onChange={(e) => setValue("description", e.target.value, { shouldDirty: true })}
+                className="h-9 w-16 cursor-pointer rounded border border-grey-100 bg-transparent p-1"
+              />
+            </div>
+          )}
 
           {!brandCode && !category.codeAndName && !category.noDescription && (
             <div className="flex flex-col gap-1.5">

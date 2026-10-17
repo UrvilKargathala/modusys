@@ -1,12 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ChevronDown, LogOut, KeyRound, UserRound, Download } from "lucide-react";
 import { pwaInstallStore, usePwaInstall, isStandalone } from "@/lib/store/pwa-install-store";
-import { cn } from "@/lib/utils";
-import { navigationItems, administrationItems, attendanceItems, canSeeNav } from "@/lib/nav";
-import { AttendanceHealthDot } from "@/components/attendance/health-dot";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { GlobalSearch } from "@/components/layout/global-search";
 import {
@@ -25,7 +22,6 @@ import { getRole } from "@/lib/constants/roles";
 
 
 export function TopNavbar() {
-  const pathname = usePathname();
   const router = useRouter();
   const currentUser = useCurrentUser();
   const roleLabel = currentUser.role === "no-role" ? "" : getRole(currentUser.role)?.label ?? currentUser.role;
@@ -38,8 +34,8 @@ export function TopNavbar() {
   const { rows: notificationRows, markAllRead } = useNotificationRows();
 
   return (
-    <header className="flex h-16 items-center justify-between gap-4 border-b border-grey-100 bg-card px-4 md:px-6">
-      <Link href="/dashboard" className="flex shrink-0 items-center gap-2">
+    <header className="flex h-16 items-center justify-between gap-4 lg:hidden border-b border-grey-100 bg-card px-4 md:px-6">
+      <Link href="/dashboard" className="flex shrink-0 items-center gap-2 lg:hidden">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#B08B8B] font-heading text-sm font-bold text-white">
           M
         </div>
@@ -48,123 +44,14 @@ export function TopNavbar() {
         </span>
       </Link>
 
-      <nav className="hidden min-w-0 flex-1 items-center justify-start gap-0.5 overflow-x-auto rounded-full bg-primary/40 p-1 lg:flex xl:justify-center xl:gap-1">
-        {navigationItems
-          .filter((item) => canSeeNav(item, currentUser.role))
-          .map((item, i, visible) => {
-          const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
-          const active = isActive(item.href);
-          if (item.group) {
-            // One dropdown per group, placed at the group's first item.
-            if (visible.findIndex((x) => x.group === item.group) !== i) return null;
-            const members = visible.filter((x) => x.group === item.group);
-            return (
-              <DropdownMenu key={item.group}>
-                <DropdownMenuTrigger
-                  className={cn(
-                    "flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1.5 text-sm font-body font-bold transition-colors xl:px-4",
-                    members.some((m) => isActive(m.href)) ? "bg-primary text-white shadow-sm" : "text-grey-700 hover:text-grey-900"
-                  )}
-                >
-                  {item.group}
-                  <ChevronDown className="h-3.5 w-3.5" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className="w-max min-w-52">
-                  {members.map((m) => (
-                    <DropdownMenuItem
-                      key={m.href}
-                      render={<Link href={m.href} />}
-                      className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm font-semibold"
-                    >
-                      <m.icon className="h-4 w-4 shrink-0 text-grey-400" />
-                      {m.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            );
-          }
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "whitespace-nowrap rounded-full px-2.5 py-1.5 text-sm font-body font-bold transition-colors xl:px-4",
-                active ? "bg-primary text-white shadow-sm" : "text-grey-700 hover:text-grey-900"
-              )}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className={cn(
-              "flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1.5 text-sm font-body font-bold transition-colors xl:px-4",
-              attendanceItems.some(
-                (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
-              )
-                ? "bg-primary text-white shadow-sm"
-                : "text-grey-700 hover:text-grey-900"
-            )}
-          >
-            Attendance
-            {currentUser.role === "super-admin" && <AttendanceHealthDot />}
-            <ChevronDown className="h-3.5 w-3.5" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="center" className="w-max min-w-52">
-            {attendanceItems
-              .filter((item) => canSeeNav(item, currentUser.role))
-              .map((item) => (
-              <DropdownMenuItem
-                key={item.href}
-                render={<Link href={item.href} />}
-                className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm font-semibold"
-              >
-                <item.icon className="h-4 w-4 shrink-0 text-grey-400" />
-                {item.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className={cn(
-              "flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1.5 text-sm font-body font-bold transition-colors xl:px-4",
-              administrationItems.some(
-                (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
-              )
-                ? "bg-primary text-white shadow-sm"
-                : "text-grey-700 hover:text-grey-900"
-            )}
-          >
-            Admin
-            <ChevronDown className="h-3.5 w-3.5" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="center" className="w-max min-w-52">
-            {administrationItems
-              .filter((item) => canSeeNav(item, currentUser.role))
-              .map((item) => (
-              <DropdownMenuItem
-                key={item.href}
-                render={<Link href={item.href} />}
-                className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm font-semibold"
-              >
-                <item.icon className="h-4 w-4 shrink-0 text-grey-400" />
-                {item.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </nav>
 
       <div className="flex shrink-0 items-center gap-2">
         <GlobalSearch />
 
         <NotificationPanel rows={notificationRows} onMarkAllRead={markAllRead} />
 
+        {/* On desktop the account menu lives at the bottom of the sidebar. */}
+        <div className="lg:hidden">
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-light-600">
             <Avatar className="h-8 w-8">
@@ -213,6 +100,7 @@ export function TopNavbar() {
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
     </header>
   );

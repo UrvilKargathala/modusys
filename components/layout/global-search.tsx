@@ -13,7 +13,7 @@ import { fullName } from "@/lib/mock/architects";
 
 const MAX_RESULTS = 5;
 
-export function GlobalSearch() {
+export function GlobalSearch({ variant = "icon", collapsed = false }: { variant?: "icon" | "row"; collapsed?: boolean }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const router = useRouter();
@@ -23,6 +23,8 @@ export function GlobalSearch() {
   const quotes = useQuotes();
 
   useEffect(() => {
+    // Only the sidebar's search listens for Ctrl/Cmd + K (the mobile top bar also mounts one, which would open a second dialog).
+    if (variant !== "row") return;
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -31,7 +33,7 @@ export function GlobalSearch() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [variant]);
 
   useEffect(() => {
     if (!open) setQuery("");
@@ -76,14 +78,33 @@ export function GlobalSearch() {
 
   return (
     <>
-      <button
-        type="button"
-        aria-label="Search"
-        onClick={() => setOpen(true)}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary-100"
-      >
-        <Search className="h-4 w-4" />
-      </button>
+      {variant === "row" ? (
+        // The sidebar's Search row (icon only when the sidebar is collapsed).
+        <button
+          type="button"
+          aria-label="Search"
+          title={collapsed ? "Search (Ctrl/Cmd + K)" : undefined}
+          onClick={() => setOpen(true)}
+          className={`flex w-full items-center gap-3 rounded-lg bg-grey-transparent px-3 py-2 text-sm font-body font-medium text-grey-500 transition-colors hover:bg-grey-100 ${collapsed ? "justify-center px-0" : ""}`}
+        >
+          <Search className="h-[18px] w-[18px] shrink-0" />
+          {!collapsed && (
+            <>
+              <span className="flex-1 text-left">Search</span>
+              <kbd className="rounded bg-light-600 px-1.5 py-0.5 font-number text-[10px] text-grey-500">Ctrl K</kbd>
+            </>
+          )}
+        </button>
+      ) : (
+        <button
+          type="button"
+          aria-label="Search"
+          onClick={() => setOpen(true)}
+          className="flex h-9 w-9 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary-100"
+        >
+          <Search className="h-4 w-4" />
+        </button>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="top-24 max-w-lg translate-y-0 gap-0 p-0" showCloseButton={false}>

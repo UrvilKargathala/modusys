@@ -165,7 +165,7 @@ export function PoCabinetCard({
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-heading text-base font-semibold text-grey-900">
               {cabinet?.unitName || name || cabinet?.designType || `Cabinet ${srNo}`}
-              {designType && <span className="ml-2 font-number text-sm font-normal text-grey-500">{designType}</span>}
+              {designType && <span className="ml-2 font-number text-sm font-normal text-error">{designType}</span>}
             </span>
             {cabinet?.space && <span className="text-xs font-body text-grey-500">{cabinet.space}</span>}
           </span>

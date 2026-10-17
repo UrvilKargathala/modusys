@@ -12,8 +12,11 @@ let hydrated = false;
 const listeners = new Set<() => void>();
 
 const putAll = makeDebouncedPut("/api/material-items");
+// Saved only after the real list has loaded once, so a page that failed to load (showing the sample rows) can never overwrite it.
+let loaded = false;
+let loadedPromise: Promise<void> | null = null;
 function persist() {
-  putAll(items);
+  if (loaded) putAll(items);
 }
 
 function emit() {
@@ -23,7 +26,8 @@ function emit() {
 function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
-  void fetchJson<MaterialItem[]>("/api/material-items").then((data) => {
+  loadedPromise = fetchJson<MaterialItem[]>("/api/material-items").then((data) => {
+    if (data) loaded = true;
     if (data && data.length > 0) {
       items = data;
       emit();
@@ -48,6 +52,20 @@ export const materialSpecStore = {
   },
   getServerSnapshot() {
     return mockMaterialItems;
+  },
+  // Adds the entries of a category that are missing (judged by name, deleted ones included, so a deleted default stays deleted).
+  // Waits for the real list to load first.
+  async seedDefaults(category: MaterialCategoryKey, defaults: { name: string; description: string }[]) {
+    ensureHydrated();
+    await loadedPromise;
+    if (!loaded) return;
+    const have = new Set(items.filter((i) => i.category === category).map((i) => i.name.trim().toLowerCase()));
+    const missing = defaults.filter((d) => !have.has(d.name.trim().toLowerCase()));
+    if (missing.length === 0) return;
+    const now = Date.now();
+    items = [...items, ...missing.map((d, n) => ({ category, ...d, id: `mat-new-${now}-${n}`, createdAt: new Date(now + n).toISOString() }))];
+    persist();
+    emit();
   },
   createItem(input: NewMaterialItemInput) {
     ensureHydrated();

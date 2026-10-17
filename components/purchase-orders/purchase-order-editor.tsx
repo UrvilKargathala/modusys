@@ -31,7 +31,9 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
-import { DIRECT_PO_STATUSES, PO_GROUPS, PO_STATUS_LABEL, PO_STATUS_STYLE, customerCode, lineAmount, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
+import { materialCategories, statusColourStyle } from "@/lib/mock/material-spec";
+import { MaterialItemFormDialog } from "@/components/templates/material-item-form-dialog";
+import { PO_GROUPS, asPoStatus, poStatusLabel, poStatusList, poStatusStyle, customerCode, lineAmount, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
 
 const NEW_VENDOR = "__new-vendor__";
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
@@ -75,6 +77,14 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const router = useRouter();
   const base = usePathname().startsWith("/direct-purchase-orders") ? "/direct-purchase-orders" : "/purchase-orders";
   const orders = usePurchaseOrders();
+  const [orderTypeDialog, setOrderTypeDialog] = useState(false);
+  const [productTypeDialog, setProductTypeDialog] = useState(false);
+  // The colour picked for each status added in Purchase Material Library > Purchase Order Status.
+  const statusColours = Object.fromEntries(
+    useSyncExternalStore(materialSpecStore.subscribe, materialSpecStore.getSnapshot, materialSpecStore.getServerSnapshot)
+      .filter((m) => m.category === "purchase-order-status" && !m.deleted)
+      .map((m) => [asPoStatus(m.name), m.description])
+  );
   const vendors = useVendors();
   const customers = useCustomers();
   const custCode = customerCode;
@@ -242,10 +252,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     }
   };
 
-  // Pending <-> Completed. Completing needs a vendor and a PO number; it saves everything on screen too.
+  // Any status. Delivered needs a vendor and a PO number; it saves everything on screen too.
   const setStatus = (status: PurchaseOrder["status"]) => {
-    if (status === "completed" && (!draft.vendorId || !draft.poNumber.trim())) {
-      toastStore.show("Add a vendor and a PO number before marking it Completed", "error");
+    if (status === "delivered" && !isDirect && (!draft.vendorId || !draft.poNumber.trim())) {
+      toastStore.show("Add a vendor and a PO number before marking it Delivered", "error");
       return;
     }
     const next = { ...draft, status };
@@ -369,41 +379,23 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 Purchase Order {draft.poNumber ? <span className="font-number">{draft.poNumber}</span> : <span className="text-grey-400">(no PO number yet)</span>}
               </span>
               <span
-                className={`rounded-full px-2.5 py-0.5 font-body text-xs font-medium ${PO_STATUS_STYLE[draft.status]}`}
+                className={`rounded-full px-2.5 py-0.5 font-body text-xs font-medium ${statusColours[draft.status] ? "border" : poStatusStyle(draft.status)}`}
+                style={statusColourStyle(statusColours[draft.status])}
               >
-                {PO_STATUS_LABEL[draft.status]}
+                {poStatusLabel(draft.status)}
               </span>
             </h1>
             <p className="text-sm font-body text-grey-500">{dirty ? "Unsaved changes" : "All changes saved"}</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {isDirect ? (
-            <StatusMenu
-              label="Status"
-              value={draft.status}
-              options={DIRECT_PO_STATUSES.map((st) => ({ value: st, label: PO_STATUS_LABEL[st], className: PO_STATUS_STYLE[st] }))}
-              onChange={(v) => setStatus(v as PurchaseOrder["status"])}
-            />
-          ) : draft.status === "completed" ? (
-            <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => setStatus("pending")}>
-              <RotateCcw className="h-4 w-4" />
-              Reopen
-            </Button>
-          ) : (
-            <>
-              {draft.status === "pending" && (
-                <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => setStatus("part-completed")}>
-                  <CheckCircle2 className="h-4 w-4" />
-                  Mark Part Completed
-                </Button>
-              )}
-              <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => setStatus("completed")}>
-                <CheckCircle2 className="h-4 w-4" />
-                Mark as Completed
-              </Button>
-            </>
-          )}
+          {/* Same status list as the Purchase Orders / Direct Purchase Orders lists: the four built-in ones plus the Purchase Order Status library. */}
+          <StatusMenu
+            label="Status"
+            value={asPoStatus(draft.status)}
+            options={poStatusList(orders.filter((o) => !!o.material.direct === isDirect), materials.filter((m) => m.category === "purchase-order-status" && !m.deleted).map((m) => m.name)).map((st) => ({ value: st, label: poStatusLabel(st), className: statusColours[st] ? "border" : poStatusStyle(st), style: statusColourStyle(statusColours[st]) }))}
+            onChange={(v) => setStatus(v)}
+          />
           <Button
             type="button"
             variant="outline"
@@ -496,6 +488,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               onChange={(e) =>
                 set({ material: { ...draft.material, productTypeId: e.target.value || undefined } })
               }
+              addLabel="Add new purchase product type"
+              searchPlaceholder="Search purchase product type"
+              // Opens the same Add form as Purchase Material Library > Purchase Product Type; the new type is picked here.
+              onAddClick={() => setProductTypeDialog(true)}
             >
               <option value="">Select product type…</option>
               {productTypes.map((m) => (
@@ -535,7 +531,16 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="e-otype">Purchase Order Type</Label>
-            <SelectField id="e-otype" className={field} value={draft.material.orderType ?? ""} onChange={(e) => setMaterial({ orderType: e.target.value || undefined })}>
+            <SelectField
+              id="e-otype"
+              className={field}
+              value={draft.material.orderType ?? ""}
+              onChange={(e) => setMaterial({ orderType: e.target.value || undefined })}
+              addLabel="Add new purchase order type"
+              searchPlaceholder="Search purchase order type"
+              // Opens the same Add form as Purchase Material Library > Purchase Order Type; the new type is picked here.
+              onAddClick={() => setOrderTypeDialog(true)}
+            >
               <option value="">Select order type…</option>
               {materials.filter((m) => m.category === "purchase-order-type" && !m.deleted).map((m) => (
                 <option key={m.id} value={m.name}>{m.name}</option>
@@ -554,7 +559,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="e-piamt">Vendor PI Amount</Label>
-            <Input id="e-piamt" type="number" min={0} value={draft.material.vendorPiAmount ?? ""} onChange={(e) => setMaterial({ vendorPiAmount: e.target.value === "" ? undefined : Number(e.target.value) })} className="bg-white font-number" />
+            <Input id="e-piamt" type="number" min={0} step="any" inputMode="decimal" value={draft.material.vendorPiAmount ?? ""} onChange={(e) => setMaterial({ vendorPiAmount: e.target.value === "" ? undefined : Number(e.target.value) })} className="bg-white font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
           </div>
           <label className="col-span-full flex w-fit cursor-pointer items-center gap-2 text-sm font-body text-grey-700">
             <input type="checkbox" checked={!!draft.material.highlight} onChange={(e) => setMaterial({ highlight: e.target.checked || undefined })} className="h-4 w-4 accent-primary" />
@@ -578,7 +583,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Additional External Brand & Colour</Label>
-            <PoFinishMultiSelect value={draft.material.additionalExternal?.shutter ?? []} onChange={(v) => setMaterial({ additionalExternal: { ...draft.material.additionalExternal, shutter: v } })} />
+            <PoFinishMultiSelect value={draft.material.additionalExternal?.shutter ?? []} onChange={(v) => setMaterial({ additionalExternal: { ...draft.material.additionalExternal, shutter: v } })} colors={draft.material.additionalColors?.shutter} onColorChange={(label, hex) => setMaterial({ additionalColors: { ...draft.material.additionalColors, shutter: { ...draft.material.additionalColors?.shutter, [label]: hex } } })} />
           </div>
         </PoSection>
         <PoSection tone="border-sand border-t-sand bg-sand/60" title="Cabinet Details" summary={draft.material.cabinetRawMaterial}>
@@ -596,7 +601,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Additional External Brand & Colour</Label>
-            <PoFinishMultiSelect value={draft.material.additionalExternal?.cabinet ?? []} onChange={(v) => setMaterial({ additionalExternal: { ...draft.material.additionalExternal, cabinet: v } })} />
+            <PoFinishMultiSelect value={draft.material.additionalExternal?.cabinet ?? []} onChange={(v) => setMaterial({ additionalExternal: { ...draft.material.additionalExternal, cabinet: v } })} colors={draft.material.additionalColors?.cabinet} onColorChange={(label, hex) => setMaterial({ additionalColors: { ...draft.material.additionalColors, cabinet: { ...draft.material.additionalColors?.cabinet, [label]: hex } } })} />
           </div>
         </PoSection>
       </div>
@@ -673,6 +678,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               const c = cabinetFor(no);
               return c ? { W: c.width, D: c.depth, H: c.height } : undefined;
             }}
+            sort={draft.material.otherPanelSort}
+            onSortChange={(otherPanelSort) => setMaterial({ otherPanelSort })}
             onChange={(lines) => set({ lines })}
           />
         ) : shownView === "hardware" ? (
@@ -864,6 +871,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                   const c = cabinetFor(no);
                   return c ? { W: c.width, D: c.depth, H: c.height } : undefined;
                 }}
+                sort={draft.material.otherPanelSort}
+                onSortChange={(otherPanelSort) => setMaterial({ otherPanelSort })}
                 onChange={(lines) => set({ lines })}
               />
             ) : (
@@ -1023,6 +1032,24 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           } catch (e) {
             toastStore.show(e instanceof Error ? e.message : "Could not delete", "error");
           }
+        }}
+      />
+      <MaterialItemFormDialog
+        open={productTypeDialog}
+        onOpenChange={setProductTypeDialog}
+        category={materialCategories.find((c) => c.key === "purchase-product-type")!}
+        onSubmit={(values) => {
+          const created = materialSpecStore.createItem({ category: "purchase-product-type", ...values });
+          set({ material: { ...draft.material, productTypeId: created.id } });
+        }}
+      />
+      <MaterialItemFormDialog
+        open={orderTypeDialog}
+        onOpenChange={setOrderTypeDialog}
+        category={materialCategories.find((c) => c.key === "purchase-order-type")!}
+        onSubmit={(values) => {
+          materialSpecStore.createItem({ category: "purchase-order-type", ...values });
+          setMaterial({ orderType: values.name });
         }}
       />
     </div>

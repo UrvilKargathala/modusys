@@ -1,3 +1,4 @@
+import { Sidebar } from "@/components/layout/sidebar";
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { Footer } from "@/components/layout/footer";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
@@ -11,10 +12,13 @@ import { AuthGuard } from "@/components/layout/auth-guard";
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
-      <div className="flex h-screen w-full flex-col bg-background">
-        <TopNavbar />
-        <main className="flex-1 overflow-auto p-4 pb-20 lg:p-6 lg:pb-6">{children}</main>
-        <Footer />
+      <div className="flex h-screen w-full bg-background">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col lg:bg-grey-transparent">
+          <TopNavbar />
+          <main className="flex-1 overflow-auto p-4 pb-20 lg:p-6 lg:pb-6">{children}</main>
+          <Footer />
+        </div>
         <MobileBottomNav />
         <ToastViewport />
         <TaskPanel />

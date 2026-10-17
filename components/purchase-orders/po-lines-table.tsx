@@ -3,7 +3,7 @@
 import { SelectField } from "@/components/shared/select-field";
 import { cn } from "@/lib/utils";
 import { Fragment, createContext, useContext, useState, type ReactNode } from "react";
-import { AlertTriangle, ChevronDown, ChevronRight, Copy, Plus, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, ChevronRight, ChevronsUpDown, Copy, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { formatInr } from "@/lib/format";
@@ -17,7 +17,7 @@ import { purchasePriceFieldsFor } from "@/lib/purchase-order-rate";
 import { useVendors } from "@/lib/store/vendors-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
 import { purchaseFurnitureStore, type NewPurchaseFurnitureInput } from "@/lib/store/purchase-furniture-store";
-import { lineAmount, panelSqft, type PoGroup, type PurchaseOrderLine } from "@/lib/purchase-order";
+import { lineAmount, panelSqft, sortOtherPanel, type PoGroup, type PurchaseOrderLine } from "@/lib/purchase-order";
 
 // The PO's vendor, so "Add this combination" can tag the new price with it.
 // Vendor for a cabinet's rows: the cabinet's own vendor, else the PO's.
@@ -130,10 +130,16 @@ function DimCell({ value, vars, note, onNote, onCommit }: { value: number; vars?
     setText(null);
     if (t === "") return (onCommit(0), onNote(""));
     if (/^\d*\.?\d+$/.test(t)) return (onCommit(Number(t)), onNote(""));
+    // Plain arithmetic ("725-429", "(800-18)/2") is worked out straight away, with no cabinet size needed.
+    if (/^[\d\s+\-*/().]+$/.test(t)) {
+      const r = Math.round(evaluateFormula(t, { W: 0, D: 0, H: 0 }) * 100) / 100;
+      if (r > 0) return (onCommit(r), onNote(""));
+      return toastStore.show(`Couldn't work out "${t}" — use numbers with + - * / and brackets.`, "error");
+    }
     if (!vars) return toastStore.show("This purchase order has no cabinet size to use in a formula — type a number.", "error");
     const n = Math.round(evaluateFormula(t, vars));
     if (/[WDH]/i.test(t) && n > 0) return (onCommit(n), onNote(t.replace(/\s+/g, "").toUpperCase()));
-    toastStore.show(`Couldn't read "${t}" — use numbers or W, D, H, like W-10 or (D-20)/2.`, "error");
+    toastStore.show(`Couldn't read "${t}" — use numbers or W, D, H, like W-10, 725-429 or (D-20)/2.`, "error");
   };
 
   return (
@@ -167,6 +173,8 @@ export function PoLinesTable({
   defaultCollapsed = false,
   only,
   newRowDefaults,
+  sort,
+  onSortChange,
   onChange,
 }: {
   group: PoGroup;
@@ -183,6 +191,9 @@ export function PoLinesTable({
   subHeader?: ReactNode;
   // Start closed; the user opens what they need.
   defaultCollapsed?: boolean;
+  // Other Panel (all cabinets): sort by Description or Thk; click a heading to sort, again to reverse, a third time to clear.
+  sort?: { key: "description" | "depth"; dir: "asc" | "desc" };
+  onSortChange?: (sort: { key: "description" | "depth"; dir: "asc" | "desc" } | undefined) => void;
   // Show only these rows (e.g. Rate pending); hides Add Row.
   only?: (l: PurchaseOrderLine) => boolean;
   // Values a new row starts with (e.g. a Direct PO takes the finishes from the Shutter Details card).
@@ -206,7 +217,9 @@ export function PoLinesTable({
   const [pricePrefill, setPricePrefill] = useState<Partial<NewPurchaseFurnitureInput> | null>(null);
   const hardware = group === "hardware";
   const cols = (hardware ? HW_COLS : PANEL_COLS).filter((c) => srNo === undefined || c.key !== "designType");
-  const mine = lines.filter((l) => l.group === group && (srNo === undefined || l.srNo === srNo) && (!only || only(l)));
+  const sortable = group === "other-panel" && srNo === undefined && !!onSortChange;
+  const mineAll = lines.filter((l) => l.group === group && (srNo === undefined || l.srNo === srNo) && (!only || only(l)));
+  const mine = sortable ? sortOtherPanel(mineAll, sort) : mineAll;
   const total = mine.reduce((s, l) => s + lineAmount(l), 0);
 
   // A panel rate typed on one row goes to every other panel row (Carcass, Shutter, Other Panel) with the same
@@ -283,7 +296,22 @@ export function PoLinesTable({
               <tr>
                 {cols.map((c) => (
                   <th key={c.key} className={`${th} ${c.width} ${["width", "depth", "height", "qty", "sqft", "rate", "discountPct", "netRate", "amount"].includes(c.key) ? "text-right" : ""}`}>
-                    {c.label}
+                    {sortable && (c.key === "description" || c.key === "depth") ? (
+                      <button
+                        type="button"
+                        aria-label={`Sort by ${c.label}`}
+                        onClick={() => {
+                          const key = c.key as "description" | "depth";
+                          onSortChange!(sort?.key !== key ? { key, dir: "asc" } : sort.dir === "asc" ? { key, dir: "desc" } : undefined);
+                        }}
+                        className="inline-flex items-center gap-1 uppercase hover:text-primary"
+                      >
+                        {c.label}
+                        {sort?.key === c.key ? (sort.dir === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />) : <ChevronsUpDown className="h-3.5 w-3.5 text-grey-500" />}
+                      </button>
+                    ) : (
+                      c.label
+                    )}
                   </th>
                 ))}
                 <th className="sticky right-0 w-16 bg-[#DACCCC]" />
@@ -322,7 +350,10 @@ export function PoLinesTable({
                         <PoFinishSelect
                           kind={c.key === "internalColour" ? "internal" : "external"}
                           value={l[c.key]}
-                          onChange={(label) => patch(l.id, { [c.key]: label })}
+                          onChange={(label) => {
+                            patch(l.id, { [c.key]: label });
+                            toastStore.show(label ? `${c.key === "internalColour" ? "Internal" : "External"} colour changed to ${label}` : `${c.key === "internalColour" ? "Internal" : "External"} colour cleared`, "success");
+                          }}
                         />
                       ) : hardware && (c.key === "brand" || c.key === "category" || c.key === "description" || c.key === "articleNo") ? (
                         <PoHardwareSelect field={c.key} line={l} onChange={(fields) => patch(l.id, fields)} />
@@ -332,7 +363,7 @@ export function PoLinesTable({
                         <PoRawMaterialSelect compact value={l.material} onChange={(name) => patch(l.id, { material: name })} />
                       ) : TEXT_KEYS.has(c.key) ? (
                         <input
-                          className={cell}
+                          className={c.key === "designType" ? `${cell} text-error` : cell}
                           value={String(l[c.key as keyof PurchaseOrderLine] ?? "")}
                           onChange={(e) => patch(l.id, { [c.key]: e.target.value })}
                         />
@@ -403,6 +434,15 @@ export function PoLinesTable({
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {/* The same Add Row under a long table, so a row can be added without scrolling back up. */}
+      {!only && !collapsed && mine.length > 0 && (
+        <div className="flex justify-end">
+          <Button type="button" variant="outline" size="sm" onClick={add}>
+            <Plus className="h-3.5 w-3.5" />
+            Add Row
+          </Button>
         </div>
       )}
       <PurchaseFurniturePriceFormDialog

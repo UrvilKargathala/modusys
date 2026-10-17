@@ -1,4 +1,4 @@
-import { PO_STATUS_LABEL, customerCode, poTotals, type PurchaseOrder } from "@/lib/purchase-order";
+import { poStatusLabel, customerCode, poTotals, type PurchaseOrder } from "@/lib/purchase-order";
 
 const HEADERS = ["CONTENT", "TYPE UNIT", "CLIENT ID", "PO NO", "PO DATE", "VENDOR", "PI DATE", "VENDOR PI NO.", "PI AMOUNT", "STATUS", "DELIVERED DATE"];
 const WIDTHS = [44, 14, 11, 22, 12, 20, 12, 16, 16, 16, 16];
@@ -50,7 +50,7 @@ export async function downloadOrderTracker(orders: PurchaseOrder[], customers: {
         toDate(po.material.vendorPiDate ?? ""),
         po.material.vendorPiNo ?? "",
         po.material.vendorPiAmount ?? Number(poTotals(po).final.toFixed(2)),
-        PO_STATUS_LABEL[po.status],
+        poStatusLabel(po.status),
         toDate(po.material.approxDeliveryDate ?? ""),
       ]);
       const late = !!po.material.approxDeliveryDate && po.material.approxDeliveryDate < today && po.status !== "completed" && po.status !== "delivered";

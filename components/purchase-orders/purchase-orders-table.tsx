@@ -21,18 +21,25 @@ import { useQuotes } from "@/lib/store/quotes-store";
 import Link from "next/link";
 import { formatInr } from "@/lib/format";
 import { formatPoDate } from "@/components/purchase-orders/po-dates";
-import { DIRECT_PO_STATUSES, PO_STATUSES, PO_STATUS_LABEL, PO_STATUS_STYLE, poTotals, type PoStatus, type PurchaseOrder } from "@/lib/purchase-order";
+import { useMaterialItems } from "@/lib/store/material-spec-store";
+import { statusColourStyle } from "@/lib/mock/material-spec";
+import { asPoStatus, poStatusLabel, poStatusList, poTotals, type PoStatus, type PurchaseOrder } from "@/lib/purchase-order";
 
 // The same status colours as the Quotes picker.
-const PO_TO_QUOTE_TONE: Record<PoStatus, StatusKey> = { pending: "in-production", "part-completed": "installation", completed: "completed", confirmed: "in-procurement", "in-production": "in-production", delivered: "completed" };
+const PO_TO_QUOTE_TONE: Record<string, StatusKey> = { pending: "in-production", confirmed: "in-procurement", "in-production": "in-production", delivered: "completed" };
+const statusClass = (st: string) => (st === "pending" ? "bg-error-transparent text-error-700" : PO_TO_QUOTE_TONE[st] ? `${statusConfig[PO_TO_QUOTE_TONE[st]].bg} ${statusConfig[PO_TO_QUOTE_TONE[st]].color}` : "bg-grey-transparent text-grey-700");
 
 export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = false }: { onNew?: () => void; quoteId?: string | null; onClearQuote?: () => void; direct?: boolean }) {
   const router = useRouter();
   // Direct Purchase Orders have their own list and pages; both lists use this table.
   const base = direct ? "/direct-purchase-orders" : "/purchase-orders";
-  const statuses = direct ? DIRECT_PO_STATUSES : PO_STATUSES;
   const allOrders = usePurchaseOrders();
   const orders = useMemo(() => allOrders.filter((o) => !!o.material.direct === direct), [allOrders, direct]);
+  // The four built-in statuses, the ones added in Purchase Material Library > Purchase Order Status, and any other name still in use.
+  const materials = useMaterialItems("purchase-order-status");
+  // A status added in the library carries the colour picked there.
+  const colours = useMemo(() => Object.fromEntries(materials.map((m) => [asPoStatus(m.name), m.description])), [materials]);
+  const statuses = useMemo(() => poStatusList(orders, materials.map((m) => m.name)), [orders, materials]);
   const customers = useCustomers();
   const quotes = useQuotes();
   const [search, setSearch] = useState("");
@@ -50,7 +57,8 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   const [toDelete, setToDelete] = useState<PurchaseOrder | null>(null);
   // The status tab you last opened comes back when you return from a PO (Cancel / Back / Save). Kept for this browser tab only.
   const tabKey = `po-status-tab-${direct ? "direct" : "po"}`;
-  const [status, setStatusState] = useState<PoStatus>("pending");
+  const [statusPick, setStatusState] = useState<PoStatus>("pending");
+  const status = statuses.includes(statusPick) ? statusPick : "pending";
   const setStatus = (st: PoStatus) => {
     setStatusState(st);
     try {
@@ -78,14 +86,14 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
         total: poTotals(po).final,
       }))
       .filter((r) => !quoteId || r.po.quoteId === quoteId)
-      .filter((r) => r.po.status === status)
+      .filter((r) => asPoStatus(r.po.status) === status)
       .filter((r) => `${r.po.poNumber} ${r.po.vendorName} ${r.customer} ${r.quote}`.toLowerCase().includes(q));
   }, [orders, customerName, quoteNumber, search, quoteId, status]);
-  const count = (st: PoStatus) => orders.filter((o) => o.status === st && (!quoteId || o.quoteId === quoteId)).length;
+  const count = (st: PoStatus) => orders.filter((o) => asPoStatus(o.status) === st && (!quoteId || o.quoteId === quoteId)).length;
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(rows);
 
   const changeStatus = async (po: PurchaseOrder, status: PoStatus) => {
-    if (status === "completed") {
+    if (status === "delivered" && !direct) {
       const missing = [
         [!po.vendorId, "Vendor"],
         [!po.customerId, "Customer"],
@@ -102,7 +110,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
     }
     try {
       await purchaseOrdersStore.update(po.id, { status });
-      toastStore.show(`${po.poNumber || "PO"} marked ${PO_STATUS_LABEL[status]}`, "success");
+      toastStore.show(`${po.poNumber || "PO"} marked ${poStatusLabel(status)}`, "success");
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not change status", "error");
     }
@@ -134,7 +142,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                 status === st ? "border-primary bg-primary-transparent text-primary" : "border-grey-100 bg-card text-grey-600 hover:bg-light-600"
               )}
             >
-              {PO_STATUS_LABEL[st]} <span className="font-number">({count(st)})</span>
+              {poStatusLabel(st)} <span className="font-number">({count(st)})</span>
             </button>
           ))}
         </div>
@@ -167,7 +175,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           message={
             status === "pending"
               ? direct ? "No pending direct purchase orders." : "No pending purchase orders. One appears here when a quote is set to In Purchase, or you can create one by hand."
-              : `No ${PO_STATUS_LABEL[status].toLowerCase()} purchase orders yet.`
+              : `No ${poStatusLabel(status).toLowerCase()} purchase orders yet.`
           }
           cta={status === "pending" && onNew ? { label: direct ? "Create Direct Purchase Order" : "Create Purchase Order", onClick: onNew } : undefined}
         />
@@ -202,8 +210,8 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                     {/* Changeable here like the Quotes status. Completing needs the PO's required fields filled in. */}
                     <StatusMenu
                       label={`Status of ${po.poNumber || "this PO"}`}
-                      value={po.status}
-                      options={statuses.map((st) => ({ value: st, label: PO_STATUS_LABEL[st], className: st === "pending" ? "bg-error-transparent text-error-700" : `${statusConfig[PO_TO_QUOTE_TONE[st]].bg} ${statusConfig[PO_TO_QUOTE_TONE[st]].color}` }))}
+                      value={asPoStatus(po.status)}
+                      options={statuses.map((st) => ({ value: st, label: poStatusLabel(st), className: colours[st] ? "border" : statusClass(st), style: statusColourStyle(colours[st]) }))}
                       onChange={(v) => void changeStatus(po, v as PoStatus)}
                     />
                   </td>

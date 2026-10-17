@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { COMPANY_GST, PO_GROUPS, PO_STATUS_LABEL, lineAmount, poTotals, type PurchaseOrder, type Vendor } from "@/lib/purchase-order";
+import { COMPANY_GST, PO_GROUPS, highlightFor, poStatusLabel, lineAmount, poTotals, type PurchaseOrder, type Vendor } from "@/lib/purchase-order";
 import type { Customer } from "@/lib/mock/pipeline";
 
 export type PoBranding = { companyName: string; address: string; email: string; phone: string };
@@ -36,7 +36,7 @@ export function poDetailSections(po: PurchaseOrder, { vendor, customer, quoteNum
         ["Quote", quoteNumber ?? ""],
       ],
     },
-    { title: "Purchase Order Details", rows: [["PO No", po.poNumber], ["PO Date", fmtDate(po.poDate)], ["Required Date", fmtDate(po.requiredDate)], ["Status", PO_STATUS_LABEL[po.status] ?? "Pending"]] },
+    { title: "Purchase Order Details", rows: [["PO No", po.poNumber], ["PO Date", fmtDate(po.poDate)], ["Required Date", fmtDate(po.requiredDate)], ["Status", poStatusLabel(po.status)]] },
     {
       title: "Shutter Details",
       rows: [["Shutter Raw Material", po.material.shutterRawMaterial], ["Internal Brand & Colour", distinctFinish(po, ["shutter"], "internalColour")], ["External Brand & Colour", distinctFinish(po, ["shutter"], "externalColour")]],
@@ -141,6 +141,7 @@ export const PANEL_HEADERS = ["Sr", "Description", "Design", "Width", "Thk", "He
 
 // A Details sheet (all header blocks + totals) on every download, then one sheet per group.
 export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoExportContext) {
+  const sheetFills: { name: string; aoa: (string | number)[][]; fills: (string | undefined)[]; cols: number }[] = [];
   if (part === "cutlist") return downloadCutList(po);
   if (part === "ledger") return downloadLedger(po, ctx);
   const wb = XLSX.utils.book_new();
@@ -161,20 +162,29 @@ export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoEx
     if (cabs.length === 0) continue;
     const hw = g.key === "hardware";
     const aoaG: (string | number)[][] = [hw ? HW_HEADERS : PANEL_HEADERS];
+    const fillsG: (string | undefined)[] = [undefined];
     for (const c of cabs) {
       if (g.key !== "hardware") {
         const h = carcassHeadingCells(po, c);
         aoaG.push([h.name, "", h.design, h.width, h.depth, h.height, h.qty, Number(h.sqft.toFixed(2)), "", Number(h.amount.toFixed(2)), h.material, h.internal, h.external, h.remark]);
       } else aoaG.push([cabinetTitle(po, c)]);
-      for (const { l, sr } of c.rows)
+      fillsG.push(undefined);
+      for (const { l, sr } of c.rows) {
+        fillsG.push(highlightFor(po, l));
         aoaG.push(
           hw
             ? [sr, l.brand, l.description, l.designType, l.articleNo, l.category, l.unit, l.qty, l.rate, l.discountPct ?? 0, Number((l.rate * (1 - (l.discountPct ?? 0) / 100)).toFixed(2)), lineAmount(l), l.remarks]
             : [sr, l.description, l.designType, l.width, l.depth, l.height, l.qty, Number(l.sqft.toFixed(2)), l.rate, lineAmount(l), l.material, l.internalColour, l.externalColour, l.remarks]
         );
+      }
     }
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoaG), g.label);
+    sheetFills.push({ name: g.label, aoa: aoaG, fills: fillsG, cols: aoaG[0].length });
   }
+  const suffixX = part === "full" ? "" : part === "components" ? "-components" : "-hardware";
+  // Rows picked out by an Additional External colour are filled with it. The plain writer cannot colour cells, so those files
+  // are written with ExcelJS; files with no highlighted row keep the plain writer.
+  if (sheetFills.some((sh) => sh.fills.some(Boolean))) return void writeHighlighted(po, details, sheetFills, `PO-${po.poNumber || "draft"}${suffixX}.xlsx`);
   const suffix = part === "full" ? "" : part === "components" ? "-components" : "-hardware";
   XLSX.writeFile(wb, `PO-${po.poNumber || "draft"}${suffix}.xlsx`);
 }
@@ -259,4 +269,39 @@ function downloadLedger(po: PurchaseOrder, ctx: PoExportContext) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Hardware Product Ledger");
   XLSX.writeFile(wb, `PO-${po.poNumber || "draft"}-hardware-ledger.xlsx`);
+}
+
+
+async function writeHighlighted(
+  po: PurchaseOrder,
+  detailsSheet: XLSX.WorkSheet,
+  sheets: { name: string; aoa: (string | number)[][]; fills: (string | undefined)[]; cols: number }[],
+  filename: string
+) {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  const d = wb.addWorksheet("Details");
+  for (const row of XLSX.utils.sheet_to_json<(string | number)[]>(detailsSheet, { header: 1, defval: "" })) d.addRow(row);
+  d.columns = [{ width: 26 }, { width: 60 }];
+  for (const sh of sheets) {
+    const ws = wb.addWorksheet(sh.name);
+    sh.aoa.forEach((row, i) => {
+      const r = ws.addRow(row);
+      if (i === 0) r.font = { bold: true };
+      const hex = sh.fills[i];
+      // Only the External Brand & Colour cell (column 13 of a panel row) takes the colour.
+      if (hex) {
+        r.getCell(13).fill = { type: "pattern", pattern: "solid", fgColor: { argb: `FF${hex.slice(1).toUpperCase()}` } };
+        r.getCell(13).font = { color: { argb: "FFFFFFFF" } };
+      }
+    });
+    ws.columns = Array.from({ length: sh.cols }, (_, i) => ({ width: i === 1 ? 28 : 14 }));
+  }
+  const buf = await wb.xlsx.writeBuffer();
+  const url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }

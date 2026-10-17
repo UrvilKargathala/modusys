@@ -28,7 +28,8 @@ export type MaterialCategoryKey =
   | "purchase-external"
   | "purchase-cabinet-type"
   | "purchase-product-type"
-  | "purchase-order-type";
+  | "purchase-order-type"
+  | "purchase-order-status";
 
 export type MaterialCategory = {
   key: MaterialCategoryKey;
@@ -45,6 +46,8 @@ export type MaterialCategory = {
   brandAndCode?: boolean;
   // Code + Name entries: Code kept in `description` and shown first (no DB change).
   codeAndName?: boolean;
+  // A colour (hex) kept in `description` and shown as a swatch (no DB change): Purchase Order Status.
+  statusColour?: boolean;
 };
 
 export const materialCategories: MaterialCategory[] = [
@@ -76,6 +79,7 @@ export const materialCategories: MaterialCategory[] = [
   { key: "purchase-cabinet-type", group: "purchase-library", label: "Cabinet Name", noDescription: true },
   { key: "purchase-product-type", group: "purchase-library", label: "Purchase Product Type", codeAndName: true },
   { key: "purchase-order-type", group: "purchase-library", label: "Purchase Order Type", noDescription: true },
+  { key: "purchase-order-status", group: "purchase-library", label: "Purchase Order Status", noDescription: true, statusColour: true },
 ];
 
 export function getMaterialCategory(key: MaterialCategoryKey) {
@@ -230,4 +234,17 @@ export const mockMaterialItems: MaterialItem[] = [
   // Level Type
   item("level-type", "Primary"),
   item("level-type", "Secondary"),
+];
+
+// The pill style for a status picked in Purchase Material Library > Purchase Order Status: a soft fill and border in its colour.
+export const statusColourStyle = (hex?: string): { backgroundColor: string; borderColor: string; color: string } | undefined =>
+  hex ? { backgroundColor: `${hex}40`, borderColor: hex, color: "#051021" } : undefined;
+
+// The four built-in Purchase Order statuses, listed in the library (with their pill colours) the first time it is opened, so they can be
+// edited there like any other status.
+export const DEFAULT_PO_STATUSES = [
+  { name: "Pending", description: "#EF1E1E" },
+  { name: "Confirmed", description: "#3538C0" },
+  { name: "In Production", description: "#E2B93B" },
+  { name: "Delivered", description: "#0E9384" },
 ];

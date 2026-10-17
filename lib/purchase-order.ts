@@ -52,22 +52,36 @@ export type PurchaseOrderLine = {
 export type GstMode = "intra" | "inter";
 
 // Pending until someone presses Mark as Completed.
-export type PoStatus = "pending" | "part-completed" | "completed" | "confirmed" | "in-production" | "delivered";
-export const PO_STATUSES: PoStatus[] = ["pending", "part-completed", "completed"];
-// Direct Purchase Orders have their own flow.
+// Built-in statuses; a PO may also carry any status name someone typed ("Add status"). So a status is plain text: the built-in key
+// (pending, confirmed, in-production, delivered) or the typed name.
+export type PoStatus = string;
 export const DIRECT_PO_STATUSES: PoStatus[] = ["pending", "confirmed", "in-production", "delivered"];
-export const asPoStatus = (s: unknown): PoStatus => ([...PO_STATUSES, ...DIRECT_PO_STATUSES] as unknown[]).includes(s) ? (s as PoStatus) : "pending";
-export const PO_STATUS_LABEL: Record<PoStatus, string> = { pending: "Pending", "part-completed": "Part Completed", completed: "Completed", confirmed: "Confirmed", "in-production": "In Production", delivered: "Delivered" };
-// One pill colour per status: pending yellow, part completed blue, completed green. A soft fill, a border in the colour and
-// dark text, so the label stays readable (the colour's own text shade was too pale on its light fill).
-export const PO_STATUS_STYLE: Record<PoStatus, string> = {
+// Purchase Orders and Direct Purchase Orders share one set.
+export const PO_STATUSES: PoStatus[] = DIRECT_PO_STATUSES;
+export const PO_STATUS_LABEL: Record<string, string> = { pending: "Pending", confirmed: "Confirmed", "in-production": "In Production", delivered: "Delivered" };
+// Older POs saved as Part Completed / Completed read as In Production / Delivered; nothing stored is rewritten.
+const LEGACY_STATUS: Record<string, PoStatus> = { "part-completed": "in-production", completed: "delivered" };
+export const asPoStatus = (s: unknown): PoStatus => {
+  const t = typeof s === "string" ? s.trim().slice(0, 40) : "";
+  if (!t) return "pending";
+  const key = t.toLowerCase().replace(/\s+/g, "-");
+  if (LEGACY_STATUS[key]) return LEGACY_STATUS[key];
+  return DIRECT_PO_STATUSES.includes(key) ? key : t;
+};
+export const poStatusLabel = (s: string) => PO_STATUS_LABEL[asPoStatus(s)] ?? asPoStatus(s);
+// The built-in statuses, then the ones added in Purchase Material Library > Purchase Order Status, then any other status name still in
+// use on these POs (for example one that was renamed or deleted in the library), in the order first seen.
+export const poStatusList = (orders: { status: string }[], added: string[] = []): PoStatus[] => [...new Set([...DIRECT_PO_STATUSES, ...added.map((a) => asPoStatus(a)), ...orders.map((o) => asPoStatus(o.status))])];
+// One pill colour per status: pending yellow, confirmed indigo, in production yellow, delivered teal; a status someone added is grey.
+// A soft fill, a border in the colour and dark text, so the label stays readable.
+const PO_STATUS_STYLES: Record<string, string> = {
   pending: "border border-warning bg-warning-200 font-semibold text-grey-900",
-  "part-completed": "border border-info bg-info-200 font-semibold text-grey-900",
-  completed: "border border-success bg-success-200 font-semibold text-grey-900",
   confirmed: "border border-indigo bg-indigo-200 font-semibold text-grey-900",
   "in-production": "border border-warning bg-warning-200 font-semibold text-grey-900",
   delivered: "border border-teal bg-teal-200 font-semibold text-grey-900",
 };
+export const poStatusStyle = (s: string) => PO_STATUS_STYLES[asPoStatus(s)] ?? "border border-grey-200 bg-grey-100 font-semibold text-grey-900";
+export const PO_STATUS_STYLE = new Proxy(PO_STATUS_STYLES, { get: (t, k: string) => t[k] ?? poStatusStyle(k) }) as Record<string, string>;
 
 export type PurchaseOrder = {
   id: string;
@@ -159,6 +173,11 @@ export type PoMaterial = {
   // Shutter / Cabinet Details: extra "Additional External Brand & Colour" picks (labels). For information only: shown in the
   // editor and the PDF, never used for rates, rows or required-field checks.
   additionalExternal?: { shutter?: string[]; cabinet?: string[] };
+  // The highlight colour (hex, e.g. #fde68a) picked for each additional external pick, by side and label. Rows whose external colour is
+  // that pick are filled with it in the PDFs and the Excel files.
+  // Other Panel rows sorted by Description or Thk (set by clicking its column heading); the PDFs list them flat in this order.
+  otherPanelSort?: { key: "description" | "depth"; dir: "asc" | "desc" };
+  additionalColors?: { shutter?: Record<string, string>; cabinet?: Record<string, string> };
   // Hardware tab, per merged hardware item (key = brand|description|article no|category|unit, lower case): Stock Qty typed by hand,
   // and the deliveries received, each with its own vendor (Received Qty = their total).
   hardwareStock?: Record<string, { stock?: number; receipts?: { id: string; vendorId?: string; billNo: string; qty: number; date: string; remark: string }[] }>;
@@ -235,4 +254,26 @@ export function mostUsed(values: string[]): string {
   let best = "";
   for (const [v, c] of n) if (c > (n.get(best) ?? 0)) best = v;
   return best;
+}
+
+// The highlight colour for a panel line, if its external colour is one of the additional external picks with a colour chosen.
+// Shutter rows look at the Shutter Details picks; Carcass and Other Panel rows look at the Cabinet Details picks.
+export function highlightFor(po: PurchaseOrder, l: Pick<PurchaseOrderLine, "group" | "externalColour">): string | undefined {
+  if (l.group === "hardware" || !l.externalColour) return undefined;
+  const side = l.group === "shutter" ? "shutter" : "cabinet";
+  if (!(po.material.additionalExternal?.[side] ?? []).includes(l.externalColour)) return undefined;
+  return po.material.additionalColors?.[side]?.[l.externalColour];
+}
+
+// Other Panel rows in the saved sort order (Description or Thk), ties kept in their original order.
+export function sortOtherPanel<T extends Pick<PurchaseOrderLine, "description" | "depth">>(rows: T[], sort?: PoMaterial["otherPanelSort"]): T[] {
+  if (!sort) return rows;
+  const d = sort.dir === "desc" ? -1 : 1;
+  return rows
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => {
+      const c = sort.key === "depth" ? a.r.depth - b.r.depth : a.r.description.localeCompare(b.r.description, undefined, { sensitivity: "base", numeric: true });
+      return c * d || a.i - b.i;
+    })
+    .map((x) => x.r);
 }

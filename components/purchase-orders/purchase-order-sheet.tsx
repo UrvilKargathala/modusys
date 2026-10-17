@@ -3,7 +3,7 @@ import type { Customer } from "@/lib/mock/pipeline";
 import { Fragment } from "react";
 import type { QuoteTemplateSettings } from "@/lib/mock/quote-template";
 import { LEDGER_HEADERS, ledgerItems, CUT_LIST_HEADERS, HW_HEADERS, cabinetTitle, PANEL_HEADERS, cutListRows, byCabinet, carcassHeadingCells, groupsFor, poDetailSections, type PoExportPart } from "@/lib/purchase-order-export";
-import { COMPANY_GST, brandVendorName, mostUsed, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
+import { COMPANY_GST, brandVendorName, highlightFor, sortOtherPanel, mostUsed, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
 
 type Branding = { companyName: string; address: string; email: string; phone: string; logoDataUrl?: string | null };
 
@@ -44,15 +44,23 @@ function Nums({ children }: { children: string }) {
   );
 }
 
-const rowsList = (rows: [string, string][]) =>
-  rows.map(([k, v], i) => (
+// A row may carry a third value: a colour per line of its text (the Additional External picks are shown in the colour chosen for them).
+type InfoRow = [string, string, Record<string, string>?];
+const rowsList = (rows: InfoRow[]) =>
+  rows.map(([k, v, colours], i) => (
     <div key={i} className="flex gap-2">
       <span className="w-20 shrink-0 text-grey-500">{k}</span>
-      <span className="min-w-0 whitespace-pre-line font-medium text-grey-900"><Nums>{v || "—"}</Nums></span>
+      <span className="min-w-0 whitespace-pre-line font-medium text-grey-900">
+        {colours
+          ? v.split("\n").map((line, j) => (
+              <span key={j} className="block font-bold" style={colours[line] ? { color: colours[line] } : undefined}><Nums>{line}</Nums></span>
+            ))
+          : <Nums>{v || "—"}</Nums>}
+      </span>
     </div>
   ));
 
-function Info({ title, rows }: { title: string; rows: [string, string][] }) {
+function Info({ title, rows }: { title: string; rows: InfoRow[] }) {
   const tone = CARD_TONE[title] ?? { bar: "bg-grey-800/10 text-grey-800", box: "border-grey-100" };
   return (
     <div className={`flex h-full flex-col overflow-hidden rounded-lg border break-inside-avoid ${tone.box}`}>
@@ -117,7 +125,7 @@ function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<
   return (
     <tr className="break-inside-avoid">
       <td className={t} colSpan={2}>{h.name}</td>
-      <td className={t}>{h.design}</td>
+      <td className={`${t} ${h.design ? "!bg-error !text-white" : ""}`}>{h.design}</td>
       <td className={`${t} text-right po-num`}>{num(h.width)}</td>
       <td className={`${t} text-right po-num`}>{num(h.depth)}</td>
       <td className={`${t} text-right po-num`}>{num(h.height)}</td>
@@ -141,7 +149,13 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows }: { grou
   const sqft = shown.reduce((s, l) => s + l.sqft, 0);
   // Direct Purchase Order: Shutter and Other Panel rows have no cabinet, so no cabinet heading and Sr runs 1, 2, 3.
   const flat = !!po.material.direct && (group === "shutter" || group === "other-panel");
-  const sections = flat ? [{ srNo: 0, name: "", rows: shown.map((l, i) => ({ l, sr: String(i + 1) })) }] : byCabinet(po, group);
+  // Other Panel sorted (Description or Thk) in the editor: listed flat in that order, each row keeping its cabinet.row number.
+  const sorted = group === "other-panel" && !!po.material.otherPanelSort && !flat;
+  const sections = flat
+    ? [{ srNo: 0, name: "", rows: shown.map((l, i) => ({ l, sr: String(i + 1) })) }]
+    : sorted
+      ? [{ srNo: 0, name: "", rows: sortOtherPanel(byCabinet(po, group).flatMap((c) => c.rows.map((r) => ({ ...r.l, sr: r.sr }))), po.material.otherPanelSort).map((x) => ({ l: x as PurchaseOrderLine, sr: x.sr })) }]
+      : byCabinet(po, group);
   return (
     <section className="break-inside-auto">
       <Band group={group} title={title} count={shown.length} />
@@ -150,12 +164,12 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows }: { grou
         <tbody>
           {sections.map((c) => (
             <Fragment key={c.srNo}>
-              {!flat && (!plain || hidden(c.srNo)) && <CarcassHeadingRow po={po} c={c as ReturnType<typeof byCabinet>[number]} group={group} />}
+              {!flat && !sorted && (!plain || hidden(c.srNo)) && <CarcassHeadingRow po={po} c={c as ReturnType<typeof byCabinet>[number]} group={group} />}
               {(hidden(c.srNo) ? [] : c.rows).map(({ l, sr }, i) => (
                 <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
                   <td className={`${cell} po-num`}>{sr}</td>
                   <td className={cell}><Nums>{l.description}</Nums></td>
-                  <td className={cell}>{l.designType}</td>
+                  <td className={`${cell} ${l.designType ? "bg-error font-semibold text-white" : ""}`}>{l.designType}</td>
                   <td className={`${cell} text-right po-num`}>{num(l.width)}</td>
                   <td className={`${cell} text-right po-num`}>{l.depth ? `${l.depth}` : ""}</td>
                   <td className={`${cell} text-right po-num`}>{num(l.height)}</td>
@@ -163,7 +177,7 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows }: { grou
                   <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(2)}</td>
                   <td className={cell}><Nums>{l.material}</Nums></td>
                   <td className={cell}><Nums>{l.internalColour}</Nums></td>
-                  <td className={cell}><Nums>{l.externalColour}</Nums></td>
+                  <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#fff" } : undefined}><Nums>{l.externalColour}</Nums></td>
                   <td className={cell}><Nums>{l.remarks}</Nums></td>
                 </tr>
               ))}
@@ -228,7 +242,7 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
                   ) : (
                     <>
                       <td className={cell}><Nums>{l.description}</Nums></td>
-                      <td className={cell}>{l.designType}</td>
+                      <td className={`${cell} ${l.designType ? "bg-error font-semibold text-white" : ""}`}>{l.designType}</td>
                       <td className={cell}>{l.articleNo}</td>
                       <td className={cell}>{l.category}</td>
                     </>
@@ -280,8 +294,8 @@ function LedgerTable({ po, vendors }: { po: PurchaseOrder; vendors?: Vendor[] })
           {items.map((it, itemIdx) => {
             const rows = it.receipts.length ? it.receipts : [null];
             return rows.map((r, i) => (
-              // A new Sr No starts with a darker line above it, so the items stand apart.
-              <tr key={`${it.sr}-${i}`} className={`break-inside-avoid ${i === 0 && itemIdx > 0 ? "[&>td]:border-t-2 [&>td]:border-t-grey-600" : ""}`}>
+              // A new Sr No starts with a slightly darker (still light) line above it, so the items stand apart.
+              <tr key={`${it.sr}-${i}`} className={`break-inside-avoid ${itemIdx % 2 ? "bg-grey-transparent" : ""} ${i === 0 && itemIdx > 0 ? "[&>td]:border-t [&>td]:border-t-grey-300" : ""}`}>
                 {i === 0 && (
                   <>
                     <td rowSpan={rows.length} className={`${cell} po-num`}>{it.sr}</td>
@@ -352,14 +366,21 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
 // Material Slip: the component rows only (Top Panel, LH Side Panel...) for Carcass, Shutter and Other Panel, no cabinet
 // or unit rows and no hardware. Cabinets whose unit type is unticked (noComponentCabinets) show only their title in Carcass.
 function CabinetSummaryTable({ po, noComponentCabinets, vendor, vendors }: { po: PurchaseOrder; noComponentCabinets: Set<number>; vendor?: Vendor; vendors?: Vendor[] }) {
+  // Purchase Order (cabinet) PDF: the component rows of cabinets whose "Components visible" tick is on are listed in the Other Panel
+  // table, and those cabinets do not appear in Carcass at all. Cabinets without the tick keep their title row in Carcass.
+  const moved = (l: PurchaseOrderLine) => l.group === "carcass" && !noComponentCabinets.has(l.srNo);
+  const direct = !!po.material.direct;
+  const poOther: PurchaseOrder = direct ? po : { ...po, lines: po.lines.map((l) => (moved(l) ? { ...l, group: "other-panel" as const } : l)) };
+  const poCarcass: PurchaseOrder = direct ? po : { ...po, lines: po.lines.filter((l) => !moved(l)) };
   return (
     <>
       {groupsFor("full").map((g) => {
         if (g.key === "hardware") return null;
-        if (g.key === "carcass" && po.material.direct) return <DirectCabinetsTable key={g.key} po={po} title={`${g.code}. ${g.label}`} vendor={vendor} vendors={vendors} />;
-        const lines = po.lines.filter((l) => l.group === g.key);
+        if (g.key === "carcass" && direct) return <DirectCabinetsTable key={g.key} po={po} title={`${g.code}. ${g.label}`} vendor={vendor} vendors={vendors} />;
+        const src = g.key === "other-panel" ? poOther : g.key === "carcass" ? poCarcass : po;
+        const lines = src.lines.filter((l) => l.group === g.key);
         if (lines.length === 0) return null;
-        return <PanelTable key={g.key} group={g.key} title={`${g.code}. ${g.label}`} lines={lines} po={po} plain hideRows={noComponentCabinets} />;
+        return <PanelTable key={g.key} group={g.key} title={`${g.code}. ${g.label}`} lines={lines} po={src} plain hideRows={noComponentCabinets} />;
       })}
     </>
   );
@@ -378,10 +399,10 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
     const rows = [
       ...(title === "Customer Details" ? sec.rows.filter(([k]) => k !== "Mobile" && k !== "Address") : sec.rows),
       // Additional External Brand & Colour (information only), one per line.
-      ...(extra && extra.length ? ([["Additional External", extra.join("\n")]] as [string, string][]) : []),
+      ...(extra && extra.length ? ([["Additional External", extra.join("\n"), po.material.additionalColors?.[title === "Shutter Details" ? "shutter" : "cabinet"] ?? {}]] as InfoRow[]) : []),
     ]
       .filter(([, v]) => v)
-      .map(([k, v]) => [title === "Shutter Details" || title === "Cabinet Details" ? (short[k] ?? k) : k, v] as [string, string]);
+      .map(([k, v, c]) => [title === "Shutter Details" || title === "Cabinet Details" ? (short[k] ?? k) : k, v, c] as InfoRow);
     return <Info title={title} rows={rows} />;
   };
 

@@ -47,12 +47,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (b.material !== undefined) data.material = cleanMaterial(b.material);
   if (b.deletedAt !== undefined) data.deletedAt = b.deletedAt === null ? null : new Date(b.deletedAt);
 
-  // A PO can only be Completed once it has a vendor and a PO number.
-  if (data.status === "completed") {
+  // A PO can only be Delivered once it has a vendor and a PO number.
+  if (data.status === "delivered") {
     const current = await prisma.purchaseOrder.findFirst({ where: { id, deletedAt: null } });
     const vendorId = (data.vendorId as string | undefined) ?? current?.vendorId ?? "";
     const poNumber = (data.poNumber as string | undefined) ?? current?.poNumber ?? "";
-    if (!vendorId || !poNumber) return NextResponse.json({ error: "Add a vendor and a PO number before marking it Completed" }, { status: 400 });
+    if (!vendorId || !poNumber) return NextResponse.json({ error: "Add a vendor and a PO number before marking it Delivered" }, { status: 400 });
   }
 
   const po = await prisma.$transaction(async (tx) => {

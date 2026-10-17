@@ -102,9 +102,12 @@ function Group({ label, rows, onOpen }: { label: string; rows: NotificationRow[]
 export function NotificationPanel({
   rows,
   onMarkAllRead,
+  inSidebar = false,
 }: {
   rows: NotificationRow[];
   onMarkAllRead: () => void;
+  // In the sidebar the panel opens to the right of the bell.
+  inSidebar?: boolean;
 }) {
   const open = useNotificationPanelOpen();
   const setOpen = notificationPanelStore.set;
@@ -130,7 +133,7 @@ export function NotificationPanel({
           </span>
         )}
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[min(24rem,calc(100vw-1.5rem))] gap-0 p-0">
+      <PopoverContent side={inSidebar ? "right" : undefined} align={inSidebar ? "start" : "end"} className="w-[min(24rem,calc(100vw-1.5rem))] gap-0 p-0">
         <div className="flex items-center justify-between gap-2 px-4 pb-2 pt-3">
           <div className="flex items-center gap-2">
             <span className="font-heading text-base font-semibold text-grey-900">Notifications</span>

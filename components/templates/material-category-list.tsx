@@ -1,7 +1,8 @@
 "use client";
+import { statusColourStyle } from "@/lib/mock/material-spec";
 import { Nums } from "@/components/shared/nums";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, Plus, Pencil, Trash2, Copy, ListTree, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { useMaterialItems, materialSpecStore } from "@/lib/store/material-spec-s
 import { useMaterialDependencies } from "@/lib/hooks/use-material-dependencies";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
-import { materialCategories, type MaterialCategory, type MaterialItem } from "@/lib/mock/material-spec";
+import { DEFAULT_PO_STATUSES, materialCategories, type MaterialCategory, type MaterialItem } from "@/lib/mock/material-spec";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 export function MaterialCategoryList({ category }: { category: MaterialCategory }) {
@@ -21,6 +22,10 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
   const canDelete = currentUser.role === "super-admin";
 
   const items = useMaterialItems(category.key);
+  // Purchase Order Status: the four built-in statuses are added to the list the first time it is opened.
+  useEffect(() => {
+    if (category.statusColour && canEdit) void materialSpecStore.seedDefaults(category.key, DEFAULT_PO_STATUSES);
+  }, [category.key, category.statusColour, canEdit]);
   // Brand + Colour Code entries keep Brand in `description` and Colour Code in `name`.
   const brandCode = !!category.brandAndCode;
   // Brand + Colour Code and Code + Name share a layout: the `description` column first, then `name`.
@@ -182,7 +187,11 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                   )}
                   {pair && <td className="px-4 py-3 text-[13px] font-body text-grey-900"><Nums>{i.description || "—"}</Nums></td>}
                   <td className="px-4 py-3 text-[13px] font-body text-grey-900">
-                    <Nums>{i.name}</Nums>
+                    {category.statusColour ? (
+                      <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium" style={statusColourStyle(i.description || "#fde68a")}>{i.name}</span>
+                    ) : (
+                      <Nums>{i.name}</Nums>
+                    )}
                     {category.longDescription && i.description && (
                       <p className="mt-0.5 text-xs font-body text-grey-400"><Nums>{i.description}</Nums></p>
                     )}
