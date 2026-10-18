@@ -297,6 +297,11 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   };
   // Picking a raw material in Shutter / Cabinet Details also sets the Material column of that scope's rows.
   // Direct PO: changing the Material or a colour in Shutter / Cabinet Details also changes rows already added, so ask first.
+  // Highlight colours for the Internal / External Brand & Colour on the Shutter / Cabinet Details cards (kept as "internal|label" / "external|label").
+  const finishPalette = (side: "shutter" | "cabinet", kind: "internal" | "external") =>
+    Object.fromEntries(Object.entries(draft?.material.finishColors?.[side] ?? {}).filter(([k]) => k.startsWith(`${kind}|`)).map(([k, v]) => [k.slice(kind.length + 1), v]));
+  const setFinishColour = (side: "shutter" | "cabinet", kind: "internal" | "external", label: string, hex: string) =>
+    draft && setMaterial({ finishColors: { ...draft.material.finishColors, [side]: { ...draft.material.finishColors?.[side], [`${kind}|${label}`]: hex } } });
   const askApply = (scope: "shutter" | "cabinet", run: () => void) => {
     if (isDirect && (draft.lines.some((l) => inScope(scope, l.group)) || (scope === "cabinet" && Object.values(draft.material.cabinets ?? {}).some((c) => c.internalColour || c.externalColour || c.material)))) setPendingApply({ scope, run });
     else run();
@@ -410,7 +415,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             size="sm"
             disabled={dirty}
             title={dirty ? "Save your changes first — the PDF shows the saved version" : undefined}
-            onClick={() => window.open(`/purchase-orders/${id}/pdf`, "_blank")}
+            // A Proforma Invoice has no "Unit Wise All Details" PDF, so its Export PDF opens the Proforma Invoice sheet.
+            onClick={() => window.open(`/purchase-orders/${id}/pdf${isProforma ? "?part=cabinets" : ""}`, "_blank")}
           >
             <FileText className="h-4 w-4" />
             Export PDF
@@ -587,11 +593,11 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Internal Brand & Colour <span className="text-error">*</span></Label>
-            <PoFinishSelect kind="internal" value={commonFinish("shutter", "internalColour")} onChange={(label) => askApply("shutter", () => applyFinish("shutter", "internalColour", label))} />
+            <PoFinishSelect kind="internal" value={commonFinish("shutter", "internalColour")} onChange={(label) => askApply("shutter", () => applyFinish("shutter", "internalColour", label))} colors={finishPalette("shutter", "internal")} onColor={(label, hex) => setFinishColour("shutter", "internal", label, hex)} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>External Brand & Colour <span className="text-error">*</span></Label>
-            <PoFinishSelect kind="external" value={commonFinish("shutter", "externalColour")} onChange={(label) => askApply("shutter", () => applyFinish("shutter", "externalColour", label))} />
+            <PoFinishSelect kind="external" value={commonFinish("shutter", "externalColour")} onChange={(label) => askApply("shutter", () => applyFinish("shutter", "externalColour", label))} colors={finishPalette("shutter", "external")} onColor={(label, hex) => setFinishColour("shutter", "external", label, hex)} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Additional External Brand & Colour</Label>
@@ -605,11 +611,11 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Internal Brand & Colour <span className="text-error">*</span></Label>
-            <PoFinishSelect kind="internal" value={commonFinish("cabinet", "internalColour")} onChange={(label) => askApply("cabinet", () => applyFinish("cabinet", "internalColour", label))} />
+            <PoFinishSelect kind="internal" value={commonFinish("cabinet", "internalColour")} onChange={(label) => askApply("cabinet", () => applyFinish("cabinet", "internalColour", label))} colors={finishPalette("cabinet", "internal")} onColor={(label, hex) => setFinishColour("cabinet", "internal", label, hex)} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>External Brand & Colour <span className="text-error">*</span></Label>
-            <PoFinishSelect kind="external" value={commonFinish("cabinet", "externalColour")} onChange={(label) => askApply("cabinet", () => applyFinish("cabinet", "externalColour", label))} />
+            <PoFinishSelect kind="external" value={commonFinish("cabinet", "externalColour")} onChange={(label) => askApply("cabinet", () => applyFinish("cabinet", "externalColour", label))} colors={finishPalette("cabinet", "external")} onColor={(label, hex) => setFinishColour("cabinet", "external", label, hex)} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>Additional External Brand & Colour</Label>

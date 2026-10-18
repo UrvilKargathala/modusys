@@ -18,25 +18,54 @@ export function PoFinishSelect({
   kind,
   value,
   onChange,
+  colors,
+  onColor,
 }: {
   kind: "internal" | "external";
   // The saved text snapshot; "" = nothing picked.
   value: string;
   onChange: (label: string) => void;
+  // Optional highlight colour per label: a colour picker opens when a finish is picked, and a swatch beside the box changes it.
+  colors?: Record<string, string>;
+  onColor?: (label: string, hex: string) => void;
 }) {
   const category = useLibKey(kind === "internal" ? "purchase-internal" : "purchase-external");
   const items = useMaterialItems(category);
   const selected = items.find((i) => finishLabel(i) === value);
-  return (
+  const picker = useRef<HTMLInputElement | null>(null);
+  const pending = useRef<string>("");
+  const select = (
     <MaterialReferenceSelect
       category={category}
       value={selected?.id ?? ""}
       triggerClassName="h-8 py-1 text-[13px]"
       onChange={(id) => {
         const item = materialSpecStore.getSnapshot().find((m) => m.id === id);
-        onChange(item ? finishLabel(item) : "");
+        const label = item ? finishLabel(item) : "";
+        onChange(label);
+        if (onColor && label) {
+          pending.current = label;
+          if (!colors?.[label]) onColor(label, DEFAULT_HIGHLIGHT);
+          // After the dropdown has closed and handed focus back, so the picker is not dismissed.
+          setTimeout(() => { try { picker.current?.showPicker(); } catch { /* the swatch still works */ } }, 150);
+        }
       }}
     />
+  );
+  if (!onColor) return select;
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="min-w-0 flex-1">{select}</div>
+      <input
+        ref={picker}
+        type="color"
+        aria-label={`Highlight colour for the ${kind} brand & colour`}
+        value={colors?.[value] ?? DEFAULT_HIGHLIGHT}
+        onChange={(e) => onColor(pending.current || value, e.target.value)}
+        onFocus={() => { pending.current = value; }}
+        className="h-8 w-9 shrink-0 cursor-pointer rounded border border-grey-100 bg-transparent p-0.5"
+      />
+    </div>
   );
 }
 

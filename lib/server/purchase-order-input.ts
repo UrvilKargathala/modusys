@@ -88,6 +88,29 @@ export function cleanMaterial(m: unknown) {
       const v = o.otherPanelSort as { key?: unknown; dir?: unknown } | undefined;
       return v && (v.key === "description" || v.key === "depth") && (v.dir === "asc" || v.dir === "desc") ? { key: v.key, dir: v.dir } : undefined;
     })(),
+    finishColors: (() => {
+      const raw = (o.finishColors ?? {}) as Record<string, unknown>;
+      const side = (v: unknown) =>
+        Object.fromEntries(
+          Object.entries((v ?? {}) as Record<string, unknown>)
+            .filter(([k, c]) => k && typeof c === "string" && /^#[0-9a-fA-F]{6}$/.test(c))
+            .map(([k, c]) => [str(k), String(c)])
+        );
+      return { shutter: side(raw.shutter), cabinet: side(raw.cabinet) };
+    })(),
+    statusLog: (Array.isArray(o.statusLog) ? (o.statusLog as Record<string, unknown>[]) : []).slice(-100).map((e) => ({
+      status: str(e?.status).slice(0, 60),
+      date: str(e?.date).slice(0, 10),
+      note: str(e?.note).slice(0, 500),
+      amount: num(e?.amount),
+      advance: num(e?.advance),
+      balance: num(e?.balance),
+    })),
+    packing: Object.fromEntries(
+      Object.entries((o.packing ?? {}) as Record<string, Record<string, unknown>>)
+        .filter(([k]) => k)
+        .map(([k, v]) => [str(k).slice(0, 200), { packed: Math.max(0, Math.min(99999, num(v?.packed))), note: str(v?.note).slice(0, 300) }] as const)
+    ),
     additionalColors: (() => {
       const raw = (o.additionalColors ?? {}) as Record<string, unknown>;
       const side = (v: unknown) =>

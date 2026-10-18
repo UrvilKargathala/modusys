@@ -16,15 +16,17 @@ import type { PoCabinet } from "@/lib/purchase-order";
 
 // The Unit Type's "Components visible" tick, shown on the PO's cabinet header (matched by the cabinet's unit name).
 // It is the same saved tick as Templates > Unit Type > Basic Info: unticked keeps the cabinet title only (no component rows)
-// in the purchase order PDFs, for every PO that uses that unit type. Nothing shows for a cabinet with no matching unit type.
+// in the PDFs, for every PO that uses that unit type. Nothing shows for a cabinet with no matching unit type.
 // Changing it shows a message first and only applies when confirmed.
-export function PoComponentsToggle({ unitName, cabinet, onCabinetChange }: { unitName?: string; cabinet: PoCabinet; onCabinetChange: (cabinet: PoCabinet) => void }) {
+// proforma: a Proforma Invoice cabinet has no Unit Type, so it keeps only its own tick, ticked by default.
+export function PoComponentsToggle({ unitName, cabinet, onCabinetChange, proforma = false }: { unitName?: string; cabinet: PoCabinet; onCabinetChange: (cabinet: PoCabinet) => void; proforma?: boolean }) {
   const unitTypes = useUnitTypes();
   const [confirming, setConfirming] = useState(false);
   const unitType = unitName ? unitTypes.find((u) => !u.deleted && u.name === unitName) : undefined;
-  if (!unitType) return null;
+  if (!unitType && !proforma) return null;
+  const name = unitType?.name ?? (cabinet.designType || cabinet.label || "cabinet");
   // This cabinet's own tick; until it is set, it shows the Unit Type's tick. Changing it only changes this cabinet.
-  const on = cabinet.componentsVisible ?? unitType.countComponents !== false;
+  const on = cabinet.componentsVisible ?? (unitType ? unitType.countComponents !== false : true);
   return (
     <>
       <label
@@ -33,7 +35,7 @@ export function PoComponentsToggle({ unitName, cabinet, onCabinetChange }: { uni
       >
         <input
           type="checkbox"
-          aria-label={`Components visible for ${unitType.name}`}
+          aria-label={`Components visible for ${name}`}
           checked={on}
           // Not applied yet: the dialog below asks first.
           onChange={() => setConfirming(true)}
@@ -46,8 +48,8 @@ export function PoComponentsToggle({ unitName, cabinet, onCabinetChange }: { uni
             <AlertDialogTitle>{on ? "Hide the components?" : "Show the components?"}</AlertDialogTitle>
             <AlertDialogDescription>
               {on
-                ? `Only the title of this "${unitType.name}" cabinet will print in the purchase order PDFs, without its component rows.`
-                : `The component rows of this "${unitType.name}" cabinet will print again in the purchase order PDFs.`}{" "}
+                ? `Only the title of this "${name}" cabinet will print in the PDFs, without its component rows.`
+                : `The component rows of this "${name}" cabinet will print again in the PDFs.`}{" "}
               This applies to this cabinet only.
             </AlertDialogDescription>
           </AlertDialogHeader>

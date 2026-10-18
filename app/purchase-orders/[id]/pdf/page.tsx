@@ -4,7 +4,7 @@ import { use, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import type { PoExportPart } from "@/lib/purchase-order-export";
 import { FileSpreadsheet, Printer } from "lucide-react";
-import { downloadPoExcel } from "@/lib/purchase-order-export";
+import { docBase, downloadPoExcel } from "@/lib/purchase-order-export";
 import { PurchaseOrderSheet } from "@/components/purchase-orders/purchase-order-sheet";
 import { usePurchaseOrders, purchaseOrdersStore } from "@/lib/store/purchase-orders-store";
 import { useAllVendors } from "@/lib/store/vendors-store";
@@ -43,7 +43,7 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
 
   // The browser uses document.title as the default PDF file name.
   useEffect(() => {
-    if (po) document.title = `${po.material.proforma ? "PI" : "PO"}-${po.poNumber}${part === "full" ? "" : `-${part === "components" || part === "hardware" ? `material-slip-${part}` : part}`}`;
+    if (po) document.title = part === "cutlist" ? `Cut List - ${docBase(po)}` : `${docBase(po)}${part === "full" ? "" : `-${part === "components" || part === "hardware" ? `material-slip-${part}` : part}`}`;
   }, [po, part]);
 
   if (!po) {

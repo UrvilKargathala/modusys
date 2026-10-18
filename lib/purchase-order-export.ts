@@ -22,6 +22,12 @@ const PROFORMA_WORDS: Record<string, string> = {
 export const proformaWord = (t: string) => PROFORMA_WORDS[t] ?? t;
 // A download name and menu label for a proforma invoice use "PI" / "Proforma Invoice" where a purchase order uses "PO" / "Purchase Order".
 export const docPrefix = (po: PurchaseOrder) => (po.material.proforma ? "PI" : "PO");
+// File / tab name base: "PO-<number>" or "PI-<number>"; a number that already starts with PI- (a proforma's) is not prefixed twice.
+export const docBase = (po: PurchaseOrder) => {
+  const prefix = docPrefix(po);
+  const n = po.poNumber || "draft";
+  return n.startsWith(`${prefix}-`) ? n : `${prefix}-${n}`;
+};
 export const partLabel = (label: string, proforma: boolean) => (proforma ? label.replace("Purchase Order", "Proforma Invoice") : label);
 
 export function poDetailSections(po: PurchaseOrder, ctx: PoExportContext): { title: string; rows: [string, string][] }[] {
@@ -211,14 +217,16 @@ export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoEx
   const suffixX = part === "full" ? "" : part === "components" ? "-components" : "-hardware";
   // Rows picked out by an Additional External colour are filled with it. The plain writer cannot colour cells, so those files
   // are written with ExcelJS; files with no highlighted row keep the plain writer.
-  if (sheetFills.some((sh) => sh.fills.some(Boolean))) return void writeHighlighted(po, details, sheetFills, `${docPrefix(po)}-${po.poNumber || "draft"}${suffixX}.xlsx`);
+  if (sheetFills.some((sh) => sh.fills.some(Boolean))) return void writeHighlighted(po, details, sheetFills, `${docBase(po)}${suffixX}.xlsx`);
   const suffix = part === "full" ? "" : part === "components" ? "-components" : "-hardware";
-  XLSX.writeFile(wb, `${docPrefix(po)}-${po.poNumber || "draft"}${suffix}.xlsx`);
+  XLSX.writeFile(wb, `${docBase(po)}${suffix}.xlsx`);
 }
 
 // Cut List: Carcass, Shutter and Other Panel rows only (component names with their cabinet type, no unit names), with what the cutting needs.
 export const CUT_LIST_HEADERS = ["Sr", "Cabinet Type", "Cabinet Name", "Description", "Width", "Height", "Thk", "Qty", "Sq.Ft", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remarks"];
 // Same rows for the Excel and the on-screen preview, numbered cabinet.row (1.1, 1.2, 2.1 ...) as in Full Details.
+// A Proforma Invoice's cut list also has a Design column after Cabinet Name; Design and Remarks are the component's own.
+export const cutListHeaders = (po: PurchaseOrder) => (po.material.proforma ? [...CUT_LIST_HEADERS.slice(0, 3), "Design", ...CUT_LIST_HEADERS.slice(3)] : CUT_LIST_HEADERS);
 export function cutListRows(po: PurchaseOrder): (string | number)[][] {
   const rows: (string | number)[][] = [];
   for (const g of PO_GROUPS.filter((x) => x.key !== "hardware"))
@@ -227,17 +235,63 @@ export function cutListRows(po: PurchaseOrder): (string | number)[][] {
         const cab = po.material.cabinets?.[String(c.srNo)];
         // Cabinet Name with the cabinet's own size in brackets: "Wall Cabinet (800 x 600 x 750)" (W x D x H).
         const size = cab ? `(${cab.width} x ${cab.depth} x ${cab.height})` : "";
-        rows.push([sr, cab?.designType || cab?.label || "", [cab?.cabinetName, size].filter(Boolean).join(" "), l.description, l.width, l.height, l.depth, l.qty, Number(l.sqft.toFixed(2)), l.material, l.internalColour, l.externalColour, l.remarks]);
+        const typeName = cab?.designType || cab?.label || "";
+        const cabName = [cab?.cabinetName, size].filter(Boolean).join(" ");
+        // A proforma cut list shows a dash where a row has no cabinet type or cabinet name (rows added straight in Shutter / Other Panel).
+        const head = po.material.proforma ? [sr, typeName || "-", cabName.trim() ? cabName : "-"] : [sr, typeName, cabName];
+        const rest = [l.description, l.width, l.height, l.depth, l.qty, Number(l.sqft.toFixed(2)), l.material, l.internalColour, l.externalColour];
+        rows.push(
+          po.material.proforma
+            ? [...head, l.designType, ...rest, l.remarks]
+            : [...head, ...rest, l.remarks]
+        );
       }
+  // A Proforma Invoice's cut list is sorted by material, then thickness, then external colour, then internal colour.
+  if (po.material.proforma) {
+    const cmp = (x: string, y: string) => x.localeCompare(y, undefined, { sensitivity: "base", numeric: true });
+    return rows
+      .map((r, i) => ({ r, i }))
+      .sort((a, b) => cmp(String(a.r[10]), String(b.r[10])) || Number(a.r[7]) - Number(b.r[7]) || cmp(String(a.r[12]), String(b.r[12])) || cmp(String(a.r[11]), String(b.r[11])) || a.i - b.i)
+      .map((x) => x.r);
+  }
   return rows;
 }
+// Proforma cut list: the Design and Remarks cells that have a value are filled a light red, as in the PDFs (needs ExcelJS for cell colours).
+async function downloadCutListColoured(po: PurchaseOrder) {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Cut List");
+  const headers = cutListHeaders(po);
+  const head = ws.addRow(headers);
+  head.font = { bold: true };
+  const designCol = headers.indexOf("Design") + 1;
+  const remarkCol = headers.length;
+  for (const row of cutListRows(po)) {
+    const r = ws.addRow(row);
+    for (const c of [designCol, remarkCol]) {
+      if (r.getCell(c).value) {
+        r.getCell(c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFCD2D2" } };
+        r.getCell(c).font = { bold: c === designCol, color: { argb: "FFEF1E1E" } };
+      }
+    }
+  }
+  ws.columns = [6, 22, 34, 16, 28, 8, 8, 6, 6, 8, 18, 30, 30, 30].map((width) => ({ width }));
+  const buf = await wb.xlsx.writeBuffer();
+  const url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Cut List - ${docBase(po)}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 function downloadCutList(po: PurchaseOrder) {
-  const aoa: (string | number)[][] = [CUT_LIST_HEADERS, ...cutListRows(po)];
+  if (po.material.proforma) return void downloadCutListColoured(po);
+  const aoa: (string | number)[][] = [cutListHeaders(po), ...cutListRows(po)];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws["!cols"] = [6, 22, 34, 28, 8, 8, 6, 6, 8, 18, 30, 30, 20].map((wch) => ({ wch }));
+  ws["!cols"] = (po.material.proforma ? [6, 22, 34, 16, 28, 8, 8, 6, 6, 8, 18, 30, 30, 30] : [6, 22, 34, 28, 8, 8, 6, 6, 8, 18, 30, 30, 20]).map((wch) => ({ wch }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Cut List");
-  XLSX.writeFile(wb, `${docPrefix(po)}-${po.poNumber || "draft"}-cut-list.xlsx`);
+  XLSX.writeFile(wb, po.material.proforma ? `Cut List - ${docBase(po)}.xlsx` : `${docBase(po)}-cut-list.xlsx`);
 }
 
 
@@ -295,7 +349,7 @@ function downloadLedger(po: PurchaseOrder, ctx: PoExportContext) {
   ws["!cols"] = [8, 16, 16, 16, 46, 10, 10, 12, 12, 12, 12, 24, 24, 12].map((wch) => ({ wch }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Hardware Product Ledger");
-  XLSX.writeFile(wb, `${docPrefix(po)}-${po.poNumber || "draft"}-hardware-ledger.xlsx`);
+  XLSX.writeFile(wb, `${docBase(po)}-hardware-ledger.xlsx`);
 }
 
 

@@ -5,8 +5,10 @@ import { downloadOrderTracker } from "@/lib/order-tracker-export";
 import { StatusMenu } from "@/components/shared/status-menu";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ShoppingCart, Eye, Plus, Trash2, Copy, Download, FileText, FileSpreadsheet } from "lucide-react";
+import { Search, ShoppingCart, Eye, PackageCheck, Plus, Trash2, Copy, Download, FileText, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -21,8 +23,8 @@ import { useQuotes } from "@/lib/store/quotes-store";
 import Link from "next/link";
 import { formatInr } from "@/lib/format";
 import { formatPoDate } from "@/components/purchase-orders/po-dates";
-import { useMaterialItems } from "@/lib/store/material-spec-store";
-import { statusColourStyle } from "@/lib/mock/material-spec";
+import { useMaterialItems, materialSpecStore } from "@/lib/store/material-spec-store";
+import { DEFAULT_PO_STATUSES, statusColourStyle } from "@/lib/mock/material-spec";
 import { asPoStatus, poStatusLabel, poStatusList, poTotals, type PoStatus, type PurchaseOrder } from "@/lib/purchase-order";
 
 // The same status colours as the Quotes picker.
@@ -38,6 +40,18 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   // The four built-in statuses, the ones added in Purchase Material Library > Purchase Order Status, and any other name still in use.
   const materials = useMaterialItems(proforma ? "proforma-order-status" : "purchase-order-status");
   // A status added in the library carries the colour picked there.
+  const statusCategory = proforma ? "proforma-order-status" : "purchase-order-status";
+  // Proforma Invoices start with a Packing status (between In Production and Delivered); more are added from the status list or the library.
+  useEffect(() => {
+    if (!proforma) return;
+    const [a, b, c, d] = DEFAULT_PO_STATUSES;
+    void materialSpecStore.seedDefaults("proforma-order-status", [a, b, c, { name: "Packing", description: "#06AED4" }, d]);
+  }, [proforma]);
+  const addStatus = (po: PurchaseOrder, name: string) => {
+    const exists = materials.some((m) => m.name.trim().toLowerCase() === name.toLowerCase());
+    if (!exists) materialSpecStore.createItem({ category: statusCategory, name, description: "#5D6772" });
+    askChange(po, asPoStatus(name));
+  };
   const colours = useMemo(() => Object.fromEntries(materials.map((m) => [asPoStatus(m.name), m.description])), [materials]);
   const statuses = useMemo(() => poStatusList(orders, materials.map((m) => m.name)), [orders, materials]);
   const customers = useCustomers();
@@ -58,7 +72,8 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   // The status tab you last opened comes back when you return from a PO (Cancel / Back / Save). Kept for this browser tab only.
   const tabKey = `po-status-tab-${proforma ? "proforma" : direct ? "direct" : "po"}`;
   const [statusPick, setStatusState] = useState<PoStatus>("pending");
-  const status = statuses.includes(statusPick) ? statusPick : "pending";
+  // Proforma Invoices also have an "All Invoices" tab (value "all") listing every invoice.
+  const status = (proforma && statusPick === "all") || statuses.includes(statusPick) ? statusPick : "pending";
   const setStatus = (st: PoStatus) => {
     setStatusState(st);
     try {
@@ -68,7 +83,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem(tabKey) as PoStatus | null;
-      if (saved && statuses.includes(saved)) setStatusState(saved);
+      if (saved && ((proforma && saved === "all") || statuses.includes(saved))) setStatusState(saved);
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabKey]);
@@ -86,13 +101,45 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
         total: poTotals(po).final,
       }))
       .filter((r) => !quoteId || r.po.quoteId === quoteId)
-      .filter((r) => asPoStatus(r.po.status) === status)
+      .filter((r) => status === "all" || asPoStatus(r.po.status) === status)
       .filter((r) => `${r.po.poNumber} ${r.po.vendorName} ${r.customer} ${r.quote}`.toLowerCase().includes(q));
   }, [orders, customerName, quoteNumber, search, quoteId, status]);
   const count = (st: PoStatus) => orders.filter((o) => asPoStatus(o.status) === st && (!quoteId || o.quoteId === quoteId)).length;
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(rows);
 
-  const changeStatus = async (po: PurchaseOrder, status: PoStatus) => {
+  // Proforma Invoice: a status change first asks for a date and a note, saved in the invoice's status log.
+  const [pendingChange, setPendingChange] = useState<{ po: PurchaseOrder; status: PoStatus } | null>(null);
+  const [changeDate, setChangeDate] = useState("");
+  const [changeNote, setChangeNote] = useState("");
+  const [changeAdvance, setChangeAdvance] = useState("");
+  const [changeRequired, setChangeRequired] = useState("");
+  // In Production: more date + notes pairs can be added below the first one.
+  const showAmounts = pendingChange?.status !== "in-production";
+  const [extraRows, setExtraRows] = useState<{ date: string; note: string }[]>([]);
+  const editExtra = (i: number, patch: Partial<{ date: string; note: string }>) => setExtraRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const changeAmount = pendingChange ? poTotals(pendingChange.po).final : 0;
+  const changeBalance = changeAmount - (Number(changeAdvance) || 0);
+  const askChange = (po: PurchaseOrder, status: PoStatus) => {
+    if (!proforma) return void changeStatus(po, status);
+    if (status === asPoStatus(po.status)) return;
+    setChangeDate(new Date().toISOString().slice(0, 10));
+    setChangeNote("");
+    setChangeAdvance("");
+    setChangeRequired(po.requiredDate);
+    setExtraRows([]);
+    setPendingChange({ po, status });
+  };
+  const confirmChange = async () => {
+    if (!pendingChange) return;
+    const { po, status } = pendingChange;
+    setPendingChange(null);
+    const ok = await changeStatus(po, status, status === "in-production" ? changeRequired : undefined, status === "in-production"
+      ? [{ status, date: changeDate, note: changeNote.trim() }, ...extraRows.filter((r) => r.date || r.note.trim()).map((r) => ({ status, date: r.date || changeDate, note: r.note.trim() }))]
+      : [{ status, date: changeDate, note: changeNote.trim(), amount: changeAmount, advance: Number(changeAdvance) || 0, balance: changeBalance }]);
+    // Packing opens its own page.
+    if (ok && status === "packing") router.push(`/proforma-invoices/${po.id}/packing`);
+  };
+  const changeStatus = async (po: PurchaseOrder, status: PoStatus, requiredDate?: string, logs?: { status: string; date: string; note: string; amount?: number; advance?: number; balance?: number }[]) => {
     if (status === "delivered" && !direct) {
       const missing = [
         [!po.vendorId, "Vendor"],
@@ -105,14 +152,16 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
       ].filter(([m]) => m).map(([, l]) => l);
       if (missing.length) {
         toastStore.show(`Open the PO and fill in: ${missing.join(", ")}`, "error");
-        return;
+        return false;
       }
     }
     try {
-      await purchaseOrdersStore.update(po.id, { status });
+      await purchaseOrdersStore.update(po.id, logs ? { status, ...(requiredDate ? { requiredDate } : {}), material: { ...po.material, statusLog: [...(po.material.statusLog ?? []), ...logs] } } : { status });
       toastStore.show(`${po.poNumber || "PO"} marked ${poStatusLabel(status)}`, "success");
+      return true;
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not change status", "error");
+      return false;
     }
   };
 
@@ -130,7 +179,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2" role="tablist" aria-label="Purchase order status">
-          {statuses.map((st) => (
+          {(proforma ? ["all", ...statuses] : statuses).map((st) => (
             <button
               key={st}
               type="button"
@@ -142,7 +191,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                 status === st ? "border-primary bg-primary-transparent text-primary" : "border-grey-100 bg-card text-grey-600 hover:bg-light-600"
               )}
             >
-              {poStatusLabel(st)} <span className="font-number">({count(st)})</span>
+              {st === "all" ? "All Invoices" : poStatusLabel(st)} <span className="font-number">({st === "all" ? orders.filter((o) => !quoteId || o.quoteId === quoteId).length : count(st)})</span>
             </button>
           ))}
         </div>
@@ -212,7 +261,8 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                       label={`Status of ${po.poNumber || "this PO"}`}
                       value={asPoStatus(po.status)}
                       options={statuses.map((st) => ({ value: st, label: poStatusLabel(st), className: colours[st] ? "border" : statusClass(st), style: statusColourStyle(colours[st]) }))}
-                      onChange={(v) => void changeStatus(po, v as PoStatus)}
+                      onChange={(v) => askChange(po, v as PoStatus)}
+                      onAdd={(name) => addStatus(po, name)}
                     />
                   </td>
                   <td className="px-4 py-1.5">
@@ -227,6 +277,18 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                         </TooltipTrigger>
                         <TooltipContent>View</TooltipContent>
                       </Tooltip>
+                      {proforma && (
+                        <Tooltip>
+                          <TooltipTrigger
+                            aria-label="Packing"
+                            onClick={() => router.push(`/proforma-invoices/${po.id}/packing`)}
+                            className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                          >
+                            <PackageCheck className="h-4 w-4" />
+                          </TooltipTrigger>
+                          <TooltipContent>Packing</TooltipContent>
+                        </Tooltip>
+                      )}
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           aria-label="Download"
@@ -238,7 +300,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                         <DropdownMenuContent align="end" className="w-max min-w-72">
                           <DropdownMenuGroup>
                           <DropdownMenuLabel>PDF</DropdownMenuLabel>
-                          {PO_PDF_PARTS.map((p) => (
+                          {(proforma ? [...PO_PDF_PARTS.filter((p) => p.key !== "full" && p.key !== "ledger"), { key: "cutlist" as const, label: "Cut List" }] : PO_PDF_PARTS).map((p) => (
                             <DropdownMenuItem key={`pdf-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf${p.key === "full" ? "" : `?part=${p.key}`}`, "_blank")}>
                               <FileText className="h-4 w-4 text-grey-400" />
                               {partLabel(p.label, proforma)}
@@ -248,7 +310,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                           <DropdownMenuSeparator />
                           <DropdownMenuGroup>
                           <DropdownMenuLabel>Excel</DropdownMenuLabel>
-                          {PO_EXCEL_PARTS.map((p) => (
+                          {PO_EXCEL_PARTS.filter((p) => !proforma || p.key !== "full" && p.key !== "ledger").map((p) => (
                             <DropdownMenuItem key={`xls-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?format=excel${p.key === "full" ? "" : `&part=${p.key}`}`, "_blank")}>
                               <FileSpreadsheet className="h-4 w-4 text-grey-400" />
                               {partLabel(p.label, proforma)}
@@ -285,6 +347,70 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           </table>
         </div>
       )}
+
+      <Dialog open={!!pendingChange} onOpenChange={(o) => !o && setPendingChange(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change status to {pendingChange ? poStatusLabel(pendingChange.status) : ""}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5 text-sm font-body text-grey-700">
+              PI Number
+              <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 font-number text-grey-900">{pendingChange?.po.poNumber || "—"}</div>
+            </div>
+            <label className="flex flex-col gap-1.5 text-sm font-body text-grey-700">
+              {pendingChange?.status === "confirmed" ? "Confirm Date" : pendingChange?.status === "in-production" ? "Production Date" : "Date"}
+              <Input type="date" value={changeDate} onChange={(e) => setChangeDate(e.target.value)} className="font-number" />
+            </label>
+            {pendingChange?.status === "in-production" && (
+              <label className="flex flex-col gap-1.5 text-sm font-body text-grey-700">
+                Required Date
+                <Input type="date" value={changeRequired} onChange={(e) => setChangeRequired(e.target.value)} className="font-number" />
+              </label>
+            )}
+            {showAmounts && (
+              <>
+            <div className="flex flex-col gap-1.5 text-sm font-body text-grey-700">
+              Amount
+              <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 font-number text-grey-900">{formatInr(changeAmount)}</div>
+            </div>
+            <label className="flex flex-col gap-1.5 text-sm font-body text-grey-700">
+              Advance Received Amount
+              <Input type="number" min={0} step="0.01" value={changeAdvance} onChange={(e) => setChangeAdvance(e.target.value)} className="font-number" />
+            </label>
+            <div className="flex flex-col gap-1.5 text-sm font-body text-grey-700">
+              Balance Amount
+              <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 font-number text-grey-900">{formatInr(changeBalance)}</div>
+            </div>
+              </>
+            )}
+            <label className="flex flex-col gap-1.5 text-sm font-body text-grey-700">
+              Notes
+              <textarea value={changeNote} onChange={(e) => setChangeNote(e.target.value)} rows={3} className="rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary" />
+            </label>
+            {pendingChange?.status === "in-production" && (
+              <>
+                {extraRows.map((r, i) => (
+                  <div key={i} className="flex flex-col gap-2 rounded-lg bg-light-600 p-2">
+                    <div className="flex items-center gap-2">
+                      <Input type="date" value={r.date} onChange={(e) => editExtra(i, { date: e.target.value })} className="h-8 bg-light-600 font-number text-grey-500" />
+                      <button type="button" aria-label="Remove" onClick={() => setExtraRows((x) => x.filter((_, j) => j !== i))} className="rounded-md p-1.5 text-grey-400 hover:bg-light-600 hover:text-error"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                    <textarea value={r.note} onChange={(e) => editExtra(i, { note: e.target.value })} rows={2} placeholder="Notes" className="rounded-lg border border-grey-100 bg-light-600 px-3 py-1.5 text-sm font-body text-grey-500 outline-none focus:border-primary" />
+                  </div>
+                ))}
+                <Button type="button" variant="outline" onClick={() => setExtraRows((x) => [...x, { date: new Date().toISOString().slice(0, 10), note: "" }])}>
+                  <Plus className="h-4 w-4" /> Add date &amp; notes
+                </Button>
+              </>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setPendingChange(null)}>Cancel</Button>
+              <Button type="button" disabled={!changeDate} onClick={() => void confirmChange()}>Move</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={!!toDelete}

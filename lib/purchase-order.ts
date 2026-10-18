@@ -185,6 +185,12 @@ export type PoMaterial = {
   // that pick are filled with it in the PDFs and the Excel files.
   // Other Panel rows sorted by Description or Thk (set by clicking its column heading); the PDFs list them flat in this order.
   otherPanelSort?: { key: "description" | "depth"; dir: "asc" | "desc" };
+  // The highlight colour picked for the Internal / External Brand & Colour on the Shutter / Cabinet Details cards, by side and "internal|label" / "external|label".
+  finishColors?: { shutter?: Record<string, string>; cabinet?: Record<string, string> };
+  // Proforma Invoice: one entry per status change (date and a note typed in the change popup).
+  statusLog?: { status: string; date: string; note: string; amount?: number; advance?: number; balance?: number }[];
+  // Proforma Packing page: per cut-list row, the quantity packed and a note.
+  packing?: Record<string, { packed: number; note: string }>;
   additionalColors?: { shutter?: Record<string, string>; cabinet?: Record<string, string> };
   // Hardware tab, per merged hardware item (key = brand|description|article no|category|unit, lower case): Stock Qty typed by hand,
   // and the deliveries received, each with its own vendor (Received Qty = their total).
@@ -277,7 +283,13 @@ export function highlightFor(po: PurchaseOrder, l: Pick<PurchaseOrderLine, "grou
       if (c) return c;
     }
   }
-  return undefined;
+  // Then the colour picked for the card's own External Brand & Colour.
+  return po.material.finishColors?.[own]?.[`external|${l.externalColour}`];
+}
+// The colour picked for the card's Internal Brand & Colour, for a row that uses it.
+export function highlightInternal(po: PurchaseOrder, l: Pick<PurchaseOrderLine, "group" | "internalColour">): string | undefined {
+  if (l.group === "hardware" || !l.internalColour) return undefined;
+  return po.material.finishColors?.[l.group === "shutter" ? "shutter" : "cabinet"]?.[`internal|${l.internalColour}`];
 }
 
 // Other Panel rows in the saved sort order (Description or Thk), ties kept in their original order.

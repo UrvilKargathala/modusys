@@ -3,6 +3,7 @@
 import { SelectField } from "@/components/shared/select-field";
 import { cn } from "@/lib/utils";
 import { Fragment, createContext, useContext, useState, type ReactNode } from "react";
+import { selectOnClick } from "@/components/shared/select-on-click";
 import { PoLibraryContext } from "@/components/purchase-orders/po-library-context";
 import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, ChevronRight, ChevronsUpDown, Copy, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -107,6 +108,7 @@ function RateCell({ value, onCommit }: { value: number; onCommit: (n: number) =>
       min={0}
       step="any"
       placeholder="0.00"
+      {...selectOnClick}
       className={value ? numCell : `${numCell} rounded-md bg-card text-error ring-1 ring-error-300 placeholder:text-error`}
       value={text ?? (value ? value.toFixed(2) : "")}
       onFocus={() => setText(value ? String(value) : "")}
@@ -146,6 +148,7 @@ function DimCell({ value, vars, note, onNote, onCommit }: { value: number; vars?
   return (
     <>
     <input
+      {...selectOnClick}
       className={numCell}
       inputMode="text"
       autoComplete="off"
@@ -219,7 +222,7 @@ export function PoLinesTable({
   const hardware = group === "hardware";
   // A Proforma Invoice has one dealer for the whole invoice, so its tables (Carcass, Shutter, Other Panel and Hardware) have no Vendor column.
   const proforma = useContext(PoLibraryContext) === "proforma";
-  const cols = (hardware ? HW_COLS : PANEL_COLS).filter((c) => (srNo === undefined || c.key !== "designType") && !(proforma && c.key === "vendor"));
+  const cols = (hardware ? HW_COLS : PANEL_COLS).filter((c) => (srNo === undefined || proforma || c.key !== "designType") && !(proforma && c.key === "vendor"));
   const sortable = group === "other-panel" && srNo === undefined && !!onSortChange;
   const mineAll = lines.filter((l) => l.group === group && (srNo === undefined || l.srNo === srNo) && (!only || only(l)));
   const mine = sortable ? sortOtherPanel(mineAll, sort) : mineAll;
@@ -369,6 +372,7 @@ export function PoLinesTable({
                         <PoRawMaterialSelect compact value={l.material} onChange={(name) => patch(l.id, { material: name })} />
                       ) : TEXT_KEYS.has(c.key) ? (
                         <input
+                          {...selectOnClick}
                           className={c.key === "designType" ? `${cell} text-error` : cell}
                           value={String(l[c.key as keyof PurchaseOrderLine] ?? "")}
                           onChange={(e) => patch(l.id, { [c.key]: e.target.value })}
@@ -385,6 +389,7 @@ export function PoLinesTable({
                       ) : (
                         <input
                           type="number"
+                          {...selectOnClick}
                           className={numCell}
                           min={0}
                           step="any"

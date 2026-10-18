@@ -7,9 +7,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useDealers, useVendors } from "@/lib/store/vendors-store";
+import { useDealers, useVendors, vendorsStore } from "@/lib/store/vendors-store";
+import { VendorFormDialog } from "@/components/purchase-orders/vendor-form-dialog";
 import { useCustomers } from "@/lib/store/customers-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
+import { MaterialItemFormDialog } from "@/components/templates/material-item-form-dialog";
+import { materialCategories } from "@/lib/mock/material-spec";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { blankMaterial, buildPoNumber, customerCode, gstModeFor } from "@/lib/purchase-order";
@@ -31,6 +34,9 @@ export function NewPoDialog({ open, onOpenChange, direct = false, proforma = fal
   const materials = useSyncExternalStore(materialSpecStore.subscribe, materialSpecStore.getSnapshot, materialSpecStore.getServerSnapshot);
   const productTypes = materials.filter((m) => m.category === (proforma ? "proforma-product-type" : "purchase-product-type") && !m.deleted);
   const [vendorId, setVendorId] = useState("");
+  const [dealerFormOpen, setDealerFormOpen] = useState(false);
+  const [typeFormOpen, setTypeFormOpen] = useState(false);
+  const typeKey = proforma ? "proforma-product-type" : "purchase-product-type";
   const [customerId, setCustomerId] = useState("");
   const [productTypeId, setProductTypeId] = useState("");
   const vendor = vendors.find((v) => v.id === vendorId);
@@ -103,6 +109,8 @@ export function NewPoDialog({ open, onOpenChange, direct = false, proforma = fal
               id="np-vendor"
               value={vendorId}
               onChange={(e) => setVendorId(e.target.value)}
+              // Proforma Invoice: "+ Add new dealer" opens the dealer form; the new dealer is picked here and also appears in the Dealers tab.
+              {...(proforma ? { addLabel: "Add new dealer", searchPlaceholder: "Search dealer", onAddClick: () => setDealerFormOpen(true) } : {})}
               className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
             >
               <option value="">Select later…</option>
@@ -128,7 +136,16 @@ export function NewPoDialog({ open, onOpenChange, direct = false, proforma = fal
           )}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="np-ppt">{proforma ? "Proforma Product Type" : "Purchase Product Type"} (optional now)</Label>
-            <SelectField id="np-ppt" value={productTypeId} onChange={(e) => setProductTypeId(e.target.value)} className={select}>
+            <SelectField
+              id="np-ppt"
+              value={productTypeId}
+              onChange={(e) => setProductTypeId(e.target.value)}
+              className={select}
+              // "+ Add new ..." opens the library's own Add form; the new type is picked here.
+              addLabel={proforma ? "Add new proforma product type" : "Add new purchase product type"}
+              searchPlaceholder={proforma ? "Search proforma product type" : "Search purchase product type"}
+              onAddClick={() => setTypeFormOpen(true)}
+            >
               <option value="">Select later…</option>
               {productTypes.map((m) => (
                 <option key={m.id} value={m.id}>{m.name}{m.description ? ` (${m.description})` : ""}</option>
@@ -171,6 +188,31 @@ export function NewPoDialog({ open, onOpenChange, direct = false, proforma = fal
           </div>
         </div>
       </DialogContent>
+      <MaterialItemFormDialog
+        open={typeFormOpen}
+        onOpenChange={setTypeFormOpen}
+        category={materialCategories.find((c) => c.key === typeKey)!}
+        onSubmit={(values) => {
+          const created = materialSpecStore.createItem({ category: typeKey, ...values });
+          setProductTypeId(created.id);
+        }}
+      />
+      {proforma && (
+        <VendorFormDialog
+          dealer
+          open={dealerFormOpen}
+          onOpenChange={setDealerFormOpen}
+          onSubmit={async (values) => {
+            try {
+              const created = await vendorsStore.createVendor({ ...values, kind: "dealer" });
+              setVendorId(created.id);
+              toastStore.show(`${created.name} added to Dealers`, "success");
+            } catch (e) {
+              toastStore.show(e instanceof Error ? e.message : "Could not save dealer", "error");
+            }
+          }}
+        />
+      )}
     </Dialog>
   );
 }

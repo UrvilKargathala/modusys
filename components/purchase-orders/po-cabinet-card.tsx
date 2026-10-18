@@ -25,19 +25,8 @@ import { PO_GROUPS, lineAmount, mostUsed, type PoCabinet, type PurchaseOrderLine
 // W/D/H/Qty start as the quote's cabinet size and are editable; the rows are snapshots, so they only
 // change when you press Auto Populate (same as the quote: carcass rows only, from the cabinet type's formulas).
 // A form field with its label above it.
-// A click into the box selects everything in it; a double click then selects just the word under the pointer, as usual.
-export const selectOnClick = {
-  onMouseDown: (e: React.MouseEvent<HTMLInputElement>) => {
-    if (document.activeElement !== e.currentTarget) e.currentTarget.dataset.fresh = "1";
-  },
-  onFocus: (e: React.FocusEvent<HTMLInputElement>) => e.currentTarget.select(),
-  onMouseUp: (e: React.MouseEvent<HTMLInputElement>) => {
-    if (e.currentTarget.dataset.fresh) {
-      e.preventDefault();
-      delete e.currentTarget.dataset.fresh;
-    }
-  },
-};
+export { selectOnClick } from "@/components/shared/select-on-click";
+import { selectOnClick } from "@/components/shared/select-on-click";
 export const fieldInput = "h-9 w-full rounded-lg border border-grey-100 bg-card px-2 text-[13px] font-body text-grey-900 outline-none focus:border-primary";
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -199,7 +188,7 @@ export function PoCabinetCard({
           {/* A Proforma Invoice shows the cabinet's total sq.ft before its amount. */}
           {proforma && <span className="font-number text-sm text-grey-500">{totalSqft.toFixed(2)} sq.ft</span>}
           <span className="font-number text-base font-semibold text-grey-900">{formatInr(total)}</span>
-          {cabinet && !isManual && <PoComponentsToggle unitName={cabinet.unitName} cabinet={cabinet} onCabinetChange={onCabinetChange} />}
+          {cabinet && !isManual && <PoComponentsToggle unitName={cabinet.unitName} cabinet={cabinet} onCabinetChange={onCabinetChange} proforma={proforma} />}
           {cabinet && onCopyCabinet && (
             <Button type="button" size="icon-sm" variant="outline" className="border-primary/30 bg-primary/15 text-primary hover:bg-primary/25" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
               <Copy className="h-3.5 w-3.5" />
