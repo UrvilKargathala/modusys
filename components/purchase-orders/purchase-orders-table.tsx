@@ -137,7 +137,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
       ? [{ status, date: changeDate, note: changeNote.trim() }, ...extraRows.filter((r) => r.date || r.note.trim()).map((r) => ({ status, date: r.date || changeDate, note: r.note.trim() }))]
       : [{ status, date: changeDate, note: changeNote.trim(), amount: changeAmount, advance: Number(changeAdvance) || 0, balance: changeBalance }]);
     // Packing opens its own page.
-    if (ok && status === "packing") router.push(`/proforma-invoices/${po.id}/packing`);
+    if (ok && status === "packing") router.push(`/proforma-invoices/packing/${po.id}`);
   };
   const changeStatus = async (po: PurchaseOrder, status: PoStatus, requiredDate?: string, logs?: { status: string; date: string; note: string; amount?: number; advance?: number; balance?: number }[]) => {
     if (status === "delivered" && !direct) {
@@ -179,7 +179,8 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2" role="tablist" aria-label="Purchase order status">
-          {(proforma ? ["all", ...statuses] : statuses).map((st) => (
+          {/* Proforma: Packing has its own tab on the page, so no Packing pill here (its invoices still show under All Invoices). */}
+          {(proforma ? ["all", ...statuses.filter((st) => st !== "packing")] : statuses).map((st) => (
             <button
               key={st}
               type="button"
@@ -281,7 +282,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                         <Tooltip>
                           <TooltipTrigger
                             aria-label="Packing"
-                            onClick={() => router.push(`/proforma-invoices/${po.id}/packing`)}
+                            onClick={() => router.push(`/proforma-invoices/packing/${po.id}`)}
                             className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
                           >
                             <PackageCheck className="h-4 w-4" />

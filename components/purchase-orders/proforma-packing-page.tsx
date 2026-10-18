@@ -60,6 +60,9 @@ export function ProformaPackingPage({ id }: { id: string }) {
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [seeded, setSeeded] = useState("");
+  // Bulk edit: rows ticked in the first column, changed together from the bar above the table.
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulkNote, setBulkNote] = useState("");
 
   useEffect(() => {
     if (po && seeded !== po.id) {
@@ -97,6 +100,17 @@ export function ProformaPackingPage({ id }: { id: string }) {
   const totalQty = rows.reduce((n, r) => n + qtyOf(r.cells), 0);
   const totalPacked = rows.reduce((n, r) => n + Math.min(packing[r.key]?.packed ?? 0, qtyOf(r.cells)), 0);
 
+  const bulk = (fn: (key: string, qty: number, cur: { packed: number; note: string }) => { packed: number; note: string }) => {
+    setPacking((p) => {
+      const next = { ...p };
+      for (const r of rows) if (picked.has(r.key)) next[r.key] = fn(r.key, qtyOf(r.cells), p[r.key] ?? { packed: 0, note: "" });
+      return next;
+    });
+    setDirty(true);
+  };
+  const allPicked = rows.length > 0 && rows.every((r) => picked.has(r.key));
+  const togglePick = (key: string) => setPicked((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+
   const save = async (): Promise<boolean> => {
     setBusy(true);
     try {
@@ -119,7 +133,7 @@ export function ProformaPackingPage({ id }: { id: string }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Link href="/proforma-invoices" className="rounded-md p-1.5 text-grey-500 hover:bg-light-600 hover:text-primary" aria-label="Back to Proforma Invoices">
+          <Link href="/proforma-invoices/packing" className="rounded-md p-1.5 text-grey-500 hover:bg-light-600 hover:text-primary" aria-label="Back to Packing">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
@@ -128,10 +142,10 @@ export function ProformaPackingPage({ id }: { id: string }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => router.push("/proforma-invoices")}>
+          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => router.push("/proforma-invoices/packing")}>
             <X className="h-4 w-4" /> {dirty ? "Cancel" : "Close"}
           </Button>
-          <Button type="button" size="sm" disabled={busy || !dirty} onClick={async () => { if (await save()) router.push("/proforma-invoices"); }}>
+          <Button type="button" size="sm" disabled={busy || !dirty} onClick={async () => { if (await save()) router.push("/proforma-invoices/packing"); }}>
             <Save className="h-4 w-4" /> {busy ? "Saving…" : "Save"}
           </Button>
         </div>
@@ -162,10 +176,22 @@ export function ProformaPackingPage({ id }: { id: string }) {
         </Button>
       </div>
 
+      {picked.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary-transparent px-4 py-2 text-sm font-body text-grey-800">
+          <span className="font-medium">{picked.size} selected</span>
+          <Button type="button" size="sm" variant="outline" onClick={() => bulk((_k, qty, c) => ({ ...c, packed: qty }))}>Mark packed</Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => bulk((_k, _q, c) => ({ ...c, packed: 0 }))}>Mark not packed</Button>
+          <Input value={bulkNote} onChange={(e) => setBulkNote(e.target.value)} placeholder="Note for selected" className="h-8 w-56 text-xs" />
+          <Button type="button" size="sm" variant="outline" disabled={!bulkNote.trim()} onClick={() => bulk((_k, _q, c) => ({ ...c, note: bulkNote.trim() }))}>Set note</Button>
+          <button type="button" onClick={() => setPicked(new Set())} className="ml-auto text-xs text-grey-500 hover:text-primary">Clear selection</button>
+        </div>
+      )}
+
       <div className="overflow-x-auto rounded-xl border border-grey-100 bg-white shadow-sm">
         <table className="w-full text-left text-xs font-body">
           <thead className="bg-light-600 text-grey-700">
             <tr>
+              <th className="px-2 py-2"><input type="checkbox" aria-label="Select all rows" checked={allPicked} onChange={() => setPicked(allPicked ? new Set() : new Set(rows.map((r) => r.key)))} className="h-4 w-4 accent-primary" /></th>
               {shown.map(({ h }) => <th key={h} className="whitespace-nowrap px-2 py-2 font-medium">{h}</th>)}
               <th className="whitespace-nowrap px-2 py-2 font-medium">Packed Qty</th>
               <th className="px-2 py-2 text-center font-medium">Packed</th>
@@ -179,6 +205,7 @@ export function ProformaPackingPage({ id }: { id: string }) {
               const full = qty > 0 && st.packed >= qty;
               return (
                 <tr key={key} className={`border-t border-grey-100 text-grey-800 ${full ? "bg-success-transparent" : ""}`}>
+                  <td className="px-2 py-1"><input type="checkbox" aria-label={`Select row ${cells[0]}`} checked={picked.has(key)} onChange={() => togglePick(key)} className="h-4 w-4 accent-primary" /></td>
                   {shown.map(({ h, i }) => (
                     <td key={h} className="whitespace-nowrap px-2 py-1.5 font-number">{cells[i]}</td>
                   ))}
@@ -189,7 +216,7 @@ export function ProformaPackingPage({ id }: { id: string }) {
                       max={qty}
                       value={st.packed || ""}
                       onChange={(e) => set(key, { packed: Math.min(qty, Math.max(0, Number(e.target.value) || 0)) })}
-                      className="h-7 w-20 text-xs"
+                      className="h-7 w-20 text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                   </td>
                   <td className="px-2 py-1 text-center">
@@ -202,7 +229,7 @@ export function ProformaPackingPage({ id }: { id: string }) {
               );
             })}
             {rows.length === 0 && (
-              <tr><td colSpan={shown.length + 3} className="px-3 py-6 text-center text-grey-400">This invoice has no component rows yet.</td></tr>
+              <tr><td colSpan={shown.length + 4} className="px-3 py-6 text-center text-grey-400">This invoice has no component rows yet.</td></tr>
             )}
           </tbody>
         </table>
