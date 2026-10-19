@@ -124,6 +124,14 @@ export function cleanMaterial(m: unknown) {
           },
         ] as const)
     ),
+    production: Object.fromEntries(
+      Object.entries((o.production ?? {}) as Record<string, Record<string, unknown>>)
+        .filter(([k]) => k)
+        .map(([k, v]) => [
+          str(k).slice(0, 200),
+          { pieces: (Array.isArray(v?.pieces) ? (v.pieces as Record<string, unknown>[]) : []).slice(0, 500).map((x) => ({ done: x?.done === true, note: str(x?.note).slice(0, 300) })) },
+        ] as const)
+    ),
     additionalColors: (() => {
       const raw = (o.additionalColors ?? {}) as Record<string, unknown>;
       const side = (v: unknown) =>

@@ -28,7 +28,7 @@ export const docBase = (po: PurchaseOrder) => {
   const n = po.poNumber || "draft";
   return n.startsWith(`${prefix}-`) ? n : `${prefix}-${n}`;
 };
-export const partLabel = (label: string, proforma: boolean) => (proforma ? (label === "Purchase Order With Components" ? "Packing Slip" : label.replace("Purchase Order", "Proforma Invoice")) : label);
+export const partLabel = (label: string, proforma: boolean) => (proforma ? (label === "Purchase Order With Components" ? "Packing Slip" : label === "Purchase Order" ? "Proforma Invoice With Components" : label.replace("Purchase Order", "Proforma Invoice")) : label);
 
 export function poDetailSections(po: PurchaseOrder, ctx: PoExportContext): { title: string; rows: [string, string][] }[] {
   const base = poDetailSectionsBase(po, ctx);

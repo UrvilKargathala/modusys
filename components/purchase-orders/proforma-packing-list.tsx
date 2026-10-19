@@ -2,23 +2,26 @@
 
 import { useMemo, useState } from "react";
 import { PackageCheck, Search } from "lucide-react";
+import { ProformaStatusCell } from "@/components/purchase-orders/proforma-status-cell";
 import { PoRowActions } from "@/components/purchase-orders/po-row-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
-import { asPoStatus, poStatusLabel } from "@/lib/purchase-order";
+import { asPoStatus } from "@/lib/purchase-order";
 import { cutListRows } from "@/lib/purchase-order-export";
 import { formatPoDate } from "@/components/purchase-orders/po-dates";
 
 // The Packing tab: the Proforma Invoices whose status is Packing, with how much of each is packed; "Open" goes to its packing page.
-export function ProformaPackingList() {
+// mode "production" lists the invoices that are In Production, with their produced progress (material.production).
+export function ProformaPackingList({ mode = "packing" }: { mode?: "packing" | "production" }) {
+  const isProd = mode === "production";
   const orders = usePurchaseOrders();
   const [search, setSearch] = useState("");
   const rows = useMemo(() => {
     const q = search.toLowerCase();
     return orders
-      .filter((o) => o.material.proforma && asPoStatus(o.status).toLowerCase() === "packing" && `${o.poNumber} ${o.vendorName}`.toLowerCase().includes(q))
+      .filter((o) => o.material.proforma && asPoStatus(o.status).toLowerCase() === (isProd ? "in-production" : "packing") && `${o.poNumber} ${o.vendorName}`.toLowerCase().includes(q))
       .map((po) => {
-        const packing = po.material.packing ?? {};
+        const packing = (isProd ? po.material.production : po.material.packing) ?? {};
         const seen = new Map<string, number>();
         let total = 0;
         let packed = 0;
@@ -33,7 +36,7 @@ export function ProformaPackingList() {
         }
         return { po, total, packed };
       });
-  }, [orders, search]);
+  }, [orders, search, isProd]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -42,7 +45,7 @@ export function ProformaPackingList() {
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search PI no, dealer" className="h-9 w-full rounded-lg border border-grey-100 bg-card pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary" />
       </div>
       {rows.length === 0 ? (
-        <EmptyState icon={PackageCheck} message="No proforma invoices in Packing. Change an invoice's status to Packing and it appears here." />
+        <EmptyState icon={PackageCheck} message={isProd ? "No proforma invoices in Production. Change an invoice's status to In Production and it appears here." : "No proforma invoices in Packing. Change an invoice's status to Packing and it appears here."} />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-grey-100 bg-card">
           <table className="w-full text-left text-sm font-body">
@@ -52,7 +55,7 @@ export function ProformaPackingList() {
                 <th className="px-4 py-2 font-medium">PI Date</th>
                 <th className="px-4 py-2 font-medium">Dealer</th>
                 <th className="px-4 py-2 font-medium">Status</th>
-                <th className="w-[35%] px-4 py-2 font-medium">Packed</th>
+                <th className="w-[35%] px-4 py-2 font-medium">{isProd ? "Produced" : "Packed"}</th>
                 <th className="px-4 py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
@@ -62,7 +65,7 @@ export function ProformaPackingList() {
                   <td className="px-4 py-2 font-number text-primary">{po.poNumber}</td>
                   <td className="px-4 py-2 font-number">{formatPoDate(po.poDate)}</td>
                   <td className="px-4 py-2">{po.vendorName || "—"}</td>
-                  <td className="px-4 py-2">{poStatusLabel(asPoStatus(po.status))}</td>
+                  <td className="px-4 py-2"><ProformaStatusCell po={po} /></td>
                   <td className="px-4 py-2">
                     <div className="flex items-center gap-2">
                       <div className="h-2 flex-1 overflow-hidden rounded-full bg-grey-100">
@@ -72,7 +75,7 @@ export function ProformaPackingList() {
                     </div>
                   </td>
                   <td className="px-4 py-2">
-                    <PoRowActions po={po} proforma base="/proforma-invoices" viewHref={`/proforma-invoices/packing/${po.id}`} />
+                    <PoRowActions po={po} proforma base="/proforma-invoices" packingSlips={!isProd} viewHref={`/proforma-invoices/${mode}/${po.id}`} />
                   </td>
                 </tr>
               ))}

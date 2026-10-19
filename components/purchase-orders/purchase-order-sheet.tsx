@@ -3,7 +3,7 @@ import type { Customer } from "@/lib/mock/pipeline";
 import { Fragment } from "react";
 import type { QuoteTemplateSettings } from "@/lib/mock/quote-template";
 import { LEDGER_HEADERS, ledgerItems, cutListHeaders, HW_HEADERS, cabinetTitle, PANEL_HEADERS, cutListRows, byCabinet, carcassHeadingCells, groupsFor, poDetailSections, psLabel, type PoExportPart } from "@/lib/purchase-order-export";
-import { COMPANY_GST, brandVendorName, highlightFor, highlightInternal, lineAmount, sortOtherPanel, mostUsed, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
+import { COMPANY_GST, PO_GROUPS, brandVendorName, highlightFor, highlightInternal, lineAmount, poTotals, sortOtherPanel, mostUsed, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
 
 type Branding = { companyName: string; address: string; email: string; phone: string; logoDataUrl?: string | null };
 
@@ -24,6 +24,8 @@ const num = (n: number, d = 0) => (n ? n.toLocaleString("en-IN", { minimumFracti
 const RIGHT = new Set(["Width", "Thk", "Depth", "Height", "Qty", "Items", "Sq.Ft", "W", "D", "H"]);
 // The PO PDF carries no prices at all (the Excel export still does).
 // A Proforma Invoice shows prices: Sq.Ft, Rate and Amount come last (as in its Carcass table).
+// Proforma Shutter / Other Panel order: Sr, Description, Width, Depth/Thk, Height, Qty, Design, Remarks, Material, External, Internal, Sq.Ft, Rate, Amount.
+const PANEL_HEADERS_PRICED_REORDERED = ["Sr", "Description", "Width", "Depth/Thk", "Height", "Qty", "Design", "Remarks", "Material", "External Colour", "Internal Colour", "Sq.Ft", "Rate", "Amount"];
 const PANEL_HEADERS_PRICED = ["Sr", "Description", "Design", "Width", "Thk", "Height", "Qty", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remarks", "Sq.Ft", "Rate", "Amount"];
 const PRICE_HEADERS = new Set(["Rate", "MRP", "Discount %", "Amount"]);
 const noPrice = (h: string[]) => h.filter((x) => !PRICE_HEADERS.has(x));
@@ -103,11 +105,19 @@ function Band({ group, title, count, unit = "rows" }: { group: PoGroup; title: s
   );
 }
 
-function Header({ group, headers }: { group: PoGroup; headers: string[] }) {
+// Column widths in the table headings: Remarks wider, Depth / Thk narrower.
+const WIDE = new Set(["Remarks"]);
+const NARROW = new Set(["Depth", "Depth/Thk"]);
+// Fixed column widths (% of the table) shared by the proforma Carcass, Shutter and Other Panel tables so Material to Amount line up in all three.
+const FIXED_W: Record<string, string> = {
+  Sr: "w-[3%]", Width: "w-[5%]", Depth: "w-[5%]", "Depth/Thk": "w-[5%]", Height: "w-[5%]", Qty: "w-[3.5%]", Design: "w-[7%]", Remarks: "w-[10%]",
+  Material: "w-[7%]", "External Colour": "w-[10%]", "Internal Colour": "w-[10%]", "Sq.Ft": "w-[5%]", Rate: "w-[5%]", Amount: "w-[6%]",
+};
+function Header({ group, headers, fixed = false }: { group: PoGroup; headers: string[]; fixed?: boolean }) {
   return (
     <tr>
       {headers.map((h) => (
-        <th key={h} className={`${cell} ${THEME[group].head} text-grey-900 font-bold uppercase ${RIGHT.has(h) ? "text-right" : "text-left"}`}>{h}</th>
+        <th key={h} className={`${cell} ${THEME[group].head} text-grey-900 font-bold uppercase ${RIGHT.has(h) ? "text-right" : "text-left"} ${fixed ? FIXED_W[h] ?? "" : `${WIDE.has(h) ? "w-[16%]" : ""} ${NARROW.has(h) ? "w-10" : ""}`}`}>{h}</th>
       ))}
     </tr>
   );
@@ -181,6 +191,8 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
   // A Proforma Invoice shows prices: a Rate and an Amount on every row and the amount in the total.
   // The Packing Slip (proforma Components PDF) has no prices: no Rate or Amount, and a Packing Box column instead.
   const money = !!po.material.proforma && !slip;
+  // Shutter and Other Panel tables of a proforma use the reordered columns (Carcass keeps its cabinet-heading layout).
+  const reo = money && group !== "carcass";
   const amount = shown.reduce((s, l) => s + lineAmount(l), 0);
   // Direct Purchase Order: Shutter and Other Panel rows have no cabinet, so no cabinet heading and Sr runs 1, 2, 3.
   const flat = !!po.material.direct && (group === "shutter" || group === "other-panel");
@@ -194,8 +206,8 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
   return (
     <section className="break-inside-auto">
       <Band group={group} title={title} count={shown.length} />
-      <table className="w-full border-collapse text-[10px]">
-        <thead><Header group={group} headers={money ? PANEL_HEADERS_PRICED : slip ? [...noPrice(PANEL_HEADERS), "Packing Box"] : noPrice(PANEL_HEADERS)} /></thead>
+      <table className={`w-full border-collapse text-[10px] ${reo ? "table-fixed" : ""}`}>
+        <thead><Header group={group} fixed={reo} headers={reo ? PANEL_HEADERS_PRICED_REORDERED : money ? PANEL_HEADERS_PRICED : slip ? [...noPrice(PANEL_HEADERS), "Packing Box"] : noPrice(PANEL_HEADERS)} /></thead>
         <tbody>
           {sections.map((c) => (
             <Fragment key={c.srNo}>
@@ -204,16 +216,32 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
                 <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
                   <td className={`${cell} po-num`}>{slipMode ? srOf?.get(l.id) ?? sr : sr}</td>
                   <td className={cell}><Nums>{l.description}</Nums></td>
-                  <td className={`${cell} ${l.designType ? RED_FILL : ""}`}>{l.designType}</td>
-                  <td className={`${cell} text-right po-num`}>{num(l.width)}</td>
-                  <td className={`${cell} text-right po-num`}>{l.depth ? `${l.depth}` : ""}</td>
-                  <td className={`${cell} text-right po-num`}>{num(l.height)}</td>
-                  <td className={`${cell} text-right po-num`}>{num(l.qty)}</td>
-                  {!money && <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(2)}</td>}
-                  <td className={cell}><Nums>{l.material}</Nums></td>
-                  <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#fff" } : undefined}><Nums>{l.internalColour}</Nums></td>
-                  <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#fff" } : undefined}><Nums>{l.externalColour}</Nums></td>
-                  <td className={`${cell} ${l.remarks ? "bg-error-200 text-error" : ""}`}><Nums>{l.remarks}</Nums></td>
+                  {reo ? (
+                    <>
+                      <td className={`${cell} text-right po-num`}>{num(l.width)}</td>
+                      <td className={`${cell} text-right po-num`}>{l.depth ? `${l.depth}` : ""}</td>
+                      <td className={`${cell} text-right po-num`}>{num(l.height)}</td>
+                      <td className={`${cell} text-right po-num`}>{num(l.qty)}</td>
+                      <td className={`${cell} ${l.designType ? RED_FILL : ""}`}>{l.designType}</td>
+                      <td className={`${cell} ${l.remarks ? "bg-error-200 text-error" : ""}`}><Nums>{l.remarks}</Nums></td>
+                      <td className={cell}><Nums>{l.material}</Nums></td>
+                      <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#fff" } : undefined}><Nums>{l.externalColour}</Nums></td>
+                      <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#fff" } : undefined}><Nums>{l.internalColour}</Nums></td>
+                    </>
+                  ) : (
+                    <>
+                    <td className={`${cell} ${l.designType ? RED_FILL : ""}`}>{l.designType}</td>
+                    <td className={`${cell} text-right po-num`}>{num(l.width)}</td>
+                    <td className={`${cell} text-right po-num`}>{l.depth ? `${l.depth}` : ""}</td>
+                    <td className={`${cell} text-right po-num`}>{num(l.height)}</td>
+                    <td className={`${cell} text-right po-num`}>{num(l.qty)}</td>
+                    {!money && <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(2)}</td>}
+                    <td className={cell}><Nums>{l.material}</Nums></td>
+                    <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#fff" } : undefined}><Nums>{l.internalColour}</Nums></td>
+                    <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#fff" } : undefined}><Nums>{l.externalColour}</Nums></td>
+                    <td className={`${cell} ${l.remarks ? "bg-error-200 text-error" : ""}`}><Nums>{l.remarks}</Nums></td>
+                    </>
+                  )}
                   {slip && <td className={`${cell} whitespace-nowrap`}><PackingMarks po={po} sr={srOf?.get(l.id) ?? sr} l={l} mode={slipMode} tr={slipTr} /></td>}
                   {money && (
                     <>
@@ -227,10 +255,10 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
             </Fragment>
           ))}
           <tr className={`font-semibold ${THEME[group].head}`}>
-            <td className={`${cell} text-right`} colSpan={6}>TOTAL</td>
+            <td className={`${cell} text-right`} colSpan={reo ? 5 : 6}>TOTAL</td>
             <td className={`${cell} text-right po-num`}>{num(qty)}</td>
             {!money && <td className={`${cell} text-right po-num`}>{sqft.toFixed(2)}</td>}
-            <td className={cell} colSpan={4} />
+            <td className={cell} colSpan={reo ? 5 : 4} />
             {slip && <td className={cell} />}
             {money && (
               <>
@@ -248,6 +276,8 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
 
 // Hardware-only PDF: no cabinet headings, and the same item (brand, description, article no, category, unit) across cabinets becomes one row with the quantities added up. No Design column; columns in the order below.
 // Stock Qty / Order Qty are left blank, to be filled in by hand on the printout.
+// Proforma hardware table order: Sr, Brand, Category, Article No, Description, Design, Remarks, Qty, MRP, Discount, Rate, Amount.
+const HW_PROFORMA_HEADERS = ["Sr", "Brand", "Category", "Article No", "Description", "Design", "Remarks", "Qty", "MRP", "Discount %", "Rate", "Amount"];
 const HW_MERGED_HEADERS = ["Sr", "Brand", "Category", "Vendor", "Article No", "Description", "Unit", "Qty", "MRP", "Discount %", "Rate", "Amount", "Remarks", "Stock Qty", "Order Qty"];
 function mergeHardware(lines: PurchaseOrderLine[]) {
   const byKey = new Map<string, { l: PurchaseOrderLine; remarks: Set<string> }>();
@@ -274,12 +304,28 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
     <section className="break-inside-auto">
       <Band group="hardware" title={title} count={merged ? sections[0].rows.length : lines.length} />
       <table className="w-full border-collapse text-[10px]">
-        <thead><Header group="hardware" headers={merged || !po.material.proforma ? noPrice(merged ? HW_MERGED_HEADERS : HW_HEADERS) : HW_HEADERS} /></thead>
+        <thead><Header group="hardware" headers={merged || !po.material.proforma ? noPrice(merged ? HW_MERGED_HEADERS : HW_HEADERS) : HW_PROFORMA_HEADERS} /></thead>
         <tbody>
           {sections.map((c) => (
             <Fragment key={c.srNo}>
               {!merged && !flat && <CabinetRow group="hardware" cols={9}>{cabinetTitle(po, c)}</CabinetRow>}
               {c.rows.map(({ l, sr }, i) => (
+                !merged && po.material.proforma ? (
+                <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
+                  <td className={`${cell} po-num`}>{sr}</td>
+                  <td className={cell}>{l.brand}</td>
+                  <td className={cell}>{l.category}</td>
+                  <td className={cell}>{l.articleNo}</td>
+                  <td className={cell}><Nums>{l.description}</Nums></td>
+                  <td className={`${cell} ${l.designType ? RED_FILL : ""}`}>{l.designType}</td>
+                  <td className={`${cell} ${l.remarks ? "bg-error-200 text-error" : ""}`}><Nums>{l.remarks}</Nums></td>
+                  <td className={`${cell} text-right po-num`}>{num(l.qty)}</td>
+                  <td className={`${cell} text-right po-num`}>{l.rate ? l.rate.toFixed(2) : ""}</td>
+                  <td className={`${cell} text-right po-num`}>{l.discountPct ? l.discountPct : ""}</td>
+                  <td className={`${cell} text-right po-num`}>{l.rate ? (l.rate * (1 - (l.discountPct ?? 0) / 100)).toFixed(2) : ""}</td>
+                  <td className={`${cell} text-right po-num`}>{lineAmount(l).toFixed(2)}</td>
+                </tr>
+                ) : (
                 <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
                   <td className={`${cell} po-num`}>{sr}</td>
                   <td className={cell}>{l.brand}</td>
@@ -317,9 +363,19 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
                     </>
                   )}
                 </tr>
+                )
               ))}
             </Fragment>
           ))}
+          {/* Proforma: a TOTAL row under the hardware table (Qty and Amount), like the panel tables. */}
+          {!merged && po.material.proforma && (
+            <tr className={`font-semibold ${THEME.hardware.head}`}>
+              <td className={`${cell} text-right`} colSpan={7}>TOTAL</td>
+              <td className={`${cell} text-right po-num`}>{num(lines.reduce((t, l) => t + l.qty, 0))}</td>
+              <td className={cell} colSpan={3} />
+              <td className={`${cell} text-right po-num`}>{lines.reduce((t, l) => t + lineAmount(l), 0).toFixed(2)}</td>
+            </tr>
+          )}
         </tbody>
       </table>
     </section>
@@ -384,15 +440,16 @@ function LedgerTable({ po, vendors }: { po: PurchaseOrder; vendors?: Vendor[] })
 
 // Direct Purchase Order, Purchase Order PDF: Carcass lists each cabinet with its details (as on the cabinet card), not its components.
 const DIRECT_CABINET_HEADERS = ["Sr", "Cabinet Type", "Cabinet Name", "W", "D", "H", "Qty", "Design", "Remark", "Internal Brand & Colour", "External Brand & Colour", "Material"];
-const DIRECT_CABINET_HEADERS_PRICED = [...DIRECT_CABINET_HEADERS, "Sq.Ft", "Amount"];
+// Proforma Invoice order: Sr, Cabinet Type, Cabinet Name, Width, Depth, Height, Qty, Design, Remarks, Material, External, Internal, Sq.Ft, Rate, Amount.
+const DIRECT_CABINET_HEADERS_PRICED = ["Sr", "Cabinet Type", "Cabinet Name", "Width", "Depth", "Height", "Qty", "Design", "Remarks", "Material", "External Colour", "Internal Colour", "Sq.Ft", "Rate", "Amount"];
 function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder; title: string; vendor?: Vendor; vendors?: Vendor[] }) {
   const nos = Object.keys(po.material.cabinets ?? {}).map(Number).filter((n) => n > 0).sort((a, b) => a - b);
   if (nos.length === 0) return null;
   return (
     <section className="break-inside-auto">
       <Band group="carcass" title={title} count={nos.length} unit="cabinets" />
-      <table className="w-full border-collapse text-[10px]">
-        <thead><Header group="carcass" headers={po.material.proforma ? DIRECT_CABINET_HEADERS_PRICED : DIRECT_CABINET_HEADERS} /></thead>
+      <table className={`w-full border-collapse text-[10px] ${po.material.proforma ? "table-fixed" : ""}`}>
+        <thead><Header group="carcass" headers={po.material.proforma ? DIRECT_CABINET_HEADERS_PRICED : DIRECT_CABINET_HEADERS} fixed={!!po.material.proforma} /></thead>
         <tbody>
           {nos.map((no, i) => {
             const c = po.material.cabinets![String(no)];
@@ -413,6 +470,20 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
                 <td className={`${cell} text-right po-num`}>{num(c.qty)}</td>
                 <td className={`${cell} ${c.design ? RED_FILL : ""}`}><Nums>{c.design ?? ""}</Nums></td>
                 <td className={`${cell} ${c.remark ? "bg-error-200 text-error" : ""}`}><Nums>{c.remark ?? ""}</Nums></td>
+                {po.material.proforma ? (
+                  <>
+                <td className={cell}><Nums>{common("material")}</Nums></td>
+                <td
+                  className={cell}
+                  // An Additional External pick with a colour chosen highlights the cabinets that use it, as it does the rows.
+                  style={highlightFor(po, { group: "carcass", externalColour: common("externalColour") }) ? { backgroundColor: highlightFor(po, { group: "carcass", externalColour: common("externalColour") }), color: "#fff" } : undefined}
+                >
+                  <Nums>{common("externalColour")}</Nums>
+                </td>
+                <td className={cell} style={highlightInternal(po, { group: "carcass", internalColour: common("internalColour") }) ? { backgroundColor: highlightInternal(po, { group: "carcass", internalColour: common("internalColour") }), color: "#fff" } : undefined}><Nums>{common("internalColour")}</Nums></td>
+                  </>
+                ) : (
+                  <>
                 <td className={cell} style={highlightInternal(po, { group: "carcass", internalColour: common("internalColour") }) ? { backgroundColor: highlightInternal(po, { group: "carcass", internalColour: common("internalColour") }), color: "#fff" } : undefined}><Nums>{common("internalColour")}</Nums></td>
                 <td
                   className={cell}
@@ -422,9 +493,12 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
                   <Nums>{common("externalColour")}</Nums>
                 </td>
                 <td className={cell}><Nums>{common("material")}</Nums></td>
+                  </>
+                )}
                 {po.material.proforma && (
                   <>
                     <td className={`${cell} text-right po-num`}>{rows.reduce((t, l) => t + l.sqft, 0).toFixed(2)}</td>
+                    <td className={cell} />
                     <td className={`${cell} text-right po-num`}>{rows.reduce((t, l) => t + lineAmount(l), 0).toFixed(2)}</td>
                   </>
                 )}
@@ -441,16 +515,25 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
                     <td className={`${cell} text-right po-num`}>{num(l.qty)}</td>
                     <td className={`${cell} ${l.designType ? RED_FILL : ""}`}>{l.designType}</td>
                     <td className={`${cell} ${l.remarks ? "bg-error-200 text-error" : ""}`}><Nums>{l.remarks}</Nums></td>
-                    <td className={cell}><Nums>{l.internalColour}</Nums></td>
-                    <td className={cell}><Nums>{l.externalColour}</Nums></td>
                     <td className={cell}><Nums>{l.material}</Nums></td>
+                    <td className={cell}><Nums>{l.externalColour}</Nums></td>
+                    <td className={cell}><Nums>{l.internalColour}</Nums></td>
                     <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(2)}</td>
+                    <td className={`${cell} text-right po-num`}>{l.rate ? l.rate.toFixed(2) : ""}</td>
                     <td className={`${cell} text-right po-num`}>{lineAmount(l).toFixed(2)}</td>
                   </tr>
                 ))}
               </Fragment>
             );
           })}
+          {po.material.proforma && (
+            <tr className={`font-semibold ${THEME.carcass.head}`}>
+              <td className={`${cell} text-right`} colSpan={DIRECT_CABINET_HEADERS_PRICED.length - 3}>TOTAL</td>
+              <td className={`${cell} text-right po-num`}>{po.lines.filter((l) => l.group === "carcass").reduce((t, l) => t + l.sqft, 0).toFixed(2)}</td>
+              <td className={cell} />
+              <td className={`${cell} text-right po-num`}>{po.lines.filter((l) => l.group === "carcass").reduce((t, l) => t + lineAmount(l), 0).toFixed(2)}</td>
+            </tr>
+          )}
         </tbody>
       </table>
     </section>
@@ -469,7 +552,11 @@ function CabinetSummaryTable({ po, noComponentCabinets, vendor, vendors }: { po:
   return (
     <>
       {groupsFor("full").map((g) => {
-        if (g.key === "hardware") return null;
+        if (g.key === "hardware") {
+          // A Proforma Invoice With Components also lists its hardware (with prices), after the panel tables.
+          const hw = po.lines.filter((l) => l.group === "hardware");
+          return po.material.proforma && hw.length > 0 ? <HardwareTable key={g.key} title={`${g.code}. ${g.label}`} lines={hw} po={po} vendors={vendors} merged={false} /> : null;
+        }
         if (g.key === "carcass" && direct) return <DirectCabinetsTable key={g.key} po={po} title={`${g.code}. ${g.label}`} vendor={vendor} vendors={vendors} />;
         const src = g.key === "other-panel" ? poOther : g.key === "carcass" ? poCarcass : po;
         const lines = src.lines.filter((l) => l.group === g.key);
@@ -665,13 +752,79 @@ export function PurchaseOrderSheet({ po: poIn, vendor, vendors, customer, quoteN
         );
       })}
 
-      {/* Remarks */}
+      {/* Proforma Invoice With Components: amount summary with the GST split (CGST + SGST within the state, IGST outside it). */}
+      {po.material.proforma && part === "cabinets" && (() => {
+        const t = poTotals(po);
+        const inr = (n: number) => n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const rows: [string, string, boolean?][] = [
+          ["Sub Total", inr(t.amount)],
+          ...(po.discountPct ? ([[`Discount (${po.discountPct}%)`, `- ${inr(t.discount)}`]] as [string, string][]) : []),
+          ["Taxable Amount", inr(t.taxable)],
+          ...(po.gstMode === "intra" ? ([["CGST @ 9%", inr(t.centralGst)], ["SGST @ 9%", inr(t.stateGst)]] as [string, string][]) : ([["IGST @ 18%", inr(t.igst)]] as [string, string][])),
+          ...(po.roundOff ? ([["Round Off", inr(po.roundOff)]] as [string, string][]) : []),
+          ["Grand Total", inr(t.final), true],
+        ];
+        return (
+          <div className="flex items-start justify-between gap-4 break-inside-avoid">
+            {/* Additional Remarks sit in the free space left of the totals. */}
+            <div className="min-h-24 flex-1 rounded-lg border border-grey-100 p-3">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-grey-500">Additional Remarks</p>
+              <p className="whitespace-pre-wrap">{po.remarks || "—"}</p>
+            </div>
+            <div className="flex shrink-0 items-start gap-4">
+            <table className="w-96 border-collapse text-[11px]">
+              <thead>
+                <tr>
+                  <th className="border border-grey-200 bg-light-600 px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-grey-700">Productwise Total</th>
+                  <th className="border border-grey-200 bg-light-600 px-2 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wider text-grey-700">Sq.Ft</th>
+                  <th className="border border-grey-200 bg-light-600 px-2 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wider text-grey-700">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {PO_GROUPS.map((g) => {
+                  const gl = po.lines.filter((l) => l.group === g.key);
+                  return (
+                    <tr key={g.key}>
+                      <td className="border border-grey-200 px-2 py-1">{g.code}. {g.label}</td>
+                      <td className="border border-grey-200 px-2 py-1 text-right po-num">{g.key === "hardware" ? "-" : inr(gl.reduce((n, l) => n + l.sqft, 0))}</td>
+                      <td className="border border-grey-200 px-2 py-1 text-right po-num">{inr(gl.reduce((n, l) => n + lineAmount(l), 0))}</td>
+                    </tr>
+                  );
+                })}
+                <tr className="bg-light-600 font-bold">
+                  <td className="border border-grey-200 px-2 py-1">Grand Total</td>
+                  <td className="border border-grey-200 px-2 py-1 text-right po-num">{inr(po.lines.reduce((n, l) => n + (l.group === "hardware" ? 0 : l.sqft), 0))}</td>
+                  <td className="border border-grey-200 px-2 py-1 text-right po-num">{inr(t.amount)}</td>
+                </tr>
+              </tbody>
+            </table>
+            <table className="w-80 border-collapse text-[11px]">
+              <thead>
+                <tr><th colSpan={2} className="border border-grey-200 bg-light-600 px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-grey-700">Amount Summary</th></tr>
+              </thead>
+              <tbody>
+                {rows.map(([label, value, strong]) => (
+                  <tr key={label} className={strong ? "font-bold" : ""}>
+                    <td className={`border border-grey-200 px-2 py-1 ${strong ? "bg-light-600" : ""}`}>{label}</td>
+                    <td className={`border border-grey-200 px-2 py-1 text-right po-num ${strong ? "bg-light-600" : ""}`}>{strong ? "\u20B9 " : ""}{value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Remarks (the Proforma Invoice With Components shows them beside its totals instead) */}
+      {!(po.material.proforma && part === "cabinets") && (
       <div className="flex items-start justify-between gap-6 break-inside-avoid">
         <div className="flex-1 rounded-lg border border-grey-100 p-3">
           <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-grey-500">Additional Remarks</p>
           <p className="whitespace-pre-wrap">{po.remarks || "—"}</p>
         </div>
       </div>
+      )}
 
       {/* Purchase Template: notes, terms, payment terms and bank details, one under the other (Purchase Order PDFs only, not the Material Slips) */}
       {template && !partial && !cutList && part !== "ledger" && (

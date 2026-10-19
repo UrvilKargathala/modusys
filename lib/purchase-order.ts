@@ -189,6 +189,8 @@ export type PoMaterial = {
   finishColors?: { shutter?: Record<string, string>; cabinet?: Record<string, string> };
   // Proforma Invoice: one entry per status change (date and a note typed in the change popup).
   statusLog?: { status: string; date: string; note: string; amount?: number; advance?: number; balance?: number }[];
+  // Proforma Production page: per cut-list row, one entry per piece (Qty) ticked as produced, with its own note (same shape as packing, no boxes).
+  production?: Record<string, { pieces: { done: boolean; note: string }[] }>;
   // Proforma Packing page, Transport Details: one entry per transport (name from the Proforma Library list), its LR number and box count.
   transport?: { name: string; lr: string; date?: string; boxes: number }[];
   // Proforma Packing page: per cut-list row, one entry per piece (Qty): ticked as packed or not, with its own note.
