@@ -106,10 +106,23 @@ export function cleanMaterial(m: unknown) {
       advance: num(e?.advance),
       balance: num(e?.balance),
     })),
+    transport: (Array.isArray(o.transport) ? (o.transport as Record<string, unknown>[]) : []).slice(0, 50).map((t) => ({
+      name: str(t?.name).slice(0, 120),
+      lr: str(t?.lr).slice(0, 80),
+      date: str(t?.date).slice(0, 10),
+      boxes: Math.max(0, Math.min(99999, Math.round(num(t?.boxes)))),
+    })),
     packing: Object.fromEntries(
       Object.entries((o.packing ?? {}) as Record<string, Record<string, unknown>>)
         .filter(([k]) => k)
-        .map(([k, v]) => [str(k).slice(0, 200), { packed: Math.max(0, Math.min(99999, num(v?.packed))), note: str(v?.note).slice(0, 300) }] as const)
+        .map(([k, v]) => [
+          str(k).slice(0, 200),
+          {
+            pieces: (Array.isArray(v?.pieces) ? (v.pieces as Record<string, unknown>[]) : [])
+              .slice(0, 500)
+              .map((x) => ({ done: x?.done === true, note: str(x?.note).slice(0, 300), ...(x?.done === true && num(x?.seq) > 0 ? { seq: Math.min(99999, Math.round(num(x?.seq))), tr: Math.max(0, Math.min(99, Math.round(num(x?.tr)))) } : {}) })),
+          },
+        ] as const)
     ),
     additionalColors: (() => {
       const raw = (o.additionalColors ?? {}) as Record<string, unknown>;

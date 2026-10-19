@@ -2,7 +2,7 @@ import { hardwareKey } from "@/components/purchase-orders/po-hardware-tab";
 import type { Customer } from "@/lib/mock/pipeline";
 import { Fragment } from "react";
 import type { QuoteTemplateSettings } from "@/lib/mock/quote-template";
-import { LEDGER_HEADERS, ledgerItems, cutListHeaders, HW_HEADERS, cabinetTitle, PANEL_HEADERS, cutListRows, byCabinet, carcassHeadingCells, groupsFor, poDetailSections, type PoExportPart } from "@/lib/purchase-order-export";
+import { LEDGER_HEADERS, ledgerItems, cutListHeaders, HW_HEADERS, cabinetTitle, PANEL_HEADERS, cutListRows, byCabinet, carcassHeadingCells, groupsFor, poDetailSections, psLabel, type PoExportPart } from "@/lib/purchase-order-export";
 import { COMPANY_GST, brandVendorName, highlightFor, highlightInternal, lineAmount, sortOtherPanel, mostUsed, type PoGroup, type PurchaseOrder, type PurchaseOrderLine, type Vendor } from "@/lib/purchase-order";
 
 type Branding = { companyName: string; address: string; email: string; phone: string; logoDataUrl?: string | null };
@@ -125,7 +125,24 @@ function CabinetRow({ group, cols, children }: { group: PoGroup; cols: number; c
 }
 
 // Panel cabinet heading (Carcass, Shutter, Other Panel): the cabinet's own values sit under the matching columns.
-function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<typeof byCabinet>[number]; group: PoGroup }) {
+// Packing Slip (proforma): the Packing page's state for one component row: a drawn box per piece; a ticked one shows a tick and its box number.
+function PackingMarks({ po, sr, l, mode, tr }: { po: PurchaseOrder; sr: string; l: PurchaseOrderLine; mode?: "pending" | "completed"; tr?: number }) {
+  const pieces = po.material.packing?.[`${sr}|${l.description}|${l.width}x${l.height}`]?.pieces ?? [];
+  // Pending / Completed PDFs: the row's qty is already the number of unticked / ticked pieces, so draw exactly those.
+  const list = mode === "completed" ? pieces.filter((p) => p.done && (tr === undefined || (p.tr ?? 0) === tr)) : mode === "pending" ? Array.from({ length: Math.max(0, Math.round(l.qty)) }, () => undefined) : Array.from({ length: Math.max(0, Math.round(l.qty)) }, (_, k) => pieces[k]);
+  return (
+    <span className="flex items-center gap-2">
+      {list.map((p, k) => (
+        <span key={k} className="flex items-center gap-1">
+          <span className="flex h-4 w-4 items-center justify-center border border-grey-700 bg-white text-[12px] font-bold leading-none text-grey-900">{p?.done ? "\u2713" : ""}</span>
+          {p?.done && p.seq ? <span className="text-[11px] font-semibold po-num">{p.seq}</span> : null}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function CarcassHeadingRow({ po, c, group, priced = !!po.material.proforma, slip = false }: { po: PurchaseOrder; c: ReturnType<typeof byCabinet>[number]; group: PoGroup; priced?: boolean; slip?: boolean }) {
   const h = carcassHeadingCells(po, c);
   const t = `${cell} ${THEME[group].tint} font-semibold text-grey-900`;
   return (
@@ -136,18 +153,19 @@ function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<
       <td className={`${t} text-right po-num`}>{num(h.depth)}</td>
       <td className={`${t} text-right po-num`}>{num(h.height)}</td>
       <td className={`${t} text-right po-num`}>{num(h.qty)}</td>
-      {!po.material.proforma && <td className={`${t} text-right po-num`}>{h.sqft.toFixed(2)}</td>}
+      {!priced && <td className={`${t} text-right po-num`}>{h.sqft.toFixed(2)}</td>}
       <td className={t}><Nums>{h.material}</Nums></td>
       <td className={t}><Nums>{h.internal}</Nums></td>
       <td className={t} style={highlightFor(po, { group, externalColour: h.external }) ? { backgroundColor: highlightFor(po, { group, externalColour: h.external }), color: "#fff" } : undefined}><Nums>{h.external}</Nums></td>
       <td className={`${t} ${h.remark ? "!bg-error-200 !text-error" : ""}`}>{h.remark}</td>
-      {po.material.proforma && (
+      {priced && (
         <>
           <td className={`${t} text-right po-num`}>{h.sqft.toFixed(2)}</td>
           <td className={t} />
           <td className={`${t} text-right po-num`}>{h.amount.toFixed(2)}</td>
         </>
       )}
+      {slip && <td className={t} />}
     </tr>
   );
 }
@@ -155,13 +173,14 @@ function CarcassHeadingRow({ po, c, group }: { po: PurchaseOrder; c: ReturnType<
 // plain = no cabinet heading rows (used in the Purchase Order (cabinet) PDF); the TOTAL row (qty, sq.ft) stays. Sr stays cabinet.row (1.1, 2.3) as in Full Details.
 // hideRows = cabinets (Carcass only) whose unit type is unticked: only the cabinet title row shows, no component rows, and
 // they are not counted in the TOTAL.
-function PanelTable({ group, title, lines, po, plain = false, hideRows }: { group: PoGroup; title: string; lines: PurchaseOrderLine[]; po: PurchaseOrder; plain?: boolean; hideRows?: Set<number> }) {
+function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = false, slipMode, srOf, slipTr }: { group: PoGroup; title: string; lines: PurchaseOrderLine[]; po: PurchaseOrder; plain?: boolean; hideRows?: Set<number>; slip?: boolean; slipMode?: "pending" | "completed"; srOf?: Map<string, string>; slipTr?: number }) {
   const hidden = (srNo: number) => group === "carcass" && !!hideRows?.has(srNo);
   const shown = lines.filter((l) => !hidden(l.srNo));
   const qty = shown.reduce((s, l) => s + l.qty, 0);
   const sqft = shown.reduce((s, l) => s + l.sqft, 0);
   // A Proforma Invoice shows prices: a Rate and an Amount on every row and the amount in the total.
-  const money = !!po.material.proforma;
+  // The Packing Slip (proforma Components PDF) has no prices: no Rate or Amount, and a Packing Box column instead.
+  const money = !!po.material.proforma && !slip;
   const amount = shown.reduce((s, l) => s + lineAmount(l), 0);
   // Direct Purchase Order: Shutter and Other Panel rows have no cabinet, so no cabinet heading and Sr runs 1, 2, 3.
   const flat = !!po.material.direct && (group === "shutter" || group === "other-panel");
@@ -176,14 +195,14 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows }: { grou
     <section className="break-inside-auto">
       <Band group={group} title={title} count={shown.length} />
       <table className="w-full border-collapse text-[10px]">
-        <thead><Header group={group} headers={money ? PANEL_HEADERS_PRICED : noPrice(PANEL_HEADERS)} /></thead>
+        <thead><Header group={group} headers={money ? PANEL_HEADERS_PRICED : slip ? [...noPrice(PANEL_HEADERS), "Packing Box"] : noPrice(PANEL_HEADERS)} /></thead>
         <tbody>
           {sections.map((c) => (
             <Fragment key={c.srNo}>
-              {!flat && !sorted && (!plain || hidden(c.srNo)) && <CarcassHeadingRow po={po} c={c as ReturnType<typeof byCabinet>[number]} group={group} />}
+              {!flat && !sorted && (!plain || hidden(c.srNo)) && <CarcassHeadingRow po={po} c={c as ReturnType<typeof byCabinet>[number]} group={group} priced={money} slip={slip} />}
               {(hidden(c.srNo) ? [] : c.rows).map(({ l, sr }, i) => (
                 <tr key={l.id} className={i % 2 ? "bg-light-600" : ""}>
-                  <td className={`${cell} po-num`}>{sr}</td>
+                  <td className={`${cell} po-num`}>{slipMode ? srOf?.get(l.id) ?? sr : sr}</td>
                   <td className={cell}><Nums>{l.description}</Nums></td>
                   <td className={`${cell} ${l.designType ? RED_FILL : ""}`}>{l.designType}</td>
                   <td className={`${cell} text-right po-num`}>{num(l.width)}</td>
@@ -195,6 +214,7 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows }: { grou
                   <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#fff" } : undefined}><Nums>{l.internalColour}</Nums></td>
                   <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#fff" } : undefined}><Nums>{l.externalColour}</Nums></td>
                   <td className={`${cell} ${l.remarks ? "bg-error-200 text-error" : ""}`}><Nums>{l.remarks}</Nums></td>
+                  {slip && <td className={`${cell} whitespace-nowrap`}><PackingMarks po={po} sr={srOf?.get(l.id) ?? sr} l={l} mode={slipMode} tr={slipTr} /></td>}
                   {money && (
                     <>
                       <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(2)}</td>
@@ -211,6 +231,7 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows }: { grou
             <td className={`${cell} text-right po-num`}>{num(qty)}</td>
             {!money && <td className={`${cell} text-right po-num`}>{sqft.toFixed(2)}</td>}
             <td className={cell} colSpan={4} />
+            {slip && <td className={cell} />}
             {money && (
               <>
                 <td className={`${cell} text-right po-num`}>{sqft.toFixed(2)}</td>
@@ -305,7 +326,7 @@ function HardwareTable({ title, lines, po, vendors = [], merged = false }: { tit
   );
 }
 
-const PART_LABEL: Record<PoExportPart, string> = { full: "Unit Wise All Details", components: "Components", hardware: "Hardware", cabinets: "Cabinets", cutlist: "Cut List", ledger: "Hardware Product Ledger" };
+const PART_LABEL: Record<PoExportPart, string> = { full: "Unit Wise All Details", components: "Components", hardware: "Hardware", cabinets: "Cabinets", cutlist: "Cut List", ledger: "Hardware Product Ledger", "packing-pending": "Pending", "packing-completed": "Completed", "packing-transport": "Transport" };
 
 // Hardware Product Ledger: each hardware item with its stock, every delivery received and the balance.
 function LedgerTable({ po, vendors }: { po: PurchaseOrder; vendors?: Vendor[] }) {
@@ -459,10 +480,35 @@ function CabinetSummaryTable({ po, noComponentCabinets, vendor, vendors }: { po:
   );
 }
 
+// The lines of a proforma kept for one Packing Slip split: each row keeps only its unticked (pending) or ticked (completed) pieces,
+// with Qty and Sq.Ft scaled to that count; rows with none are dropped.
+// Each line's Sr as in the cut list (1.1, 2.3, 0.1 ...), which is the key the Packing page saves its ticks under.
+function originalSr(po: PurchaseOrder): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const g of groupsFor("full")) for (const c of byCabinet(po, g.key)) for (const r of c.rows) m.set(r.l.id, r.sr);
+  return m;
+}
+
+function packingView(po: PurchaseOrder, mode: "pending" | "completed", srOf: Map<string, string>, tr?: number): PurchaseOrder {
+  const lines = po.lines.flatMap((l) => {
+    const pieces = po.material.packing?.[`${srOf.get(l.id) ?? ""}|${l.description}|${l.width}x${l.height}`]?.pieces ?? [];
+    const qty = Math.max(0, Math.round(l.qty));
+    const done = Array.from({ length: qty }, (_, k) => !!pieces[k]?.done && (tr === undefined || (pieces[k].tr ?? 0) === tr)).filter(Boolean).length;
+    const n = mode === "completed" ? done : qty - done;
+    return n > 0 ? [{ ...l, qty: n, sqft: qty ? (l.sqft * n) / qty : l.sqft }] : [];
+  });
+  return { ...po, lines };
+}
+
 // Printable PO (A4 landscape): letterhead, detail cards, one colour-coded section per group, signature. No prices anywhere.
-export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber, branding, part = "full", template, noComponentCabinets = new Set<number>() }: { template?: QuoteTemplateSettings; noComponentCabinets?: Set<number>; po: PurchaseOrder; vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: Branding; part?: PoExportPart; vendors?: Vendor[] }) {
+export function PurchaseOrderSheet({ po: poIn, vendor, vendors, customer, quoteNumber, branding, part = "full", template, transportIndex = 0, noComponentCabinets = new Set<number>() }: { transportIndex?: number; template?: QuoteTemplateSettings; noComponentCabinets?: Set<number>; po: PurchaseOrder; vendor?: Vendor; customer?: Customer; quoteNumber?: string; branding: Branding; part?: PoExportPart; vendors?: Vendor[] }) {
+  // Packing Slip - Pending / Completed: the proforma's lines reduced to the pieces not yet / already ticked on the Packing page.
+  const slipMode = part === "packing-pending" ? "pending" : part === "packing-completed" || part === "packing-transport" ? "completed" : undefined;
+  const slipTr = part === "packing-transport" ? transportIndex : undefined;
+  const srOf = originalSr(poIn);
+  const po = slipMode ? packingView(poIn, slipMode, srOf, slipTr) : poIn;
   const groups = groupsFor(part).filter((g) => po.lines.some((l) => l.group === g.key));
-  const partial = part === "components" || part === "hardware";
+  const partial = part === "components" || part === "hardware" || !!slipMode;
   const details = poDetailSections(po, { vendor, customer, quoteNumber, branding });
   const card = (title: string) => {
     const sec = details.find((d) => d.title === title);
@@ -554,9 +600,9 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
         </div>
         <div className="flex items-center gap-3 whitespace-nowrap rounded-xl bg-primary px-5 py-2 text-white">
           <span className="text-base font-bold uppercase tracking-wider">
-            {part === "ledger" ? "Hardware Product Ledger" : part === "components" || part === "hardware" ? "Material Slip" : po.material.proforma ? "Proforma Invoice" : "Purchase Order"}
+            {part === "ledger" ? "Hardware Product Ledger" : po.material.proforma && (part === "components" || slipMode) ? "Packing Slip" : part === "components" || part === "hardware" ? "Material Slip" : po.material.proforma ? "Proforma Invoice" : "Purchase Order"}
           </span>
-          {part !== "cabinets" && part !== "ledger" && <span className="text-[11px] opacity-90">· {PART_LABEL[part]}</span>}
+          {part !== "cabinets" && part !== "ledger" && !(po.material.proforma && part === "components") && <span className="text-[11px] opacity-90">· {part === "packing-transport" ? psLabel(po.poNumber, transportIndex) : PART_LABEL[part]}</span>}
           <span className="text-[13px] font-semibold">· <Nums>{po.poNumber || "Number not set"}</Nums></span>
         </div>
       </div>
@@ -576,6 +622,8 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
       ) : partial ? (
         // Material Slip (Components only / Hardware only): just the customer card, with Mobile and Address.
         <div className="grid grid-cols-3 gap-3">
+          {/* Proforma Packing Slips (Packing Slip, Pending, Completed, per transport): the dealer card. */}
+          {po.material.proforma && (part === "components" || !!slipMode) && card("Dealer Details")}
           {details.filter((sec) => sec.title === "Customer Details").map((sec) => (
             <Info key={sec.title} title={sec.title} rows={sec.rows} />
           ))}
@@ -613,7 +661,7 @@ export function PurchaseOrderSheet({ po, vendor, vendors, customer, quoteNumber,
         return g.key === "hardware" ? (
           <HardwareTable key={g.key} title={title} lines={lines} po={po} vendors={vendors} merged={part === "hardware"} />
         ) : (
-          <PanelTable key={g.key} group={g.key} title={title} lines={lines} po={po} hideRows={noComponentCabinets} />
+          <PanelTable key={g.key} group={g.key} title={title} lines={lines} po={po} hideRows={noComponentCabinets} slip={!!po.material.proforma && (part === "components" || !!slipMode)} slipMode={slipMode} srOf={srOf} slipTr={slipTr} />
         );
       })}
 

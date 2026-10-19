@@ -28,7 +28,7 @@ export const docBase = (po: PurchaseOrder) => {
   const n = po.poNumber || "draft";
   return n.startsWith(`${prefix}-`) ? n : `${prefix}-${n}`;
 };
-export const partLabel = (label: string, proforma: boolean) => (proforma ? label.replace("Purchase Order", "Proforma Invoice") : label);
+export const partLabel = (label: string, proforma: boolean) => (proforma ? (label === "Purchase Order With Components" ? "Packing Slip" : label.replace("Purchase Order", "Proforma Invoice")) : label);
 
 export function poDetailSections(po: PurchaseOrder, ctx: PoExportContext): { title: string; rows: [string, string][] }[] {
   const base = poDetailSectionsBase(po, ctx);
@@ -84,7 +84,8 @@ function poDetailSectionsBase(po: PurchaseOrder, { vendor, customer, quoteNumber
 // What a download covers: the full PO, only the panel components (carcass, shutter, other panel), or only hardware.
 // "cabinets" = the Purchase Order sheet: one row per cabinet (size, design, finishes), no component rows. PDF only.
 // "cutlist" = Excel only: one Cut List sheet of every panel component (sizes + finishes, no prices, no Details sheet).
-export type PoExportPart = "full" | "components" | "hardware" | "cabinets" | "cutlist" | "ledger";
+// "packing-pending" / "packing-completed" = the proforma Packing Slip split by the Packing page ticks. PDF only.
+export type PoExportPart = "full" | "components" | "hardware" | "cabinets" | "cutlist" | "ledger" | "packing-pending" | "packing-completed" | "packing-transport";
 export const PO_EXPORT_PARTS: { key: PoExportPart; label: string }[] = [
   { key: "full", label: "Unit Wise All Details" },
   { key: "components", label: "Components only" },
@@ -97,6 +98,16 @@ export const PO_PDF_PARTS: { key: PoExportPart; label: string }[] = [
   { key: "hardware", label: "Material Requirement Slip (Hardware only)" },
   { key: "cabinets", label: "Purchase Order" },
   { key: "ledger", label: "Hardware Product Ledger" },
+];
+// Packing slip number of Transport row i: the PI number with PS in front, then (A), (B), (C) ... (PI-171026-KT-01 -> PS-171026-KT-01(A)).
+export const psLabel = (poNumber: string, i: number): string => {
+  const letters = (n: number): string => (n < 26 ? String.fromCharCode(65 + n) : letters(Math.floor(n / 26) - 1) + String.fromCharCode(65 + (n % 26)));
+  return `${poNumber.replace(/^PI-/, "PS-")}(${letters(i)})`;
+};
+// The two extra Packing Slip PDFs, listed after "Packing Slip" in the Proforma Invoice download menu.
+export const PACKING_PDF_PARTS: { key: PoExportPart; label: string }[] = [
+  { key: "packing-pending", label: "Packing Slip - Pending" },
+  { key: "packing-completed", label: "Packing Slip - Completed" },
 ];
 export const groupsFor = (part: PoExportPart) =>
   PO_GROUPS.filter((g) => part !== "cabinets" && part !== "ledger").filter((g) => part === "full" || (part === "hardware" ? g.key === "hardware" : g.key !== "hardware"));

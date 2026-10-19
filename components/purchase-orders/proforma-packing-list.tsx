@@ -1,24 +1,22 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { PackageCheck, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { PoRowActions } from "@/components/purchase-orders/po-row-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { asPoStatus, poStatusLabel } from "@/lib/purchase-order";
 import { cutListRows } from "@/lib/purchase-order-export";
 import { formatPoDate } from "@/components/purchase-orders/po-dates";
 
-// The Packing tab: every Proforma Invoice with how much of it is packed; "Open" goes to its packing page.
+// The Packing tab: the Proforma Invoices whose status is Packing, with how much of each is packed; "Open" goes to its packing page.
 export function ProformaPackingList() {
-  const router = useRouter();
   const orders = usePurchaseOrders();
   const [search, setSearch] = useState("");
   const rows = useMemo(() => {
     const q = search.toLowerCase();
     return orders
-      .filter((o) => o.material.proforma && `${o.poNumber} ${o.vendorName}`.toLowerCase().includes(q))
+      .filter((o) => o.material.proforma && asPoStatus(o.status).toLowerCase() === "packing" && `${o.poNumber} ${o.vendorName}`.toLowerCase().includes(q))
       .map((po) => {
         const packing = po.material.packing ?? {};
         const seen = new Map<string, number>();
@@ -31,7 +29,7 @@ export function ProformaPackingList() {
           seen.set(base, n + 1);
           const qty = Math.max(0, Number(r[8]) || 0);
           total += qty;
-          packed += Math.min(packing[n ? `${base}#${n}` : base]?.packed ?? 0, qty);
+          packed += (packing[n ? `${base}#${n}` : base]?.pieces ?? []).slice(0, qty).filter((x) => x.done).length;
         }
         return { po, total, packed };
       });
@@ -44,7 +42,7 @@ export function ProformaPackingList() {
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search PI no, dealer" className="h-9 w-full rounded-lg border border-grey-100 bg-card pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary" />
       </div>
       {rows.length === 0 ? (
-        <EmptyState icon={PackageCheck} message="No proforma invoices to pack yet." />
+        <EmptyState icon={PackageCheck} message="No proforma invoices in Packing. Change an invoice's status to Packing and it appears here." />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-grey-100 bg-card">
           <table className="w-full text-left text-sm font-body">
@@ -54,8 +52,8 @@ export function ProformaPackingList() {
                 <th className="px-4 py-2 font-medium">PI Date</th>
                 <th className="px-4 py-2 font-medium">Dealer</th>
                 <th className="px-4 py-2 font-medium">Status</th>
-                <th className="px-4 py-2 font-medium">Packed</th>
-                <th className="px-4 py-2" />
+                <th className="w-[35%] px-4 py-2 font-medium">Packed</th>
+                <th className="px-4 py-2 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -67,14 +65,14 @@ export function ProformaPackingList() {
                   <td className="px-4 py-2">{poStatusLabel(asPoStatus(po.status))}</td>
                   <td className="px-4 py-2">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-32 overflow-hidden rounded-full bg-grey-100">
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-grey-100">
                         <div className="h-full rounded-full bg-success" style={{ width: `${total ? Math.round((packed / total) * 100) : 0}%` }} />
                       </div>
                       <span className="font-number text-xs text-grey-700">{packed} / {total}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-2 text-right">
-                    <Button size="sm" variant="outline" onClick={() => router.push(`/proforma-invoices/packing/${po.id}`)}>Open</Button>
+                  <td className="px-4 py-2">
+                    <PoRowActions po={po} proforma base="/proforma-invoices" viewHref={`/proforma-invoices/packing/${po.id}`} />
                   </td>
                 </tr>
               ))}

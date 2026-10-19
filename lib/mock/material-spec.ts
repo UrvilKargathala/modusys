@@ -39,7 +39,8 @@ export type MaterialCategoryKey =
   | "proforma-order-status"
   | "proforma-dealer-category"
   | "proforma-dealer-area"
-  | "proforma-sales-person";
+  | "proforma-sales-person"
+  | "proforma-transport";
 
 export type MaterialCategory = {
   key: MaterialCategoryKey;
@@ -99,6 +100,7 @@ export const materialCategories: MaterialCategory[] = [
   { key: "proforma-dealer-category", group: "proforma-library", label: "Dealer Category", noDescription: true },
   { key: "proforma-dealer-area", group: "proforma-library", label: "Dealer Area", noDescription: true },
   { key: "proforma-sales-person", group: "proforma-library", label: "Dealer Sales Person", noDescription: true },
+  { key: "proforma-transport", group: "proforma-library", label: "Transport Details", noDescription: true },
 ];
 
 export function getMaterialCategory(key: MaterialCategoryKey) {

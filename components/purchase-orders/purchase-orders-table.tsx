@@ -2,20 +2,17 @@
 
 import { statusConfig, type StatusKey } from "@/lib/status";
 import { downloadOrderTracker } from "@/lib/order-tracker-export";
+import { PoRowActions } from "@/components/purchase-orders/po-row-actions";
 import { StatusMenu } from "@/components/shared/status-menu";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ShoppingCart, Eye, PackageCheck, Plus, Trash2, Copy, Download, FileText, FileSpreadsheet } from "lucide-react";
+import { Search, ShoppingCart, Plus, Trash2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { PO_EXCEL_PARTS, PO_PDF_PARTS, partLabel } from "@/lib/purchase-order-export";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { toastStore } from "@/lib/store/toast-store";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { useCustomers } from "@/lib/store/customers-store";
@@ -57,18 +54,6 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   const customers = useCustomers();
   const quotes = useQuotes();
   const [search, setSearch] = useState("");
-  // Copy = a new Pending PO with the same vendor, material and rows; the PO number is left blank to type.
-  const copyPo = async (po: PurchaseOrder) => {
-    const { id: _id, createdAt: _c, vendorName: _v, status: _s, lines, ...rest } = po;
-    try {
-      const created = await purchaseOrdersStore.create({ ...rest, poNumber: "", lines: lines.map(({ id: _l, ...l }) => l) });
-      toastStore.show("Purchase order copied", "success");
-      router.push(`${base}/${created.id}`);
-    } catch (e) {
-      toastStore.show(e instanceof Error ? e.message : "Could not copy", "error");
-    }
-  };
-  const [toDelete, setToDelete] = useState<PurchaseOrder | null>(null);
   // The status tab you last opened comes back when you return from a PO (Cancel / Back / Save). Kept for this browser tab only.
   const tabKey = `po-status-tab-${proforma ? "proforma" : direct ? "direct" : "po"}`;
   const [statusPick, setStatusState] = useState<PoStatus>("pending");
@@ -136,8 +121,8 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
     const ok = await changeStatus(po, status, status === "in-production" ? changeRequired : undefined, status === "in-production"
       ? [{ status, date: changeDate, note: changeNote.trim() }, ...extraRows.filter((r) => r.date || r.note.trim()).map((r) => ({ status, date: r.date || changeDate, note: r.note.trim() }))]
       : [{ status, date: changeDate, note: changeNote.trim(), amount: changeAmount, advance: Number(changeAdvance) || 0, balance: changeBalance }]);
-    // Packing opens its own page.
-    if (ok && status === "packing") router.push(`/proforma-invoices/packing/${po.id}`);
+    // An invoice moved to Packing now shows in the Packing tab.
+    if (ok && status.toLowerCase() === "packing") router.push("/proforma-invoices/packing");
   };
   const changeStatus = async (po: PurchaseOrder, status: PoStatus, requiredDate?: string, logs?: { status: string; date: string; note: string; amount?: number; advance?: number; balance?: number }[]) => {
     if (status === "delivered" && !direct) {
@@ -180,7 +165,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2" role="tablist" aria-label="Purchase order status">
           {/* Proforma: Packing has its own tab on the page, so no Packing pill here (its invoices still show under All Invoices). */}
-          {(proforma ? ["all", ...statuses.filter((st) => st !== "packing")] : statuses).map((st) => (
+          {(proforma ? ["all", ...statuses.filter((st) => st.toLowerCase() !== "packing")] : statuses).map((st) => (
             <button
               key={st}
               type="button"
@@ -267,80 +252,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                     />
                   </td>
                   <td className="px-4 py-1.5">
-                    <div className="flex items-center justify-end">
-                      <Tooltip>
-                        <TooltipTrigger
-                          aria-label="View"
-                          onClick={() => router.push(`${base}/${po.id}`)}
-                          className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </TooltipTrigger>
-                        <TooltipContent>View</TooltipContent>
-                      </Tooltip>
-                      {proforma && (
-                        <Tooltip>
-                          <TooltipTrigger
-                            aria-label="Packing"
-                            onClick={() => router.push(`/proforma-invoices/packing/${po.id}`)}
-                            className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
-                          >
-                            <PackageCheck className="h-4 w-4" />
-                          </TooltipTrigger>
-                          <TooltipContent>Packing</TooltipContent>
-                        </Tooltip>
-                      )}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          aria-label="Download"
-                          title="Download"
-                          className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
-                        >
-                          <Download className="h-4 w-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-max min-w-72">
-                          <DropdownMenuGroup>
-                          <DropdownMenuLabel>PDF</DropdownMenuLabel>
-                          {(proforma ? [...PO_PDF_PARTS.filter((p) => p.key !== "full" && p.key !== "ledger"), { key: "cutlist" as const, label: "Cut List" }] : PO_PDF_PARTS).map((p) => (
-                            <DropdownMenuItem key={`pdf-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf${p.key === "full" ? "" : `?part=${p.key}`}`, "_blank")}>
-                              <FileText className="h-4 w-4 text-grey-400" />
-                              {partLabel(p.label, proforma)}
-                            </DropdownMenuItem>
-                          ))}
-                          </DropdownMenuGroup>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuGroup>
-                          <DropdownMenuLabel>Excel</DropdownMenuLabel>
-                          {PO_EXCEL_PARTS.filter((p) => !proforma || p.key !== "full" && p.key !== "ledger").map((p) => (
-                            <DropdownMenuItem key={`xls-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?format=excel${p.key === "full" ? "" : `&part=${p.key}`}`, "_blank")}>
-                              <FileSpreadsheet className="h-4 w-4 text-grey-400" />
-                              {partLabel(p.label, proforma)}
-                            </DropdownMenuItem>
-                          ))}
-                          </DropdownMenuGroup>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <Tooltip>
-                        <TooltipTrigger
-                          aria-label="Copy"
-                          onClick={() => copyPo(po)}
-                          className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </TooltipTrigger>
-                        <TooltipContent>Copy</TooltipContent>
-                      </Tooltip>
-                      <Tooltip>
-                        <TooltipTrigger
-                          aria-label="Delete"
-                          onClick={() => setToDelete(po)}
-                          className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </TooltipTrigger>
-                        <TooltipContent>Delete</TooltipContent>
-                      </Tooltip>
-                    </div>
+                    <PoRowActions po={po} proforma={proforma} base={base} showPacking />
                   </td>
                 </tr>
               ))}
@@ -412,23 +324,6 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           </div>
         </DialogContent>
       </Dialog>
-
-      <ConfirmDialog
-        open={!!toDelete}
-        onOpenChange={(o) => !o && setToDelete(null)}
-        title={`Delete PO ${toDelete?.poNumber || "(no number)"}?`}
-        description="This removes the purchase order and its lines. The quote it came from is not affected."
-        onConfirm={async () => {
-          if (!toDelete) return;
-          try {
-            await purchaseOrdersStore.remove(toDelete.id);
-            toastStore.show("Purchase order deleted", "success");
-          } catch (e) {
-            toastStore.show(e instanceof Error ? e.message : "Could not delete", "error");
-          }
-          setToDelete(null);
-        }}
-      />
 
       <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
     </div>

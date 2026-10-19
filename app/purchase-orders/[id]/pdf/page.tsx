@@ -19,7 +19,8 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
   const { id } = use(params);
   const q = useSearchParams().get("part");
   const excel = useSearchParams().get("format") === "excel";
-  const part: PoExportPart = q === "components" || q === "hardware" || q === "cabinets" || q === "cutlist" || q === "ledger" ? q : "full";
+  const part: PoExportPart = q === "components" || q === "hardware" || q === "cabinets" || q === "cutlist" || q === "ledger" || q === "packing-pending" || q === "packing-completed" || q === "packing-transport" ? q : "full";
+  const transportIndex = Number(useSearchParams().get("tr")) || 0;
   const orders = usePurchaseOrders();
   const vendors = useAllVendors();
   const settings = usePurchaseTemplateSettings();
@@ -84,7 +85,7 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
         )}
       </div>
       <div className="po-sheet mx-auto max-w-[1400px]">
-        <PurchaseOrderSheet po={po} vendor={vendor} vendors={vendors} customer={customer} quoteNumber={quoteNumber} branding={settings.branding} template={settings} part={part} noComponentCabinets={noComponentCabinets} />
+        <PurchaseOrderSheet po={po} vendor={vendor} vendors={vendors} customer={customer} quoteNumber={quoteNumber} branding={settings.branding} template={settings} part={part} transportIndex={transportIndex} noComponentCabinets={noComponentCabinets} />
       </div>
     </div>
   );

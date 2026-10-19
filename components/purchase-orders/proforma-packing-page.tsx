@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCheck, ChevronDown, ChevronRight, Save, X } from "lucide-react";
+import { ArrowLeft, Check, Printer, RotateCcw, Save, Tag, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { SelectField } from "@/components/shared/select-field";
+import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { Input } from "@/components/ui/input";
 import { toastStore } from "@/lib/store/toast-store";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
@@ -13,9 +16,9 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
 import { asPoStatus, poStatusLabel, type PoMaterial } from "@/lib/purchase-order";
-import { cutListHeaders, cutListRows, poDetailSections } from "@/lib/purchase-order-export";
+import { cutListHeaders, cutListRows, poDetailSections, psLabel } from "@/lib/purchase-order-export";
 
-// The invoice editor's collapsible tinted sections (locked here): same colours and titles, a short summary when closed.
+// The invoice editor's tinted sections (locked here): same colours and titles, always shown in full.
 const TONES: Record<string, string> = {
   "Dealer Details": "border-slate/40 border-t-slate bg-slate/30",
   "Proforma Details": "border-taupe/50 border-t-taupe bg-taupe/40",
@@ -23,32 +26,25 @@ const TONES: Record<string, string> = {
   "Cabinet Details": "border-sand border-t-sand bg-sand/60",
 };
 function LockedSection({ title, rows }: { title: string; rows: [string, string][] }) {
-  const [open, setOpen] = useState(false);
   return (
     <section className={`rounded-xl border border-t-4 p-4 shadow-sm ${TONES[title] ?? "border-grey-100 bg-light-600"}`}>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-2 text-left">
-        {open ? <ChevronDown className="h-4 w-4 shrink-0 text-grey-600" /> : <ChevronRight className="h-4 w-4 shrink-0 text-grey-600" />}
-        <h2 className="font-heading text-lg font-semibold text-grey-900">{title}</h2>
-        {!open && <span className="ml-auto truncate pl-4 text-sm font-body text-grey-600">{rows[0]?.[1]}</span>}
-      </button>
-      {open && (
-        <div className="grid gap-x-6 gap-y-4 pt-4 md:grid-cols-2 xl:grid-cols-4">
-          {rows.map(([k, v]) => (
-            <div key={k} className="flex flex-col gap-1 text-sm font-body">
-              <span className="text-xs font-semibold text-grey-700">{k}</span>
-              <span className="whitespace-pre-line font-number text-grey-900">{v || "—"}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <h2 className="mb-3 font-heading text-lg font-semibold text-grey-900">{title}</h2>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3 xl:grid-cols-3">
+        {rows.map(([k, v], i) => (
+          <div key={`${k}-${i}`} className="flex flex-col gap-0.5 text-sm font-body">
+            <span className="text-xs font-semibold text-grey-700">{k}</span>
+            <span className="whitespace-pre-line font-number text-grey-900">{v || "—"}</span>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
 
 type Packing = NonNullable<PoMaterial["packing"]>;
 
-// The Packing page of a Proforma Invoice: everything about the invoice is shown but locked; only Packed Qty, the Packed tick
-// and Notes of each component row can be changed. Saved on the invoice (material.packing), keyed by the row.
+// The Packing page of a Proforma Invoice: everything about the invoice is shown but locked; only the Packed ticks (one per piece, Qty of them)
+// and each piece's note can be changed. Saved on the invoice (material.packing), keyed by the row.
 export function ProformaPackingPage({ id }: { id: string }) {
   const router = useRouter();
   const po = usePurchaseOrders().find((o) => o.id === id);
@@ -60,13 +56,18 @@ export function ProformaPackingPage({ id }: { id: string }) {
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [seeded, setSeeded] = useState("");
-  // Bulk edit: rows ticked in the first column, changed together from the bar above the table.
-  const [picked, setPicked] = useState<Set<string>>(new Set());
-  const [bulkNote, setBulkNote] = useState("");
+  // Show all rows, only the pieces still to pack, or only those already packed.
+  const [filter, setFilter] = useState<"all" | "pending" | "completed">("all");
+  // Transport Details rows (name picked from Proforma Library > Transport Details).
+  const [transport, setTransport] = useState<NonNullable<PoMaterial["transport"]>>([]);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [deleteTransport, setDeleteTransport] = useState<number | null>(null);
+  const transportNames = useMaterialItems("proforma-transport");
 
   useEffect(() => {
     if (po && seeded !== po.id) {
       setPacking(po.material.packing ?? {});
+      setTransport(po.material.transport ?? []);
       setSeeded(po.id);
     }
   }, [po, seeded]);
@@ -76,11 +77,18 @@ export function ProformaPackingPage({ id }: { id: string }) {
   const rows = useMemo(() => {
     if (!po) return [];
     const seen = new Map<string, number>();
-    return cutListRows(po).map((r) => {
+    const list = cutListRows(po).map((r) => {
       const base = `${r[0]}|${r[4]}|${r[5]}x${r[6]}`;
       const n = seen.get(base) ?? 0;
       seen.set(base, n + 1);
       return { key: n ? `${base}#${n}` : base, cells: r };
+    });
+    // Listed in Sr order (1.1, 1.2 ... 2.1 ...), not in the cut list's material order; loose rows (Sr 0.x, no cabinet) come last.
+    const part = (sr: string | number) => String(sr).split(".").map(Number);
+    return list.sort((a, b) => {
+      const [ac, ar] = part(a.cells[0]);
+      const [bc, br] = part(b.cells[0]);
+      return (ac === 0 ? Infinity : ac) - (bc === 0 ? Infinity : bc) || ar - br;
     });
   }, [po]);
 
@@ -93,28 +101,80 @@ export function ProformaPackingPage({ id }: { id: string }) {
   const sections = poDetailSections(po, { vendor, vendors, customer, quoteNumber, branding: settings.branding });
 
   const qtyOf = (cells: (string | number)[]) => Math.max(0, Number(cells[8]) || 0);
-  const set = (key: string, patch: Partial<{ packed: number; note: string }>) => {
-    setPacking((p) => ({ ...p, [key]: { ...(p[key] ?? { packed: 0, note: "" }), ...patch } }));
+  // seq = the box number (1, 2, 3 …) of the piece within its transport (tr = that Transport row's index): pieces ticked together share one;
+  // each new Transport row starts counting from 1 again.
+  type Piece = { done: boolean; note: string; seq?: number; tr?: number };
+  const currentTr = Math.max(0, transport.length - 1);
+  // Highest box number so far in a transport.
+  const maxSeq = (all: Packing, tr: number) => Math.max(0, ...Object.values(all).flatMap((v) => v.pieces.map((x) => (x.done && (x.tr ?? 0) === tr ? x.seq ?? 0 : 0))));
+  // A row's pieces, always exactly Qty long.
+  const piecesOf = (key: string, qty: number): Piece[] => Array.from({ length: qty }, (_, k) => packing[key]?.pieces?.[k] ?? { done: false, note: "" });
+  const setPiece = (key: string, qty: number, k: number, patch: Partial<Piece>) => {
+    setPacking((p) => {
+      const cur = Array.from({ length: qty }, (_, i) => p[key]?.pieces?.[i] ?? { done: false, note: "" });
+      cur[k] = { ...cur[k], ...patch };
+      if (patch.done === false) { delete cur[k].seq; delete cur[k].tr; }
+      return { ...p, [key]: { pieces: cur } };
+    });
     setDirty(true);
   };
   const totalQty = rows.reduce((n, r) => n + qtyOf(r.cells), 0);
-  const totalPacked = rows.reduce((n, r) => n + Math.min(packing[r.key]?.packed ?? 0, qtyOf(r.cells)), 0);
+  const matches = (done: boolean) => filter === "all" || (filter === "pending" ? !done : done);
+  const visibleRows = rows.filter((r) => piecesOf(r.key, qtyOf(r.cells)).some((x) => matches(x.done)));
+  const totalPacked = rows.reduce((n, r) => n + piecesOf(r.key, qtyOf(r.cells)).filter((x) => x.done).length, 0);
 
-  const bulk = (fn: (key: string, qty: number, cur: { packed: number; note: string }) => { packed: number; note: string }) => {
+  // Clicking a note box gives its group its number straight away: every ticked piece that has no number yet (ticked together) gets the next one.
+  const numberGroup = () => {
     setPacking((p) => {
+      const max = maxSeq(p, currentTr);
       const next = { ...p };
-      for (const r of rows) if (picked.has(r.key)) next[r.key] = fn(r.key, qtyOf(r.cells), p[r.key] ?? { packed: 0, note: "" });
+      for (const r of rows) {
+        const cur = Array.from({ length: qtyOf(r.cells) }, (_, i) => p[r.key]?.pieces?.[i] ?? { done: false, note: "" });
+        next[r.key] = { pieces: cur.map((x) => (x.done && !x.seq ? { ...x, seq: max + 1, tr: currentTr } : x)) };
+      }
       return next;
     });
     setDirty(true);
   };
-  const allPicked = rows.length > 0 && rows.every((r) => picked.has(r.key));
-  const togglePick = (key: string) => setPicked((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  // Finish = close the box: any ticked piece that has no box number yet gets the next number, the last Transport row's Number of Boxes
+  // becomes the number of boxes so far, and a new Transport row is added for the next transport.
+  const unnumbered = rows.reduce((n, r) => n + piecesOf(r.key, qtyOf(r.cells)).filter((x) => x.done && !x.seq).length, 0);
+  const finishBox = () => {
+    const max = maxSeq(packing, currentTr);
+    const seq = unnumbered > 0 ? max + 1 : max;
+    if (unnumbered > 0) {
+      setPacking((p) => {
+        const next = { ...p };
+        for (const r of rows) {
+          const cur = Array.from({ length: qtyOf(r.cells) }, (_, i) => p[r.key]?.pieces?.[i] ?? { done: false, note: "" });
+          next[r.key] = { pieces: cur.map((x) => (x.done && !x.seq ? { ...x, seq, tr: currentTr } : x)) };
+        }
+        return next;
+      });
+    }
+    // The current transport gets its box count and a fresh row is added for the next one (box numbers start again from 1 there).
+    setTransport((t) => [...(t.length ? t.map((x, i) => (i === t.length - 1 ? { ...x, boxes: seq } : x)) : [{ name: "", lr: "", date: "", boxes: seq }]), { name: "", lr: "", date: "", boxes: 0 }]);
+    setDirty(true);
+  };
+  // Typing a note writes it to the whole group of the piece being edited: the ticked pieces with the same box number, or, before
+  // Finish, all ticked pieces that have no box number yet.
+  const shareNote = (editedSeq: number | undefined, editedTr: number | undefined, note: string) => {
+    setPacking((p) => {
+      const next = { ...p };
+      for (const r of rows) {
+        const qty = qtyOf(r.cells);
+        const cur = Array.from({ length: qty }, (_, i) => p[r.key]?.pieces?.[i] ?? { done: false, note: "" });
+        next[r.key] = { pieces: cur.map((x) => (x.done && x.seq === editedSeq && (x.tr ?? 0) === (editedTr ?? 0) ? { ...x, note } : x)) };
+      }
+      return next;
+    });
+    setDirty(true);
+  };
 
   const save = async (): Promise<boolean> => {
     setBusy(true);
     try {
-      await purchaseOrdersStore.update(po.id, { material: { ...po.material, packing } });
+      await purchaseOrdersStore.update(po.id, { material: { ...po.material, packing, transport } });
       setDirty(false);
       toastStore.show("Packing saved", "success");
       return true;
@@ -138,7 +198,7 @@ export function ProformaPackingPage({ id }: { id: string }) {
           </Link>
           <div>
             <h1 className="font-heading text-2xl font-semibold text-grey-900">Packing <span className="font-number text-lg font-normal text-grey-600">({po.poNumber})</span></h1>
-            <p className="text-sm font-body text-grey-500">Status: {poStatusLabel(asPoStatus(po.status))}. Only Packed Qty, the tick and Notes can be changed.</p>
+            <p className="text-sm font-body text-grey-500">Status: {poStatusLabel(asPoStatus(po.status))}. Only the packed ticks and notes can be changed.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -151,9 +211,82 @@ export function ProformaPackingPage({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {sections.map((sec) => <LockedSection key={sec.title} title={sec.title} rows={sec.rows} />)}
+      <div className="grid gap-3 lg:grid-cols-2">
+        {/* Only Dealer and Proforma details are shown on the Packing page. */}
+        {sections.filter((sec) => sec.title === "Dealer Details" || sec.title === "Proforma Details").map((sec) => <LockedSection key={sec.title} title={sec.title} rows={sec.rows} />)}
       </div>
+
+      {/* Transport Details: several transports can be added; the name comes from Proforma Library > Transport Details. */}
+      <section className="rounded-xl border border-grey-100 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-heading text-lg font-semibold text-grey-900">Transport Details</h2>
+        </div>
+        {transport.length === 0 ? (
+          <p className="text-sm font-body text-grey-400">Transport rows are added automatically when you press Finish box.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {transport.map((t, i) => (
+              <div key={i} className="grid items-end gap-3 md:grid-cols-[2.25rem_max-content_minmax(0,1.3fr)_minmax(0,1fr)_10.5rem_7rem_max-content]">
+                <span className="pb-2 font-number text-sm text-grey-500">{String(i + 1).padStart(3, "0")}</span>
+                <span className="whitespace-nowrap pb-2 font-number text-sm font-semibold text-grey-700">{psLabel(po.poNumber, i)}</span>
+                <label className="flex flex-col gap-1 text-xs font-semibold text-grey-700">
+                  {i === 0 && "Transport Name"}
+                  <SelectField aria-label="Transport Name" value={t.name} onChange={(e) => { setTransport((r) => r.map((x, j) => (j === i ? { ...x, name: e.target.value } : x))); setDirty(true); }} className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary">
+                    <option value="">Select transport…</option>
+                    {transportNames.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
+                  </SelectField>
+                </label>
+                <label className="flex flex-col gap-1 text-xs font-semibold text-grey-700">
+                  {i === 0 && "LR Number"}
+                  <Input aria-label="LR Number" value={t.lr} onChange={(e) => { setTransport((r) => r.map((x, j) => (j === i ? { ...x, lr: e.target.value } : x))); setDirty(true); }} className="h-9 font-number" />
+                </label>
+                <label className="flex flex-col gap-1 text-xs font-semibold text-grey-700">
+                  {i === 0 && "Date"}
+                  <Input aria-label="Transport date" type="date" value={t.date ?? ""} onChange={(e) => { setTransport((r) => r.map((x, j) => (j === i ? { ...x, date: e.target.value } : x))); setDirty(true); }} className="h-9 font-number" />
+                </label>
+                <label className="flex flex-col gap-1 text-xs font-semibold text-grey-700">
+                  {i === 0 && "Number of Boxes"}
+                  <Input aria-label="Number of Boxes" type="number" min={0} value={t.boxes || ""} onChange={(e) => { setTransport((r) => r.map((x, j) => (j === i ? { ...x, boxes: Math.max(0, Math.round(Number(e.target.value) || 0)) } : x))); setDirty(true); }} className="h-9 font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                </label>
+                <div className="mb-1 flex items-center gap-1">
+                  <button type="button" aria-label="Delete this transport" onClick={() => setDeleteTransport(i)} className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-grey-500 hover:bg-light-600 hover:text-error">
+                    <Trash2 className="h-4 w-4" /> Delete
+                  </button>
+                  <button type="button" aria-label="Print this packing slip" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?part=packing-transport&tr=${i}`, "_blank")} className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-grey-500 hover:bg-light-600 hover:text-primary">
+                    <Printer className="h-4 w-4" /> Print
+                  </button>
+                  <button type="button" aria-label="Print box stickers" onClick={() => window.open(`/purchase-orders/${po.id}/stickers?tr=${i}`, "_blank")} className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-grey-500 hover:bg-light-600 hover:text-primary">
+                    <Tag className="h-4 w-4" /> Sticker
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+      <ConfirmDialog
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+        title="Reset all packing?"
+        description="This unticks every box and clears all packing notes and box numbers. It is only saved when you press Save."
+        onConfirm={() => {
+          setPacking(Object.fromEntries(rows.map((r) => [r.key, { pieces: Array.from({ length: qtyOf(r.cells) }, () => ({ done: false, note: "" })) }])));
+          setDirty(true);
+          setResetOpen(false);
+        }}
+      />
+      <ConfirmDialog
+        open={deleteTransport !== null}
+        onOpenChange={(o) => !o && setDeleteTransport(null)}
+        title={`Delete transport ${deleteTransport !== null ? String(deleteTransport + 1).padStart(3, "0") : ""}?`}
+        description="This removes the transport row. It is only saved when you press Save."
+        onConfirm={() => {
+          if (deleteTransport === null) return;
+          setTransport((r) => r.filter((_, j) => j !== deleteTransport));
+          setDirty(true);
+          setDeleteTransport(null);
+        }}
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-grey-100 bg-white px-5 py-3 shadow-sm">
         <div className="flex min-w-60 flex-1 items-center gap-3">
@@ -163,73 +296,66 @@ export function ProformaPackingPage({ id }: { id: string }) {
           </div>
           <span className="font-number text-sm text-grey-700">{totalPacked} / {totalQty} packed</span>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setPacking(Object.fromEntries(rows.map((r) => [r.key, { packed: qtyOf(r.cells), note: packing[r.key]?.note ?? "" }])));
-            setDirty(true);
-          }}
-        >
-          <CheckCheck className="h-4 w-4" /> Mark all packed
+        <div className="flex items-center gap-1">
+          {([["all", "All", totalQty], ["pending", "Pending", totalQty - totalPacked], ["completed", "Completed", totalPacked]] as const).map(([k, label, n]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setFilter(k)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium ${filter === k ? "border-primary bg-primary-transparent text-primary" : "border-grey-100 bg-card text-grey-600 hover:bg-light-600"}`}
+            >
+              {label} <span className="font-number">({n})</span>
+            </button>
+          ))}
+        </div>
+        <Button type="button" size="sm" disabled={totalPacked === 0} onClick={finishBox}>
+          <Check className="h-4 w-4" /> Finish box
+        </Button>
+        <Button type="button" size="sm" variant="outline" disabled={totalPacked === 0} onClick={() => setResetOpen(true)}>
+          <RotateCcw className="h-4 w-4" /> Reset
         </Button>
       </div>
 
-      {picked.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary-transparent px-4 py-2 text-sm font-body text-grey-800">
-          <span className="font-medium">{picked.size} selected</span>
-          <Button type="button" size="sm" variant="outline" onClick={() => bulk((_k, qty, c) => ({ ...c, packed: qty }))}>Mark packed</Button>
-          <Button type="button" size="sm" variant="outline" onClick={() => bulk((_k, _q, c) => ({ ...c, packed: 0 }))}>Mark not packed</Button>
-          <Input value={bulkNote} onChange={(e) => setBulkNote(e.target.value)} placeholder="Note for selected" className="h-8 w-56 text-xs" />
-          <Button type="button" size="sm" variant="outline" disabled={!bulkNote.trim()} onClick={() => bulk((_k, _q, c) => ({ ...c, note: bulkNote.trim() }))}>Set note</Button>
-          <button type="button" onClick={() => setPicked(new Set())} className="ml-auto text-xs text-grey-500 hover:text-primary">Clear selection</button>
-        </div>
-      )}
-
       <div className="overflow-x-auto rounded-xl border border-grey-100 bg-white shadow-sm">
-        <table className="w-full text-left text-xs font-body">
-          <thead className="bg-light-600 text-grey-700">
+        <table className="w-full border-collapse text-left text-[12px] font-body">
+          <thead className="bg-light-600 uppercase text-grey-900">
             <tr>
-              <th className="px-2 py-2"><input type="checkbox" aria-label="Select all rows" checked={allPicked} onChange={() => setPicked(allPicked ? new Set() : new Set(rows.map((r) => r.key)))} className="h-4 w-4 accent-primary" /></th>
-              {shown.map(({ h }) => <th key={h} className="whitespace-nowrap px-2 py-2 font-medium">{h}</th>)}
-              <th className="whitespace-nowrap px-2 py-2 font-medium">Packed Qty</th>
-              <th className="px-2 py-2 text-center font-medium">Packed</th>
-              <th className="px-2 py-2 font-medium">Notes</th>
+              {shown.map(({ h }) => <th key={h} className="whitespace-nowrap border border-grey-100 px-2 py-2 font-semibold">{h}</th>)}
+              <th className="border border-grey-100 px-2 py-2 font-semibold">Packing Box</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ key, cells }) => {
+            {visibleRows.map(({ key, cells }, idx) => {
               const qty = qtyOf(cells);
-              const st = packing[key] ?? { packed: 0, note: "" };
-              const full = qty > 0 && st.packed >= qty;
+              const pieces = piecesOf(key, qty);
+              const full = qty > 0 && pieces.every((x) => x.done);
+              // A new cabinet (the whole-number part of Sr) starts after a small gap.
+              const cab = String(cells[0]).split(".")[0];
+              const newCab = idx > 0 && String(visibleRows[idx - 1].cells[0]).split(".")[0] !== cab;
               return (
-                <tr key={key} className={`border-t border-grey-100 text-grey-800 ${full ? "bg-success-transparent" : ""}`}>
-                  <td className="px-2 py-1"><input type="checkbox" aria-label={`Select row ${cells[0]}`} checked={picked.has(key)} onChange={() => togglePick(key)} className="h-4 w-4 accent-primary" /></td>
+                <Fragment key={key}>
+                {newCab && <tr aria-hidden><td colSpan={shown.length + 1} className="h-4 bg-light-600 p-0" /></tr>}
+                <tr className={`align-top text-grey-800 ${full ? "bg-success-transparent" : ""}`}>
                   {shown.map(({ h, i }) => (
-                    <td key={h} className="whitespace-nowrap px-2 py-1.5 font-number">{cells[i]}</td>
+                    <td key={h} className="whitespace-nowrap border border-grey-100 px-2 py-1.5 font-number">{cells[i]}</td>
                   ))}
-                  <td className="px-2 py-1">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={qty}
-                      value={st.packed || ""}
-                      onChange={(e) => set(key, { packed: Math.min(qty, Math.max(0, Number(e.target.value) || 0)) })}
-                      className="h-7 w-20 text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                  </td>
-                  <td className="px-2 py-1 text-center">
-                    <input type="checkbox" aria-label={`Row ${cells[0]} fully packed`} checked={full} onChange={(e) => set(key, { packed: e.target.checked ? qty : 0 })} className="h-4 w-4 accent-primary" />
-                  </td>
-                  <td className="px-2 py-1">
-                    <Input value={st.note} onChange={(e) => set(key, { note: e.target.value })} className="h-7 min-w-40 text-xs" />
+                  <td className="border border-grey-100 px-2 py-1">
+                    <div className="flex flex-col gap-1">
+                      {pieces.map((pc, k) => ({ pc, k })).filter(({ pc }) => matches(pc.done)).map(({ pc, k }) => (
+                        <div key={k} className="flex items-center gap-2">
+                          <input type="checkbox" aria-label={`Piece ${k + 1} of row ${cells[0]} packed`} checked={pc.done} onChange={(e) => setPiece(key, qty, k, { done: e.target.checked })} className="h-4 w-4 accent-primary" />
+                          {pc.done && pc.seq ? <span className="min-w-6 text-center font-number text-[11px] font-semibold text-primary">{pc.seq}</span> : null}
+                                                    {pc.done && <Input value={pc.note} onFocus={() => { if (!pc.seq) numberGroup(); }} onChange={(e) => shareNote(pc.seq, pc.tr, e.target.value)} placeholder="Note" className="h-7 min-w-48 text-xs" />}
+                        </div>
+                      ))}
+                    </div>
                   </td>
                 </tr>
+                </Fragment>
               );
             })}
-            {rows.length === 0 && (
-              <tr><td colSpan={shown.length + 4} className="px-3 py-6 text-center text-grey-400">This invoice has no component rows yet.</td></tr>
+            {visibleRows.length === 0 && (
+              <tr><td colSpan={shown.length + 1} className="px-3 py-6 text-center text-grey-400">{rows.length === 0 ? "This invoice has no component rows yet." : filter === "pending" ? "Everything is packed." : "Nothing is packed yet."}</td></tr>
             )}
           </tbody>
         </table>

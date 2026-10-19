@@ -71,7 +71,7 @@ export default function RootLayout({
       lang="en"
       className={`${raleway.variable} ${ralewayLight.variable} ${outfitLight.variable} ${manrope.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-body">
+      <body suppressHydrationWarning className="min-h-full flex flex-col font-body">
         <Providers>{children}</Providers>
         <PWAInstallPrompt />
         <ServiceWorkerRegister />
