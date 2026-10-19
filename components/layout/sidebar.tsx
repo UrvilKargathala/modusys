@@ -85,12 +85,12 @@ export function Sidebar() {
   const row = (active: boolean) =>
     cn(
       "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-body transition-colors",
-      active ? "relative bg-grey-transparent font-semibold text-grey-900 before:absolute before:left-0 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-r-full before:bg-primary" : "font-medium text-grey-600 hover:bg-grey-100/60 hover:text-grey-900",
+      active ? "relative bg-white/70 font-semibold text-grey-900 before:absolute before:left-0 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-r-full before:bg-primary" : "font-medium text-grey-900 hover:bg-white/50",
       collapsed && "justify-center px-0"
     );
 
   const label = (text: string) =>
-    collapsed ? <div className="my-1 h-px" /> : <p className="px-3 pb-0.5 pt-2 text-[11px] font-semibold uppercase tracking-wider text-grey-400">{text}</p>;
+    collapsed ? <div className="my-1 h-px" /> : <p className="px-3 pb-0.5 pt-2 text-[11px] font-semibold uppercase tracking-wider text-grey-600">{text}</p>;
 
   const renderEntry = (e: Entry) => {
     if (e.kind === "link") {
@@ -144,7 +144,7 @@ export function Sidebar() {
         {open && (
           <div className="ml-[22px] flex flex-col gap-0.5 border-l border-grey-100 pl-4">
             {e.items.map((m) => (
-              <Link key={m.href} href={m.href} className={cn("rounded-md px-2 py-1.5 text-[13px] font-body transition-colors", isActive(m.href) ? "font-semibold text-grey-900" : "font-medium text-grey-500 hover:text-grey-900")}>
+              <Link key={m.href} href={m.href} className={cn("rounded-md px-2 py-1.5 text-[13px] font-body transition-colors", isActive(m.href) ? "font-semibold text-grey-900" : "font-medium text-grey-700 hover:text-grey-900")}>
                 {m.label}
               </Link>
             ))}
@@ -155,7 +155,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className={cn("relative z-10 hidden shrink-0 flex-col bg-card transition-[width] duration-200 lg:flex", collapsed ? "w-[60px]" : "w-56")}>
+    <aside className={cn("relative z-10 hidden shrink-0 flex-col bg-[#DBCCCC] transition-[width] duration-200 lg:flex", collapsed ? "w-[60px]" : "w-56")}>
       <button
         type="button"
         onClick={toggle}
@@ -187,7 +187,7 @@ export function Sidebar() {
       <div className="flex flex-col gap-1 p-2">
         {/* The signed-in user: name and role, with Change Password, Install App and Sign out in its menu. */}
         <DropdownMenu>
-          <DropdownMenuTrigger title={collapsed ? user.name || "Account" : undefined} className={cn("flex w-full items-center gap-3 rounded-lg bg-grey-transparent p-2 text-left transition-colors hover:bg-grey-100", collapsed && "justify-center bg-transparent p-1")}>
+          <DropdownMenuTrigger title={collapsed ? user.name || "Account" : undefined} className={cn("flex w-full items-center gap-3 rounded-lg bg-white/60 p-2 text-left transition-colors hover:bg-white/80", collapsed && "justify-center bg-transparent p-1")}>
             <Avatar className="h-8 w-8 shrink-0">
               <AvatarFallback className="bg-primary-transparent text-primary">
                 <UserRound className="h-4 w-4" />
@@ -197,7 +197,7 @@ export function Sidebar() {
               <>
                 <span className="flex min-w-0 flex-1 flex-col leading-tight">
                   <span className="truncate text-sm font-body font-semibold text-grey-900">{user.name || "Not signed in"}</span>
-                  <span className="truncate text-xs font-body text-grey-500">{roleLabel}</span>
+                  <span className="truncate text-xs font-body text-grey-700">{roleLabel}</span>
                 </span>
                 <ChevronUp className="h-4 w-4 shrink-0 text-grey-400" />
               </>

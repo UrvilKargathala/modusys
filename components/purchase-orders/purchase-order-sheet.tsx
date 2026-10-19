@@ -24,6 +24,8 @@ const num = (n: number, d = 0) => (n ? n.toLocaleString("en-IN", { minimumFracti
 const RIGHT = new Set(["Width", "Thk", "Depth", "Height", "Qty", "Items", "Sq.Ft", "W", "D", "H"]);
 // The PO PDF carries no prices at all (the Excel export still does).
 // A Proforma Invoice shows prices: Sq.Ft, Rate and Amount come last (as in its Carcass table).
+// Purchase Order / Direct PO order: Sr, Description, Design, Width, Depth/Thk, Height, Qty, Sq.Ft, Material, External, Internal, Remarks.
+const PANEL_HEADERS_PO = ["Sr", "Description", "Design", "Width", "Depth/Thk", "Height", "Qty", "Sq.Ft", "Material", "External Colour", "Internal Colour", "Remarks"];
 // Proforma Shutter / Other Panel order: Sr, Description, Width, Depth/Thk, Height, Qty, Design, Remarks, Material, External, Internal, Sq.Ft, Rate, Amount.
 const PANEL_HEADERS_PRICED_REORDERED = ["Sr", "Description", "Width", "Depth/Thk", "Height", "Qty", "Design", "Remarks", "Material", "External Colour", "Internal Colour", "Sq.Ft", "Rate", "Amount"];
 const PANEL_HEADERS_PRICED = ["Sr", "Description", "Design", "Width", "Thk", "Height", "Qty", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remarks", "Sq.Ft", "Rate", "Amount"];
@@ -113,11 +115,16 @@ const FIXED_W: Record<string, string> = {
   Sr: "w-[3%]", Width: "w-[5%]", Depth: "w-[5%]", "Depth/Thk": "w-[5%]", Height: "w-[5%]", Qty: "w-[3.5%]", Design: "w-[7%]", Remarks: "w-[10%]",
   Material: "w-[7%]", "External Colour": "w-[10%]", "Internal Colour": "w-[10%]", "Sq.Ft": "w-[5%]", Rate: "w-[5%]", Amount: "w-[6%]",
 };
-function Header({ group, headers, fixed = false }: { group: PoGroup; headers: string[]; fixed?: boolean }) {
+// Purchase Order / Direct PO tables: a narrow Description and wide colour columns, so each row fits on one line.
+const PO_W: Record<string, string> = {
+  Sr: "w-[3%]", Description: "w-[19%]", Design: "w-[6%]", Width: "w-[4.5%]", "Depth/Thk": "w-[5%]", Depth: "w-[5%]", Height: "w-[4.5%]", Qty: "w-[3%]", "Sq.Ft": "w-[4.5%]",
+  Material: "w-[7.5%]", "External Colour": "w-[12.5%]", "Internal Colour": "w-[14%]", Remarks: "w-[12%]",
+};
+function Header({ group, headers, fixed = false, po = false }: { group: PoGroup; headers: string[]; fixed?: boolean; po?: boolean }) {
   return (
     <tr>
       {headers.map((h) => (
-        <th key={h} className={`${cell} ${THEME[group].head} text-grey-900 font-bold uppercase ${RIGHT.has(h) ? "text-right" : "text-left"} ${fixed ? FIXED_W[h] ?? "" : `${WIDE.has(h) ? "w-[16%]" : ""} ${NARROW.has(h) ? "w-10" : ""}`}`}>{h}</th>
+        <th key={h} className={`${cell} ${THEME[group].head} text-grey-900 font-bold uppercase ${RIGHT.has(h) ? "text-right" : "text-left"} ${fixed ? (po ? PO_W[h] : FIXED_W[h]) ?? "" : `${WIDE.has(h) ? "w-[16%]" : ""} ${NARROW.has(h) ? "w-10" : ""}`}`}>{h}</th>
       ))}
     </tr>
   );
@@ -165,8 +172,17 @@ function CarcassHeadingRow({ po, c, group, priced = !!po.material.proforma, slip
       <td className={`${t} text-right po-num`}>{num(h.qty)}</td>
       {!priced && <td className={`${t} text-right po-num`}>{h.sqft.toFixed(2)}</td>}
       <td className={t}><Nums>{h.material}</Nums></td>
+      {po.material.proforma ? (
+        <>
       <td className={t}><Nums>{h.internal}</Nums></td>
       <td className={t} style={highlightFor(po, { group, externalColour: h.external }) ? { backgroundColor: highlightFor(po, { group, externalColour: h.external }), color: "#fff" } : undefined}><Nums>{h.external}</Nums></td>
+        </>
+      ) : (
+        <>
+      <td className={t} style={highlightFor(po, { group, externalColour: h.external }) ? { backgroundColor: highlightFor(po, { group, externalColour: h.external }), color: "#fff" } : undefined}><Nums>{h.external}</Nums></td>
+      <td className={t}><Nums>{h.internal}</Nums></td>
+        </>
+      )}
       <td className={`${t} ${h.remark ? "!bg-error-200 !text-error" : ""}`}>{h.remark}</td>
       {priced && (
         <>
@@ -193,6 +209,8 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
   const money = !!po.material.proforma && !slip;
   // Shutter and Other Panel tables of a proforma use the reordered columns (Carcass keeps its cabinet-heading layout).
   const reo = money && group !== "carcass";
+  // Purchase Order / Direct PO tables use the same fixed column widths, so every column lines up from table to table.
+  const fixedCols = reo || !po.material.proforma;
   const amount = shown.reduce((s, l) => s + lineAmount(l), 0);
   // Direct Purchase Order: Shutter and Other Panel rows have no cabinet, so no cabinet heading and Sr runs 1, 2, 3.
   const flat = !!po.material.direct && (group === "shutter" || group === "other-panel");
@@ -206,8 +224,8 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
   return (
     <section className="break-inside-auto">
       <Band group={group} title={title} count={shown.length} />
-      <table className={`w-full border-collapse text-[10px] ${reo ? "table-fixed" : ""}`}>
-        <thead><Header group={group} fixed={reo} headers={reo ? PANEL_HEADERS_PRICED_REORDERED : money ? PANEL_HEADERS_PRICED : slip ? [...noPrice(PANEL_HEADERS), "Packing Box"] : noPrice(PANEL_HEADERS)} /></thead>
+      <table className={`w-full border-collapse text-[10px] ${fixedCols ? "table-fixed" : ""}`}>
+        <thead><Header group={group} fixed={fixedCols} po={!po.material.proforma} headers={reo ? PANEL_HEADERS_PRICED_REORDERED : money ? PANEL_HEADERS_PRICED : !po.material.proforma ? noPrice(PANEL_HEADERS_PO) : slip ? [...noPrice(PANEL_HEADERS), "Packing Box"] : noPrice(PANEL_HEADERS)} /></thead>
         <tbody>
           {sections.map((c) => (
             <Fragment key={c.srNo}>
@@ -237,8 +255,17 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
                     <td className={`${cell} text-right po-num`}>{num(l.qty)}</td>
                     {!money && <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(2)}</td>}
                     <td className={cell}><Nums>{l.material}</Nums></td>
+                    {po.material.proforma ? (
+                      <>
                     <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#fff" } : undefined}><Nums>{l.internalColour}</Nums></td>
                     <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#fff" } : undefined}><Nums>{l.externalColour}</Nums></td>
+                      </>
+                    ) : (
+                      <>
+                    <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#fff" } : undefined}><Nums>{l.externalColour}</Nums></td>
+                    <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#fff" } : undefined}><Nums>{l.internalColour}</Nums></td>
+                      </>
+                    )}
                     <td className={`${cell} ${l.remarks ? "bg-error-200 text-error" : ""}`}><Nums>{l.remarks}</Nums></td>
                     </>
                   )}
@@ -439,7 +466,7 @@ function LedgerTable({ po, vendors }: { po: PurchaseOrder; vendors?: Vendor[] })
 }
 
 // Direct Purchase Order, Purchase Order PDF: Carcass lists each cabinet with its details (as on the cabinet card), not its components.
-const DIRECT_CABINET_HEADERS = ["Sr", "Cabinet Type", "Cabinet Name", "W", "D", "H", "Qty", "Design", "Remark", "Internal Brand & Colour", "External Brand & Colour", "Material"];
+const DIRECT_CABINET_HEADERS = ["Sr", "Cabinet Type", "Cabinet Name", "Width", "Depth", "Height", "Qty", "Design", "Remarks", "Material", "External Colour", "Internal Colour"];
 // Proforma Invoice order: Sr, Cabinet Type, Cabinet Name, Width, Depth, Height, Qty, Design, Remarks, Material, External, Internal, Sq.Ft, Rate, Amount.
 const DIRECT_CABINET_HEADERS_PRICED = ["Sr", "Cabinet Type", "Cabinet Name", "Width", "Depth", "Height", "Qty", "Design", "Remarks", "Material", "External Colour", "Internal Colour", "Sq.Ft", "Rate", "Amount"];
 function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder; title: string; vendor?: Vendor; vendors?: Vendor[] }) {
@@ -448,8 +475,8 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
   return (
     <section className="break-inside-auto">
       <Band group="carcass" title={title} count={nos.length} unit="cabinets" />
-      <table className={`w-full border-collapse text-[10px] ${po.material.proforma ? "table-fixed" : ""}`}>
-        <thead><Header group="carcass" headers={po.material.proforma ? DIRECT_CABINET_HEADERS_PRICED : DIRECT_CABINET_HEADERS} fixed={!!po.material.proforma} /></thead>
+      <table className="w-full table-fixed border-collapse text-[10px]">
+        <thead><Header group="carcass" headers={po.material.proforma ? DIRECT_CABINET_HEADERS_PRICED : DIRECT_CABINET_HEADERS} fixed po={!po.material.proforma} /></thead>
         <tbody>
           {nos.map((no, i) => {
             const c = po.material.cabinets![String(no)];
@@ -470,8 +497,6 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
                 <td className={`${cell} text-right po-num`}>{num(c.qty)}</td>
                 <td className={`${cell} ${c.design ? RED_FILL : ""}`}><Nums>{c.design ?? ""}</Nums></td>
                 <td className={`${cell} ${c.remark ? "bg-error-200 text-error" : ""}`}><Nums>{c.remark ?? ""}</Nums></td>
-                {po.material.proforma ? (
-                  <>
                 <td className={cell}><Nums>{common("material")}</Nums></td>
                 <td
                   className={cell}
@@ -481,20 +506,6 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
                   <Nums>{common("externalColour")}</Nums>
                 </td>
                 <td className={cell} style={highlightInternal(po, { group: "carcass", internalColour: common("internalColour") }) ? { backgroundColor: highlightInternal(po, { group: "carcass", internalColour: common("internalColour") }), color: "#fff" } : undefined}><Nums>{common("internalColour")}</Nums></td>
-                  </>
-                ) : (
-                  <>
-                <td className={cell} style={highlightInternal(po, { group: "carcass", internalColour: common("internalColour") }) ? { backgroundColor: highlightInternal(po, { group: "carcass", internalColour: common("internalColour") }), color: "#fff" } : undefined}><Nums>{common("internalColour")}</Nums></td>
-                <td
-                  className={cell}
-                  // An Additional External pick with a colour chosen highlights the cabinets that use it, as it does the rows.
-                  style={highlightFor(po, { group: "carcass", externalColour: common("externalColour") }) ? { backgroundColor: highlightFor(po, { group: "carcass", externalColour: common("externalColour") }), color: "#fff" } : undefined}
-                >
-                  <Nums>{common("externalColour")}</Nums>
-                </td>
-                <td className={cell}><Nums>{common("material")}</Nums></td>
-                  </>
-                )}
                 {po.material.proforma && (
                   <>
                     <td className={`${cell} text-right po-num`}>{rows.reduce((t, l) => t + l.sqft, 0).toFixed(2)}</td>

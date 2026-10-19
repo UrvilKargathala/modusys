@@ -85,7 +85,7 @@ export function GlobalSearch({ variant = "icon", collapsed = false }: { variant?
           aria-label="Search"
           title={collapsed ? "Search (Ctrl/Cmd + K)" : undefined}
           onClick={() => setOpen(true)}
-          className={`flex w-full items-center gap-3 rounded-lg bg-grey-transparent px-3 py-2 text-sm font-body font-medium text-grey-500 transition-colors hover:bg-grey-100 ${collapsed ? "justify-center px-0" : ""}`}
+          className={`flex w-full items-center gap-3 rounded-lg bg-white/60 px-3 py-2 text-sm font-body font-medium text-grey-600 transition-colors hover:bg-white/80 ${collapsed ? "justify-center px-0" : ""}`}
         >
           <Search className="h-[18px] w-[18px] shrink-0" />
           {!collapsed && (
