@@ -113,8 +113,8 @@ export function Sidebar() {
           </DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="start" className="w-max min-w-52 rounded-xl">
             {e.items.map((m) => (
-              <DropdownMenuItem key={m.href} render={<Link href={m.href} />} className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm font-medium">
-                <m.icon className="h-4 w-4 shrink-0 text-grey-400" />
+              <DropdownMenuItem key={m.href} render={<Link href={m.href} />} className={cn("flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm font-medium", isActive(m.href) && "bg-primary text-white hover:bg-primary hover:text-white focus:bg-primary focus:text-white")}>
+                <m.icon className={cn("h-4 w-4 shrink-0", isActive(m.href) ? "text-white" : "text-grey-400")} />
                 {m.label}
               </DropdownMenuItem>
             ))}

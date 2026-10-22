@@ -384,7 +384,7 @@ async function writeHighlighted(
       // Only the External Brand & Colour cell (column 13 of a panel row) takes the colour.
       if (hex) {
         r.getCell(13).fill = { type: "pattern", pattern: "solid", fgColor: { argb: `FF${hex.slice(1).toUpperCase()}` } };
-        r.getCell(13).font = { color: { argb: "FFFFFFFF" } };
+        r.getCell(13).font = { color: { argb: "FF000000" } };
       }
     });
     ws.columns = Array.from({ length: sh.cols }, (_, i) => ({ width: i === 1 ? 28 : 14 }));

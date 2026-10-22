@@ -104,7 +104,7 @@ export async function downloadOrderTracker(orders: PurchaseOrder[], customers: C
         cell.border = border;
         cell.font = { size: 9, ...(late ? { color: { argb: "FFFF0000" } } : {}) };
         cell.alignment = { vertical: "middle", horizontal: cols[col - 1]?.left ? "left" : "center", wrapText: !!cols[col - 1]?.left };
-        if (po.material.highlight) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: pink ? "FFB6D7A8" : "FFFFFF00" } };
+        if (po.material.highlight) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: `FF${(po.material.highlightColor ?? (pink ? "#b6d7a8" : "#ffff00")).slice(1).toUpperCase()}` } };
       });
       cols.forEach((col, i) => {
         if (col.date) row.getCell(i + 1).numFmt = "dd/mm/yyyy";
@@ -129,6 +129,7 @@ const ddmmyyyy = (iso: string) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}
 // Excel); choose "Save as PDF" in the print window.
 export function printOrderTracker(orders: PurchaseOrder[], customers: Cust[], opts: TrackerOptions = {}, title = "PURCHASE ORDER DETAILS") {
   const cols = columnsFor(opts);
+  const pink = !opts.proforma;
   const today = new Date().toISOString().slice(0, 10);
   const show = (col: Col, v: string | number | Date | null) =>
     v instanceof Date ? ddmmyyyy(`${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}-${String(v.getDate()).padStart(2, "0")}`)
@@ -139,10 +140,9 @@ export function printOrderTracker(orders: PurchaseOrder[], customers: Cust[], op
     .map((po) => {
       const c = customers.find((x) => x.id === po.customerId);
       const late = !!po.material.approxDeliveryDate && po.material.approxDeliveryDate < today && po.status !== "completed" && po.status !== "delivered";
-      return `<tr class="${po.material.highlight ? "hl" : ""}${late ? " late" : ""}">${cols.map((col) => `<td class="${col.left ? "l" : ""}">${esc(show(col, col.value(po, c)))}</td>`).join("")}</tr>`;
+      return `<tr class="${late ? "late" : ""}"${po.material.highlight ? ` style="--hl:${po.material.highlightColor ?? (pink ? "#b6d7a8" : "#ffff00")}"` : ""}>${cols.map((col) => `<td class="${col.left ? "l" : ""}">${esc(show(col, col.value(po, c)))}</td>`).join("")}</tr>`;
     })
     .join("");
-  const pink = !opts.proforma;
   const w = window.open("", "_blank");
   if (!w) return;
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
@@ -153,7 +153,7 @@ export function printOrderTracker(orders: PurchaseOrder[], customers: Cust[], op
     th { background: ${pink ? `#${BRAND}` : "#8db4e2"}; ${pink ? "color: #fff;" : ""} border: 1px solid #9aa5b1; padding: 4px; }
     td { border: 1px solid #9aa5b1; padding: 4px; text-align: center; }
     td.l { text-align: left; }
-    tr.hl td { background: ${pink ? "#b6d7a8" : "#ffff00"}; }
+    tr[style*="--hl"] td { background: var(--hl); }
     tr.late td { color: #ff0000; }
     thead { display: table-header-group; }
   </style></head><body>${pink ? companyLines(opts).map((t, i) => `<h1${i === 0 ? ` style="color:#${BRAND}"` : ""}>${esc(t)}</h1>`).join("") + "<br>" : `<h1>${esc(title)}</h1>`}<table><thead><tr>${cols.map((c) => `<th>${esc(c.header)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table>

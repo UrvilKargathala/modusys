@@ -44,7 +44,7 @@ const CARD_TONE: Record<string, { bar: string; box: string }> = {
   "Cabinet Details": { bar: "bg-success/20 text-success", box: "border-success bg-success-transparent" },
 };
 // Text with its digits set in Manrope (the PDFs' number font); letters keep the normal font.
-function Nums({ children }: { children: string }) {
+export function Nums({ children }: { children: string }) {
   return (
     <>
       {String(children)
@@ -175,11 +175,11 @@ function CarcassHeadingRow({ po, c, group, priced = !!po.material.proforma, slip
       {po.material.proforma ? (
         <>
       <td className={t}><Nums>{h.internal}</Nums></td>
-      <td className={t} style={highlightFor(po, { group, externalColour: h.external }) ? { backgroundColor: highlightFor(po, { group, externalColour: h.external }), color: "#fff" } : undefined}><Nums>{h.external}</Nums></td>
+      <td className={t} style={highlightFor(po, { group, externalColour: h.external }) ? { backgroundColor: highlightFor(po, { group, externalColour: h.external }), color: "#000" } : undefined}><Nums>{h.external}</Nums></td>
         </>
       ) : (
         <>
-      <td className={t} style={highlightFor(po, { group, externalColour: h.external }) ? { backgroundColor: highlightFor(po, { group, externalColour: h.external }), color: "#fff" } : undefined}><Nums>{h.external}</Nums></td>
+      <td className={t} style={highlightFor(po, { group, externalColour: h.external }) ? { backgroundColor: highlightFor(po, { group, externalColour: h.external }), color: "#000" } : undefined}><Nums>{h.external}</Nums></td>
       <td className={t}><Nums>{h.internal}</Nums></td>
         </>
       )}
@@ -243,8 +243,8 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
                       <td className={`${cell} ${l.designType ? RED_FILL : ""}`}>{l.designType}</td>
                       <td className={`${cell} ${l.remarks ? "bg-error-200 text-error" : ""}`}><Nums>{l.remarks}</Nums></td>
                       <td className={cell}><Nums>{l.material}</Nums></td>
-                      <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#fff" } : undefined}><Nums>{l.externalColour}</Nums></td>
-                      <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#fff" } : undefined}><Nums>{l.internalColour}</Nums></td>
+                      <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#000" } : undefined}><Nums>{l.externalColour}</Nums></td>
+                      <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#000" } : undefined}><Nums>{l.internalColour}</Nums></td>
                     </>
                   ) : (
                     <>
@@ -257,13 +257,13 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
                     <td className={cell}><Nums>{l.material}</Nums></td>
                     {po.material.proforma ? (
                       <>
-                    <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#fff" } : undefined}><Nums>{l.internalColour}</Nums></td>
-                    <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#fff" } : undefined}><Nums>{l.externalColour}</Nums></td>
+                    <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#000" } : undefined}><Nums>{l.internalColour}</Nums></td>
+                    <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#000" } : undefined}><Nums>{l.externalColour}</Nums></td>
                       </>
                     ) : (
                       <>
-                    <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#fff" } : undefined}><Nums>{l.externalColour}</Nums></td>
-                    <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#fff" } : undefined}><Nums>{l.internalColour}</Nums></td>
+                    <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#000" } : undefined}><Nums>{l.externalColour}</Nums></td>
+                    <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#000" } : undefined}><Nums>{l.internalColour}</Nums></td>
                       </>
                     )}
                     <td className={`${cell} ${l.remarks ? "bg-error-200 text-error" : ""}`}><Nums>{l.remarks}</Nums></td>
@@ -501,11 +501,11 @@ function DirectCabinetsTable({ po, title, vendor, vendors }: { po: PurchaseOrder
                 <td
                   className={cell}
                   // An Additional External pick with a colour chosen highlights the cabinets that use it, as it does the rows.
-                  style={highlightFor(po, { group: "carcass", externalColour: common("externalColour") }) ? { backgroundColor: highlightFor(po, { group: "carcass", externalColour: common("externalColour") }), color: "#fff" } : undefined}
+                  style={highlightFor(po, { group: "carcass", externalColour: common("externalColour") }) ? { backgroundColor: highlightFor(po, { group: "carcass", externalColour: common("externalColour") }), color: "#000" } : undefined}
                 >
                   <Nums>{common("externalColour")}</Nums>
                 </td>
-                <td className={cell} style={highlightInternal(po, { group: "carcass", internalColour: common("internalColour") }) ? { backgroundColor: highlightInternal(po, { group: "carcass", internalColour: common("internalColour") }), color: "#fff" } : undefined}><Nums>{common("internalColour")}</Nums></td>
+                <td className={cell} style={highlightInternal(po, { group: "carcass", internalColour: common("internalColour") }) ? { backgroundColor: highlightInternal(po, { group: "carcass", internalColour: common("internalColour") }), color: "#000" } : undefined}><Nums>{common("internalColour")}</Nums></td>
                 {po.material.proforma && (
                   <>
                     <td className={`${cell} text-right po-num`}>{rows.reduce((t, l) => t + l.sqft, 0).toFixed(2)}</td>
@@ -697,11 +697,11 @@ export function PurchaseOrderSheet({ po: poIn, vendor, vendors, customer, quoteN
           </div>
         </div>
         <div className="flex items-center gap-3 whitespace-nowrap rounded-xl bg-primary px-5 py-2 text-white">
-          <span className="text-base font-bold uppercase tracking-wider">
+          <span className="po-title-bold text-base font-bold uppercase tracking-wider">
             {part === "ledger" ? "Hardware Product Ledger" : po.material.proforma && (part === "components" || slipMode) ? "Packing Slip" : part === "components" || part === "hardware" ? "Material Slip" : po.material.proforma ? "Proforma Invoice" : "Purchase Order"}
           </span>
-          {part !== "cabinets" && part !== "ledger" && !(po.material.proforma && part === "components") && <span className="text-[11px] opacity-90">· {part === "packing-transport" ? psLabel(po.poNumber, transportIndex) : PART_LABEL[part]}</span>}
-          <span className="text-[13px] font-semibold">· <Nums>{po.poNumber || "Number not set"}</Nums></span>
+          {part !== "cabinets" && part !== "ledger" && !(po.material.proforma && part === "components") && <span className="po-title-bold text-[13px] font-bold">· {part === "packing-transport" ? psLabel(po.poNumber, transportIndex) : PART_LABEL[part]}</span>}
+          <span className="po-title-bold text-[13px] font-bold">· <Nums>{po.poNumber || "Number not set"}</Nums></span>
         </div>
       </div>
 

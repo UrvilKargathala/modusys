@@ -487,6 +487,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The app fonts have no bold file, so the PDF title bar is thickened with a thin outline of its own colour. */
+.po-sheet .po-title-bold,
+.po-sheet .po-title-bold * {
+  font-weight: 700;
+  -webkit-text-stroke: 0.7px currentColor;
+}
+
 /* Ordered-list markers in Outfit Light (font-number) for the PDF sheet. */
 .marker-number::marker {
   font-family: var(--font-number);

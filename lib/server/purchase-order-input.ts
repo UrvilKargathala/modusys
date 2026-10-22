@@ -71,6 +71,7 @@ export function cleanMaterial(m: unknown) {
     proforma: o.proforma === true ? true : undefined,
     approxDeliveryDate: str(o.approxDeliveryDate) || undefined,
     highlight: o.highlight === true ? true : undefined,
+    highlightColor: typeof o.highlightColor === "string" && /^#[0-9a-fA-F]{6}$/.test(o.highlightColor) ? o.highlightColor : undefined,
     orderType: str(o.orderType) || undefined,
     vendorPiNo: str(o.vendorPiNo) || undefined,
     vendorPiDate: str(o.vendorPiDate) || undefined,

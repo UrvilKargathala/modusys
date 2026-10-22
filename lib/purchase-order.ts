@@ -155,6 +155,8 @@ export type PoMaterial = {
   approxDeliveryDate?: string;
   // A tick to mark the row in the Order Tracker Excel.
   highlight?: boolean;
+  // Row colour (hex, e.g. #b6d7a8) in the Order Tracker when highlighted; the default colour when not set.
+  highlightColor?: string;
   // Order Tracker columns: the Purchase Order Type (name picked from the Purchase Material Library) and the vendor's proforma invoice.
   orderType?: string;
   vendorPiNo?: string;

@@ -3,6 +3,7 @@
 import { use, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { Printer } from "lucide-react";
+import { Nums } from "@/components/purchase-orders/purchase-order-sheet";
 import { cutListRows, psLabel } from "@/lib/purchase-order-export";
 import { usePurchaseOrders, purchaseOrdersStore } from "@/lib/store/purchase-orders-store";
 import { useAllVendors } from "@/lib/store/vendors-store";
@@ -45,12 +46,11 @@ export default function BoxStickersPage({ params }: { params: Promise<{ id: stri
 
   if (!po) return <p className="p-6 text-sm font-body text-grey-500">{purchaseOrdersStore.isLoaded() ? "Proforma invoice not found." : "Loading…"}</p>;
 
-  const dealerLine = [vendor?.city, vendor?.state].filter(Boolean).join(", ");
   const phone = vendor?.contacts?.find((c) => c.phone)?.phone ?? "";
   const nums = Array.from({ length: total }, (_, i) => i + 1);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="po-sheet min-h-screen bg-white">
       <style>{`
         @page { size: 210mm 148mm; margin: 5mm; }
         @media print {
@@ -62,7 +62,7 @@ export default function BoxStickersPage({ params }: { params: Promise<{ id: stri
         }
       `}</style>
       <div className="sticker-no-print flex items-center justify-between p-4">
-        <p className="text-sm font-body text-grey-600">{total === 0 ? "No boxes yet: tick pieces and press Finish box on the Packing page, then Save." : `${total} sticker${total === 1 ? "" : "s"} for ${psLabel(po.poNumber, tr)}`}</p>
+        <p className="text-sm font-body text-grey-600">{total === 0 ? "No boxes yet: tick pieces and press Finish box on the Packing page, then Save." : <><Nums>{String(total)}</Nums> sticker{total === 1 ? "" : "s"} for <Nums>{psLabel(po.poNumber, tr)}</Nums></>}</p>
         <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-body font-medium text-white hover:opacity-90">
           <Printer className="h-4 w-4" />
           Print / Save as PDF
@@ -76,15 +76,14 @@ export default function BoxStickersPage({ params }: { params: Promise<{ id: stri
               {/* One horizontal line: company, PS number, PI number, dealer, box number. */}
               <div className="flex items-center justify-between gap-6 border-b border-black pb-2">
                 <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-x-4 whitespace-nowrap">
-                  <span className="shrink-0 font-number text-[15px] font-bold">{psLabel(po.poNumber, tr)}</span>
+                  <span className="shrink-0 po-num text-[15px] font-bold"><Nums>{psLabel(po.poNumber, tr)}</Nums></span>
                   <span className="min-w-0 truncate border-l border-black pl-4 text-[15px]">
                     <span className="font-semibold text-grey-600">To, </span>
                     <span className="font-bold">{vendor?.name ?? po.vendorName}</span>
-                    {dealerLine && <span>, {dealerLine}</span>}
-                    {phone && <span className="font-number"> · {phone}</span>}
+                    {phone && <span className="po-num"> · {phone}</span>}
                   </span>
                 </div>
-                <p className="shrink-0 whitespace-nowrap border-l border-black pl-4 font-number text-[28px] font-bold leading-none">
+                <p className="shrink-0 whitespace-nowrap border-l border-black pl-4 po-num text-[28px] font-bold leading-none">
                   <span className="mr-3 text-[15px] font-semibold uppercase">Box</span>
                   {k} / {total}
                 </p>
@@ -95,9 +94,9 @@ export default function BoxStickersPage({ params }: { params: Promise<{ id: stri
                 ) : (
                   <table className="w-full border-collapse text-[9px]">
                     <thead>
-                      <tr className="bg-light-600 text-left uppercase">
+                      <tr className="bg-primary text-left uppercase text-white [print-color-adjust:exact] [-webkit-print-color-adjust:exact]">
                         {["Sr", "Description", "Design", "Width", "Thk", "Height", "Qty", "Sq.Ft", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remarks"].map((h) => (
-                          <th key={h} className="border border-grey-300 px-1 py-1 font-semibold">{h}</th>
+                          <th key={h} className="border border-grey-300 bg-primary px-1 py-1 font-semibold text-white [print-color-adjust:exact] [-webkit-print-color-adjust:exact]">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -107,25 +106,25 @@ export default function BoxStickersPage({ params }: { params: Promise<{ id: stri
                         const rowQty = Number(c[8]) || 1;
                         return (
                           <tr key={i}>
-                            <td className="border border-grey-300 px-1 py-0.5 font-number">{c[0]}</td>
-                            <td className="border border-grey-300 px-1 py-0.5">{c[4]}{c[2] && c[2] !== "-" ? ` (${c[2]})` : ""}</td>
-                            <td className="border border-grey-300 px-1 py-0.5">{c[3]}</td>
-                            <td className="border border-grey-300 px-1 py-0.5 text-right font-number">{c[5]}</td>
-                            <td className="border border-grey-300 px-1 py-0.5 text-right font-number">{c[7]}</td>
-                            <td className="border border-grey-300 px-1 py-0.5 text-right font-number">{c[6]}</td>
-                            <td className="border border-grey-300 px-1 py-0.5 text-right font-number font-semibold">{it.n}</td>
-                            <td className="border border-grey-300 px-1 py-0.5 text-right font-number">{((Number(c[9]) || 0) * it.n / rowQty).toFixed(2)}</td>
-                            <td className="border border-grey-300 px-1 py-0.5">{c[10]}</td>
-                            <td className="border border-grey-300 px-1 py-0.5">{c[11]}</td>
-                            <td className="border border-grey-300 px-1 py-0.5">{c[12]}</td>
-                            <td className={`border border-grey-300 px-1 py-0.5 ${c[13] ? "bg-error-200 text-error" : ""}`}>{c[13]}</td>
+                            <td className="border border-grey-300 px-1 py-0.5 po-num">{c[0]}</td>
+                            <td className="border border-grey-300 px-1 py-0.5"><Nums>{`${c[4]}${c[2] && c[2] !== "-" ? ` (${c[2]})` : ""}`}</Nums></td>
+                            <td className="border border-grey-300 px-1 py-0.5"><Nums>{String(c[3] ?? "")}</Nums></td>
+                            <td className="border border-grey-300 px-1 py-0.5 text-right po-num">{c[5]}</td>
+                            <td className="border border-grey-300 px-1 py-0.5 text-right po-num">{c[7]}</td>
+                            <td className="border border-grey-300 px-1 py-0.5 text-right po-num">{c[6]}</td>
+                            <td className="border border-grey-300 px-1 py-0.5 text-right po-num font-semibold">{it.n}</td>
+                            <td className="border border-grey-300 px-1 py-0.5 text-right po-num">{((Number(c[9]) || 0) * it.n / rowQty).toFixed(2)}</td>
+                            <td className="border border-grey-300 px-1 py-0.5"><Nums>{String(c[10] ?? "")}</Nums></td>
+                            <td className="border border-grey-300 px-1 py-0.5"><Nums>{String(c[11] ?? "")}</Nums></td>
+                            <td className="border border-grey-300 px-1 py-0.5"><Nums>{String(c[12] ?? "")}</Nums></td>
+                            <td className={`border border-grey-300 px-1 py-0.5 ${c[13] ? "bg-error-200 text-error" : ""}`}><Nums>{String(c[13] ?? "")}</Nums></td>
                           </tr>
                         );
                       })}
                       <tr className="bg-light-600 font-semibold">
                         <td className="border border-grey-300 px-1 py-1 text-right" colSpan={6}>TOTAL</td>
-                        <td className="border border-grey-300 px-1 py-1 text-right font-number">{items.reduce((n, it) => n + it.n, 0)}</td>
-                        <td className="border border-grey-300 px-1 py-1 text-right font-number">{items.reduce((n, it) => n + ((Number(it.cells[9]) || 0) * it.n) / (Number(it.cells[8]) || 1), 0).toFixed(2)}</td>
+                        <td className="border border-grey-300 px-1 py-1 text-right po-num">{items.reduce((n, it) => n + it.n, 0)}</td>
+                        <td className="border border-grey-300 px-1 py-1 text-right po-num">{items.reduce((n, it) => n + ((Number(it.cells[9]) || 0) * it.n) / (Number(it.cells[8]) || 1), 0).toFixed(2)}</td>
                         <td className="border border-grey-300 px-1 py-1" colSpan={4} />
                       </tr>
                     </tbody>

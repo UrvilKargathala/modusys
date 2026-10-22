@@ -22,6 +22,7 @@ import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-materia
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { PoHardwareTab } from "@/components/purchase-orders/po-hardware-tab";
 import { PoCabinetBlock } from "@/components/purchase-orders/po-cabinet-block";
+import { ColourPopover } from "@/components/shared/colour-popover";
 import { PoWhereSelect } from "@/components/purchase-orders/po-where-select";
 import { CabinetSortList, SortableCabinet } from "@/components/purchase-orders/po-sortable-cabinet";
 import { DEFAULT_HIGHLIGHT, PoAllowedColoursContext, PoFinishMultiSelect, PoFinishSelect, finishLabel } from "@/components/purchase-orders/po-finish-select";
@@ -176,8 +177,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   // Finish entries being edited: changes wait here until the entry's tick is pressed.
   const [finishDrafts, setFinishDrafts] = useState<Record<string, NonNullable<PurchaseOrder["material"]["finishEntries"]>[number]>>({});
   const { ask: askBrandVendor, dialog: brandVendorDialog } = useConfirmChange("row");
+  const [partyOpen, setPartyOpen] = useState(false);
   const [deleteFinishId, setDeleteFinishId] = useState<string | null>(null);
-  const [pendingApply, setPendingApply] = useState<{ scope: "shutter" | "cabinet"; run: () => void; cancel?: () => void } | null>(null);
+  const [pendingApply, setPendingApply] = useState<{ scope: "shutter" | "cabinet"; run: () => void; cancel?: () => void; extra?: boolean } | null>(null);
   const fromQuote = useMemo(() => (draft?.quoteId ? quoteCabinetInfo(quotes.find((q) => q.id === draft.quoteId) ?? ({ units: [] } as never)) : new Map<number, { cabinetTypeId: string; unitQty: number }>()), [draft?.quoteId, quotes]);
 
   if (!draft || !totals) {
@@ -435,12 +437,12 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       discardFinishDraft(id);
     };
     // Saying no to the "change the rows already added?" question puts the row back as it was.
-    // Only editing a row that was already saved asks "change the rows already added?"; a new row (nothing there before) and Secondary
-    // colours (extra picks, they never replace anything on the rows) apply straight away.
+    // Changing a row that already has data asks first, in every document (Purchase Order too); a new row (nothing there before)
+    // applies straight away.
     const before = entries.find((e) => e.id === id);
-    const hadValue = part === "raw" ? !!before?.rawMaterial : part === "primary" ? !!(before?.internal || before?.external) : false;
+    const hadValue = part === "raw" ? !!before?.rawMaterial : !!(before?.internal || before?.external);
     if (!hadValue) run();
-    else askApply(places.every((w) => w === "Shutter") ? "shutter" : "cabinet", run, () => discardFinishDraft(id));
+    else setPendingApply({ scope: places.every((w) => w === "Shutter") ? "shutter" : "cabinet", run, cancel: () => discardFinishDraft(id), extra: part === "secondary" });
   };
   const addFinishEntry = (part: Part) => {
     const entries = finishEntries();
@@ -452,7 +454,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const finishTable = (title: string, part: Part) => {
     const rows = finishEntries().filter((e) => inPart(e, part));
     const colour = part !== "raw";
-    const cols = colour ? "md:grid-cols-[13rem_minmax(0,1fr)_minmax(0,1fr)_auto]" : "md:grid-cols-[minmax(0,1fr)_13rem_auto]";
+    const cols = colour ? "md:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)_auto]" : "md:grid-cols-[minmax(0,1fr)_10rem_auto]";
     return (
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
@@ -644,7 +646,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       }}
     >
     <div className={`flex flex-col gap-6${isDirect ? " no-spin" : ""}`}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Stays at the top while the page scrolls. */}
+      <div className="sticky -top-4 z-30 -mx-4 -mt-4 flex flex-wrap items-center justify-between gap-3 bg-background px-4 pb-2 pt-4 lg:-top-6 lg:-mx-6 lg:-mt-6 lg:bg-grey-transparent lg:px-6 lg:pt-6">
         <div className="flex items-center gap-3">
           <Link href={base} aria-label="Back" className="rounded-md p-1.5 text-grey-500 hover:bg-light-600">
             <ArrowLeft className="h-5 w-5" />
@@ -652,7 +655,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           <div>
             <h1 className="flex flex-wrap items-center gap-2 font-heading text-2xl font-semibold text-grey-900">
               <span>
-                {isProforma ? "Proforma Invoice" : "Purchase Order"} {draft.poNumber ? <span className="font-number">{draft.poNumber}</span> : <span className="text-grey-400">{isProforma ? "(no PI number yet)" : "(no PO number yet)"}</span>}
+                {isProforma ? "Proforma Invoice" : isDirect ? "Direct Purchase Order" : "Purchase Order"} {draft.poNumber ? <span className="font-number">{draft.poNumber}</span> : <span className="text-grey-400">{isProforma ? "(no PI number yet)" : "(no PO number yet)"}</span>}
               </span>
               <span
                 className={`rounded-full px-2.5 py-0.5 font-body text-xs font-medium ${statusColours[draft.status] ? "border" : poStatusStyle(draft.status)}`}
@@ -717,6 +720,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               });
             }}
             className={field}
+            addLabel={isProforma ? "Add new dealer" : "Add new vendor"}
+            searchPlaceholder={isProforma ? "Search dealer" : "Search vendor"}
+            onAddClick={() => setPartyOpen(true)}
           >
             <option value="">Select a vendor…</option>
             {!vendor && draft.vendorId && <option value={draft.vendorId}>{draft.vendorName || "Unknown vendor"}</option>}
@@ -844,16 +850,22 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               onBlur={(e) => { const n = Number(e.target.value); e.target.value = e.target.value === "" || Number.isNaN(n) ? "" : n.toFixed(2); }} className="bg-white font-number" />
           </div>
           )}
-          <label className="col-span-full flex w-fit cursor-pointer items-center gap-2 text-sm font-body text-grey-700">
-            <input type="checkbox" checked={!!draft.material.highlight} onChange={(e) => setMaterial({ highlight: e.target.checked || undefined })} className="h-4 w-4 accent-primary" />
-            Highlight in Order Tracker
-          </label>
+          <div className="col-span-full flex w-fit items-center gap-2">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-body text-grey-700">
+              <input type="checkbox" checked={!!draft.material.highlight} onChange={(e) => setMaterial({ highlight: e.target.checked || undefined })} className="h-4 w-4 accent-primary" />
+              Highlight in Order Tracker
+            </label>
+            {draft.material.highlight && (
+              <ColourPopover value={draft.material.highlightColor ?? (isProforma ? "#ffff00" : "#b6d7a8")} onChange={(hex) => setMaterial({ highlightColor: hex })} reset={isProforma ? "#ffff00" : "#b6d7a8"} label="Row colour in the Order Tracker" />
+            )}
+          </div>
           </>
         </PoSection>
 
         <section className="po-card rounded-xl border border-t-4 border-stone/60 border-t-stone bg-stone/40 p-4 shadow-sm">
           <h2 className="font-heading text-lg font-semibold text-grey-900">Material Details</h2>
-          <div className="mt-3 flex flex-col gap-5">
+          {/* Two columns on wide screens: Raw Material | Primary on top, Secondary under. */}
+          <div className="mt-3 grid items-start gap-x-6 gap-y-5 xl:grid-cols-2">
             {finishTable("Raw Material Detail", "raw")}
             {finishTable("Primary Color Selection", "primary")}
             {finishTable("Secondary Color Selection", "secondary")}
@@ -1245,6 +1257,21 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       </div>
 
       <VendorFormDialog
+        dealer={isProforma}
+        open={partyOpen}
+        onOpenChange={setPartyOpen}
+        onSubmit={async (values) => {
+          try {
+            const created = await vendorsStore.createVendor(isProforma ? { ...values, kind: "dealer" } : values);
+            set({ vendorId: created.id, gstMode: gstModeFor(created.state) });
+            toastStore.show(`${created.name} added`, "success");
+            setPartyOpen(false);
+          } catch (e) {
+            toastStore.show(e instanceof Error ? e.message : isProforma ? "Could not save dealer" : "Could not save vendor", "error");
+          }
+        }}
+      />
+      <VendorFormDialog
         open={newVendorFor !== null}
         onOpenChange={(o) => !o && setNewVendorFor(null)}
         onSubmit={async (values) => {
@@ -1262,8 +1289,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       <ConfirmDialog
         open={!!pendingApply}
         onOpenChange={(o) => { if (!o) { pendingApply?.cancel?.(); setPendingApply(null); } }}
-        title="Change the rows already added?"
-        description={`This also updates the Material and colours of the rows already added in ${pendingApply?.scope === "shutter" ? "Shutter" : "Carcass and Other Panel"}. Continue?`}
+        title={pendingApply?.extra ? "Change these colours?" : "Change the rows already added?"}
+        description={pendingApply?.extra ? "This replaces the colours already saved in this row. Continue?" : `This also updates the Material and colours of the rows already added in ${pendingApply?.scope === "shutter" ? "Shutter" : "Carcass and Other Panel"}. Continue?`}
         confirmLabel="Continue"
         onConfirm={() => {
           pendingApply?.run();
