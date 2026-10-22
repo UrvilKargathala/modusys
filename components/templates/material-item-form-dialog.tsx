@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,8 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { materialSpecStore } from "@/lib/store/material-spec-store";
-import type { MaterialCategory, MaterialItem } from "@/lib/mock/material-spec";
+import { materialSpecStore, useMaterialItems } from "@/lib/store/material-spec-store";
+import { parseFinishRule, type MaterialCategory, type MaterialCategoryKey, type MaterialItem } from "@/lib/mock/material-spec";
 
 const itemSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -54,14 +54,41 @@ export function MaterialItemFormDialog({
     defaultValues: { name: "", description: "" },
   });
 
+  // Finish Rules: Where to Use and the Internal / External brand & colour this raw material gets there (saved together in `description`).
+  const lib = category.key.startsWith("proforma") ? "proforma" : "purchase";
+  const rawItems = useMaterialItems("raw-material-type");
+  const cabinetNames = useMaterialItems(`${lib}-cabinet-type` as MaterialCategoryKey);
+  const internals = useMaterialItems(`${lib}-internal` as MaterialCategoryKey);
+  const externals = useMaterialItems(`${lib}-external` as MaterialCategoryKey);
+  const [ruleWhere, setRuleWhere] = useState("");
+  const [ruleInternal, setRuleInternal] = useState("");
+  const [ruleExternal, setRuleExternal] = useState("");
+  const label = (i: { name: string; description: string }) => `${i.description} — ${i.name}`;
   useEffect(() => {
     if (!open) return;
+    const r = parseFinishRule(item?.description ?? "");
+    setRuleWhere(r.where);
+    setRuleInternal(r.internal);
+    setRuleExternal(r.external);
     reset(item ? { name: item.name, description: item.description } : { name: "", description: "" });
   }, [open, item, reset]);
 
   const brandCode = !!category.brandAndCode;
 
   const submit = (values: ItemFormValues) => {
+    if (category.finishRule) {
+      if (!ruleWhere) {
+        setError("name", { message: "Pick where to use it" });
+        return;
+      }
+      if (!ruleInternal && !ruleExternal) {
+        setError("name", { message: "Pick an internal or external colour" });
+        return;
+      }
+      onSubmit({ name: values.name.trim(), description: `${ruleWhere}|${ruleInternal}|${ruleExternal}` });
+      onOpenChange(false);
+      return;
+    }
     if (brandCode) {
       // Brand is required here, and the same Colour Code may exist under another brand —
       // so uniqueness is the Brand + Colour Code pair.
@@ -122,14 +149,54 @@ export function MaterialItemFormDialog({
           )}
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="mi-name">{brandCode ? "Colour Code *" : "Name *"}</Label>
-            <Input id="mi-name" placeholder={brandCode ? "e.g. EW 79520" : "e.g. Profile Handle — Aluminium"} {...register("name")} />
+            <Label htmlFor="mi-name">{brandCode ? "Colour Code *" : category.finishRule ? "Raw Material *" : "Name *"}</Label>
+            {category.finishRule ? (
+              <select
+                id="mi-name"
+                value={watch("name")}
+                onChange={(e) => setValue("name", e.target.value, { shouldDirty: true, shouldValidate: true })}
+                className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
+              >
+                <option value="">Select raw material…</option>
+                {rawItems.map((r) => <option key={r.id} value={r.name}>{r.name}</option>)}
+              </select>
+            ) : (
+              <Input id="mi-name" placeholder={brandCode ? "e.g. EW 79520" : "e.g. Profile Handle — Aluminium"} {...register("name")} />
+            )}
             {errors.name && (
               <span className="text-xs font-body text-error">
                 {brandCode && errors.name.message === "Name is required" ? "Colour code is required" : errors.name.message}
               </span>
             )}
           </div>
+
+          {category.finishRule && (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="mi-where">Where to Use *</Label>
+                <select id="mi-where" value={ruleWhere} onChange={(e) => setRuleWhere(e.target.value)} className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary">
+                  <option value="">Select…</option>
+                  <option value="Shutter">Shutter</option>
+                  <option value="All Cabinets">All Cabinets</option>
+                  {cabinetNames.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="mi-int">Internal Brand & Colour</Label>
+                <select id="mi-int" value={ruleInternal} onChange={(e) => setRuleInternal(e.target.value)} className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary">
+                  <option value="">None</option>
+                  {internals.map((c) => <option key={c.id} value={label(c)}>{label(c)}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="mi-ext">External Brand & Colour</Label>
+                <select id="mi-ext" value={ruleExternal} onChange={(e) => setRuleExternal(e.target.value)} className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary">
+                  <option value="">None</option>
+                  {externals.map((c) => <option key={c.id} value={label(c)}>{label(c)}</option>)}
+                </select>
+              </div>
+            </>
+          )}
 
           {category.statusColour && (
             <div className="flex flex-col gap-1.5">

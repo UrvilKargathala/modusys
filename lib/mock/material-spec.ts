@@ -30,6 +30,7 @@ export type MaterialCategoryKey =
   | "purchase-product-type"
   | "purchase-order-type"
   | "purchase-order-status"
+  | "purchase-finish-rule"
   // Proforma Library: the same lists as the Purchase Material Library, with their own data (used on Proforma Invoices)
   | "proforma-internal"
   | "proforma-external"
@@ -40,7 +41,8 @@ export type MaterialCategoryKey =
   | "proforma-dealer-category"
   | "proforma-dealer-area"
   | "proforma-sales-person"
-  | "proforma-transport";
+  | "proforma-transport"
+  | "proforma-finish-rule";
 
 export type MaterialCategory = {
   key: MaterialCategoryKey;
@@ -57,6 +59,8 @@ export type MaterialCategory = {
   brandAndCode?: boolean;
   // Code + Name entries: Code kept in `description` and shown first (no DB change).
   codeAndName?: boolean;
+  // Finish rule: Raw Material in `name`, "Where to Use|Internal label|External label" in `description` (no DB change). The same raw material + usage may repeat with different colours.
+  finishRule?: boolean;
   // A colour (hex) kept in `description` and shown as a swatch (no DB change): Purchase Order Status.
   statusColour?: boolean;
 };
@@ -91,6 +95,7 @@ export const materialCategories: MaterialCategory[] = [
   { key: "purchase-product-type", group: "purchase-library", label: "Purchase Product Type", codeAndName: true },
   { key: "purchase-order-type", group: "purchase-library", label: "Purchase Order Type", noDescription: true },
   { key: "purchase-order-status", group: "purchase-library", label: "Purchase Order Status", noDescription: true, statusColour: true },
+  { key: "purchase-finish-rule", group: "purchase-library", label: "Finish Rules", noDescription: true, finishRule: true },
   { key: "proforma-internal", group: "proforma-library", label: "Internal Colour", brandAndCode: true },
   { key: "proforma-external", group: "proforma-library", label: "External Colour", brandAndCode: true },
   { key: "proforma-cabinet-type", group: "proforma-library", label: "Cabinet Name", noDescription: true },
@@ -101,7 +106,14 @@ export const materialCategories: MaterialCategory[] = [
   { key: "proforma-dealer-area", group: "proforma-library", label: "Dealer Area", noDescription: true },
   { key: "proforma-sales-person", group: "proforma-library", label: "Dealer Sales Person", noDescription: true },
   { key: "proforma-transport", group: "proforma-library", label: "Transport Details", noDescription: true },
+  { key: "proforma-finish-rule", group: "proforma-library", label: "Finish Rules", noDescription: true, finishRule: true },
 ];
+
+// A finish rule keeps "Where to Use|Internal|External" in `description`.
+export const parseFinishRule = (description: string) => {
+  const [where = "", internal = "", external = ""] = description.split("|");
+  return { where, internal, external };
+};
 
 export function getMaterialCategory(key: MaterialCategoryKey) {
   return materialCategories.find((c) => c.key === key)!;

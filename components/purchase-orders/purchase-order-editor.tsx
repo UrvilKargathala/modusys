@@ -22,6 +22,7 @@ import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-materia
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { PoHardwareTab } from "@/components/purchase-orders/po-hardware-tab";
 import { PoCabinetBlock } from "@/components/purchase-orders/po-cabinet-block";
+import { CabinetSortList, SortableCabinet } from "@/components/purchase-orders/po-sortable-cabinet";
 import { PoFinishMultiSelect, PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
@@ -32,7 +33,7 @@ import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
 import { PoLibraryContext, libKey } from "@/components/purchase-orders/po-library-context";
-import { materialCategories, statusColourStyle } from "@/lib/mock/material-spec";
+import { materialCategories, parseFinishRule, statusColourStyle } from "@/lib/mock/material-spec";
 import { MaterialItemFormDialog } from "@/components/templates/material-item-form-dialog";
 import { PO_GROUPS, asPoStatus, poStatusLabel, poStatusList, poStatusStyle, customerCode, lineAmount, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
 
@@ -171,6 +172,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const [compGroup, setCompGroup] = useState<string>("");
   const [directTab, setDirectTab] = useState<"carcass" | "shutter" | "other-panel" | "hardware">("carcass");
   const [pendingApply, setPendingApply] = useState<{ scope: "shutter" | "cabinet"; run: () => void } | null>(null);
+  // The Finish section's "Add new cabinet name" dialog: the id of the entry it was opened from.
+  const [addWhereOpen, setAddWhereOpen] = useState<string | null>(null);
   const fromQuote = useMemo(() => (draft?.quoteId ? quoteCabinetInfo(quotes.find((q) => q.id === draft.quoteId) ?? ({ units: [] } as never)) : new Map<number, { cabinetTypeId: string; unitQty: number }>()), [draft?.quoteId, quotes]);
 
   if (!draft || !totals) {
@@ -312,6 +315,77 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       lines: draft.lines.map((l) => (inScope(scope, l.group) ? { ...l, material: name } : l)),
     });
 
+
+  // ---- Finish section: any number of entries, each a raw material and its colour (internal + external) for one place of use. "Where to Use"
+  // is "Shutter", "All Cabinets" or a cabinet name from the library (every cabinet with that name). Older documents have no entries and
+  // show their Shutter and Cabinet values as the first two until the section is edited.
+  type FinishEntry = NonNullable<PurchaseOrder["material"]["finishEntries"]>[number];
+  const finishEntries = (): FinishEntry[] =>
+    draft.material.finishEntries?.map((e) => ({ ...e, where: e.where === "shutter" ? "Shutter" : e.where === "cabinets" ? "All Cabinets" : e.where })) ?? [
+      { id: "fe-shutter", where: "Shutter", rawMaterial: draft.material.shutterRawMaterial, internal: commonFinish("shutter", "internalColour"), external: commonFinish("shutter", "externalColour") },
+      { id: "fe-cabinets", where: "All Cabinets", rawMaterial: draft.material.cabinetRawMaterial, internal: commonFinish("cabinet", "internalColour"), external: commonFinish("cabinet", "externalColour") },
+    ];
+  const cabinetNameItems = materials.filter((m) => m.category === libKey(lib, "purchase-cabinet-type") && !m.deleted);
+  const whereOptions = ["Shutter", "All Cabinets", ...cabinetNameItems.map((m) => m.name)];
+  // Rules from the library (Finish Rules): this raw material at this place of use gets these colours.
+  const finishRulesFor = (raw: string, where: string) =>
+    materials
+      .filter((m) => m.category === libKey(lib, "purchase-finish-rule") && !m.deleted && m.name === raw)
+      .map((m) => parseFinishRule(m.description))
+      .filter((r) => r.where.toLowerCase() === where.toLowerCase());
+  // Puts a raw material / colours on the rows (and cabinet records) of one place of use.
+  const applyFinishTo = (d: PurchaseOrder, where: string, f: { rawMaterial?: string; internal?: string; external?: string }): PurchaseOrder => {
+    let material = d.material;
+    let lines = d.lines;
+    const panel = (l: { group: string }) => l.group === "carcass" || l.group === "other-panel";
+    const named = new Set(Object.entries(d.material.cabinets ?? {}).filter(([, c]) => (c.cabinetName ?? "") === where).map(([n]) => Number(n)));
+    const inTarget = (l: { group: string; srNo: number }) => (where === "Shutter" ? l.group === "shutter" : where === "All Cabinets" ? panel(l) : panel(l) && named.has(l.srNo));
+    const scope = where === "Shutter" ? "shutter" : "cabinet";
+    const setNamed = (m: PurchaseOrder["material"], fields: Partial<PoCabinet>) => ({ ...m, cabinets: Object.fromEntries(Object.entries(m.cabinets ?? {}).map(([n, c]) => [n, named.has(Number(n)) ? { ...c, ...fields } : c])) });
+    if (f.rawMaterial !== undefined) {
+      const v = f.rawMaterial;
+      lines = lines.map((l) => (inTarget(l) ? { ...l, material: v } : l));
+      material = where === "Shutter" ? { ...material, shutterRawMaterial: v } : where === "All Cabinets" ? syncCabinets({ ...material, cabinetRawMaterial: v }, "cabinet", "material", v) : setNamed(material, { material: v });
+    }
+    for (const [key, val] of [["internalColour", f.internal], ["externalColour", f.external]] as const) {
+      if (val === undefined) continue;
+      lines = lines.map((l) => (inTarget(l) ? { ...l, [key]: val } : l));
+      if (where === "Shutter" || where === "All Cabinets") material = syncCabinets({ ...material, finishes: { ...material.finishes, [finishKey(scope, key)]: val } }, scope, key, val);
+      else material = setNamed(material, { [key]: val });
+    }
+    return { ...d, material, lines };
+  };
+  const updateFinishEntry = (id: string, patch: Partial<FinishEntry>) => {
+    const entries = finishEntries();
+    const cur = entries.find((e) => e.id === id);
+    if (!cur) return;
+    let next: FinishEntry = { ...cur, ...patch };
+    if ((patch.where !== undefined || patch.rawMaterial !== undefined) && next.rawMaterial && entries.some((e) => e.id !== id && e.where === next.where && e.rawMaterial === next.rawMaterial)) {
+      toastStore.show(`${next.rawMaterial} is already set for ${next.where}`, "error");
+      return;
+    }
+    // A matching Finish Rule fills the colours (one match); several matches are offered under the row; no match leaves them as picked.
+    if (patch.rawMaterial !== undefined || patch.where !== undefined) {
+      const rules = finishRulesFor(next.rawMaterial, next.where);
+      if (rules.length === 1) next = { ...next, ...(rules[0].internal ? { internal: rules[0].internal } : {}), ...(rules[0].external ? { external: rules[0].external } : {}) };
+    }
+    const moved = next.where !== cur.where;
+    const fields = {
+      ...(moved || next.rawMaterial !== cur.rawMaterial ? { rawMaterial: next.rawMaterial } : {}),
+      ...(moved || next.internal !== cur.internal ? { internal: next.internal } : {}),
+      ...(moved || next.external !== cur.external ? { external: next.external } : {}),
+    };
+    const withEntries = { ...draft, material: { ...draft.material, finishEntries: entries.map((e) => (e.id === id ? next : e)) } };
+    const run = () => {
+      const applied = applyFinishTo(withEntries, next.where, fields);
+      set({ material: applied.material, ...(applied.lines !== withEntries.lines ? { lines: applied.lines } : {}) });
+    };
+    if (Object.keys(fields).length === 0) return run();
+    askApply(next.where === "Shutter" ? "shutter" : "cabinet", run);
+  };
+  const addFinishEntry = () => setMaterial({ finishEntries: [...finishEntries(), { id: `fe-${Date.now()}`, where: "All Cabinets", rawMaterial: "", internal: "", external: "" }] });
+  const removeFinishEntry = (id: string) => setMaterial({ finishEntries: finishEntries().filter((e) => e.id !== id) });
+
   // Copy a whole cabinet: its size / details and every row (carcass, shutter, other panel, hardware) become the next cabinet number.
   const copyCabinet = (no: number) => {
     const next = Math.max(0, ...cabinetNos) + 1;
@@ -366,6 +440,30 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const removeCabinet = (no: number) => {
     const { [String(no)]: _gone, ...rest } = draft.material.cabinets;
     set({ lines: draft.lines.filter((l) => l.srNo !== no).map((l, i) => ({ ...l, position: i })), material: { ...draft.material, cabinets: rest } });
+  };
+  // Drag and drop: the cabinets are renumbered 1, 2, 3 ... in the new order (their rows, cabinet details and the Packing / Production ticks
+  // follow), so every view and PDF lists them in that order. Rows without a cabinet (number 0) stay first.
+  const reorderCabinets = (all: number[]) => {
+    const ordered = all.filter((n) => n > 0);
+    const positives = cabinetNos.filter((n) => n > 0);
+    const map = new Map<number, number>(ordered.map((n, i) => [n, i + 1]));
+    if (ordered.length !== positives.length || ordered.every((n, i) => n === positives[i])) return;
+    const rank = new Map(draft.lines.map((l, i) => [l.id, i]));
+    const lines = draft.lines
+      .map((l) => (map.has(l.srNo) ? { ...l, srNo: map.get(l.srNo)! } : l))
+      .sort((a, b) => a.srNo - b.srNo || (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0))
+      .map((l, i) => ({ ...l, position: i }));
+    const cabinets = Object.fromEntries(Object.entries(draft.material.cabinets ?? {}).map(([k, c]) => [map.has(Number(k)) ? String(map.get(Number(k))) : k, c]));
+    const remapTicks = (t?: Record<string, unknown>) =>
+      t && Object.fromEntries(Object.entries(t).map(([k, v]) => {
+        const [sr, ...rest] = k.split("|");
+        const [cab, row] = sr.split(".");
+        return [map.has(Number(cab)) ? [`${map.get(Number(cab))}.${row}`, ...rest].join("|") : k, v];
+      }));
+    set({
+      lines,
+      material: { ...draft.material, cabinets, ...(draft.material.packing ? { packing: remapTicks(draft.material.packing) as typeof draft.material.packing } : {}), ...(draft.material.production ? { production: remapTicks(draft.material.production) as typeof draft.material.production } : {}) },
+    });
   };
 
   return (
@@ -586,42 +684,75 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           </>
         </PoSection>
 
-        <PoSection tone="border-stone/60 border-t-stone bg-stone/40" title="Shutter Details" summary={draft.material.shutterRawMaterial}>
-          <div className="flex flex-col gap-1.5">
-            <Label>Shutter Raw Material <span className="text-error">*</span></Label>
-            <PoRawMaterialSelect value={draft.material.shutterRawMaterial} onChange={(v) => askApply("shutter", () => applyMaterial("shutter", "shutterRawMaterial", v))} />
+        <section className="po-card rounded-xl border border-t-4 border-stone/60 border-t-stone bg-stone/40 p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-heading text-lg font-semibold text-grey-900">Finish</h2>
+            <Button type="button" size="sm" variant="outline" onClick={addFinishEntry}>
+              <Plus className="h-4 w-4" /> Add Finish
+            </Button>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Internal Brand & Colour <span className="text-error">*</span></Label>
-            <PoFinishSelect kind="internal" value={commonFinish("shutter", "internalColour")} onChange={(label) => askApply("shutter", () => applyFinish("shutter", "internalColour", label))} colors={finishPalette("shutter", "internal")} onColor={(label, hex) => setFinishColour("shutter", "internal", label, hex)} />
+          <div className="mt-3 flex flex-col gap-3">
+            {finishEntries().length === 0 && <p className="text-sm font-body text-grey-500">No finish yet. Use Add Finish.</p>}
+            {finishEntries().map((e, idx) => {
+              const scope = e.where === "Shutter" ? "shutter" : "cabinet";
+              const rules = e.rawMaterial ? finishRulesFor(e.rawMaterial, e.where) : [];
+              return (
+                <div key={e.id} className="flex flex-col gap-1.5">
+                  <div className="grid items-end gap-3 md:grid-cols-[minmax(0,1fr)_14rem_minmax(0,2fr)_auto]">
+                    <div className="flex flex-col gap-1.5">
+                      {idx === 0 && <Label>Raw Material Type <span className="text-error">*</span></Label>}
+                      <PoRawMaterialSelect value={e.rawMaterial} onChange={(v) => updateFinishEntry(e.id, { rawMaterial: v })} />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      {idx === 0 && <Label>Where to Use</Label>}
+                      <SelectField
+                        aria-label="Where to use"
+                        value={e.where}
+                        onChange={(ev) => updateFinishEntry(e.id, { where: ev.target.value })}
+                        searchPlaceholder="Search where to use"
+                        addLabel="Add new cabinet name"
+                        onAddClick={() => setAddWhereOpen(e.id)}
+                        className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
+                      >
+                        {whereOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+                      </SelectField>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      {idx === 0 && <Label>Colour (Internal | External) <span className="text-error">*</span></Label>}
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <PoFinishSelect kind="internal" value={e.internal} onChange={(label) => updateFinishEntry(e.id, { internal: label })} colors={finishPalette(scope, "internal")} onColor={(label, hex) => setFinishColour(scope, "internal", label, hex)} />
+                        <PoFinishSelect kind="external" value={e.external} onChange={(label) => updateFinishEntry(e.id, { external: label })} colors={finishPalette(scope, "external")} onColor={(label, hex) => setFinishColour(scope, "external", label, hex)} />
+                      </div>
+                    </div>
+                    <button type="button" aria-label="Remove this finish" onClick={() => removeFinishEntry(e.id)} className="mb-0.5 rounded-md p-2 text-grey-400 hover:bg-light-600 hover:text-error">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                  {rules.length > 1 && (
+                    <div className="flex flex-wrap items-center gap-2 pl-1 text-xs font-body text-grey-600">
+                      <span>Colours for {e.rawMaterial} on {e.where}:</span>
+                      {rules.map((r, i) => (
+                        <button key={i} type="button" onClick={() => updateFinishEntry(e.id, { ...(r.internal ? { internal: r.internal } : {}), ...(r.external ? { external: r.external } : {}) })} className="rounded-full border border-grey-100 bg-card px-2.5 py-0.5 hover:border-primary hover:text-primary">
+                          {[r.internal, r.external].filter(Boolean).join(" / ")}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>External Brand & Colour <span className="text-error">*</span></Label>
-            <PoFinishSelect kind="external" value={commonFinish("shutter", "externalColour")} onChange={(label) => askApply("shutter", () => applyFinish("shutter", "externalColour", label))} colors={finishPalette("shutter", "external")} onColor={(label, hex) => setFinishColour("shutter", "external", label, hex)} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Additional External Brand & Colour</Label>
-            <PoFinishMultiSelect value={draft.material.additionalExternal?.shutter ?? []} onChange={(v) => setMaterial({ additionalExternal: { ...draft.material.additionalExternal, shutter: v } })} colors={draft.material.additionalColors?.shutter} onColorChange={(label, hex) => setMaterial({ additionalColors: { ...draft.material.additionalColors, shutter: { ...draft.material.additionalColors?.shutter, [label]: hex } } })} />
-          </div>
-        </PoSection>
-        <PoSection tone="border-sand border-t-sand bg-sand/60" title="Cabinet Details" summary={draft.material.cabinetRawMaterial}>
-          <div className="flex flex-col gap-1.5">
-            <Label>Cabinet Raw Material <span className="text-error">*</span></Label>
-            <PoRawMaterialSelect value={draft.material.cabinetRawMaterial} onChange={(v) => askApply("cabinet", () => applyMaterial("cabinet", "cabinetRawMaterial", v))} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Internal Brand & Colour <span className="text-error">*</span></Label>
-            <PoFinishSelect kind="internal" value={commonFinish("cabinet", "internalColour")} onChange={(label) => askApply("cabinet", () => applyFinish("cabinet", "internalColour", label))} colors={finishPalette("cabinet", "internal")} onColor={(label, hex) => setFinishColour("cabinet", "internal", label, hex)} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>External Brand & Colour <span className="text-error">*</span></Label>
-            <PoFinishSelect kind="external" value={commonFinish("cabinet", "externalColour")} onChange={(label) => askApply("cabinet", () => applyFinish("cabinet", "externalColour", label))} colors={finishPalette("cabinet", "external")} onColor={(label, hex) => setFinishColour("cabinet", "external", label, hex)} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>Additional External Brand & Colour</Label>
-            <PoFinishMultiSelect value={draft.material.additionalExternal?.cabinet ?? []} onChange={(v) => setMaterial({ additionalExternal: { ...draft.material.additionalExternal, cabinet: v } })} colors={draft.material.additionalColors?.cabinet} onColorChange={(label, hex) => setMaterial({ additionalColors: { ...draft.material.additionalColors, cabinet: { ...draft.material.additionalColors?.cabinet, [label]: hex } } })} />
-          </div>
-        </PoSection>
+          <MaterialItemFormDialog
+            open={addWhereOpen !== null}
+            onOpenChange={(o) => !o && setAddWhereOpen(null)}
+            category={materialCategories.find((c) => c.key === libKey(lib, "purchase-cabinet-type"))!}
+            onSubmit={(values) => {
+              const created = materialSpecStore.createItem({ category: libKey(lib, "purchase-cabinet-type"), ...values });
+              if (addWhereOpen) updateFinishEntry(addWhereOpen, { where: created.name });
+              setAddWhereOpen(null);
+            }}
+          />
+        </section>
       </div>
 
       <div className={card}>
@@ -910,9 +1041,12 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                   </button>
                   <span className="font-number text-sm text-grey-700">{formatInr(draft.lines.filter((l) => l.group === g.key).reduce((t, l) => t + lineAmount(l), 0))}</span>
                 </div>
-                {carcassOpen && cabinetNos
+                {carcassOpen && (
+                  <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
+                {cabinetNos
                   .filter((no) => draft.lines.some((l) => l.group === g.key && l.srNo === no))
                   .map((no) => (
+                    <SortableCabinet key={no} no={no}>
                     <PoCabinetBlock
                       key={no}
                       group={g.key}
@@ -924,12 +1058,18 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                       onChange={(lines) => set({ lines })}
                       onCopyCabinet={() => copyCabinet(no)}
                     />
+                    </SortableCabinet>
                   ))}
+                  </CabinetSortList>
+                )}
               </div>
             )
           )];
           })
-          : cabinetNos.map((no) => (
+          : (
+            <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
+              {cabinetNos.map((no) => (
+              <SortableCabinet key={no} no={no}>
               <PoCabinetCard
                 key={no}
                 srNo={no}
@@ -942,7 +1082,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 detailDefaults={isDirect ? { internalColour: draft.material.finishes?.cabinetInternalColour ?? "", externalColour: draft.material.finishes?.cabinetExternalColour ?? "", material: draft.material.cabinetRawMaterial } : undefined}
                 onCopyCabinet={() => copyCabinet(no)}
               />
-            ))}
+              </SortableCabinet>
+              ))}
+            </CabinetSortList>
+          )}
         {/* The same Add button under the last cabinet, so one can be added without scrolling back up. */}
         {shownView === "cabinet" && (!isDirect || directTab === "carcass") && cabinetNos.length > 0 && (
           <div className="flex justify-end">

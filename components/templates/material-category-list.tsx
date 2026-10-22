@@ -13,7 +13,7 @@ import { useMaterialItems, materialSpecStore } from "@/lib/store/material-spec-s
 import { useMaterialDependencies } from "@/lib/hooks/use-material-dependencies";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
-import { DEFAULT_PO_STATUSES, materialCategories, type MaterialCategory, type MaterialItem } from "@/lib/mock/material-spec";
+import { DEFAULT_PO_STATUSES, materialCategories, parseFinishRule, type MaterialCategory, type MaterialItem } from "@/lib/mock/material-spec";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 export function MaterialCategoryList({ category }: { category: MaterialCategory }) {
@@ -161,6 +161,13 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                     {sortIcon("name")}
                   </button>
                 </th>
+                {category.finishRule && (
+                  <>
+                    <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Where to Use</th>
+                    <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Internal</th>
+                    <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">External</th>
+                  </>
+                )}
                 {!pair && !category.longDescription && !category.noDescription && (
                   <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
                     <button
@@ -196,6 +203,13 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                       <p className="mt-0.5 text-xs font-body text-grey-400"><Nums>{i.description}</Nums></p>
                     )}
                   </td>
+                  {category.finishRule && (
+                    <>
+                      <td className="px-4 py-3 text-[13px] font-body text-grey-900">{parseFinishRule(i.description).where || "—"}</td>
+                      <td className="px-4 py-3 text-[13px] font-number text-grey-900">{parseFinishRule(i.description).internal || "—"}</td>
+                      <td className="px-4 py-3 text-[13px] font-number text-grey-900">{parseFinishRule(i.description).external || "—"}</td>
+                    </>
+                  )}
                   {!pair && !category.longDescription && !category.noDescription && (
                     <td className="px-4 py-3 text-[13px] font-body text-grey-500"><Nums>{i.description || "—"}</Nums></td>
                   )}

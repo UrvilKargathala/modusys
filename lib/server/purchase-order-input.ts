@@ -124,6 +124,13 @@ export function cleanMaterial(m: unknown) {
           },
         ] as const)
     ),
+    finishEntries: !Array.isArray(o.finishEntries) ? undefined : (o.finishEntries as Record<string, unknown>[]).slice(0, 100).map((e, i) => ({
+      id: str(e?.id).slice(0, 40) || `fe-${i}`,
+      where: str(e?.where).slice(0, 20),
+      rawMaterial: str(e?.rawMaterial).slice(0, 120),
+      internal: str(e?.internal).slice(0, 200),
+      external: str(e?.external).slice(0, 200),
+    })),
     production: Object.fromEntries(
       Object.entries((o.production ?? {}) as Record<string, Record<string, unknown>>)
         .filter(([k]) => k)
