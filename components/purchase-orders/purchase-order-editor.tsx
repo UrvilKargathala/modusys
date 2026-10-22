@@ -435,7 +435,12 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       discardFinishDraft(id);
     };
     // Saying no to the "change the rows already added?" question puts the row back as it was.
-    askApply(places.every((w) => w === "Shutter") ? "shutter" : "cabinet", run, () => discardFinishDraft(id));
+    // Only editing a row that was already saved asks "change the rows already added?"; a new row (nothing there before) and Secondary
+    // colours (extra picks, they never replace anything on the rows) apply straight away.
+    const before = entries.find((e) => e.id === id);
+    const hadValue = part === "raw" ? !!before?.rawMaterial : part === "primary" ? !!(before?.internal || before?.external) : false;
+    if (!hadValue) run();
+    else askApply(places.every((w) => w === "Shutter") ? "shutter" : "cabinet", run, () => discardFinishDraft(id));
   };
   const addFinishEntry = (part: Part) => {
     const entries = finishEntries();
@@ -474,12 +479,22 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               {colour ? (
                 <>
                   {whereSel}
-                  <PoFinishSelect free kind="internal" value={labels(e.internal)[0] ?? ""} onChange={(v) => editFinishEntry(saved.id, { internal: v }, part)} colors={finishPalette(scope, "internal")} onColor={(label, hex) => { setFinishColour(scope, "internal", label, hex); }} />
-                  <PoFinishSelect free kind="external" value={labels(e.external)[0] ?? ""} onChange={(v) => editFinishEntry(saved.id, { external: v }, part)} colors={finishPalette(scope, "external")} onColor={(label, hex) => {
-                    // The same brand & colour already coloured on the internal side gives its colour to the external pick.
-                    const fromInternal = finishPalette(scope, "internal")[label];
-                    setFinishColour(scope, "external", label, hex === DEFAULT_HIGHLIGHT && fromInternal ? fromInternal : hex);
-                  }} />
+                  {part === "secondary" ? (
+                    <>
+                      {/* Secondary: any number of internal / external colours in one row. */}
+                      <PoFinishMultiSelect kind="internal" placeholder="Select internal colours" value={labels(e.internal)} onChange={(v) => editFinishEntry(saved.id, { internal: v.join("||") }, part)} colors={finishPalette(scope, "internal")} onColorChange={(label, hex) => setFinishColour(scope, "internal", label, hex)} />
+                      <PoFinishMultiSelect kind="external" placeholder="Select external colours" value={labels(e.external)} onChange={(v) => editFinishEntry(saved.id, { external: v.join("||") }, part)} colors={finishPalette(scope, "external")} onColorChange={(label, hex) => setFinishColour(scope, "external", label, hex)} />
+                    </>
+                  ) : (
+                    <>
+                      <PoFinishSelect free kind="internal" value={labels(e.internal)[0] ?? ""} onChange={(v) => editFinishEntry(saved.id, { internal: v }, part)} colors={finishPalette(scope, "internal")} onColor={(label, hex) => { setFinishColour(scope, "internal", label, hex); }} />
+                      <PoFinishSelect free kind="external" value={labels(e.external)[0] ?? ""} onChange={(v) => editFinishEntry(saved.id, { external: v }, part)} colors={finishPalette(scope, "external")} onColor={(label, hex) => {
+                        // The same brand & colour already coloured on the internal side gives its colour to the external pick.
+                        const fromInternal = finishPalette(scope, "internal")[label];
+                        setFinishColour(scope, "external", label, hex === DEFAULT_HIGHLIGHT && fromInternal ? fromInternal : hex);
+                      }} />
+                    </>
+                  )}
                 </>
               ) : (
                 <>
