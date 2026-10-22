@@ -5,7 +5,8 @@ import { useSyncExternalStore } from "react";
 export type Toast = {
   id: string;
   message: string;
-  variant: "success" | "error";
+  variant: "success" | "error" | "warning" | "info";
+  durationMs: number;
   action?: { label: string; onClick: () => void };
 };
 
@@ -31,12 +32,14 @@ export const toastStore = {
     options?: { action?: Toast["action"]; durationMs?: number }
   ) {
     const id = `toast-${Date.now()}-${Math.random()}`;
-    toasts = [...toasts, { id, message, variant, action: options?.action }];
+    // Errors stay longer so they can be read; every toast has a close button.
+    const durationMs = options?.durationMs ?? (variant === "error" ? 6000 : 4000);
+    toasts = [...toasts, { id, message, variant, action: options?.action, durationMs }];
     emit();
     setTimeout(() => {
       toasts = toasts.filter((t) => t.id !== id);
       emit();
-    }, options?.durationMs ?? 3000);
+    }, durationMs);
   },
   dismiss(id: string) {
     toasts = toasts.filter((t) => t.id !== id);

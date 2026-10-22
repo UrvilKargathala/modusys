@@ -565,3 +565,21 @@
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Toasts: slide in from the right; the bar at the bottom runs down over the toast's lifetime. */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(1.5rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes toast-bar {
+  from { width: 100%; }
+  to { width: 0; }
+}
+.toast-in {
+  animation: toast-in 0.2s ease-out;
+}
+.toast-bar {
+  animation-name: toast-bar;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}

@@ -5,6 +5,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Analytics } from "@vercel/analytics/react";
 import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt";
+import { ToastViewport } from "@/components/shared/toast-viewport";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 
 const BRAND = "#9e7676";
@@ -73,6 +74,8 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning className="min-h-full flex flex-col font-body">
         <Providers>{children}</Providers>
+        {/* One toast area for every page (app, sign-in, PDFs). */}
+        <ToastViewport />
         <PWAInstallPrompt />
         <ServiceWorkerRegister />
         <Analytics />

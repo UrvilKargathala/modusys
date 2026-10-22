@@ -2,7 +2,6 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { TopNavbar } from "@/components/layout/top-navbar";
 import { Footer } from "@/components/layout/footer";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
-import { ToastViewport } from "@/components/shared/toast-viewport";
 import { TaskPanel } from "@/components/crm/tasks/task-panel";
 import { AssignmentGreeter } from "@/components/crm/tasks/assignment-greeter";
 import { CustomerPanel } from "@/components/crm/pipeline/customer-panel/customer-panel";
@@ -20,7 +19,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Footer />
         </div>
         <MobileBottomNav />
-        <ToastViewport />
         <TaskPanel />
         <CustomerPanel />
         <ArchitectPanel />
