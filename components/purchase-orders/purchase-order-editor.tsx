@@ -22,8 +22,9 @@ import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-materia
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { PoHardwareTab } from "@/components/purchase-orders/po-hardware-tab";
 import { PoCabinetBlock } from "@/components/purchase-orders/po-cabinet-block";
+import { PoWhereSelect } from "@/components/purchase-orders/po-where-select";
 import { CabinetSortList, SortableCabinet } from "@/components/purchase-orders/po-sortable-cabinet";
-import { PoFinishMultiSelect, PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
+import { DEFAULT_HIGHLIGHT, PoAllowedColoursContext, PoFinishMultiSelect, PoFinishSelect, finishLabel } from "@/components/purchase-orders/po-finish-select";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { useDealers, useVendors, vendorsStore } from "@/lib/store/vendors-store";
@@ -32,6 +33,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
+import { useConfirmChange } from "@/components/purchase-orders/po-confirm-change";
 import { PoLibraryContext, libKey } from "@/components/purchase-orders/po-library-context";
 import { materialCategories, parseFinishRule, statusColourStyle } from "@/lib/mock/material-spec";
 import { MaterialItemFormDialog } from "@/components/templates/material-item-form-dialog";
@@ -170,10 +172,12 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     });
 
   const [compGroup, setCompGroup] = useState<string>("");
-  const [directTab, setDirectTab] = useState<"carcass" | "shutter" | "other-panel" | "hardware">("carcass");
-  const [pendingApply, setPendingApply] = useState<{ scope: "shutter" | "cabinet"; run: () => void } | null>(null);
-  // The Finish section's "Add new cabinet name" dialog: the id of the entry it was opened from.
-  const [addWhereOpen, setAddWhereOpen] = useState<string | null>(null);
+  const [directTab, setDirectTab] = useState<"carcass" | "shutter" | "other-panel" | "hardware" | "pending">("carcass");
+  // Finish entries being edited: changes wait here until the entry's tick is pressed.
+  const [finishDrafts, setFinishDrafts] = useState<Record<string, NonNullable<PurchaseOrder["material"]["finishEntries"]>[number]>>({});
+  const { ask: askBrandVendor, dialog: brandVendorDialog } = useConfirmChange("row");
+  const [deleteFinishId, setDeleteFinishId] = useState<string | null>(null);
+  const [pendingApply, setPendingApply] = useState<{ scope: "shutter" | "cabinet"; run: () => void; cancel?: () => void } | null>(null);
   const fromQuote = useMemo(() => (draft?.quoteId ? quoteCabinetInfo(quotes.find((q) => q.id === draft.quoteId) ?? ({ units: [] } as never)) : new Map<number, { cabinetTypeId: string; unitQty: number }>()), [draft?.quoteId, quotes]);
 
   if (!draft || !totals) {
@@ -301,12 +305,24 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   // Picking a raw material in Shutter / Cabinet Details also sets the Material column of that scope's rows.
   // Direct PO: changing the Material or a colour in Shutter / Cabinet Details also changes rows already added, so ask first.
   // Highlight colours for the Internal / External Brand & Colour on the Shutter / Cabinet Details cards (kept as "internal|label" / "external|label").
-  const finishPalette = (side: "shutter" | "cabinet", kind: "internal" | "external") =>
-    Object.fromEntries(Object.entries(draft?.material.finishColors?.[side] ?? {}).filter(([k]) => k.startsWith(`${kind}|`)).map(([k, v]) => [k.slice(kind.length + 1), v]));
-  const setFinishColour = (side: "shutter" | "cabinet", kind: "internal" | "external", label: string, hex: string) =>
-    draft && setMaterial({ finishColors: { ...draft.material.finishColors, [side]: { ...draft.material.finishColors?.[side], [`${kind}|${label}`]: hex } } });
-  const askApply = (scope: "shutter" | "cabinet", run: () => void) => {
-    if (isDirect && (draft.lines.some((l) => inScope(scope, l.group)) || (scope === "cabinet" && Object.values(draft.material.cabinets ?? {}).some((c) => c.internalColour || c.externalColour || c.material)))) setPendingApply({ scope, run });
+  // The same brand & colour has one highlight colour everywhere (internal or external, shutter or cabinet): a colour already set for it
+  // in any of the four places is used, and changing it changes all four.
+  const finishPalette = (side: "shutter" | "cabinet", kind: "internal" | "external") => {
+    const all = draft?.material.finishColors ?? {};
+    const out: Record<string, string> = {};
+    for (const sd of [side, side === "shutter" ? "cabinet" : "shutter"] as const)
+      for (const kd of [kind, kind === "internal" ? "external" : "internal"] as const)
+        for (const [k, v] of Object.entries(all[sd] ?? {})) if (k.startsWith(`${kd}|`) && !(k.slice(kd.length + 1) in out)) out[k.slice(kd.length + 1)] = v;
+    return out;
+  };
+  const setFinishColour = (_side: "shutter" | "cabinet", _kind: "internal" | "external", label: string, hex: string) => {
+    if (!draft) return;
+    const fc = draft.material.finishColors ?? {};
+    const put = (m?: Record<string, string>) => ({ ...m, [`internal|${label}`]: hex, [`external|${label}`]: hex });
+    setMaterial({ finishColors: { ...fc, shutter: put(fc.shutter), cabinet: put(fc.cabinet) } });
+  };
+  const askApply = (scope: "shutter" | "cabinet", run: () => void, cancel?: () => void) => {
+    if (isDirect && (draft.lines.some((l) => inScope(scope, l.group)) || (scope === "cabinet" && Object.values(draft.material.cabinets ?? {}).some((c) => c.internalColour || c.externalColour || c.material)))) setPendingApply({ scope, run, cancel });
     else run();
   };
   const applyMaterial = (scope: "shutter" | "cabinet", key: "shutterRawMaterial" | "cabinetRawMaterial", name: string) =>
@@ -321,70 +337,175 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   // show their Shutter and Cabinet values as the first two until the section is edited.
   type FinishEntry = NonNullable<PurchaseOrder["material"]["finishEntries"]>[number];
   const finishEntries = (): FinishEntry[] =>
-    draft.material.finishEntries?.map((e) => ({ ...e, where: e.where === "shutter" ? "Shutter" : e.where === "cabinets" ? "All Cabinets" : e.where })) ?? [
+    draft.material.finishEntries?.map((e) => ({ ...e, where: e.where === "shutter" ? "Shutter" : e.where === "cabinets" || e.where === "All Cabinets" ? "Carcass" : e.where })) ?? [
       { id: "fe-shutter", where: "Shutter", rawMaterial: draft.material.shutterRawMaterial, internal: commonFinish("shutter", "internalColour"), external: commonFinish("shutter", "externalColour") },
-      { id: "fe-cabinets", where: "All Cabinets", rawMaterial: draft.material.cabinetRawMaterial, internal: commonFinish("cabinet", "internalColour"), external: commonFinish("cabinet", "externalColour") },
+      { id: "fe-cabinets", where: "Carcass", rawMaterial: draft.material.cabinetRawMaterial, internal: commonFinish("cabinet", "internalColour"), external: commonFinish("cabinet", "externalColour") },
     ];
-  const cabinetNameItems = materials.filter((m) => m.category === libKey(lib, "purchase-cabinet-type") && !m.deleted);
-  const whereOptions = ["Shutter", "All Cabinets", ...cabinetNameItems.map((m) => m.name)];
+  const whereOptions = ["Carcass", "Shutter", "Other Panel"];
   // Rules from the library (Finish Rules): this raw material at this place of use gets these colours.
   const finishRulesFor = (raw: string, where: string) =>
     materials
       .filter((m) => m.category === libKey(lib, "purchase-finish-rule") && !m.deleted && m.name === raw)
       .map((m) => parseFinishRule(m.description))
       .filter((r) => r.where.toLowerCase() === where.toLowerCase());
+  // An entry keeps several colours in one text ("A||B"); the first is put on the rows, the others are the additional picks.
+  const labels = (v: string) => v.split("||").map((x) => x.trim()).filter(Boolean);
+  const whereList = (w: string) => w.split(",").map((x) => x.trim()).filter(Boolean);
   // Puts a raw material / colours on the rows (and cabinet records) of one place of use.
   const applyFinishTo = (d: PurchaseOrder, where: string, f: { rawMaterial?: string; internal?: string; external?: string }): PurchaseOrder => {
     let material = d.material;
     let lines = d.lines;
-    const panel = (l: { group: string }) => l.group === "carcass" || l.group === "other-panel";
-    const named = new Set(Object.entries(d.material.cabinets ?? {}).filter(([, c]) => (c.cabinetName ?? "") === where).map(([n]) => Number(n)));
-    const inTarget = (l: { group: string; srNo: number }) => (where === "Shutter" ? l.group === "shutter" : where === "All Cabinets" ? panel(l) : panel(l) && named.has(l.srNo));
+    // Carcass also sets the cabinet-level values; Other Panel only changes its rows; Shutter has its own values.
+    const inTarget = (l: { group: string }) => (where === "Shutter" ? l.group === "shutter" : where === "Carcass" ? l.group === "carcass" : l.group === "other-panel");
+    const docLevel = where === "Shutter" || where === "Carcass";
     const scope = where === "Shutter" ? "shutter" : "cabinet";
-    const setNamed = (m: PurchaseOrder["material"], fields: Partial<PoCabinet>) => ({ ...m, cabinets: Object.fromEntries(Object.entries(m.cabinets ?? {}).map(([n, c]) => [n, named.has(Number(n)) ? { ...c, ...fields } : c])) });
     if (f.rawMaterial !== undefined) {
       const v = f.rawMaterial;
       lines = lines.map((l) => (inTarget(l) ? { ...l, material: v } : l));
-      material = where === "Shutter" ? { ...material, shutterRawMaterial: v } : where === "All Cabinets" ? syncCabinets({ ...material, cabinetRawMaterial: v }, "cabinet", "material", v) : setNamed(material, { material: v });
+      if (where === "Shutter") material = { ...material, shutterRawMaterial: v };
+      else if (where === "Carcass") material = syncCabinets({ ...material, cabinetRawMaterial: v }, "cabinet", "material", v);
     }
     for (const [key, val] of [["internalColour", f.internal], ["externalColour", f.external]] as const) {
       if (val === undefined) continue;
       lines = lines.map((l) => (inTarget(l) ? { ...l, [key]: val } : l));
-      if (where === "Shutter" || where === "All Cabinets") material = syncCabinets({ ...material, finishes: { ...material.finishes, [finishKey(scope, key)]: val } }, scope, key, val);
-      else material = setNamed(material, { [key]: val });
+      if (docLevel) material = syncCabinets({ ...material, finishes: { ...material.finishes, [finishKey(scope, key)]: val } }, scope, key, val);
     }
     return { ...d, material, lines };
   };
-  const updateFinishEntry = (id: string, patch: Partial<FinishEntry>) => {
-    const entries = finishEntries();
-    const cur = entries.find((e) => e.id === id);
-    if (!cur) return;
-    let next: FinishEntry = { ...cur, ...patch };
-    if ((patch.where !== undefined || patch.rawMaterial !== undefined) && next.rawMaterial && entries.some((e) => e.id !== id && e.where === next.where && e.rawMaterial === next.rawMaterial)) {
-      toastStore.show(`${next.rawMaterial} is already set for ${next.where}`, "error");
-      return;
-    }
-    // A matching Finish Rule fills the colours (one match); several matches are offered under the row; no match leaves them as picked.
-    if (patch.rawMaterial !== undefined || patch.where !== undefined) {
-      const rules = finishRulesFor(next.rawMaterial, next.where);
-      if (rules.length === 1) next = { ...next, ...(rules[0].internal ? { internal: rules[0].internal } : {}), ...(rules[0].external ? { external: rules[0].external } : {}) };
-    }
-    const moved = next.where !== cur.where;
-    const fields = {
-      ...(moved || next.rawMaterial !== cur.rawMaterial ? { rawMaterial: next.rawMaterial } : {}),
-      ...(moved || next.internal !== cur.internal ? { internal: next.internal } : {}),
-      ...(moved || next.external !== cur.external ? { external: next.external } : {}),
-    };
-    const withEntries = { ...draft, material: { ...draft.material, finishEntries: entries.map((e) => (e.id === id ? next : e)) } };
-    const run = () => {
-      const applied = applyFinishTo(withEntries, next.where, fields);
-      set({ material: applied.material, ...(applied.lines !== withEntries.lines ? { lines: applied.lines } : {}) });
-    };
-    if (Object.keys(fields).length === 0) return run();
-    askApply(next.where === "Shutter" ? "shutter" : "cabinet", run);
+  // Three tables like a sheet: Raw Material Detail, Primary Color Selection, Secondary Color Selection. Every row is one place of use
+  // ("Where To Use") and is saved with its own tick. Row ids start r- / p- / s- (older entries with both raw material and colours show in
+  // Raw Material and Primary). Secondary colours are extra picks: their external colours go to Additional External on the PDFs.
+  type Part = "raw" | "primary" | "secondary";
+  const inPart = (e: FinishEntry, part: Part) =>
+    part === "secondary" ? e.id.startsWith("s-")
+    : e.id.startsWith("s-") ? false
+    : part === "raw" ? e.id.startsWith("r-") || (!e.id.startsWith("p-") && !!e.rawMaterial)
+    : e.id.startsWith("p-") || (!e.id.startsWith("r-") && !!(e.internal || e.external));
+  const sideOf = (where: string) => (where === "Shutter" ? "shutter" : "cabinet") as "shutter" | "cabinet";
+  // No Save button: a row applies as soon as it is complete; until then (or when a duplicate / "apply to rows?" answer says no) it stays a draft.
+  const editFinishEntry = (id: string, patch: Partial<FinishEntry>, part: Part) => {
+    const base = finishDrafts[id] ?? finishEntries().find((e) => e.id === id);
+    if (!base) return;
+    const next: FinishEntry = { ...base, ...patch };
+    const ready = whereList(next.where).length > 0 && (part === "raw" ? !!next.rawMaterial : labels(next.internal).length > 0 && labels(next.external).length > 0);
+    // A complete row goes straight to the check / "change the rows already added?" question and is only kept if that is accepted;
+    // an incomplete row is held as a draft.
+    if (ready) confirmFinishEntry(next, part);
+    else setFinishDrafts((d) => ({ ...d, [id]: next }));
   };
-  const addFinishEntry = () => setMaterial({ finishEntries: [...finishEntries(), { id: `fe-${Date.now()}`, where: "All Cabinets", rawMaterial: "", internal: "", external: "" }] });
+  const discardFinishDraft = (id: string) => setFinishDrafts(({ [id]: _gone, ...rest }) => rest);
+  const confirmFinishEntry = (next: FinishEntry, part: Part) => {
+    const id = next.id;
+    const entries = finishEntries();
+    const where = next.where;
+    const places = whereList(where);
+    const overlap = (w: string) => whereList(w).some((x) => places.includes(x));
+    if (part === "raw") {
+      const clash = entries.find((e) => e.id !== id && inPart(e, "raw") && e.rawMaterial === next.rawMaterial && overlap(e.where));
+      if (clash) {
+        toastStore.show(`${next.rawMaterial} is already set for ${whereList(clash.where).filter((w) => places.includes(w)).join(", ")}`, "error");
+        return;
+      }
+    }
+    const run = () => {
+      let d: PurchaseOrder = { ...draft, material: { ...draft.material, finishEntries: entries.map((e) => (e.id === id ? next : e)) } };
+      if (part === "raw") {
+        for (const w of places) d = applyFinishTo(d, w, { rawMaterial: next.rawMaterial });
+        // A Finish Rule for this raw material at these places also gives the Primary colours (when exactly one rule matches and none are set).
+        const rules = places.flatMap((w) => finishRulesFor(next.rawMaterial, w));
+        const hasPrimary = entries.some((e) => inPart(e, "primary") && overlap(e.where) && e.internal && e.external);
+        if (rules.length === 1 && rules[0].internal && rules[0].external && !hasPrimary) {
+          for (const w of places) d = applyFinishTo(d, w, { internal: rules[0].internal, external: rules[0].external });
+          d = { ...d, material: { ...d.material, finishEntries: [...(d.material.finishEntries ?? []), { id: `p-${Date.now()}`, where, rawMaterial: "", internal: rules[0].internal, external: rules[0].external }] } };
+        }
+      } else {
+        // Primary: the first colours go on the rows, the others are Additional External. Secondary: every external colour is Additional External.
+        const ext = labels(next.external);
+        // A second Primary row for the same place does not replace the first one's colours on the rows; its external colour is an extra pick.
+        const first = part === "primary" && !entries.some((e) => e.id !== id && inPart(e, "primary") && overlap(e.where) && e.external);
+        if (first) for (const w of places) d = applyFinishTo(d, w, { internal: labels(next.internal)[0] ?? "", external: ext[0] ?? "" });
+        const more = first ? ext.slice(1) : ext;
+        if (more.length) {
+          const add = { ...d.material.additionalExternal };
+          for (const side of [...new Set(places.map(sideOf))]) add[side] = [...new Set([...(add[side] ?? []), ...more])];
+          d = { ...d, material: { ...d.material, additionalExternal: add } };
+        }
+      }
+      set({ material: d.material, lines: d.lines });
+      discardFinishDraft(id);
+    };
+    // Saying no to the "change the rows already added?" question puts the row back as it was.
+    askApply(places.every((w) => w === "Shutter") ? "shutter" : "cabinet", run, () => discardFinishDraft(id));
+  };
+  const addFinishEntry = (part: Part) => {
+    const entries = finishEntries();
+    const used = entries.filter((e) => inPart(e, part)).flatMap((e) => whereList(e.where));
+    const where = whereOptions.find((w) => !used.includes(w)) ?? "Carcass";
+    setMaterial({ finishEntries: [...entries, { id: `${part === "raw" ? "r" : part === "primary" ? "p" : "s"}-${Date.now()}`, where, rawMaterial: "", internal: "", external: "" }] });
+  };
   const removeFinishEntry = (id: string) => setMaterial({ finishEntries: finishEntries().filter((e) => e.id !== id) });
+  const finishTable = (title: string, part: Part) => {
+    const rows = finishEntries().filter((e) => inPart(e, part));
+    const colour = part !== "raw";
+    const cols = colour ? "md:grid-cols-[13rem_minmax(0,1fr)_minmax(0,1fr)_auto]" : "md:grid-cols-[minmax(0,1fr)_13rem_auto]";
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="font-heading text-base font-semibold text-grey-900">{title}</h3>
+          {rows.length === 0 && (
+            <Button type="button" size="sm" variant="outline" onClick={() => addFinishEntry(part)}>
+              <Plus className="h-4 w-4" /> Add
+            </Button>
+          )}
+        </div>
+        {rows.length > 0 && (
+          <div className={`hidden gap-2 px-1 text-xs font-body font-medium text-grey-500 md:grid ${cols}`}>
+            {colour ? <><span>Where To Use</span><span>Internal Colour</span><span>External Colour</span></> : <><span>Raw Material</span><span>Where To Use</span></>}
+            <span className="w-24" />
+          </div>
+        )}
+        {rows.map((saved) => {
+          const e = finishDrafts[saved.id] ?? saved;
+          const changed = !!finishDrafts[saved.id];
+          const scope = sideOf(whereList(e.where).length === 1 ? whereList(e.where)[0] : "Carcass");
+          const whereSel = <PoWhereSelect value={whereList(e.where)} options={whereOptions} onChange={(next) => editFinishEntry(saved.id, { where: next.join(",") }, part)} />;
+          return (
+            <div key={saved.id} className={`grid items-center gap-2 ${cols}`}>
+              {colour ? (
+                <>
+                  {whereSel}
+                  <PoFinishSelect free kind="internal" value={labels(e.internal)[0] ?? ""} onChange={(v) => editFinishEntry(saved.id, { internal: v }, part)} colors={finishPalette(scope, "internal")} onColor={(label, hex) => { setFinishColour(scope, "internal", label, hex); }} />
+                  <PoFinishSelect free kind="external" value={labels(e.external)[0] ?? ""} onChange={(v) => editFinishEntry(saved.id, { external: v }, part)} colors={finishPalette(scope, "external")} onColor={(label, hex) => {
+                    // The same brand & colour already coloured on the internal side gives its colour to the external pick.
+                    const fromInternal = finishPalette(scope, "internal")[label];
+                    setFinishColour(scope, "external", label, hex === DEFAULT_HIGHLIGHT && fromInternal ? fromInternal : hex);
+                  }} />
+                </>
+              ) : (
+                <>
+                  <PoRawMaterialSelect value={e.rawMaterial} onChange={(v) => editFinishEntry(saved.id, { rawMaterial: v }, part)} />
+                  {whereSel}
+                </>
+              )}
+              <div className="flex w-24 items-center justify-end gap-0.5">
+                {changed && (
+                  <button type="button" aria-label="Undo changes" title="Undo changes" onClick={() => discardFinishDraft(saved.id)} className="rounded-md p-1.5 text-grey-400 hover:bg-light-600 hover:text-primary">
+                    <RotateCcw className="h-4 w-4" />
+                  </button>
+                )}
+                <button type="button" aria-label="Add another row" title="Add another row" onClick={() => addFinishEntry(part)} className="rounded-md p-1.5 text-grey-400 hover:bg-light-600 hover:text-primary">
+                  <Plus className="h-4 w-4" />
+                </button>
+                <button type="button" aria-label="Remove this row" title="Remove this row" onClick={() => setDeleteFinishId(saved.id)} className="rounded-md p-1.5 text-grey-400 hover:bg-light-600 hover:text-error">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   // Copy a whole cabinet: its size / details and every row (carcass, shutter, other panel, hardware) become the next cabinet number.
   const copyCabinet = (no: number) => {
@@ -466,8 +587,37 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     });
   };
 
+  const pendingBlock = (
+          pendingIds.size === 0 ? (
+            <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">Every row has a rate.</p>
+          ) : (
+            PO_GROUPS.filter((g) => draft.lines.some((l) => l.group === g.key && pendingIds.has(l.id))).map((g) => (
+              <PoLinesTable
+                key={g.key}
+                group={g.key}
+                title={g.label}
+                lines={draft.lines}
+                only={(l) => pendingIds.has(l.id)}
+                // Each section starts closed: open the ones you need.
+                defaultCollapsed
+                varsFor={(no) => {
+                  const c = cabinetFor(no);
+                  return c ? { W: c.width, D: c.depth, H: c.height } : undefined;
+                }}
+                onChange={(lines) => set({ lines })}
+              />
+            ))
+          )
+  );
+
   return (
     <PoLibraryContext.Provider value={isProforma ? "proforma" : "purchase"}>
+    <PoAllowedColoursContext.Provider value={(() => {
+      const colourRows = finishEntries().filter((e) => inPart(e, "primary") || inPart(e, "secondary"));
+      // Both pickers list every colour chosen in Primary / Secondary, internal and external together.
+      const all = [...new Set(colourRows.flatMap((e) => [...labels(e.internal), ...labels(e.external)]))];
+      return { internal: all, external: all };
+    })()}>
     <PoVendorContext.Provider value={(no) => draft.material.cabinets?.[String(no)]?.vendorId || draft.vendorId}>
     <PoDefaultVendorContext.Provider value={draft.vendorId}>
     <PoBrandVendorContext.Provider value={brandVendorName}>
@@ -539,7 +689,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       </div>
 
       <div className="flex flex-col gap-3">
-        <PoSection tone="border-slate/40 border-t-slate bg-slate/30" title={<>{isProforma ? "Dealer Details" : "Vendor"} <span className="text-error">*</span></>} summary={vendor?.name}>
+        <PoSection tone="border-slate/40 border-t-slate bg-slate/30" title={<>{isProforma ? "Dealer Details" : "Vendor Details"} <span className="text-error">*</span></>} summary={vendor?.name}>
           <div className="flex flex-col gap-1.5">
           <Label>{isProforma ? "Dealer Name" : "Vendor Name"}</Label>
           <SelectField
@@ -674,7 +824,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           {!isProforma && (
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="e-piamt">Vendor PI Amount</Label>
-            <Input id="e-piamt" type="number" min={0} step="any" inputMode="decimal" value={draft.material.vendorPiAmount ?? ""} onChange={(e) => setMaterial({ vendorPiAmount: e.target.value === "" ? undefined : Number(e.target.value) })} className="bg-white font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+            <Input id="e-piamt" key={draft.id} type="text" inputMode="decimal" placeholder="0.00" defaultValue={draft.material.vendorPiAmount === undefined ? "" : draft.material.vendorPiAmount.toFixed(2)}
+              onChange={(e) => { const v = e.target.value.replace(/[^\d.]/g, ""); if (v !== e.target.value || /\.\d{3,}|\..*\./.test(v)) { e.target.value = v.replace(/(\.\d*)\./, "$1").replace(/(\.\d{2}).*/, "$1"); } const n = Number(e.target.value); setMaterial({ vendorPiAmount: e.target.value === "" || Number.isNaN(n) ? undefined : n }); }}
+              onBlur={(e) => { const n = Number(e.target.value); e.target.value = e.target.value === "" || Number.isNaN(n) ? "" : n.toFixed(2); }} className="bg-white font-number" />
           </div>
           )}
           <label className="col-span-full flex w-fit cursor-pointer items-center gap-2 text-sm font-body text-grey-700">
@@ -685,73 +837,12 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         </PoSection>
 
         <section className="po-card rounded-xl border border-t-4 border-stone/60 border-t-stone bg-stone/40 p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-heading text-lg font-semibold text-grey-900">Finish</h2>
-            <Button type="button" size="sm" variant="outline" onClick={addFinishEntry}>
-              <Plus className="h-4 w-4" /> Add Finish
-            </Button>
+          <h2 className="font-heading text-lg font-semibold text-grey-900">Material Details</h2>
+          <div className="mt-3 flex flex-col gap-5">
+            {finishTable("Raw Material Detail", "raw")}
+            {finishTable("Primary Color Selection", "primary")}
+            {finishTable("Secondary Color Selection", "secondary")}
           </div>
-          <div className="mt-3 flex flex-col gap-3">
-            {finishEntries().length === 0 && <p className="text-sm font-body text-grey-500">No finish yet. Use Add Finish.</p>}
-            {finishEntries().map((e, idx) => {
-              const scope = e.where === "Shutter" ? "shutter" : "cabinet";
-              const rules = e.rawMaterial ? finishRulesFor(e.rawMaterial, e.where) : [];
-              return (
-                <div key={e.id} className="flex flex-col gap-1.5">
-                  <div className="grid items-end gap-3 md:grid-cols-[minmax(0,1fr)_14rem_minmax(0,2fr)_auto]">
-                    <div className="flex flex-col gap-1.5">
-                      {idx === 0 && <Label>Raw Material Type <span className="text-error">*</span></Label>}
-                      <PoRawMaterialSelect value={e.rawMaterial} onChange={(v) => updateFinishEntry(e.id, { rawMaterial: v })} />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      {idx === 0 && <Label>Where to Use</Label>}
-                      <SelectField
-                        aria-label="Where to use"
-                        value={e.where}
-                        onChange={(ev) => updateFinishEntry(e.id, { where: ev.target.value })}
-                        searchPlaceholder="Search where to use"
-                        addLabel="Add new cabinet name"
-                        onAddClick={() => setAddWhereOpen(e.id)}
-                        className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
-                      >
-                        {whereOptions.map((o) => <option key={o} value={o}>{o}</option>)}
-                      </SelectField>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      {idx === 0 && <Label>Colour (Internal | External) <span className="text-error">*</span></Label>}
-                      <div className="grid gap-2 md:grid-cols-2">
-                        <PoFinishSelect kind="internal" value={e.internal} onChange={(label) => updateFinishEntry(e.id, { internal: label })} colors={finishPalette(scope, "internal")} onColor={(label, hex) => setFinishColour(scope, "internal", label, hex)} />
-                        <PoFinishSelect kind="external" value={e.external} onChange={(label) => updateFinishEntry(e.id, { external: label })} colors={finishPalette(scope, "external")} onColor={(label, hex) => setFinishColour(scope, "external", label, hex)} />
-                      </div>
-                    </div>
-                    <button type="button" aria-label="Remove this finish" onClick={() => removeFinishEntry(e.id)} className="mb-0.5 rounded-md p-2 text-grey-400 hover:bg-light-600 hover:text-error">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                  {rules.length > 1 && (
-                    <div className="flex flex-wrap items-center gap-2 pl-1 text-xs font-body text-grey-600">
-                      <span>Colours for {e.rawMaterial} on {e.where}:</span>
-                      {rules.map((r, i) => (
-                        <button key={i} type="button" onClick={() => updateFinishEntry(e.id, { ...(r.internal ? { internal: r.internal } : {}), ...(r.external ? { external: r.external } : {}) })} className="rounded-full border border-grey-100 bg-card px-2.5 py-0.5 hover:border-primary hover:text-primary">
-                          {[r.internal, r.external].filter(Boolean).join(" / ")}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <MaterialItemFormDialog
-            open={addWhereOpen !== null}
-            onOpenChange={(o) => !o && setAddWhereOpen(null)}
-            category={materialCategories.find((c) => c.key === libKey(lib, "purchase-cabinet-type"))!}
-            onSubmit={(values) => {
-              const created = materialSpecStore.createItem({ category: libKey(lib, "purchase-cabinet-type"), ...values });
-              if (addWhereOpen) updateFinishEntry(addWhereOpen, { where: created.name });
-              setAddWhereOpen(null);
-            }}
-          />
         </section>
       </div>
 
@@ -765,16 +856,19 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           <div className="ml-auto flex items-center gap-2">
             {isDirect && (
               <div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Direct purchase order sections">
-                {([["carcass", "Cabinet"], ["shutter", "Shutter"], ["other-panel", "Other Panel"], ["hardware", "Hardware"]] as const).map(([k, label]) => (
+                {([["carcass", "Cabinet"], ["shutter", "Shutter"], ["other-panel", "Other Panel"], ["hardware", "Hardware"], ["pending", "Rate Pending"]] as const).map(([k, label]) => (
                   <button
                     key={k}
                     type="button"
                     role="tab"
                     aria-selected={directTab === k}
-                    onClick={() => setDirectTab(k)}
+                    onClick={() => {
+                      if (k === "pending") setPendingIds(new Set(draft.lines.filter((l) => !l.rate).map((l) => l.id)));
+                      setDirectTab(k);
+                    }}
                     className={`rounded-md px-3 py-1 text-sm font-body font-medium transition-colors ${directTab === k ? "bg-blush font-semibold text-grey-900" : "text-grey-600 hover:bg-light-600"}`}
                   >
-                    {label}
+                    {label}{k === "pending" && <> <span className="font-number">({pendingCount})</span></>}
                   </button>
                 ))}
               </div>
@@ -809,7 +903,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             No cabinets yet. Click Add Cabinet, then add its rows.
           </p>
         )}
-        {isDirect && directTab !== "carcass" ? (
+        {isDirect && directTab === "pending" ? pendingBlock : isDirect && directTab !== "carcass" && directTab !== "pending" ? (
           <PoLinesTable
             key={directTab}
             group={directTab}
@@ -901,7 +995,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                             aria-label={`${brand} vendor`}
                             className={`${field} w-full max-w-sm text-[13px]`}
                             value={brandVendors[key] ?? ""}
-                            onChange={(e) => (e.target.value === NEW_VENDOR ? setNewVendorFor(key) : setBrandVendor(key, e.target.value))}
+                            onChange={(e) => (e.target.value === NEW_VENDOR ? setNewVendorFor(key) : askBrandVendor("vendor", !!brandVendors[key] && e.target.value !== brandVendors[key], () => setBrandVendor(key, e.target.value)))}
                           >
                             <option value="">Same as PO vendor</option>
                             {vendors.map((v) => (
@@ -930,28 +1024,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               </div>
             )}
           </div>
-        ) : shownView === "pending" ? (
-          pendingIds.size === 0 ? (
-            <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">Every row has a rate.</p>
-          ) : (
-            PO_GROUPS.filter((g) => draft.lines.some((l) => l.group === g.key && pendingIds.has(l.id))).map((g) => (
-              <PoLinesTable
-                key={g.key}
-                group={g.key}
-                title={g.label}
-                lines={draft.lines}
-                only={(l) => pendingIds.has(l.id)}
-                // Each section starts closed: open the ones you need.
-                defaultCollapsed
-                varsFor={(no) => {
-                  const c = cabinetFor(no);
-                  return c ? { W: c.width, D: c.depth, H: c.height } : undefined;
-                }}
-                onChange={(lines) => set({ lines })}
-              />
-            ))
-          )
-        ) : shownView === "component"
+        ) : shownView === "pending" ? pendingBlock
+        : shownView === "component"
           ? [PO_GROUPS.filter((g) => draft.lines.some((l) => l.group === g.key))].flatMap((present) => {
             // Carcass | Shutter | Other Panel | Hardware as tabs across; only the picked group's table shows below.
             const picked = present.find((g) => g.key === compGroup) ?? present[0];
@@ -1172,13 +1246,25 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       />
       <ConfirmDialog
         open={!!pendingApply}
-        onOpenChange={(o) => !o && setPendingApply(null)}
+        onOpenChange={(o) => { if (!o) { pendingApply?.cancel?.(); setPendingApply(null); } }}
         title="Change the rows already added?"
         description={`This also updates the Material and colours of the rows already added in ${pendingApply?.scope === "shutter" ? "Shutter" : "Carcass and Other Panel"}. Continue?`}
         confirmLabel="Continue"
         onConfirm={() => {
           pendingApply?.run();
           setPendingApply(null);
+        }}
+      />
+      {brandVendorDialog}
+      <ConfirmDialog
+        open={!!deleteFinishId}
+        onOpenChange={(o) => !o && setDeleteFinishId(null)}
+        title="Delete this row?"
+        description="This removes the row from Material Details. Materials and colours already put on the cabinet rows stay as they are."
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (deleteFinishId) { discardFinishDraft(deleteFinishId); removeFinishEntry(deleteFinishId); }
+          setDeleteFinishId(null);
         }}
       />
       <ConfirmDialog
@@ -1227,6 +1313,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     </PoBrandVendorContext.Provider>
     </PoDefaultVendorContext.Provider>
     </PoVendorContext.Provider>
+    </PoAllowedColoursContext.Provider>
     </PoLibraryContext.Provider>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { statusConfig, type StatusKey } from "@/lib/status";
-import { downloadOrderTracker } from "@/lib/order-tracker-export";
+import { usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
+import { downloadOrderTracker, printOrderTracker } from "@/lib/order-tracker-export";
 import { PoRowActions } from "@/components/purchase-orders/po-row-actions";
 import { useProformaStatusChange } from "@/components/purchase-orders/proforma-status-change";
 import { StatusMenu } from "@/components/shared/status-menu";
@@ -36,6 +37,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   const allOrders = usePurchaseOrders();
   const orders = useMemo(() => allOrders.filter((o) => (proforma ? !!o.material.proforma : !!o.material.direct === direct && !o.material.proforma)), [allOrders, direct, proforma]);
   // The four built-in statuses, the ones added in Purchase Material Library > Purchase Order Status, and any other name still in use.
+  const template = usePurchaseTemplateSettings();
   const materials = useMaterialItems(proforma ? "proforma-order-status" : "purchase-order-status");
   // A status added in the library carries the colour picked there.
   const statusCategory = proforma ? "proforma-order-status" : "purchase-order-status";
@@ -118,6 +120,15 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
       toastStore.show(e instanceof Error ? e.message : "Could not change status", "error");
     }
   };
+  // Product Type name ("Kitchen (KT)") for the Order Tracker.
+  const trackerOptions = () => ({
+    proforma,
+    branding: template.branding,
+    productType: (id: string | undefined) => {
+      const m = materialSpecStore.getSnapshot().find((x) => x.id === id);
+      return m ? (m.description ? `${m.name} (${m.description})` : m.name) : "";
+    },
+  });
   const askChange = (po: PurchaseOrder, status: PoStatus) => (proforma ? askProforma(po, status) : void changeStatus(po, status));
 
   return (
@@ -152,9 +163,13 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => downloadOrderTracker(orders, customers, `order-tracker${proforma ? "-proforma" : direct ? "-direct" : ""}.xlsx`)}>
+          <Button size="sm" variant="outline" onClick={() => downloadOrderTracker(orders, customers, `order-tracker${proforma ? "-proforma" : direct ? "-direct" : ""}.xlsx`, trackerOptions())}>
             <Download className="h-4 w-4" />
             Order Tracker (Excel)
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => printOrderTracker(orders, customers, trackerOptions())}>
+            <Download className="h-4 w-4" />
+            Order Tracker (PDF)
           </Button>
           <div className="relative w-64">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />

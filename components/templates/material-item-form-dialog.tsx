@@ -57,9 +57,8 @@ export function MaterialItemFormDialog({
   // Finish Rules: Where to Use and the Internal / External brand & colour this raw material gets there (saved together in `description`).
   const lib = category.key.startsWith("proforma") ? "proforma" : "purchase";
   const rawItems = useMaterialItems("raw-material-type");
-  const cabinetNames = useMaterialItems(`${lib}-cabinet-type` as MaterialCategoryKey);
   const internals = useMaterialItems(`${lib}-internal` as MaterialCategoryKey);
-  const externals = useMaterialItems(`${lib}-external` as MaterialCategoryKey);
+  const externals = useMaterialItems(`${lib}-internal` as MaterialCategoryKey);
   const [ruleWhere, setRuleWhere] = useState("");
   const [ruleInternal, setRuleInternal] = useState("");
   const [ruleExternal, setRuleExternal] = useState("");
@@ -176,9 +175,9 @@ export function MaterialItemFormDialog({
                 <Label htmlFor="mi-where">Where to Use *</Label>
                 <select id="mi-where" value={ruleWhere} onChange={(e) => setRuleWhere(e.target.value)} className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary">
                   <option value="">Select…</option>
+                  <option value="Carcass">Carcass</option>
                   <option value="Shutter">Shutter</option>
-                  <option value="All Cabinets">All Cabinets</option>
-                  {cabinetNames.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  <option value="Other Panel">Other Panel</option>
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">

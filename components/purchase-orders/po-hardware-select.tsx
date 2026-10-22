@@ -40,7 +40,17 @@ export function PoHardwareSelect({ field, line, onChange }: { field: Field; line
     if (o.item) {
       const { h, brand, category, unit } = o.item;
       onChange({ brand, category, unit, description: h.description, articleNo: h.articleNo, rate: h.mrp, discountPct: h.discountPct });
-    } else onChange({ [field]: o.label });
+    } else {
+      // Brand / Category: the row keeps one combination from the Hardware Price List. If the item already on the row has this value
+      // nothing else changes; otherwise the whole row moves to a list item with it (same other brand / category if there is one).
+      const f = field as "brand" | "category";
+      const other = f === "brand" ? "category" : "brand";
+      const current = items.find((i) => norm(i.h.description) === norm(line.description) && norm(i.h.articleNo) === norm(line.articleNo));
+      const candidates = items.filter((i) => i[f] === o.label);
+      const best = current?.[f] === o.label ? null : candidates.find((i) => !line[other] || norm(i[other]) === norm(line[other])) ?? candidates[0];
+      if (!best) onChange({ [field]: o.label });
+      else onChange({ brand: best.brand, category: best.category, unit: best.unit, description: best.h.description, articleNo: best.h.articleNo, rate: best.h.mrp, discountPct: best.h.discountPct });
+    }
     setOpen(false);
     setQ("");
   };

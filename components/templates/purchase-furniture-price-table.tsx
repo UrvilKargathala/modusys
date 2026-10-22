@@ -30,7 +30,7 @@ export function PurchaseFurniturePriceTable() {
   const rawMaterialTypes = useMaterialItems("raw-material-type");
   const internals = useMaterialItems("purchase-internal");
   const vendors = useVendors();
-  const externals = useMaterialItems("purchase-external");
+  const externals = useMaterialItems("purchase-internal");
   const nameOf = (list: { id: string; name: string }[], id: string) => list.find((m) => m.id === id)?.name ?? "—";
   // "Brand — Colour code" for the purchase finishes.
   const brandCodeOf = (list: { id: string; name: string; description: string }[], id: string) => {

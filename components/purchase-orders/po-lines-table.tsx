@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { formatInr } from "@/lib/format";
 import { PoHardwareSelect } from "@/components/purchase-orders/po-hardware-select";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
+import { useConfirmChange } from "@/components/purchase-orders/po-confirm-change";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { evaluateFormula } from "@/lib/quote-pricing";
 import { toastStore } from "@/lib/store/toast-store";
@@ -65,14 +66,14 @@ const PANEL_COLS: Col[] = [
 
 const HW_COLS: Col[] = [
   { key: "srNo", label: "Sr", width: "w-16" },
-  { key: "brand", label: "Brand", width: "w-28" },
-  { key: "vendor", label: "Vendor", width: "w-40" },
-  { key: "description", label: "Description", width: "w-72" },
-  { key: "designType", label: "Design", width: "w-36" },
-  { key: "articleNo", label: "Article No", width: "w-40" },
   { key: "category", label: "Category", width: "w-36" },
-  { key: "unit", label: "Unit", width: "w-20" },
+  { key: "brand", label: "Brand", width: "w-28" },
+  { key: "description", label: "Description", width: "w-72" },
+  { key: "articleNo", label: "Article No", width: "w-40" },
   { key: "qty", label: "Qty", width: "w-16" },
+  { key: "unit", label: "Unit", width: "w-20" },
+  { key: "vendor", label: "Vendor", width: "w-40" },
+  { key: "designType", label: "Design", width: "w-36" },
   { key: "rate", label: "MRP", width: "w-28" },
   { key: "discountPct", label: "Discount %", width: "w-24" },
   { key: "netRate", label: "Rate", width: "w-28" },
@@ -214,6 +215,9 @@ export function PoLinesTable({
     `${l.group}|${l.srNo}|${lines.filter((x) => x.group === l.group && x.srNo === l.srNo).indexOf(l)}|${col}`;
   // Removing a row asks first.
   const [toRemove, setToRemove] = useState<PurchaseOrderLine | null>(null);
+  // Shutter and Other Panel rows: replacing a value already there asks first; Cancel changes nothing.
+  const { ask: askRow, dialog: rowDialog } = useConfirmChange("row");
+  const gate = (label: string, current: string | undefined, next: string, run: () => void) => askRow(label, group !== "carcass" && !hardware && !!current && current !== next, run);
   // A panel row with no price: add its combination to the Purchase Furniture Price List (only the rate to type).
   const vendorFor = useContext(PoVendorContext);
   const vendors = useVendors();
@@ -337,7 +341,7 @@ export function PoLinesTable({
                           aria-label={`Row ${l.srNo} vendor`}
                           className={`${cell} truncate`}
                           value={l.vendorId ?? ""}
-                          onChange={(e) => patch(l.id, { vendorId: e.target.value })}
+                          onChange={(e) => gate("vendor", l.vendorId, e.target.value, () => patch(l.id, { vendorId: e.target.value }))}
                         >
                           {/* Blank = follows the cabinet's vendor, else the PO's: shown by name, and changes with the top Vendor. */}
                           <option value="">{vendors.find((v) => v.id === vendorFor(l.srNo))?.name ?? "Select vendor"}</option>
@@ -345,6 +349,8 @@ export function PoLinesTable({
                             <option key={v.id} value={v.id}>{v.name}</option>
                           ))}
                         </SelectField>
+                      ) : hardware && c.key === "unit" ? (
+                        <span className="block px-2 text-sm text-grey-700" title="Comes from the Hardware Price List">{l.unit || "—"}</span>
                       ) : c.key === "vendor" ? (
                         <span className="block truncate px-2 text-sm text-grey-700" title="Set in the Vendor tab">{brandVendor(l.brand) || "—"}</span>
                       ) : c.key === "netRate" ? (
@@ -359,17 +365,17 @@ export function PoLinesTable({
                         <PoFinishSelect
                           kind={c.key === "internalColour" ? "internal" : "external"}
                           value={l[c.key]}
-                          onChange={(label) => {
+                          onChange={(label) => gate(c.key === "internalColour" ? "internal colour" : "external colour", c.key === "internalColour" ? l.internalColour : l.externalColour, label, () => {
                             patch(l.id, { [c.key]: label });
                             toastStore.show(label ? `${c.key === "internalColour" ? "Internal" : "External"} colour changed to ${label}` : `${c.key === "internalColour" ? "Internal" : "External"} colour cleared`, "success");
-                          }}
+                          })}
                         />
                       ) : hardware && (c.key === "brand" || c.key === "category" || c.key === "description" || c.key === "articleNo") ? (
-                        <PoHardwareSelect field={c.key} line={l} onChange={(fields) => patch(l.id, fields)} />
+                        <PoHardwareSelect field={c.key} line={l} onChange={(fields) => askRow(c.key === "articleNo" ? "article no" : c.key, !!String(l[c.key as keyof PurchaseOrderLine] ?? "") && Object.entries(fields).some(([k, v]) => String(l[k as keyof PurchaseOrderLine] ?? "") !== String(v ?? "")), () => patch(l.id, fields))} />
                       ) : c.key === "description" ? (
-                        <PoRawMaterialSelect compact category="furniture-component" value={l.description} onChange={(name) => patch(l.id, { description: name })} />
+                        <PoRawMaterialSelect compact category="furniture-component" value={l.description} onChange={(name) => gate("description", l.description, name, () => patch(l.id, { description: name }))} />
                       ) : c.key === "material" && !hardware ? (
-                        <PoRawMaterialSelect compact value={l.material} onChange={(name) => patch(l.id, { material: name })} />
+                        <PoRawMaterialSelect compact value={l.material} onChange={(name) => gate("material", l.material, name, () => patch(l.id, { material: name }))} />
                       ) : TEXT_KEYS.has(c.key) ? (
                         <input
                           {...selectOnClick}
@@ -462,6 +468,7 @@ export function PoLinesTable({
         prefill={pricePrefill ?? undefined}
         onSubmit={(values) => purchaseFurnitureStore.create(values)}
       />
+      {rowDialog}
       <ConfirmDialog
         open={!!toRemove}
         onOpenChange={(o) => !o && setToRemove(null)}

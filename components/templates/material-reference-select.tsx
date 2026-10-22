@@ -25,6 +25,7 @@ export function MaterialReferenceSelect({
   sorted = false,
   fallbackText,
   trigger,
+  filter,
 }: {
   category: MaterialCategoryKey;
   value: string;
@@ -41,6 +42,8 @@ export function MaterialReferenceSelect({
   fallbackText?: string;
   // Replaces the box's contents (e.g. an "Add Brand" button look); the list opens right-aligned under it.
   trigger?: React.ReactNode;
+  // Only these entries are listed (a pick already made still shows in the box).
+  filter?: (i: { name: string; description: string }) => boolean;
 }) {
   const meta = getMaterialCategory(category);
   const items = useMaterialItems(category);
@@ -53,7 +56,7 @@ export function MaterialReferenceSelect({
     meta.brandAndCode ? { main: i.description, sub: i.name } : { main: i.name, sub: i.description };
   const selected = items.find((i) => i.id === value);
   const matches = items.filter(
-    (i) => i.name.toLowerCase().includes(query.toLowerCase()) || i.description.toLowerCase().includes(query.toLowerCase())
+    (i) => (!filter || filter(i)) && (i.name.toLowerCase().includes(query.toLowerCase()) || i.description.toLowerCase().includes(query.toLowerCase()))
   );
   const results = sorted
     ? [...matches].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true }))

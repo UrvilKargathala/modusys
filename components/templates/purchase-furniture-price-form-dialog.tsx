@@ -36,7 +36,7 @@ export function PurchaseFurniturePriceFormDialog({
   const thicknesses = useMaterialItems("thickness");
   const rawMaterialTypes = useMaterialItems("raw-material-type");
   const internals = useMaterialItems("purchase-internal");
-  const externals = useMaterialItems("purchase-external");
+  const externals = useMaterialItems("purchase-internal");
   const vendors = useVendors();
 
   useEffect(() => {
@@ -115,7 +115,7 @@ export function PurchaseFurniturePriceFormDialog({
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>External Brand and Colour</Label>
-            <MaterialReferenceSelect category="purchase-external" value={values.externalColourId} onChange={(id) => setValues((v) => ({ ...v, externalColourId: id }))} />
+            <MaterialReferenceSelect category="purchase-internal" value={values.externalColourId} onChange={(id) => setValues((v) => ({ ...v, externalColourId: id }))} />
           </div>
 
           <div className="flex flex-col gap-1.5">

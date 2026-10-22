@@ -51,7 +51,7 @@ export function purchasePriceFieldsFor(l: PurchaseOrderLine, materials: Material
     thicknessId: find("thickness", (m) => parseFloat(m.name) === l.depth),
     rawMaterialTypeId: find("raw-material-type", (m) => norm(m.name) === norm(l.material)),
     internalColourId: find("purchase-internal", (m) => norm(finish(m)) === norm(l.internalColour)),
-    externalColourId: find("purchase-external", (m) => norm(finish(m)) === norm(l.externalColour)),
+    externalColourId: find("purchase-internal", (m) => norm(finish(m)) === norm(l.externalColour)),
   };
 }
 

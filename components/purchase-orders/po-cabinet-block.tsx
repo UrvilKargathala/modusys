@@ -7,6 +7,7 @@ import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-o
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
+import { useConfirmChange } from "@/components/purchase-orders/po-confirm-change";
 import { Field, fieldInput, selectOnClick, PoCabinetVendorSelect } from "@/components/purchase-orders/po-cabinet-card";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
@@ -36,6 +37,7 @@ export function PoCabinetBlock({
   onCopyCabinet: () => void;
 }) {
   const cabinetType = useCabinetTypes().find((t) => t.id === cabinet?.cabinetTypeId);
+  const { ask, dialog: changeDialog } = useConfirmChange();
   const isManual = !!cabinet && !cabinet.unitName && !cabinet.cabinetTypeId;
   const name = cabinet?.designType || cabinet?.label || `Cabinet ${srNo}`;
 
@@ -57,11 +59,11 @@ export function PoCabinetBlock({
       {(
         [
           ...(cabinet
-            ? ([["Vendor", <PoCabinetVendorSelect key="v" srNo={srNo} cabinet={cabinet} onCabinetChange={onCabinetChange} className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2 text-[13px] font-body text-grey-900 outline-none focus:border-primary" />]] as const)
+            ? ([["Vendor", <PoCabinetVendorSelect key="v" srNo={srNo} cabinet={cabinet} onCabinetChange={(c) => ask("vendor", !!cabinet.vendorId && c.vendorId !== cabinet.vendorId, () => onCabinetChange(c))} className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2 text-[13px] font-body text-grey-900 outline-none focus:border-primary" />]] as const)
             : []),
-          ["Internal Brand & Colour", <PoFinishSelect key="i" kind="internal" value={common("internalColour")} onChange={(v) => applyAll({ internalColour: v })} />],
-          ["External Brand & Colour", <PoFinishSelect key="e" kind="external" value={common("externalColour")} onChange={(v) => applyAll({ externalColour: v })} />],
-          ["Material", <PoRawMaterialSelect key="m" compact value={common("material")} onChange={(v) => applyAll({ material: v })} />],
+          ["Internal Brand & Colour", <PoFinishSelect key="i" kind="internal" value={common("internalColour")} onChange={(v) => ask("internal colour", !!common("internalColour") && common("internalColour") !== v, () => applyAll({ internalColour: v }))} />],
+          ["External Brand & Colour", <PoFinishSelect key="e" kind="external" value={common("externalColour")} onChange={(v) => ask("external colour", !!common("externalColour") && common("externalColour") !== v, () => applyAll({ externalColour: v }))} />],
+          ["Material", <PoRawMaterialSelect key="m" compact value={common("material")} onChange={(v) => ask("material", !!common("material") && common("material") !== v, () => applyAll({ material: v }))} />],
         ] as const
       ).map(([label, field]) => (
         <Field key={label} label={label}>
@@ -76,7 +78,7 @@ export function PoCabinetBlock({
     <span className="flex min-w-0 flex-1 items-center gap-2">
       <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-primary/20 px-1.5 font-number text-sm font-semibold text-primary">{srNo}</span>
       {cabinet ? (
-        <PoCabinetNameSelect value={cabinet.designType ?? ""} fallback={cabinet.label} onChange={(v, cabinetTypeId) => onCabinetChange({ ...cabinet, designType: v, cabinetTypeId })} />
+        <PoCabinetNameSelect value={cabinet.designType ?? ""} fallback={cabinet.label} onChange={(v, cabinetTypeId) => ask("cabinet type", !!cabinet.designType && v !== cabinet.designType, () => onCabinetChange({ ...cabinet, designType: v, cabinetTypeId }))} />
       ) : (
         <span className="truncate font-heading text-base font-semibold text-grey-900">{name}</span>
       )}
@@ -88,7 +90,7 @@ export function PoCabinetBlock({
     <div className="flex flex-wrap items-end gap-3 pl-8">
       <div className="w-56">
         <Field label="Cabinet Name">
-          <PoCabinetNameField stacked value={cabinet.cabinetName ?? ""} onChange={(v) => onCabinetChange({ ...cabinet, cabinetName: v })} />
+          <PoCabinetNameField stacked value={cabinet.cabinetName ?? ""} onChange={(v) => ask("cabinet name", !!cabinet.cabinetName && v !== cabinet.cabinetName, () => onCabinetChange({ ...cabinet, cabinetName: v }))} />
         </Field>
       </div>
       {(["width", "depth", "height", "qty"] as const).map((k) => (
@@ -135,6 +137,7 @@ export function PoCabinetBlock({
   return (
     <div className="rounded-2xl bg-blush p-3">
     <div className="rounded-xl bg-blush p-3">
+      {changeDialog}
       <PoLinesTable
         group={group}
         title={title}

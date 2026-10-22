@@ -6,6 +6,7 @@ import { useContext, useState } from "react";
 import { PoLibraryContext } from "@/components/purchase-orders/po-library-context";
 import { ChevronDown, ChevronRight, Copy, Plus, Sparkles, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useConfirmChange } from "@/components/purchase-orders/po-confirm-change";
 import { Button } from "@/components/ui/button";
 import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
 import { PoComponentsToggle } from "@/components/purchase-orders/po-components-toggle";
@@ -85,7 +86,7 @@ export function PoCabinetCard({
 
   const unitTypes = useUnitTypes();
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [pendingFields, setPendingFields] = useState<Partial<PurchaseOrderLine> | null>(null);
+  const { ask, dialog: changeDialog } = useConfirmChange();
   const cabinetType = useCabinetTypes().find((t) => t.id === cabinet?.cabinetTypeId);
 
   // Recalculate the sizes of this cabinet's existing carcass rows for the W/D/H/Qty in the header.
@@ -127,7 +128,8 @@ export function PoCabinetCard({
     mostUsed(carcassRows.map((l) => l[k])) || (cabinet?.[k] ?? "") || (detailDefaults?.[k] ?? "");
   // Also remembered on the cabinet, so a cabinet without rows yet gives them to the rows Auto Populate adds.
   // Direct PO: changing a value this cabinet already has asks first (it changes its Carcass rows too). The Cabinet Details card is not touched.
-  const askCarcass = (k: "internalColour" | "externalColour" | "material", v: string) => (direct && commonCarcass(k) ? setPendingFields({ [k]: v }) : applyCarcass({ [k]: v }));
+  const askCarcass = (k: "internalColour" | "externalColour" | "material", v: string) =>
+    ask(k === "internalColour" ? "internal colour" : k === "externalColour" ? "external colour" : "material", !!commonCarcass(k) && commonCarcass(k) !== v, () => applyCarcass({ [k]: v }));
   const applyCarcass = (fields: Partial<PurchaseOrderLine>) => {
     if (cabinet && carcassRows.length === 0) onCabinetChange({ ...cabinet, ...fields } as PoCabinet);
     else onChange(lines.map((l) => (l.srNo === srNo && l.group === "carcass" ? { ...l, ...fields } : l)));
@@ -217,10 +219,10 @@ export function PoCabinetCard({
       {cabinet && (
         <div className="grid grid-cols-2 gap-3 pl-8 md:grid-cols-4 lg:grid-cols-[2fr_2fr_repeat(4,1fr)_2fr_3fr]">
           <Field label="Cabinet Type">
-            <PoCabinetNameSelect field value={cabinet.designType ?? ""} fallback={cabinet.label} onChange={(v, cabinetTypeId) => onCabinetChange({ ...cabinet, designType: v, cabinetTypeId })} />
+            <PoCabinetNameSelect field value={cabinet.designType ?? ""} fallback={cabinet.label} onChange={(v, cabinetTypeId) => ask("cabinet type", !!cabinet.designType && v !== cabinet.designType, () => onCabinetChange({ ...cabinet, designType: v, cabinetTypeId }))} />
           </Field>
           <Field label="Cabinet Name">
-            <PoCabinetNameField stacked value={cabinet.cabinetName ?? ""} onChange={(v) => onCabinetChange({ ...cabinet, cabinetName: v })} />
+            <PoCabinetNameField stacked value={cabinet.cabinetName ?? ""} onChange={(v) => ask("cabinet name", !!cabinet.cabinetName && v !== cabinet.cabinetName, () => onCabinetChange({ ...cabinet, cabinetName: v }))} />
           </Field>
           {(["width", "depth", "height", "qty"] as const).map((k) => (
             <Field key={k} label={k === "qty" ? "Qty" : k === "width" ? "W" : k === "depth" ? "D" : "H"}>
@@ -258,7 +260,7 @@ export function PoCabinetCard({
           {/* A Proforma Invoice has a dealer for the whole invoice, so no vendor is picked per cabinet. */}
           {!proforma && (
           <Field label="Vendor">
-            <PoCabinetVendorSelect srNo={srNo} cabinet={cabinet} onCabinetChange={onCabinetChange} />
+            <PoCabinetVendorSelect srNo={srNo} cabinet={cabinet} onCabinetChange={(c) => ask("vendor", !!cabinet.vendorId && c.vendorId !== cabinet.vendorId, () => onCabinetChange(c))} />
           </Field>
           )}
           {(direct || mine.some((l) => l.group === "carcass")) && (
@@ -308,17 +310,7 @@ export function PoCabinetCard({
           </div>
         </>
       )}
-    <ConfirmDialog
-      open={!!pendingFields}
-      onOpenChange={(o) => !o && setPendingFields(null)}
-      title="Change this cabinet?"
-      description={carcassRows.length ? `This also updates the Material and colours of the ${carcassRows.length} Carcass row${carcassRows.length === 1 ? "" : "s"} in this cabinet. Continue?` : "This changes the Material and colours of this cabinet. Continue?"}
-      confirmLabel="Continue"
-      onConfirm={() => {
-        if (pendingFields) applyCarcass(pendingFields);
-        setPendingFields(null);
-      }}
-    />
+    {changeDialog}
     <ConfirmDialog
       open={deleteOpen}
       onOpenChange={setDeleteOpen}
