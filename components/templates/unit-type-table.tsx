@@ -209,6 +209,7 @@ export function UnitTypeTable() {
       <UnitTypeFormDialog
         open={addOpen}
         onOpenChange={setAddOpen}
+        srNo={items.length + 1}
         onSubmit={(values) => unitTypeStore.createUnitType(values)}
       />
 
@@ -217,6 +218,7 @@ export function UnitTypeTable() {
           open={!!editTarget}
           onOpenChange={(open) => !open && setEditTarget(null)}
           item={editTarget}
+          srNo={sorted.findIndex((i) => i.id === editTarget.id) + 1 || undefined}
           onSubmit={(values) => unitTypeStore.updateUnitType(editTarget.id, values)}
         />
       )}

@@ -3,10 +3,10 @@
 import { StatusMenu } from "@/components/shared/status-menu";
 import { Nums } from "@/components/shared/nums";
 import { SelectField } from "@/components/shared/select-field";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, FileText, Plus, RotateCcw, Save, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Download, FileText, Plus, RotateCcw, Save, Search, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,7 @@ import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-materia
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { PoHardwareTab } from "@/components/purchase-orders/po-hardware-tab";
 import { PoCabinetBlock } from "@/components/purchase-orders/po-cabinet-block";
+import { exportLinesExcel, importLinesExcel, type LinesKind } from "@/lib/po-lines-excel";
 import { ColourPopover } from "@/components/shared/colour-popover";
 import { PoWhereSelect } from "@/components/purchase-orders/po-where-select";
 import { CabinetSortList, SortableCabinet } from "@/components/purchase-orders/po-sortable-cabinet";
@@ -178,6 +179,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const [finishDrafts, setFinishDrafts] = useState<Record<string, NonNullable<PurchaseOrder["material"]["finishEntries"]>[number]>>({});
   const { ask: askBrandVendor, dialog: brandVendorDialog } = useConfirmChange("row");
   const [partyOpen, setPartyOpen] = useState(false);
+  const importRef = useRef<HTMLInputElement>(null);
   const [deleteFinishId, setDeleteFinishId] = useState<string | null>(null);
   const [pendingApply, setPendingApply] = useState<{ scope: "shutter" | "cabinet"; run: () => void; cancel?: () => void; extra?: boolean } | null>(null);
   const fromQuote = useMemo(() => (draft?.quoteId ? quoteCabinetInfo(quotes.find((q) => q.id === draft.quoteId) ?? ({ units: [] } as never)) : new Map<number, { cabinetTypeId: string; unitQty: number }>()), [draft?.quoteId, quotes]);
@@ -290,6 +292,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const isDirect = base.startsWith("/direct") || isProforma;
   // A Direct PO shows only the cabinet list (cabinet types added with Add Cabinet Type).
   const shownView = isDirect || draft.lines.length === 0 ? "cabinet" : view;
+  // Which rows the Excel Import / Export buttons work on: the open tab on a Direct PO / Proforma; on a Purchase Order the open group of
+  // By Component, Rate Pending or Hardware (By Unit and Vendor have no buttons).
+  const pickedGroup = PO_GROUPS.find((g) => g.key === compGroup && draft.lines.some((l) => l.group === g.key))?.key ?? PO_GROUPS.find((g) => draft.lines.some((l) => l.group === g.key))?.key;
+  const lineKind: LinesKind | null = isDirect ? directTab : shownView === "pending" ? "pending" : shownView === "hardware" ? "hardware" : shownView === "component" && pickedGroup ? (pickedGroup as LinesKind) : null;
 
   const addCabinet = () => {
     const no = Math.max(0, ...cabinetNos) + 1;
@@ -881,6 +887,41 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             </h2>
           )}
           <div className="ml-auto flex items-center gap-2">
+            {lineKind && (
+              <>
+                {/* Excel for the open tab: Export writes its rows (headers only when empty = the import template); Import adds the file's rows. */}
+                <Button type="button" variant="outline" size="sm" onClick={() => void exportLinesExcel(lineKind, draft.lines, `${draft.poNumber || (isProforma ? "proforma-invoice" : isDirect ? "direct-po" : "purchase-order")}-${lineKind}.xlsx`)}>
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => importRef.current?.click()}>
+                  <Upload className="h-4 w-4" />
+                  Import
+                </Button>
+                <input
+                  ref={importRef}
+                  type="file"
+                  accept=".xlsx"
+                  className="hidden"
+                  onChange={async (ev) => {
+                    const file = ev.target.files?.[0];
+                    ev.target.value = "";
+                    if (!file) return;
+                    try {
+                      const res = await importLinesExcel(lineKind, file, draft.lines, cabinetNos);
+                      if (res.added || res.updated) set({ lines: res.lines });
+                      toastStore.show(
+                        lineKind === "pending" ? `${res.updated} rate${res.updated === 1 ? "" : "s"} updated` : `${res.added} row${res.added === 1 ? "" : "s"} imported`,
+                        res.added || res.updated ? "success" : "info"
+                      );
+                      if (res.skipped.length) toastStore.show(`${res.skipped.length} skipped: ${res.skipped.slice(0, 3).join("; ")}${res.skipped.length > 3 ? "…" : ""}`, "warning", { durationMs: 8000 });
+                    } catch (err) {
+                      toastStore.show(err instanceof Error ? err.message : "Could not read this file", "error");
+                    }
+                  }}
+                />
+              </>
+            )}
             {isDirect && (
               <div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Direct purchase order sections">
                 {([["carcass", "Cabinet"], ["shutter", "Shutter"], ["other-panel", "Other Panel"], ["hardware", "Hardware"], ["pending", "Rate Pending"]] as const).map(([k, label]) => (

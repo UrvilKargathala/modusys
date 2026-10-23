@@ -67,12 +67,15 @@ export function UnitTypeFormDialog({
   open,
   onOpenChange,
   item,
+  srNo,
   onSubmit,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   // Absent = Add mode; present = Edit mode, pre-filled.
   item?: UnitType;
+  // The Unit Type list's Sr No for this row (or the next one when adding): shown before the title, e.g. "007 - Edit Unit Type (...)".
+  srNo?: number;
   onSubmit: (values: NewUnitTypeInput) => void;
 }) {
   const isEdit = !!item;
@@ -167,7 +170,7 @@ export function UnitTypeFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit Unit Type (${values.name || item?.name || ""})` : "Add Unit Type"}</DialogTitle>
+          <DialogTitle>{srNo ? <><span className="font-[family-name:var(--font-manrope)]">{String(srNo).padStart(3, "0")}</span> - </> : ""}{isEdit ? `Edit Unit Type (${values.name || item?.name || ""})` : "Add Unit Type"}</DialogTitle>
           <DialogDescription>
             {isEdit ? "Update this unit type." : "Define a new unit type, its components, external finish, and hardware."}
           </DialogDescription>
