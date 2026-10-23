@@ -652,7 +652,7 @@ export function PurchaseOrderSheet({ po: poIn, vendor, vendors, customer, quoteN
                       // A Proforma cut list: Design (after Cabinet Name) and Remarks cells with a value get the light red fill.
                       className={`${cell} ${typeof v === "number" && j > 0 ? "text-right po-num" : ""} ${po.material.proforma && v !== "" ? (j === 3 ? RED_FILL : j === r.length - 1 ? "bg-error-200 text-error" : "") : ""}`}
                     >
-                      {v}
+                      {typeof v === "string" ? <Nums>{v}</Nums> : v}
                     </td>
                   ))}
                 </tr>
