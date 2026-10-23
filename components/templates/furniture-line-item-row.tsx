@@ -4,7 +4,7 @@ import { evaluateFormula } from "@/lib/quote-pricing";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Copy, Trash2, AlertTriangle, Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { GripVertical, Copy, Trash2, AlertTriangle, Plus, ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -130,6 +130,7 @@ export function FurnitureLineItemRow({
   // applies for Amount/subtotal/quote-total math, kept in sync here so the
   // row's own display never disagrees with those totals.
   const useListRate = followPriceList && !typedRate && !!match;
+  const canReset = !rateReadOnly && !followPriceList && value.rateOverride !== undefined && !!match && value.rateOverride !== match.rate;
   const effectiveRate = useListRate ? match!.rate : (value.rateOverride ?? match?.rate);
 
   // New Quote: keep the saved rate (used for Amount and totals) equal to the price-list rate, so nothing is left to reset.
@@ -312,7 +313,8 @@ export function FurnitureLineItemRow({
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>Rate</Label>
-          <div className="relative">
+          <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
             <Input
               type="number"
               step="0.01"
@@ -330,15 +332,19 @@ export function FurnitureLineItemRow({
             />
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">/sq.ft</span>
           </div>
-          {!rateReadOnly && !followPriceList && value.rateOverride !== undefined && match && value.rateOverride !== match.rate && (
+          {/* Typed over the price-list rate: a box beside the rate shows the price-list rate; click it to put that rate back. */}
+          {canReset && (
             <button
               type="button"
+              title="Reset to the price-list rate"
               onClick={() => handleFieldChange({ rateOverride: undefined })}
-              className="w-fit text-xs font-body text-primary hover:underline"
+              className="flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-primary bg-primary-transparent px-2.5 text-xs font-body font-medium text-primary hover:bg-primary hover:text-white"
             >
-              Reset to price-list rate (<span className="font-number">₹{match.rate.toFixed(2)}</span>)
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset <span className="font-number">₹{match!.rate.toFixed(2)}</span>
             </button>
           )}
+          </div>
         </div>
         {showLevelType && (
           <div className="flex flex-col gap-1.5 md:col-span-2">

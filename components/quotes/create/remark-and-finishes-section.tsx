@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { FinishOptionsTable } from "@/components/quotes/create/finish-options-table";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
@@ -17,7 +17,7 @@ export function RemarkAndFinishesSection({
 }) {
   const [collapsed, setCollapsed] = useState(true);
 
-  // A "live" option's Price is the quote's Final Offer Amount, kept up to date; "locked" prices never change.
+  // Final Offer Amount: the price a new option starts with. Once added, an option's price never changes by itself.
   const furnitureItems = useFurniturePriceItems();
   const hardwareItems = useHardwarePriceItems();
   const finalOffer = quoteWaterfall(
@@ -28,10 +28,6 @@ export function RemarkAndFinishesSection({
     quote.installationFreightCost
   ).finalOffer;
   const options = quote.finishOptions ?? [];
-  useEffect(() => {
-    if (!options.some((o) => o.priceMode === "live" && o.price !== finalOffer)) return;
-    onChange({ finishOptions: options.map((o) => (o.priceMode === "live" ? { ...o, price: finalOffer } : o)) });
-  }, [finalOffer, options, onChange]);
 
   return (
     <section className={cn("flex flex-col gap-6 quote-form rounded-xl border border-blush bg-blush", collapsed ? "p-4" : "p-6")}>

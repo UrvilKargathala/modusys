@@ -96,22 +96,8 @@ function CreateQuotePage() {
       if (patch.productTypeId !== undefined && patch.productTypeId !== q.productTypeId && q.productTypeId && (next.finishOptions ?? []).some((o) => !o.productTypeId)) {
         next.finishOptions = (next.finishOptions ?? []).map((o) => (o.productTypeId ? o : { ...o, productTypeId: q.productTypeId }));
       }
-      // Finish Options (new quote only): once both the shutter External Colour and the Tandem Drawer Type are picked, option A is
-      // added with them and its Price follows the Final Offer Amount ("live"). When the External Colour or Tandem Drawer Type is
-      // changed afterwards, option A is locked at the price it had; the new selection is added with the Add Option button.
-      if (!editId && (patch.shutterFinishExternalColourId !== undefined || patch.tandemDrawerTypeId !== undefined)) {
-        const options = next.finishOptions ?? [];
-        const changed =
-          (patch.shutterFinishExternalColourId !== undefined && patch.shutterFinishExternalColourId !== q.shutterFinishExternalColourId) ||
-          (patch.tandemDrawerTypeId !== undefined && patch.tandemDrawerTypeId !== q.tandemDrawerTypeId);
-        if (options.length === 0 && next.shutterFinishExternalColourId && next.tandemDrawerTypeId) {
-          next.finishOptions = [
-            { id: `fo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, option: "", externalColourId: next.shutterFinishExternalColourId, tandemDrawerTypeId: next.tandemDrawerTypeId, productTypeId: next.productTypeId, price: 0, priceMode: "live" },
-          ];
-        } else if (changed && options.some((o) => o.priceMode === "live")) {
-          next.finishOptions = options.map((o) => (o.priceMode === "live" ? { ...o, priceMode: "locked" as const } : o));
-        }
-      }
+      // Finish Options start empty; an option is only added with the Add Option button, at the price it has at that moment, and its price
+      // never changes afterwards (nothing here touches the options when the selection or the Final Offer Amount changes).
       return next;
     });
 
