@@ -4,7 +4,7 @@ import { evaluateFormula } from "@/lib/quote-pricing";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Copy, Trash2, AlertTriangle, Plus, ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
+import { GripVertical, Copy, CopyPlus, Trash2, AlertTriangle, Plus, ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ export function FurnitureLineItemRow({
   onChange,
   onRemove,
   onCopy,
+  onCopyBlank,
   label,
   showComponentName,
   showLevelType,
@@ -50,6 +51,8 @@ export function FurnitureLineItemRow({
   onChange: (patch: Partial<FurnitureLineItem>) => void;
   onRemove: () => void;
   onCopy?: () => void;
+  // A second copy button: the same row with Thickness, Raw Material and the colours left empty.
+  onCopyBlank?: () => void;
   label: string;
   showComponentName: boolean;
   // Opt-in Level Type picker (Material Library) — only shown where wanted
@@ -193,6 +196,17 @@ export function FurnitureLineItemRow({
             className="ml-auto rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-primary"
           >
             <Copy className="h-4 w-4" />
+          </button>
+        )}
+        {onCopy && onCopyBlank && (
+          <button
+            type="button"
+            onClick={onCopyBlank}
+            aria-label={`Copy ${label.toLowerCase()} without material and colours`}
+            title="Copy without Thickness, Raw Material and colours"
+            className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-primary"
+          >
+            <CopyPlus className="h-4 w-4" />
           </button>
         )}
         <button

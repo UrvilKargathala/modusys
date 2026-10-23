@@ -127,6 +127,11 @@ export function UnitTypeFormDialog({
         const copy = { ...item, id: newLineItem().id, isCustomized: undefined, sourceLinkId: undefined, isExtra: true };
         set([...list, copy]);
       },
+      // Same row, but Thickness, Raw Material, External / Internal Colour (and a typed rate) are left empty to be picked again.
+      copyBlank: (item: FurnitureLineItem) => {
+        const copy = { ...item, id: newLineItem().id, isCustomized: undefined, sourceLinkId: undefined, isExtra: true, thicknessId: "", rawMaterialTypeId: "", externalColourId: "", internalColourId: "", rateOverride: undefined };
+        set([...list, copy]);
+      },
       update: (id: string, patch: Partial<FurnitureLineItem>) =>
         set(list.map((c) => (c.id === id ? { ...c, ...patch } : c))),
       remove: (id: string) => set(list.filter((c) => c.id !== id)),
@@ -297,6 +302,7 @@ export function UnitTypeFormDialog({
                         onChange={(patch) => externalFinishes.update(c.id, patch)}
                         onRemove={() => externalFinishes.remove(c.id)}
                         onCopy={() => externalFinishes.copy(c)}
+                        onCopyBlank={() => externalFinishes.copyBlank(c)}
                       />
                     ))}
                   </div>
