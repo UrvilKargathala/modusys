@@ -11,6 +11,7 @@ import { CabinetTypeSection } from "@/components/templates/cabinet-type-section"
 import { UnitTypeSection } from "@/components/templates/unit-type-section";
 import { TemplateHub } from "@/components/templates/template-hub";
 import { CalculatorSection } from "@/components/templates/calculator-section";
+import { ColourPaletteSection } from "@/components/templates/colour-palette-section";
 
 const topTabs = [
   { value: "material-spec", label: "Material Spec" },
@@ -19,6 +20,7 @@ const topTabs = [
   { value: "cabinet-type", label: "Cabinet Type" },
   { value: "template", label: "Template" },
   { value: "calculator", label: "Calculator" },
+  { value: "palette", label: "Colour Palette" },
 ];
 
 function TemplatesPageContent() {
@@ -68,6 +70,8 @@ function TemplatesPageContent() {
               <TemplateHub />
             ) : t.value === "calculator" ? (
               <CalculatorSection />
+            ) : t.value === "palette" ? (
+              <ColourPaletteSection />
             ) : (
               <EmptyState icon={Construction} message={`${t.label} is coming in a later phase.`} />
             )}

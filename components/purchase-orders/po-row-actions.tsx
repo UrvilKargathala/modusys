@@ -9,21 +9,21 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PACKING_PDF_PARTS, PO_EXCEL_PARTS, PO_PDF_PARTS, partLabel } from "@/lib/purchase-order-export";
 import { purchaseOrdersStore } from "@/lib/store/purchase-orders-store";
 import { toastStore } from "@/lib/store/toast-store";
-import type { PurchaseOrder } from "@/lib/purchase-order";
+import { nextCopyNumber, type PurchaseOrder } from "@/lib/purchase-order";
 
 // The row action icons shared by the PO lists and the Packing tab: View, (Packing), Download menu, Copy, Delete.
 // viewHref: where the eye icon goes (default: the PO / invoice editor). packingSlips: a proforma's Download menu lists the three Packing Slip PDFs
-// only on the Packing tab.
-export function PoRowActions({ po, proforma, base, showPacking = false, viewHref, packingSlips = false }: { po: PurchaseOrder; proforma: boolean; base: string; showPacking?: boolean; viewHref?: string; packingSlips?: boolean }) {
+// only on the Packing tab. workOrder: the Production tab adds a Production Work Order PDF after Proforma Invoice With Components.
+export function PoRowActions({ po, proforma, base, showPacking = false, viewHref, packingSlips = false, workOrder = false }: { po: PurchaseOrder; proforma: boolean; base: string; showPacking?: boolean; viewHref?: string; packingSlips?: boolean; workOrder?: boolean }) {
   const router = useRouter();
   const [confirmDelete, setConfirmDelete] = useState(false);
-  // Copy = a new Pending PO with the same vendor, material and rows; the PO number is left blank to type.
+  // Copy = a new Pending PO with the same vendor, material and rows; its number is the next one after the original's (editable before saving).
   const copyPo = async () => {
     const { id: _id, createdAt: _c, vendorName: _v, status: _s, lines, ...rest } = po;
     try {
-      const created = await purchaseOrdersStore.create({ ...rest, poNumber: "", lines: lines.map(({ id: _l, ...l }) => l) });
+      const created = await purchaseOrdersStore.create({ ...rest, poNumber: nextCopyNumber(po.poNumber, purchaseOrdersStore.getSnapshot().map((o) => o.poNumber)), lines: lines.map(({ id: _l, ...l }) => l) });
       toastStore.show("Purchase order copied", "success");
-      router.push(`${base}/${created.id}`);
+      router.push(`${base}/${created.id}?copy=1`);
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not copy", "error");
     }
@@ -63,10 +63,10 @@ export function PoRowActions({ po, proforma, base, showPacking = false, viewHref
                         <DropdownMenuContent align="end" className="w-max min-w-72">
                           <DropdownMenuGroup>
                           <DropdownMenuLabel>PDF</DropdownMenuLabel>
-                          {(proforma ? [...PO_PDF_PARTS.filter((p) => p.key !== "full" && p.key !== "ledger" && (packingSlips || p.key !== "components")).flatMap((p) => (p.key === "components" ? [p, ...PACKING_PDF_PARTS] : [p])), { key: "cutlist" as const, label: "Cut List" }] : PO_PDF_PARTS).map((p) => (
+                          {(proforma ? [...PO_PDF_PARTS.filter((p) => p.key !== "full" && p.key !== "ledger" && (packingSlips || p.key !== "components")).flatMap((p) => (p.key === "components" ? [p, ...PACKING_PDF_PARTS] : p.key === "cabinets" && workOrder ? [p, { key: "work-order" as const, label: "Production Work Order" }] : [p])), { key: "cutlist" as const, label: "Cut List" }] : PO_PDF_PARTS).map((p) => (
                             <DropdownMenuItem key={`pdf-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf${p.key === "full" ? "" : `?part=${p.key}`}`, "_blank")}>
                               <FileText className="h-4 w-4 text-grey-400" />
-                              {partLabel(p.label, proforma)}
+                              {p.key === "work-order" ? p.label : partLabel(p.label, proforma)}
                             </DropdownMenuItem>
                           ))}
                           </DropdownMenuGroup>

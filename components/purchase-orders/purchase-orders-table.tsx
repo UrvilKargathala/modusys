@@ -203,7 +203,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="bg-[#DACCCC]">
+            <thead className="bg-[var(--table-head)]">
               <tr>
                 {[proforma ? "PI No" : "PO No", proforma ? "PI Date" : "Date", "Required", proforma ? "Dealer" : "Vendor", "Customer", "Quote", "Amount", "Status", "Actions"].map((h) => (
                   <th

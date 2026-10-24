@@ -198,7 +198,7 @@ export function UsersTable({ users }: { users: OrgUser[] }) {
 
       <div className="overflow-x-auto rounded-lg border border-grey-100 bg-card">
         <table className="w-full text-sm font-body">
-          <thead className="bg-[#DACCCC]">
+          <thead className="bg-[var(--table-head)]">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 <th className="whitespace-nowrap px-4 py-2.5 text-left text-sm font-semibold uppercase tracking-wide text-grey-900">SR No</th>

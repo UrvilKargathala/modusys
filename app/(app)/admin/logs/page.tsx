@@ -377,7 +377,7 @@ export default function AdminLogsPage() {
 
       <div className="overflow-x-auto rounded-lg border border-grey-100">
         <table className="w-full text-left">
-          <thead className="bg-[#D9C8C9]">
+          <thead className="bg-blush">
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((header) => (

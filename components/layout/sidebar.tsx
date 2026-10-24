@@ -89,12 +89,12 @@ export function Sidebar() {
   const row = (active: boolean) =>
     cn(
       "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-body transition-colors",
-      active ? "relative bg-white/70 font-semibold text-grey-900 before:absolute before:left-0 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-r-full before:bg-primary" : "font-medium text-grey-900 hover:bg-white/50",
+      active ? "relative bg-white/15 font-semibold text-white before:absolute before:left-0 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-r-full before:bg-[var(--sb-accent)]" : "font-medium text-white/85 hover:bg-white/10",
       collapsed && "justify-center px-0"
     );
 
   const label = (text: string) =>
-    collapsed ? <div className="my-1 h-px" /> : <p className="px-3 pb-0.5 pt-2 text-[11px] font-semibold uppercase tracking-wider text-grey-600">{text}</p>;
+    collapsed ? <div className="my-1 h-px" /> : <p className="px-3 pb-0.5 pt-2 text-[11px] font-semibold uppercase tracking-wider text-white/60">{text}</p>;
 
   const renderEntry = (e: Entry) => {
     if (e.kind === "link") {
@@ -141,9 +141,9 @@ export function Sidebar() {
           <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
         </button>
         {open && (
-          <div className="ml-[22px] flex flex-col gap-0.5 border-l border-grey-100 pl-4">
+          <div className="ml-[22px] flex flex-col gap-0.5 border-l border-white/20 pl-4">
             {e.items.map((m) => (
-              <Link key={m.href} href={m.href} className={cn("rounded-md px-2 py-1.5 text-[13px] font-body transition-colors", isActive(m.href) ? "font-semibold text-grey-900" : "font-medium text-grey-700 hover:text-grey-900")}>
+              <Link key={m.href} href={m.href} className={cn("rounded-md px-2 py-1.5 text-[13px] font-body transition-colors", isActive(m.href) ? "font-semibold text-white" : "font-medium text-white/70 hover:text-white")}>
                 {m.label}
               </Link>
             ))}
@@ -154,7 +154,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className={cn("relative z-10 hidden shrink-0 flex-col bg-[#DBCCCC] transition-[width] duration-200 lg:flex", collapsed ? "w-[60px]" : "w-56")}>
+    <aside className={cn("relative z-10 hidden shrink-0 flex-col border-r border-white/30 bg-[linear-gradient(90deg,color-mix(in_srgb,var(--sb-1)_90%,transparent),color-mix(in_srgb,var(--sb-2)_80%,transparent)_50%,color-mix(in_srgb,var(--sb-3)_70%,transparent))] text-white shadow-[8px_0_32px_rgb(40_138_184/0.18)] backdrop-blur-2xl transition-[width] duration-200 lg:flex", collapsed ? "w-[60px]" : "w-56")}>
       <button
         type="button"
         onClick={toggle}
@@ -167,8 +167,8 @@ export function Sidebar() {
 
       <div className={cn("flex items-center px-3 pt-3", collapsed ? "flex-col gap-2" : "justify-between")}>
         <Link href="/dashboard" className="flex items-center gap-2 px-1" aria-label="Modusys">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#B08B8B] font-heading text-sm font-bold text-white">M</span>
-          {!collapsed && <span className="font-heading text-lg font-semibold text-grey-900">Modusys</span>}
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--sb-accent)] font-heading text-sm font-bold text-[var(--sb-1)]">M</span>
+          {!collapsed && <span className="font-heading text-lg font-semibold text-white">Modusys</span>}
         </Link>
         <NotificationPanel rows={notificationRows} onMarkAllRead={markAllRead} inSidebar />
       </div>
@@ -189,37 +189,37 @@ export function Sidebar() {
           const pct = Math.max(0, Math.min(100, (MOCK_CREDITS_BALANCE / MOCK_CREDITS_TOTAL) * 100));
           const low = pct < 20;
           return collapsed ? (
-            <div title={`Credits: ${formatInr(MOCK_CREDITS_BALANCE)} of ${formatInr(MOCK_CREDITS_TOTAL)}`} className={cn("flex justify-center py-1", low ? "text-error" : "text-grey-700")}>
+            <div title={`Credits: ${formatInr(MOCK_CREDITS_BALANCE)} of ${formatInr(MOCK_CREDITS_TOTAL)}`} className={cn("flex justify-center py-1", low ? "text-error-400" : "text-white/80")}>
               <Wallet className="h-5 w-5" />
             </div>
           ) : (
-            <div className="flex flex-col gap-1.5 rounded-lg bg-white/60 px-3 py-2">
-              <div className="flex items-center justify-between text-xs font-body text-grey-700">
+            <div className="flex flex-col gap-1.5 rounded-lg border border-white/25 bg-[color-mix(in_srgb,var(--sb-1)_50%,transparent)] px-3 py-2 backdrop-blur-md">
+              <div className="flex items-center justify-between text-xs font-body text-white/80">
                 <span className="inline-flex items-center gap-1.5 font-semibold"><Wallet className="h-3.5 w-3.5" />Credits</span>
-                <span className="font-number font-semibold text-grey-900">{formatInr(MOCK_CREDITS_BALANCE)}</span>
+                <span className="font-number font-semibold text-white">{formatInr(MOCK_CREDITS_BALANCE)}</span>
               </div>
-              <div role="progressbar" aria-valuemin={0} aria-valuemax={MOCK_CREDITS_TOTAL} aria-valuenow={MOCK_CREDITS_BALANCE} aria-label="Credits left" className="h-1.5 overflow-hidden rounded-full bg-white">
-                <div className={cn("h-full rounded-full", low ? "bg-error" : "bg-primary")} style={{ width: `${pct}%` }} />
+              <div role="progressbar" aria-valuemin={0} aria-valuemax={MOCK_CREDITS_TOTAL} aria-valuenow={MOCK_CREDITS_BALANCE} aria-label="Credits left" className="h-1.5 overflow-hidden rounded-full bg-white/20">
+                <div className={cn("h-full rounded-full", low ? "bg-error" : "bg-[var(--sb-accent)]")} style={{ width: `${pct}%` }} />
               </div>
-              <span className="text-[11px] font-body text-grey-600">of <span className="font-number">{formatInr(MOCK_CREDITS_TOTAL)}</span></span>
+              <span className="text-[11px] font-body text-white/60">of <span className="font-number">{formatInr(MOCK_CREDITS_TOTAL)}</span></span>
             </div>
           );
         })()}
         {/* The signed-in user: name and role, with Change Password, Install App and Sign out in its menu. */}
         <DropdownMenu>
-          <DropdownMenuTrigger title={collapsed ? user.name || "Account" : undefined} className={cn("flex w-full items-center gap-3 rounded-lg bg-white/60 p-2 text-left transition-colors hover:bg-white/80", collapsed && "justify-center bg-transparent p-1")}>
+          <DropdownMenuTrigger title={collapsed ? user.name || "Account" : undefined} className={cn("flex w-full items-center gap-3 rounded-lg border border-white/25 bg-[color-mix(in_srgb,var(--sb-1)_50%,transparent)] p-2 text-left backdrop-blur-md transition-colors hover:bg-[color-mix(in_srgb,var(--sb-1)_70%,transparent)]", collapsed && "justify-center bg-transparent p-1")}>
             <Avatar className="h-8 w-8 shrink-0">
-              <AvatarFallback className="bg-primary-transparent text-primary">
+              <AvatarFallback className="bg-white/15 text-white">
                 <UserRound className="h-4 w-4" />
               </AvatarFallback>
             </Avatar>
             {!collapsed && (
               <>
                 <span className="flex min-w-0 flex-1 flex-col leading-tight">
-                  <span className="truncate text-sm font-body font-semibold text-grey-900">{user.name || "Not signed in"}</span>
-                  <span className="truncate text-xs font-body text-grey-700">{roleLabel}</span>
+                  <span className="truncate text-sm font-body font-semibold text-white">{user.name || "Not signed in"}</span>
+                  <span className="truncate text-xs font-body text-white/70">{roleLabel}</span>
                 </span>
-                <ChevronUp className="h-4 w-4 shrink-0 text-grey-400" />
+                <ChevronUp className="h-4 w-4 shrink-0 text-white/60" />
               </>
             )}
           </DropdownMenuTrigger>
@@ -240,7 +240,7 @@ export function Sidebar() {
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-        <button type="button" onClick={handleSignOut} title={collapsed ? "Logout Account" : undefined} className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-body font-medium text-error transition-colors hover:bg-error-transparent", collapsed && "justify-center px-0")}>
+        <button type="button" onClick={handleSignOut} title={collapsed ? "Logout Account" : undefined} className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-body font-medium text-white transition-colors hover:bg-white/10", collapsed && "justify-center px-0")}>
           <LogOut className="h-[18px] w-[18px] shrink-0" />
           {!collapsed && "Logout Account"}
         </button>

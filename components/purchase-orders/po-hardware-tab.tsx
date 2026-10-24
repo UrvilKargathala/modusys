@@ -173,7 +173,7 @@ export function PoHardwareTab({
   return (
     <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
       <table className="w-full min-w-max text-left">
-        <thead className="bg-[#DACCCC]">
+        <thead className="bg-[var(--table-head)]">
           <tr>
             {["Sr", "Brand", "Vendor", "Description", "Article No", "Category", "Unit"].map((h) => <th key={h} className={th}>{h}</th>)}
             {["Qty", "MRP", "Discount %", "Amount"].map((h) => <th key={h} className={`${th} text-right`}>{h}</th>)}

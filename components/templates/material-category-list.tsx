@@ -132,7 +132,7 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full text-left">
-            <thead className="bg-[#DACCCC]">
+            <thead className="bg-[var(--table-head)]">
               <tr>
                 {showSrNo && (
                   <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">SR No</th>

@@ -41,7 +41,10 @@ function TemplateEditor({ kind }: { kind: "quote" | "purchase" }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const subTab = searchParams.get("qtView") ?? "layout";
+  // The Purchase Template has no Banking tab.
+  const tabs = purchase ? subTabs.filter((t) => t.value !== "banking") : subTabs;
+  const requested = searchParams.get("qtView") ?? "layout";
+  const subTab = tabs.some((t) => t.value === requested) ? requested : "layout";
   const [previewOpen, setPreviewOpen] = useState(false);
   const settings = useTemplateSettings();
 
@@ -72,7 +75,7 @@ function TemplateEditor({ kind }: { kind: "quote" | "purchase" }) {
         <div className="flex flex-col gap-1">
           <h1 className="font-heading text-2xl font-semibold text-grey-900">{purchase ? "Purchase Template" : "Quote Template"}</h1>
           <p className="text-sm font-body text-grey-400">
-            {purchase ? "Configure the branding, banking, and clauses that render on every Purchase Order PDF" : "Configure the branding, banking, and clauses that render on every client-facing Quote PDF"}
+            {purchase ? "Configure the branding and clauses that render on every Purchase Order PDF" : "Configure the branding, banking, and clauses that render on every client-facing Quote PDF"}
           </p>
         </div>
         {!purchase && (
@@ -85,7 +88,7 @@ function TemplateEditor({ kind }: { kind: "quote" | "purchase" }) {
 
       <Tabs value={subTab} onValueChange={(value) => setSubTab(String(value))}>
         <TabsList className="flex-wrap">
-          {subTabs.map((t) => (
+          {tabs.map((t) => (
             <TabsTrigger key={t.value} value={t.value}>
               {t.label}
             </TabsTrigger>
@@ -95,7 +98,7 @@ function TemplateEditor({ kind }: { kind: "quote" | "purchase" }) {
         <div className="mt-6 w-full rounded-xl border border-grey-100 bg-card p-6">
           <TabsContent value="layout"><LayoutTab disabled={!canEdit} /></TabsContent>
           <TabsContent value="branding"><BrandingTab disabled={!canEdit} /></TabsContent>
-          <TabsContent value="banking"><BankingTab disabled={!canEdit} /></TabsContent>
+          {!purchase && <TabsContent value="banking"><BankingTab disabled={!canEdit} /></TabsContent>}
           <TabsContent value="notes"><NotesTab disabled={!canEdit} /></TabsContent>
           <TabsContent value="terms"><TermsTab disabled={!canEdit} /></TabsContent>
           <TabsContent value="signature"><SignatureTab disabled={!canEdit} /></TabsContent>

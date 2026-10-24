@@ -502,7 +502,7 @@ export default function QuotesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-[13px] font-body">
               <thead>
-                <tr className="border-b border-grey-100 bg-[#DACCCC] text-left text-sm font-medium text-grey-900">
+                <tr className="border-b border-grey-100 bg-[var(--table-head)] text-left text-sm font-medium text-grey-900">
                   <SortHeader label="Quote No." k="quoteNumber" />
                   <SortHeader label="Customer" k="customer" />
                   <SortHeader label="Date" k="date" />

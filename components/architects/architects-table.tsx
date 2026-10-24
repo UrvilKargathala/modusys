@@ -189,7 +189,7 @@ export function ArchitectsTable() {
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full text-left">
-            <thead className="bg-[#DACCCC]">
+            <thead className="bg-[var(--table-head)]">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {

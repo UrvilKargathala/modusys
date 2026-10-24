@@ -91,7 +91,7 @@ export default function SignInPage() {
           {...register("password")}
         />
 
-        <Button type="submit" size="lg" disabled={isSubmitting} className="mt-1 w-full bg-[#9E7676] font-body font-semibold hover:bg-[#8A6565]">
+        <Button type="submit" size="lg" disabled={isSubmitting} className="mt-1 w-full bg-[#288AB8] font-body font-semibold hover:bg-[#2D9CCF]">
           {isSubmitting ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />

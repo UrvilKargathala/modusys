@@ -1,11 +1,13 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Printer, RotateCcw, Save, Tag, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, FileText, Layers, Plus, Printer, Ruler, RotateCcw, Save, Store, Tag, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { SpecTable, L, V } from "@/components/quotes/create/spec-table";
+import { PoWhereSelect } from "@/components/purchase-orders/po-where-select";
 import { SelectField } from "@/components/shared/select-field";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { Input } from "@/components/ui/input";
@@ -15,27 +17,93 @@ import { useAllVendors } from "@/lib/store/vendors-store";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
-import { asPoStatus, poStatusLabel, type PoMaterial } from "@/lib/purchase-order";
+import { asPoStatus, mostUsed, poStatusLabel, type PoMaterial, type PurchaseOrder } from "@/lib/purchase-order";
 import { cutListHeaders, cutListRows, poDetailSections, psLabel } from "@/lib/purchase-order-export";
 
-// The invoice editor's tinted sections (locked here): same colours and titles, always shown in full.
-const TONES: Record<string, string> = {
-  "Dealer Details": "border-slate/40 border-t-slate bg-slate/30",
-  "Proforma Details": "border-taupe/50 border-t-taupe bg-taupe/40",
-  "Shutter Details": "border-stone/60 border-t-stone bg-stone/40",
-  "Cabinet Details": "border-sand border-t-sand bg-sand/60",
-};
-function LockedSection({ title, rows }: { title: string; rows: [string, string][] }) {
+// A colour picker listing only the colours the components use (the Edge Band tab), as the saved "Brand — Colour" text.
+function UsedColourSelect({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+  const list = [...new Set([...options, value].filter(Boolean))];
   return (
-    <section className={`rounded-xl border border-t-4 p-4 shadow-sm ${TONES[title] ?? "border-grey-100 bg-light-600"}`}>
-      <h2 className="mb-3 font-heading text-lg font-semibold text-grey-900">{title}</h2>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-3 xl:grid-cols-3">
-        {rows.map(([k, v], i) => (
-          <div key={`${k}-${i}`} className="flex flex-col gap-0.5 text-sm font-body">
-            <span className="text-xs font-semibold text-grey-700">{k}</span>
-            <span className="whitespace-pre-line font-number text-grey-900">{v || "—"}</span>
-          </div>
-        ))}
+    <SelectField value={value} onChange={(e) => onChange(e.target.value)} className="h-9 w-full rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary">
+      <option value="">Select colour</option>
+      {list.map((c) => <option key={c} value={c}>{c}</option>)}
+    </SelectField>
+  );
+}
+
+// Dealer / Proforma details as the editor's Field / Selection table, locked (plain text).
+function LockedFields({ rows }: { rows: [string, string][] }) {
+  const trs: React.ReactNode[] = [];
+  for (let i = 0; i < rows.length; i += 2) {
+    const a = rows[i];
+    const c = rows[i + 1];
+    trs.push(
+      <tr key={i}>
+        <L>{a[0]}</L>
+        <V><span className="block whitespace-pre-line px-1 py-1 font-number text-grey-900">{a[1] || "—"}</span></V>
+        {c ? (
+          <>
+            <L>{c[0]}</L>
+            <V><span className="block whitespace-pre-line px-1 py-1 font-number text-grey-900">{c[1] || "—"}</span></V>
+          </>
+        ) : (
+          <td colSpan={2} />
+        )}
+      </tr>
+    );
+  }
+  return <SpecTable>{trs}</SpecTable>;
+}
+
+// The Material Details of the invoice, locked: Raw Material, Primary and Secondary colour tables as set on the invoice's Material Details tab.
+function MaterialDetailsLocked({ po }: { po: PurchaseOrder }) {
+  type Entry = NonNullable<PoMaterial["finishEntries"]>[number];
+  const common = (groups: string[], k: "internalColour" | "externalColour") => mostUsed(po.lines.filter((l) => groups.includes(l.group)).map((l) => l[k]).filter(Boolean));
+  const entries: Entry[] =
+    po.material.finishEntries?.map((e) => ({ ...e, where: e.where === "shutter" ? "Shutter" : e.where === "cabinets" || e.where === "All Cabinets" ? "Carcass" : e.where })) ?? [
+      { id: "fe-shutter", where: "Shutter", rawMaterial: po.material.shutterRawMaterial, internal: common(["shutter"], "internalColour"), external: common(["shutter"], "externalColour") },
+      { id: "fe-cabinets", where: "Carcass", rawMaterial: po.material.cabinetRawMaterial, internal: common(["carcass", "other-panel"], "internalColour"), external: common(["carcass", "other-panel"], "externalColour") },
+    ];
+  const inPart = (e: Entry, part: "raw" | "primary" | "secondary") =>
+    part === "secondary" ? e.id.startsWith("s-")
+    : e.id.startsWith("s-") ? false
+    : part === "raw" ? e.id.startsWith("r-") || (!e.id.startsWith("p-") && !!e.rawMaterial)
+    : e.id.startsWith("p-") || (!e.id.startsWith("r-") && !!(e.internal || e.external));
+  const list = (v: string) => v.split("||").map((x) => x.trim()).filter(Boolean).join(", ");
+  const where = (v: string) => v.split(",").map((x) => x.trim()).filter(Boolean).join(", ");
+  const table = (title: string, part: "raw" | "primary" | "secondary") => {
+    const rows = entries.filter((e) => inPart(e, part));
+    if (rows.length === 0) return null;
+    const heads = part === "raw" ? ["Raw Material", "Where To Use"] : ["Where To Use", "Internal Colour", "External Colour"];
+    return (
+      <div className="po-dense finish-table flex flex-col gap-2">
+        <h3 className="font-heading text-base font-semibold text-grey-900">{title}</h3>
+        <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
+          <table className="w-full text-left">
+            <thead><tr>{heads.map((h) => <th key={h} className="px-4 py-2 text-left font-body font-semibold">{h}</th>)}</tr></thead>
+            <tbody>
+              {rows.map((e) => (
+                <tr key={e.id} className="border-t border-grey-100">
+                  {part === "raw" ? (
+                    <><td className="px-4 py-2 font-body text-grey-900">{e.rawMaterial || "—"}</td><td className="px-4 py-2 font-body text-grey-900">{where(e.where) || "—"}</td></>
+                  ) : (
+                    <><td className="px-4 py-2 font-body text-grey-900">{where(e.where) || "—"}</td><td className="px-4 py-2 font-body text-grey-900">{list(e.internal) || "—"}</td><td className="px-4 py-2 font-body text-grey-900">{list(e.external) || "—"}</td></>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+  if (!entries.some((e) => e.rawMaterial || e.internal || e.external)) return null;
+  return (
+    <section className="flex flex-col gap-4">
+      <div className="grid items-start gap-x-6 gap-y-4 xl:grid-cols-2">
+        {table("Raw Material Detail", "raw")}
+        {table("Primary Color Selection", "primary")}
+        {table("Secondary Color Selection", "secondary")}
       </div>
     </section>
   );
@@ -61,6 +129,59 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
   const [seeded, setSeeded] = useState("");
   // Show all rows, only the pieces still to pack, or only those already packed.
   const [filter, setFilter] = useState<"all" | "pending" | "completed">("all");
+  // Dealer, Proforma and Material details are tabs like the invoice editor; the work list sits under them, always shown.
+  const [tab, setTab] = useState<"dealer" | "details" | "material" | "edge">("dealer");
+  // Production only: the edge band and sides of each thickness + internal + external colour combination of the components, saved on the invoice with the produced ticks.
+  const [edgeCombos, setEdgeCombos] = useState<NonNullable<PoMaterial["edgeBandCombos"]>>({});
+  const editCombo = (key: string, patch: Partial<{ band: string; where: string }>) => { setEdgeCombos((m) => ({ ...m, [key]: { ...(m[key] ?? { band: "", where: "" }), ...patch } })); setDirty(true); };
+  // Production: the sides of each component that get edge band (ticks in the Components table).
+  const [edgeSides, setEdgeSides] = useState<NonNullable<PoMaterial["edgeBandSides"]>>({});
+  // Components table: drag the edge of a heading to resize that column. Widths are kept in this browser (one set for Production, one for Packing).
+  const widthsKey = `components-col-widths-${isProd ? "production" : "packing"}`;
+  const headRef = useRef<HTMLTableRowElement>(null);
+  const [colW, setColW] = useState<number[] | null>(() => {
+    try {
+      const v = typeof window === "undefined" ? null : JSON.parse(window.localStorage.getItem(`components-col-widths-${isProd ? "production" : "packing"}`) ?? "null");
+      return Array.isArray(v) && v.every((n) => typeof n === "number") ? v : null;
+    } catch { return null; }
+  });
+  const startResize = (i: number, e: React.PointerEvent) => {
+    e.preventDefault();
+    const cells = headRef.current ? Array.from(headRef.current.children) : [];
+    const base = cells.map((c) => Math.round(c.getBoundingClientRect().width));
+    if (!base.length) return;
+    const startX = e.clientX;
+    const startW = base[i];
+    let latest = base;
+    setColW(base);
+    const move = (ev: PointerEvent) => {
+      latest = base.map((w, j) => (j === i ? Math.max(48, startW + ev.clientX - startX) : w));
+      setColW(latest);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      try { window.localStorage.setItem(widthsKey, JSON.stringify(latest)); } catch { /* private mode: widths just aren't kept */ }
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  const resetWidths = () => { setColW(null); try { window.localStorage.removeItem(widthsKey); } catch { /* ignore */ } };
+  const [edgeCodes, setEdgeCodes] = useState<NonNullable<PoMaterial["edgeBandCodes"]>>({});
+  const SIDES = [["top", "Width-1"], ["bottom", "Width-2"], ["lh", "Height-1"], ["rh", "Height-2"]] as const;
+  // Sides saved before the rename (Top / Bottom / LH / RH) read as Width-1 / Width-2 / Height-1 / Height-2.
+  const LEGACY_SIDE: Record<string, string> = { Top: "Width-1", Bottom: "Width-2", LH: "Height-1", RH: "Height-2" };
+  const whereOf = (w: string) => w.split(",").map((x) => x.trim()).filter(Boolean).map((x) => LEGACY_SIDE[x] ?? x);
+  const [edgeColours, setEdgeColours] = useState<NonNullable<PoMaterial["edgeBandColours"]>>([]);
+  // The colours used by the components (cut list rows): the pickers in the Edge Band tab list only these.
+  const usedColours = useMemo(() => {
+    const uniq = (v: (string | undefined)[]) => [...new Set(v.map((x) => (x ?? "").trim()).filter(Boolean))];
+    const rowsUsed = (po?.lines ?? []).filter((l) => l.group !== "hardware");
+    return { internal: uniq(rowsUsed.map((l) => l.internalColour)), external: uniq(rowsUsed.map((l) => l.externalColour)) };
+  }, [po]);
+  const WHERE_OPTIONS = ["Width-1", "Width-2", "Height-1", "Height-2"];
+  const addEdgeColour = () => { setEdgeColours((list) => [...list, { id: `ec-${Date.now()}`, where: "", internal: "", external: "" }]); setDirty(true); };
+  const editEdgeColour = (id: string, patch: Partial<NonNullable<PoMaterial["edgeBandColours"]>[number]>) => { setEdgeColours((list) => list.map((r) => (r.id === id ? { ...r, ...patch } : r))); setDirty(true); };
   // Dropdowns in the Packing Box heading: only the boxes of one packing slip (A, B, C ...) and / or one box number (1, 2, 3 ...) of it.
   const [slipPick, setSlipPick] = useState("");
   const [boxPick, setBoxPick] = useState("");
@@ -73,6 +194,10 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
   useEffect(() => {
     if (po && seeded !== po.id) {
       setPacking((isProd ? po.material.production : po.material.packing) ?? {});
+      setEdgeCombos(po.material.edgeBandCombos ?? {});
+      setEdgeColours(po.material.edgeBandColours ?? []);
+      setEdgeSides(po.material.edgeBandSides ?? {});
+      setEdgeCodes(po.material.edgeBandCodes ?? {});
       // One empty Transport row is there from the start.
       setTransport(po.material.transport?.length ? po.material.transport : [{ name: "", lr: "", date: "", boxes: 0 }]);
       setSeeded(po.id);
@@ -98,6 +223,77 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
       return (ac === 0 ? Infinity : ac) - (bc === 0 ? Infinity : bc) || ar - br;
     });
   }, [po]);
+
+  // One row per thickness + internal + external colour used by the components.
+  const edgeGroups = useMemo(() => {
+    const ti = headers.indexOf("Thk");
+    const ii = headers.indexOf("Internal Brand & Colour");
+    const ei = headers.indexOf("External Brand & Colour");
+    const m = new Map<string, { thk: string; internal: string; external: string }>();
+    for (const r of rows) {
+      const thk = String(r.cells[ti] ?? "").trim();
+      const internal = String(r.cells[ii] ?? "").trim();
+      const external = String(r.cells[ei] ?? "").trim();
+      m.set(`${thk}|${internal}|${external}`, { thk, internal, external });
+    }
+    return [...m.entries()];
+  }, [headers, rows]);
+
+  // Edge band length of a combination, in mm (shown in metres): for every component of it with an edge band code, each ticked side counts once its length
+  // (Top / Bottom: width, LH / RH: height), times the component's Qty. All four sides = (width x 2) + (height x 2).
+  const edgeQty = (comboKey: string, band: string) => {
+    if (!band.trim()) return 0;
+    const wi = headers.indexOf("Width");
+    const hi = headers.indexOf("Height");
+    const qi = headers.indexOf("Qty");
+    const ti = headers.indexOf("Thk");
+    const ii = headers.indexOf("Internal Brand & Colour");
+    const ei = headers.indexOf("External Brand & Colour");
+    const where = whereOf(edgeCombos[comboKey]?.where ?? "");
+    let total = 0;
+    for (const r of rows) {
+      const k = `${String(r.cells[ti] ?? "").trim()}|${String(r.cells[ii] ?? "").trim()}|${String(r.cells[ei] ?? "").trim()}`;
+      if (k !== comboKey) continue;
+      const w = Number(r.cells[wi]) || 0;
+      const h = Number(r.cells[hi]) || 0;
+      const q = Number(r.cells[qi]) || 0;
+      // A side counts when it is ticked and the code beside it matches this combination's edge band.
+      const on = (side: "top" | "bottom" | "lh" | "rh", label: string) =>
+        (edgeSides[r.key]?.[side] ?? where.includes(label)) && (edgeCodes[r.key]?.[side] ?? band).trim().toLowerCase() === band.trim().toLowerCase();
+      total += ((on("top", "Width-1") ? w : 0) + (on("bottom", "Width-2") ? w : 0) + (on("lh", "Height-1") ? h : 0) + (on("rh", "Height-2") ? h : 0)) * q;
+    }
+    return total;
+  };
+
+  // Codes typed in the Components table that differ from a combination's Edge Band: each becomes its own row under that combination, with the sides it
+  // is used on and its length (mm).
+  const edgeExtras = (comboKey: string, band: string) => {
+    const wi = headers.indexOf("Width");
+    const hi = headers.indexOf("Height");
+    const qi = headers.indexOf("Qty");
+    const ti = headers.indexOf("Thk");
+    const ii = headers.indexOf("Internal Brand & Colour");
+    const ei = headers.indexOf("External Brand & Colour");
+    const where = whereOf(edgeCombos[comboKey]?.where ?? "");
+    const out = new Map<string, { sides: Set<string>; len: number }>();
+    for (const r of rows) {
+      const k = `${String(r.cells[ti] ?? "").trim()}|${String(r.cells[ii] ?? "").trim()}|${String(r.cells[ei] ?? "").trim()}`;
+      if (k !== comboKey) continue;
+      const w = Number(r.cells[wi]) || 0;
+      const h = Number(r.cells[hi]) || 0;
+      const q = Number(r.cells[qi]) || 0;
+      for (const [side, label, size] of [["top", "Width-1", w], ["bottom", "Width-2", w], ["lh", "Height-1", h], ["rh", "Height-2", h]] as const) {
+        if (!(edgeSides[r.key]?.[side] ?? where.includes(label))) continue;
+        const code = (edgeCodes[r.key]?.[side] ?? band).trim();
+        if (!code || code.toLowerCase() === band.trim().toLowerCase()) continue;
+        const e = out.get(code) ?? { sides: new Set<string>(), len: 0 };
+        e.sides.add(label);
+        e.len += size * q;
+        out.set(code, e);
+      }
+    }
+    return [...out.entries()];
+  }
 
   if (!po) return <p className="p-6 text-sm font-body text-grey-500">{purchaseOrdersStore.isLoaded() ? "Proforma invoice not found." : "Loading…"}</p>;
   if (!po.material.proforma) return <p className="p-6 text-sm font-body text-grey-500">This page is only for Proforma Invoices.</p>;
@@ -187,7 +383,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
   const save = async (): Promise<boolean> => {
     setBusy(true);
     try {
-      await purchaseOrdersStore.update(po.id, { material: isProd ? { ...po.material, production: packing } : { ...po.material, packing, transport } });
+      await purchaseOrdersStore.update(po.id, { material: isProd ? { ...po.material, production: packing, edgeBandCombos: edgeCombos, edgeBandColours: edgeColours, edgeBandSides: edgeSides, edgeBandCodes: edgeCodes } : { ...po.material, packing, transport } });
       setDirty(false);
       toastStore.show(isProd ? "Production saved" : "Packing saved", "success");
       return true;
@@ -224,11 +420,148 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
         </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        {/* Only Dealer and Proforma details are shown on the Packing page. */}
-        {sections.filter((sec) => sec.title === "Dealer Details" || sec.title === "Proforma Details").map((sec) => <LockedSection key={sec.title} title={sec.title} rows={sec.rows.filter(([k]) => k !== "GST No" && k !== "Contact" && k !== "Status")} />)}
-      </div>
+      <ConfirmDialog
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+        title={isProd ? "Reset all production?" : "Reset all packing?"}
+        description={isProd ? "This unticks every box and clears all production notes. It is only saved when you press Save." : "This unticks every box and clears all packing notes and box numbers. It is only saved when you press Save."}
+        onConfirm={() => {
+          setPacking(Object.fromEntries(rows.map((r) => [r.key, { pieces: Array.from({ length: qtyOf(r.cells) }, () => ({ done: false, note: "" })) }])));
+          setDirty(true);
+          setResetOpen(false);
+        }}
+      />
+      <ConfirmDialog
+        open={deleteTransport !== null}
+        onOpenChange={(o) => !o && setDeleteTransport(null)}
+        title={`Delete transport ${deleteTransport !== null ? String(deleteTransport + 1).padStart(3, "0") : ""}?`}
+        description="This removes the transport row. It is only saved when you press Save."
+        onConfirm={() => {
+          if (deleteTransport === null) return;
+          setTransport((r) => r.filter((_, j) => j !== deleteTransport));
+          setDirty(true);
+          setDeleteTransport(null);
+        }}
+      />
 
+      <div className="rounded-xl border border-grey-100 bg-card">
+        <div role="tablist" className="flex gap-1 overflow-x-auto rounded-t-xl border-b border-grey-100 bg-card px-3">
+          {([
+            ["dealer", "Dealer Details", Store],
+            ["details", "Proforma Details", FileText],
+            ["material", "Material Details", Layers],
+            ...(isProd ? ([["edge", "Edge Band", Ruler]] as const) : []),
+          ] as const).map(([key, label, Icon]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-body font-medium transition-colors ${tab === key ? "border-primary text-primary" : "border-transparent text-grey-500 hover:text-grey-800"}`}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="p-4 lg:p-6">
+          <div role="tabpanel" className={tab === "dealer" ? "block" : "hidden"}>
+            <LockedFields rows={sections.find((sec) => sec.title === "Dealer Details")?.rows.filter(([k]) => k !== "GST No" && k !== "Contact" && k !== "Status") ?? []} />
+          </div>
+          <div role="tabpanel" className={tab === "details" ? "block" : "hidden"}>
+            <LockedFields rows={sections.find((sec) => sec.title === "Proforma Details")?.rows.filter(([k]) => k !== "GST No" && k !== "Contact" && k !== "Status") ?? []} />
+          </div>
+          <div role="tabpanel" className={tab === "material" ? "block" : "hidden"}>
+            {po && <MaterialDetailsLocked po={po} />}
+          </div>
+          {isProd && (
+            <div role="tabpanel" className={tab === "edge" ? "grid items-start gap-x-6 gap-y-4 xl:grid-cols-2" : "hidden"}>
+              <div className="po-dense finish-table flex flex-col gap-2 xl:col-span-2">
+                <h3 className="font-heading text-base font-semibold text-grey-900">Edge Band Detail</h3>
+                <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr>
+                        {["Thickness", "Internal Colour", "External Colour", "Edge Band", "Where To Use", "Qty (Mtr)"].map((h) => <th key={h} className="px-4 py-2 text-center font-body font-semibold">{h}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {edgeGroups.map(([key, g]) => {
+                        const c = edgeCombos[key] ?? { band: "", where: "" };
+                        return (
+                          <Fragment key={key}>
+                            <tr className="border-t border-grey-100">
+                              <td className="px-4 py-2 text-center font-number text-grey-900">{g.thk ? `${g.thk} mm` : "—"}</td>
+                              <td className="px-4 py-2 text-center font-body text-grey-900">{g.internal || "—"}</td>
+                              <td className="px-4 py-2 text-center font-body text-grey-900">{g.external || "—"}</td>
+                              <td className="px-1 py-1"><input value={c.band} onChange={(e) => editCombo(key, { band: e.target.value })} placeholder="Edge band" className="w-full rounded-md border border-transparent bg-transparent px-3 text-center text-xs outline-none hover:border-grey-100 focus:border-primary" /></td>
+                              <td className="px-1 py-1"><PoWhereSelect value={whereOf(c.where)} options={WHERE_OPTIONS} onChange={(next) => editCombo(key, { where: next.join(",") })} /></td>
+                              <td className="px-4 py-2 text-center font-number text-grey-900">{edgeQty(key, c.band) ? (edgeQty(key, c.band) / 1000).toFixed(2) : "—"}</td>
+                            </tr>
+                            {edgeExtras(key, c.band).map(([code, x]) => (
+                              <tr key={`${key}|${code}`} className="border-t border-grey-100">
+                                <td className="px-4 py-2 text-center font-number text-grey-900">{g.thk ? `${g.thk} mm` : "—"}</td>
+                                <td className="px-4 py-2 text-center font-body text-grey-900">{g.internal || "—"}</td>
+                                <td className="px-4 py-2 text-center font-body text-grey-900">{g.external || "—"}</td>
+                                <td className="px-4 py-2 text-center font-number text-xs font-semibold text-grey-900">{code}</td>
+                                <td className="px-4 py-2 text-center font-body text-xs text-grey-900">{["Width-1", "Width-2", "Height-1", "Height-2"].filter((l) => x.sides.has(l)).join(", ")}</td>
+                                <td className="px-4 py-2 text-center font-number text-grey-900">{(x.len / 1000).toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </Fragment>
+                        );
+                      })}
+                      {edgeGroups.length === 0 && (
+                        <tr><td colSpan={6} className="px-4 py-6 text-center text-grey-400">No components on this invoice.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="po-dense finish-table flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-heading text-base font-semibold text-grey-900">Primary Color Selection</h3>
+                  {edgeColours.length === 0 && (
+                    <Button type="button" size="sm" variant="outline" onClick={() => addEdgeColour()}>
+                      <Plus className="h-4 w-4" /> Add
+                    </Button>
+                  )}
+                </div>
+                {edgeColours.length > 0 && (
+                  
+                    <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr>
+                            {["Where To Use", "Internal Colour", "External Colour"].map((h) => <th key={h} className="px-4 py-2 text-left font-body font-semibold">{h}</th>)}
+                            <th className="w-[72px] px-2 py-2 text-center font-body font-semibold">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {edgeColours.map((r) => (
+                            <tr key={r.id} className="border-t border-grey-100">
+                              <td className="px-1 py-1"><PoWhereSelect value={whereOf(r.where)} options={WHERE_OPTIONS} onChange={(next) => editEdgeColour(r.id, { where: next.join(",") })} /></td>
+                              <td className="px-1 py-1"><UsedColourSelect value={r.internal} options={usedColours.internal} onChange={(v) => editEdgeColour(r.id, { internal: v })} /></td>
+                              <td className="px-1 py-1"><UsedColourSelect value={r.external} options={usedColours.external} onChange={(v) => editEdgeColour(r.id, { external: v })} /></td>
+                              <td className="px-1 py-1">
+                                <div className="flex items-center justify-center gap-0.5">
+                                  <button type="button" aria-label="Add another row" title="Add another row" onClick={() => addEdgeColour()} className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-primary"><Plus className="h-4 w-4" /></button>
+                                  <button type="button" aria-label="Remove this row" title="Remove this row" onClick={() => { setEdgeColours((list) => list.filter((x) => x.id !== r.id)); setDirty(true); }} className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error"><Trash2 className="h-4 w-4" /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
       {/* Transport Details: several transports can be added; the name comes from Proforma Library > Transport Details. */}
       {!isProd && (
       <section className="rounded-xl border border-grey-100 bg-[#2391FF]/20 p-4 shadow-sm">
@@ -279,30 +612,6 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
         )}
       </section>
       )}
-      <ConfirmDialog
-        open={resetOpen}
-        onOpenChange={setResetOpen}
-        title={isProd ? "Reset all production?" : "Reset all packing?"}
-        description={isProd ? "This unticks every box and clears all production notes. It is only saved when you press Save." : "This unticks every box and clears all packing notes and box numbers. It is only saved when you press Save."}
-        onConfirm={() => {
-          setPacking(Object.fromEntries(rows.map((r) => [r.key, { pieces: Array.from({ length: qtyOf(r.cells) }, () => ({ done: false, note: "" })) }])));
-          setDirty(true);
-          setResetOpen(false);
-        }}
-      />
-      <ConfirmDialog
-        open={deleteTransport !== null}
-        onOpenChange={(o) => !o && setDeleteTransport(null)}
-        title={`Delete transport ${deleteTransport !== null ? String(deleteTransport + 1).padStart(3, "0") : ""}?`}
-        description="This removes the transport row. It is only saved when you press Save."
-        onConfirm={() => {
-          if (deleteTransport === null) return;
-          setTransport((r) => r.filter((_, j) => j !== deleteTransport));
-          setDirty(true);
-          setDeleteTransport(null);
-        }}
-      />
-
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-grey-100 bg-white px-5 py-3 shadow-sm">
         <div className="flex min-w-60 flex-1 items-center gap-3">
           <span className="font-heading text-base font-semibold text-grey-900">Components</span>
@@ -334,11 +643,16 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-grey-100 bg-white shadow-sm">
-        <table className="w-full border-collapse text-left text-[12px] font-body">
-          <thead className="bg-light-600 uppercase text-grey-900">
-            <tr>
-              {shown.map(({ h }) => <th key={h} className="whitespace-nowrap border border-grey-100 px-2 py-2 font-semibold">{h}</th>)}
-              {isProd ? <th className="border border-grey-100 px-2 py-2 font-semibold">Produced</th> : (
+        <table
+          className={`border-collapse text-left text-[12px] font-body ${colW && colW.length === shown.length + (isProd ? 4 : 1) ? "table-fixed" : "w-full"}`}
+          style={colW && colW.length === shown.length + (isProd ? 4 : 1) ? { width: colW.reduce((a, b) => a + b, 0) } : undefined}
+        >
+          {colW && colW.length === shown.length + (isProd ? 4 : 1) && <colgroup>{colW.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>}
+          <thead className="bg-light-600 text-grey-900">
+            <tr ref={headRef}>
+              {shown.map(({ h }, i) => <th key={h} className="relative overflow-hidden whitespace-nowrap border border-grey-100 px-2 py-2 font-semibold">{h}<span role="separator" aria-label={`Resize ${h}`} title="Drag to resize, double-click to reset" onPointerDown={(e) => startResize(i, e)} onDoubleClick={resetWidths} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40" /></th>)}
+              {isProd && SIDES.map(([, label], k) => <th key={label} className="relative whitespace-nowrap border border-grey-100 px-2 py-2 text-center font-semibold">{label}<span role="separator" aria-label={`Resize ${label}`} title="Drag to resize, double-click to reset" onPointerDown={(e) => startResize(shown.length + k, e)} onDoubleClick={resetWidths} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40" /></th>)}
+              {isProd ? null : (
               <th className="border border-grey-100 px-2 py-2 font-semibold">
                 <div>Packing Box</div>
                 <div className="mt-1 flex items-center gap-1 normal-case">
@@ -365,11 +679,40 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
               const newCab = idx > 0 && String(visibleRows[idx - 1].cells[0]).split(".")[0] !== cab;
               return (
                 <Fragment key={key}>
-                {newCab && <tr aria-hidden><td colSpan={shown.length + 1} className="h-4 bg-light-600 p-0" /></tr>}
+                {newCab && <tr aria-hidden><td colSpan={shown.length + (isProd ? 4 : 1)} className="h-4 bg-light-600 p-0" /></tr>}
                 <tr className={`align-top text-grey-800 ${full ? "bg-success-transparent" : ""}`}>
                   {shown.map(({ h, i }) => (
-                    <td key={h} className="whitespace-nowrap border border-grey-100 px-2 py-1.5 font-number">{cells[i]}</td>
+                    <td key={h} className="overflow-hidden text-ellipsis whitespace-nowrap border border-grey-100 px-2 py-1.5 font-number">{cells[i]}</td>
                   ))}
+                  {isProd && SIDES.map(([side, label]) => {
+                    // A side follows the row's Edge Band Detail combination (thickness + colours) until it is ticked or un-ticked by hand.
+                    const combo = edgeCombos[`${String(cells[headers.indexOf("Thk")] ?? "").trim()}|${String(cells[headers.indexOf("Internal Brand & Colour")] ?? "").trim()}|${String(cells[headers.indexOf("External Brand & Colour")] ?? "").trim()}`];
+                    const fromCombo = !!combo && whereOf(combo.where).includes(label);
+                    const on = edgeSides[key]?.[side] ?? fromCombo;
+                    return (
+                      <td key={side} className="border border-grey-100 px-2 py-1.5">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <input
+                            type="checkbox"
+                            aria-label={`${label} edge band of row ${cells[0]}`}
+                            checked={on}
+                            onChange={(e) => { setEdgeSides((m) => ({ ...m, [key]: { ...m[key], [side]: e.target.checked } })); setDirty(true); }}
+                            className="h-4 w-4 accent-primary"
+                          />
+                          {on && (
+                            <input
+                              value={edgeCodes[key]?.[side] ?? combo?.band ?? ""}
+                              onChange={(e) => { setEdgeCodes((m) => ({ ...m, [key]: { ...m[key], [side]: e.target.value } })); setDirty(true); }}
+                              aria-label={`${label} edge band code of row ${cells[0]}`}
+                              placeholder="Code"
+                              className="w-14 rounded border border-transparent bg-transparent px-1 font-number text-[11px] font-semibold text-grey-700 outline-none hover:border-grey-200 focus:border-primary"
+                            />
+                          )}
+                        </div>
+                      </td>
+                    );
+                  })}
+                  {!isProd && (
                   <td className="border border-grey-100 px-2 py-1">
                     <div className="flex flex-col gap-1">
                       {pieces.map((pc, k) => ({ pc, k })).filter(({ pc }) => matches(pc)).map(({ pc, k }) => (
@@ -381,12 +724,13 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
                       ))}
                     </div>
                   </td>
+                  )}
                 </tr>
                 </Fragment>
               );
             })}
             {visibleRows.length === 0 && (
-              <tr><td colSpan={shown.length + 1} className="px-3 py-6 text-center text-grey-400">{rows.length === 0 ? "This invoice has no component rows yet." : filter === "pending" ? (isProd ? "Everything is produced." : "Everything is packed.") : isProd ? "Nothing is produced yet." : "Nothing is packed yet."}</td></tr>
+              <tr><td colSpan={shown.length + (isProd ? 4 : 1)} className="px-3 py-6 text-center text-grey-400">{rows.length === 0 ? "This invoice has no component rows yet." : filter === "pending" ? (isProd ? "Everything is produced." : "Everything is packed.") : isProd ? "Nothing is produced yet." : "Nothing is packed yet."}</td></tr>
             )}
           </tbody>
         </table>

@@ -75,7 +75,7 @@ export function ProformaPackingList({ mode = "packing" }: { mode?: "packing" | "
                     </div>
                   </td>
                   <td className="px-4 py-2">
-                    <PoRowActions po={po} proforma base="/proforma-invoices" packingSlips={!isProd} viewHref={`/proforma-invoices/${mode}/${po.id}`} />
+                    <PoRowActions po={po} proforma base="/proforma-invoices" packingSlips={!isProd} workOrder={isProd} viewHref={`/proforma-invoices/${mode}/${po.id}`} />
                   </td>
                 </tr>
               ))}

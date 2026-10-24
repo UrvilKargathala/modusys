@@ -381,7 +381,7 @@ export function UnitsSection({
             <SortableContext items={shownUnits.map(({ unit }) => unit.id)} strategy={verticalListSortingStrategy}>
               <div className="overflow-x-auto rounded-lg border border-grey-100 bg-card">
                <div className="min-w-[1020px]">
-                <div className={cn(UNIT_ROW_GRID, "unit-top unit-head border-b border-grey-100 bg-[#DACCCC] px-3 py-2 text-sm font-body font-medium text-grey-900")}>
+                <div className={cn(UNIT_ROW_GRID, "unit-top unit-head border-b border-grey-100 bg-[var(--table-head)] px-3 py-2 text-sm font-body font-medium text-grey-900")}>
                   <span className="col-span-3" />
                   <SortLabel label="Space" k="space" sort={sort} onSort={onSort} />
                   <SortLabel label="Unit Type" k="unitType" sort={sort} onSort={onSort} />

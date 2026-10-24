@@ -134,7 +134,7 @@ export function PipelineTab() {
   return (
     <div className="flex flex-col gap-6">
       {taskSummary.total > 0 && (
-        <div className="rounded-xl border border-grey-100 bg-[#D9C8C9] p-4">
+        <div className="rounded-xl border border-grey-100 bg-blush p-4">
           <div className="flex items-start gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/60">
               {taskSummary.overdue.length > 0 ? (

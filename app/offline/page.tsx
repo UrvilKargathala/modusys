@@ -8,7 +8,7 @@ import { RefreshCw, WifiOff } from "lucide-react";
 export default function OfflinePage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-light px-6 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-[#B08B8B] font-heading text-2xl font-bold text-white">
+      <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-[var(--avatar,#B08B8B)] font-heading text-2xl font-bold text-white">
         M
       </div>
       <div className="flex flex-col items-center gap-2">

@@ -31,7 +31,7 @@ function useFinalOffer(quote: Quote) {
 
 export function StripCell({ icon, label, children, className }: { icon: ReactNode; label: string; children: ReactNode; className?: string }) {
   return (
-    <div className={cn("flex min-w-0 items-center gap-3 bg-[#F0E4E4] px-4 py-2.5", className)}>
+    <div className={cn("flex min-w-0 items-center gap-3 bg-[var(--input-bg,#EAF7FC)] px-4 py-2.5", className)}>
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/70 text-primary">{icon}</span>
       <div className="flex min-w-0 items-baseline gap-1.5 text-sm font-body">
         <span className="shrink-0 text-grey-700">{label} :</span>

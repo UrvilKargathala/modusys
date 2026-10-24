@@ -36,7 +36,7 @@ export function TopNavbar() {
   return (
     <header className="flex h-16 items-center justify-between gap-4 lg:hidden border-b border-grey-100 bg-card px-4 md:px-6">
       <Link href="/dashboard" className="flex shrink-0 items-center gap-2 lg:hidden">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#B08B8B] font-heading text-sm font-bold text-white">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--avatar,#B08B8B)] font-heading text-sm font-bold text-white">
           M
         </div>
         <span className="hidden font-heading text-lg font-semibold text-grey-900 sm:inline">

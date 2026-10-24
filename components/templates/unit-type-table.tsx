@@ -122,7 +122,7 @@ export function UnitTypeTable() {
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full text-left">
-            <thead className="bg-[#DACCCC]">
+            <thead className="bg-[var(--table-head)]">
               <tr>
                 <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">SR No</th>
                 <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("name", "Name")}</th>

@@ -33,10 +33,10 @@ export const PoDimNotesContext = createContext<{ notes: Record<string, string>; 
 export const PoBrandVendorContext = createContext<(brand: string) => string>(() => "");
 
 export const GROUP_BAND: Record<PoGroup, string> = {
-  carcass: "border-primary bg-white",
-  shutter: "border-info bg-white",
-  "other-panel": "border-warning bg-white",
-  hardware: "border-secondary bg-white",
+  carcass: "border-[color:var(--sec-carcass-edge,var(--primary))] bg-[var(--sec-carcass,#E0ECD4)]",
+  shutter: "border-[color:var(--sec-shutter-edge,var(--color-info))] bg-[var(--sec-shutter,#ECF3FF)]",
+  "other-panel": "border-[color:var(--sec-other-panel-edge,var(--color-warning))] bg-[var(--sec-other-panel,var(--color-warning-transparent))]",
+  hardware: "border-[color:var(--sec-hardware-edge,var(--color-secondary))] bg-[var(--sec-hardware,rgb(255_213_153/0.5))]",
 };
 
 const cell =
@@ -301,7 +301,7 @@ export function PoLinesTable({
           {!only && (
             <Button type="button" variant="outline" size="sm" onClick={add}>
               <Plus className="h-3.5 w-3.5" />
-              Add Row
+              Add {title}
             </Button>
           )}
         </div>
@@ -314,7 +314,7 @@ export function PoLinesTable({
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
           <table className="w-full min-w-max table-fixed text-left">
-            <thead className="bg-[#DACCCC]">
+            <thead className={group === "hardware" ? "hw-head bg-[#FFD599]/50" : "bg-[var(--table-head)]"}>
               <tr>
                 {cols.map((c) => (
                   <th key={c.key} data-col={c.key} className={`${th} ${c.width} ${["width", "depth", "height", "qty", "sqft", "rate", "discountPct", "netRate", "amount"].includes(c.key) ? "text-right" : ""}`}>
@@ -336,7 +336,7 @@ export function PoLinesTable({
                     )}
                   </th>
                 ))}
-                <th className="sticky right-0 w-16 bg-[#DACCCC]" />
+                <th className={`sticky right-0 w-16 ${group === "hardware" ? "bg-[#FFD599]/50" : "bg-[var(--table-head)]"}`} />
               </tr>
             </thead>
             <tbody>
@@ -467,7 +467,7 @@ export function PoLinesTable({
         <div className="flex justify-end">
           <Button type="button" variant="outline" size="sm" onClick={add}>
             <Plus className="h-3.5 w-3.5" />
-            Add Row
+            Add {title}
           </Button>
         </div>
       )}

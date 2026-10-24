@@ -50,7 +50,7 @@ export function FurnitureTableHeader({ showComponentName, showLevelType, nameLab
   if (showLevelType) heads.push(["Level Type", "level"]);
   heads.push(["", undefined]);
   return (
-    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[#DACCCC] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: furnitureTableColumns(showComponentName, showLevelType, withNo) }}>
+    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[var(--table-head)] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: furnitureTableColumns(showComponentName, showLevelType, withNo) }}>
       {heads.map(([h, k], i) => (
         <span key={i} className={["Width", "Height", "Qty", "Sq.ft"].includes(h) ? "text-center" : ["Amount", "Rate"].includes(h) ? "text-right" : ""}>
           <SortLabel label={h} k={k} sort={sort} onSort={onSort} />
@@ -391,7 +391,7 @@ export function FurnitureLineItemRow({
               sorted
               value={value.componentTypeId ?? ""}
               onChange={(id) => requestMaterialChange("componentTypeId", id)}
-              triggerClassName="bg-[#F0E4E4]"
+              triggerClassName="bg-[var(--input-bg,#EAF7FC)]"
             />
           </div>
         )}
@@ -403,7 +403,7 @@ export function FurnitureLineItemRow({
             value={value.widthFormula}
             onChange={(e) => handleFieldChange({ widthFormula: e.target.value })}
             onBlur={() => resolveOnBlur("widthFormula")}
-            className="font-number bg-[#F0E4E4]"
+            className="font-number bg-[var(--input-bg,#EAF7FC)]"
           />
         </div>
         <div className="flex flex-col gap-1.5" data-narrow="md">
@@ -414,7 +414,7 @@ export function FurnitureLineItemRow({
             value={value.heightFormula}
             onChange={(e) => handleFieldChange({ heightFormula: e.target.value })}
             onBlur={() => resolveOnBlur("heightFormula")}
-            className="font-number bg-[#F0E4E4]"
+            className="font-number bg-[var(--input-bg,#EAF7FC)]"
           />
         </div>
         <div className="flex flex-col gap-1.5" data-narrow="xs">
@@ -423,7 +423,7 @@ export function FurnitureLineItemRow({
             id={`qty-${value.id}`}
             type="number"
             min={1}
-            className="font-number bg-[#F0E4E4]"
+            className="font-number bg-[var(--input-bg,#EAF7FC)]"
             value={value.qty || ""}
             onChange={(e) => handleFieldChange({ qty: Number(e.target.value) })}
           />
@@ -434,13 +434,13 @@ export function FurnitureLineItemRow({
             category="thickness"
             value={value.thicknessId}
             onChange={(id) => requestMaterialChange("thicknessId", id)}
-            triggerClassName="font-number bg-[#F0E4E4]"
+            triggerClassName="font-number bg-[var(--input-bg,#EAF7FC)]"
           />
         </div>
         {totalSqFt !== undefined && (
           <div className="flex flex-col gap-1.5" data-narrow="sm">
             <Label>Total sq.ft</Label>
-            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 text-sm font-number font-semibold text-grey-700">
+            <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[var(--input-bg,#EAF7FC)] px-3 text-sm font-number font-semibold text-grey-700">
               {totalSqFt.toFixed(2)}
             </div>
           </div>
@@ -453,7 +453,7 @@ export function FurnitureLineItemRow({
             sorted
             value={value.rawMaterialTypeId}
             onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)}
-            triggerClassName="bg-[#F0E4E4]"
+            triggerClassName="bg-[var(--input-bg,#EAF7FC)]"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -464,7 +464,7 @@ export function FurnitureLineItemRow({
             sorted
             value={value.externalColourId}
             onChange={(id) => requestMaterialChange("externalColourId", id)}
-            triggerClassName="bg-[#F0E4E4]"
+            triggerClassName="bg-[var(--input-bg,#EAF7FC)]"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -475,12 +475,12 @@ export function FurnitureLineItemRow({
             sorted
             value={value.internalColourId}
             onChange={(id) => requestMaterialChange("internalColourId", id)}
-            triggerClassName="bg-[#F0E4E4]"
+            triggerClassName="bg-[var(--input-bg,#EAF7FC)]"
           />
         </div>
         <div className="flex flex-col gap-1.5" data-narrow="md">
           <Label>Amount</Label>
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 text-sm font-number font-semibold text-grey-900">
+          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[var(--input-bg,#EAF7FC)] px-3 text-sm font-number font-semibold text-grey-900">
             {totalSqFt !== undefined
               ? `₹${(effectiveRate !== undefined ? effectiveRate * totalSqFt : 0).toFixed(2)}`
               : "—"}
@@ -503,7 +503,7 @@ export function FurnitureLineItemRow({
                 const raw = e.target.value;
                 handleFieldChange({ rateOverride: raw === "" ? undefined : Number(raw) });
               }}
-              className={`pr-14 font-number bg-[#F0E4E4] ${rateReadOnly ? "cursor-not-allowed" : ""}`}
+              className={`pr-14 font-number bg-[var(--input-bg,#EAF7FC)] ${rateReadOnly ? "cursor-not-allowed" : ""}`}
             />
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">/sq.ft</span>
           </div>
@@ -528,7 +528,7 @@ export function FurnitureLineItemRow({
               category="level-type"
               value={value.levelTypeId ?? ""}
               onChange={(id) => handleFieldChange({ levelTypeId: id })}
-              triggerClassName="bg-[#F0E4E4]"
+              triggerClassName="bg-[var(--input-bg,#EAF7FC)]"
             />
           </div>
         )}

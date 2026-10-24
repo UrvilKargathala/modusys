@@ -113,7 +113,7 @@ export function PurchaseFurniturePriceTable() {
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full text-left">
-            <thead className="bg-[#DACCCC]">
+            <thead className="bg-[var(--table-head)]">
               <tr>
                 <th className={th}>SR No</th>
                 <th className={th}>{header("variantId", "Variant ID")}</th>

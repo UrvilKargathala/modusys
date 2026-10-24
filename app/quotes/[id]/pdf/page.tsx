@@ -11,6 +11,7 @@ import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { useQuoteTemplateSettings } from "@/lib/store/quote-template-store";
+import { applyPdfColours } from "@/lib/palette";
 import { quoteRawTotal, quoteWaterfall, unitTotal, evaluateFormula, carcassUnitFor } from "@/lib/quote-pricing";
 import { fullName } from "@/lib/mock/architects";
 import type { MaterialItem } from "@/lib/mock/material-spec";
@@ -113,6 +114,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   const [downloading, setDownloading] = useState(false);
 
   const sheetRef = useRef<HTMLDivElement>(null);
+  // The PDF colour saved in Templates > Colour Palette.
+  useEffect(() => { applyPdfColours(); }, []);
 
   // Customer name directly as the filename (fallback to quote number, then
   // "quote") — sanitized since it lands in a filesystem path.

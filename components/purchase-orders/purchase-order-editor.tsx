@@ -5,7 +5,7 @@ import { Nums } from "@/components/shared/nums";
 import { SelectField } from "@/components/shared/select-field";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Boxes, Calendar, CheckCircle2, ChevronDown, ChevronRight, Download, FileText, Hash, IndianRupee, Layers, Plus, RotateCcw, Save, Search, Store, Trash2, Upload, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,7 @@ import { PO_GROUPS, asPoStatus, poStatusLabel, poStatusList, poStatusStyle, cust
 const NEW_VENDOR = "__new-vendor__";
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
 const card = "flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-5 shadow-sm";
+const cardTight = "flex flex-col gap-2 rounded-xl border border-grey-100 bg-white p-3 shadow-sm";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -186,7 +187,16 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const [partyOpen, setPartyOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   // The page is split into tabs; the tab line sticks just under the sticky page header, whose height is measured into --po-header-h.
-  const [tab, setTab] = useState<"vendor" | "details" | "material" | "lines">("lines");
+  const [tab, setTab] = useState<"vendor" | "details" | "material" | "lines">("vendor");
+  // A copy made from the list (?copy=1) only stays in the list once it has been saved; Cancel before that deletes it again.
+  const isFreshCopy = useSearchParams().get("copy") === "1";
+  const savedOnce = useRef(false);
+  const leave = async () => {
+    if (isFreshCopy && !savedOnce.current) {
+      try { await purchaseOrdersStore.remove(id); } catch { /* the copy stays in the list if it can't be removed */ }
+    }
+    router.push(base);
+  };
   const rootRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const hasDraft = !!draft;
@@ -279,6 +289,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       // The PO's internal/external lists mirror the finishes picked on the rows.
       fields.material = { ...fields.material, internalColours: usedFinishes.internal, externalColours: usedFinishes.external };
       const next = await purchaseOrdersStore.update(id, fields);
+      savedOnce.current = true;
       setDraft(structuredClone(next));
       toastStore.show(isProforma ? "Proforma invoice saved" : isDirect ? "Direct purchase order saved" : "Purchase order saved", "success");
       return true;
@@ -480,9 +491,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const finishTable = (title: string, part: Part) => {
     const rows = finishEntries().filter((e) => inPart(e, part));
     const colour = part !== "raw";
-    const cols = colour ? "md:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)_auto]" : "md:grid-cols-[minmax(0,1fr)_10rem_auto]";
     return (
-      <div className="flex flex-col gap-2">
+      <div className="po-dense finish-table flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-heading text-base font-semibold text-grey-900">{title}</h3>
           {rows.length === 0 && (
@@ -492,60 +502,72 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           )}
         </div>
         {rows.length > 0 && (
-          <div className={`hidden gap-2 px-1 text-xs font-body font-medium text-grey-500 md:grid ${cols}`}>
-            {colour ? <><span>Where To Use</span><span>Internal Colour</span><span>External Colour</span></> : <><span>Raw Material</span><span>Where To Use</span></>}
-            <span className="w-24" />
-          </div>
-        )}
+        <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
+        <table className="w-full text-left">
+          <thead className="bg-[var(--table-head)]">
+            <tr>
+              {(colour ? ["Where To Use", "Internal Colour", "External Colour"] : ["Raw Material", "Where To Use"]).map((h) => (
+                <th key={h} className="px-4 py-2 text-left font-body font-semibold text-grey-900">{h}</th>
+              ))}
+              <th className="w-[72px] px-2 py-2 text-center font-body font-semibold text-grey-900">Action</th>
+            </tr>
+          </thead>
+          <tbody>
         {rows.map((saved) => {
           const e = finishDrafts[saved.id] ?? saved;
           const changed = !!finishDrafts[saved.id];
           const scope = sideOf(whereList(e.where).length === 1 ? whereList(e.where)[0] : "Carcass");
           const whereSel = <PoWhereSelect value={whereList(e.where)} options={whereOptions} onChange={(next) => editFinishEntry(saved.id, { where: next.join(",") }, part)} />;
           return (
-            <div key={saved.id} className={`grid items-center gap-2 ${cols}`}>
+            <tr key={saved.id} className="border-t border-grey-100">
               {colour ? (
                 <>
-                  {whereSel}
+                  <td className="px-1 py-1">{whereSel}</td>
                   {part === "secondary" ? (
                     <>
                       {/* Secondary: any number of internal / external colours in one row. */}
-                      <PoFinishMultiSelect kind="internal" placeholder="Select internal colours" value={labels(e.internal)} onChange={(v) => editFinishEntry(saved.id, { internal: v.join("||") }, part)} colors={finishPalette(scope, "internal")} onColorChange={(label, hex) => setFinishColour(scope, "internal", label, hex)} />
-                      <PoFinishMultiSelect kind="external" placeholder="Select external colours" value={labels(e.external)} onChange={(v) => editFinishEntry(saved.id, { external: v.join("||") }, part)} colors={finishPalette(scope, "external")} onColorChange={(label, hex) => setFinishColour(scope, "external", label, hex)} />
+                      <td className="px-1 py-1"><PoFinishMultiSelect kind="internal" placeholder="Select internal colours" value={labels(e.internal)} onChange={(v) => editFinishEntry(saved.id, { internal: v.join("||") }, part)} colors={finishPalette(scope, "internal")} onColorChange={(label, hex) => setFinishColour(scope, "internal", label, hex)} /></td>
+                      <td className="px-1 py-1"><PoFinishMultiSelect kind="external" placeholder="Select external colours" value={labels(e.external)} onChange={(v) => editFinishEntry(saved.id, { external: v.join("||") }, part)} colors={finishPalette(scope, "external")} onColorChange={(label, hex) => setFinishColour(scope, "external", label, hex)} /></td>
                     </>
                   ) : (
                     <>
-                      <PoFinishSelect free kind="internal" value={labels(e.internal)[0] ?? ""} onChange={(v) => editFinishEntry(saved.id, { internal: v }, part)} colors={finishPalette(scope, "internal")} onColor={(label, hex) => { setFinishColour(scope, "internal", label, hex); }} />
-                      <PoFinishSelect free kind="external" value={labels(e.external)[0] ?? ""} onChange={(v) => editFinishEntry(saved.id, { external: v }, part)} colors={finishPalette(scope, "external")} onColor={(label, hex) => {
+                      <td className="px-1 py-1"><PoFinishSelect free kind="internal" value={labels(e.internal)[0] ?? ""} onChange={(v) => editFinishEntry(saved.id, { internal: v }, part)} colors={finishPalette(scope, "internal")} onColor={(label, hex) => { setFinishColour(scope, "internal", label, hex); }} /></td>
+                      <td className="px-1 py-1"><PoFinishSelect free kind="external" value={labels(e.external)[0] ?? ""} onChange={(v) => editFinishEntry(saved.id, { external: v }, part)} colors={finishPalette(scope, "external")} onColor={(label, hex) => {
                         // The same brand & colour already coloured on the internal side gives its colour to the external pick.
                         const fromInternal = finishPalette(scope, "internal")[label];
                         setFinishColour(scope, "external", label, hex === DEFAULT_HIGHLIGHT && fromInternal ? fromInternal : hex);
-                      }} />
+                      }} /></td>
                     </>
                   )}
                 </>
               ) : (
                 <>
-                  <PoRawMaterialSelect value={e.rawMaterial} onChange={(v) => editFinishEntry(saved.id, { rawMaterial: v }, part)} />
-                  {whereSel}
+                  <td className="px-1 py-1"><PoRawMaterialSelect value={e.rawMaterial} onChange={(v) => editFinishEntry(saved.id, { rawMaterial: v }, part)} /></td>
+                  <td className="px-1 py-1">{whereSel}</td>
                 </>
               )}
-              <div className="flex w-24 items-center justify-end gap-0.5">
-                {changed && (
-                  <button type="button" aria-label="Undo changes" title="Undo changes" onClick={() => discardFinishDraft(saved.id)} className="rounded-md p-1.5 text-grey-400 hover:bg-light-600 hover:text-primary">
-                    <RotateCcw className="h-4 w-4" />
+              <td className="px-1 py-1">
+                <div className="flex items-center justify-center gap-0.5">
+                  {changed && (
+                    <button type="button" aria-label="Undo changes" title="Undo changes" onClick={() => discardFinishDraft(saved.id)} className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-primary">
+                      <RotateCcw className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button type="button" aria-label="Add another row" title="Add another row" onClick={() => addFinishEntry(part)} className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-primary">
+                    <Plus className="h-4 w-4" />
                   </button>
-                )}
-                <button type="button" aria-label="Add another row" title="Add another row" onClick={() => addFinishEntry(part)} className="rounded-md p-1.5 text-grey-400 hover:bg-light-600 hover:text-primary">
-                  <Plus className="h-4 w-4" />
-                </button>
-                <button type="button" aria-label="Remove this row" title="Remove this row" onClick={() => setDeleteFinishId(saved.id)} className="rounded-md p-1.5 text-grey-400 hover:bg-light-600 hover:text-error">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+                  <button type="button" aria-label="Remove this row" title="Remove this row" onClick={() => setDeleteFinishId(saved.id)} className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </td>
+            </tr>
           );
         })}
+          </tbody>
+        </table>
+        </div>
+        )}
       </div>
     );
   };
@@ -652,7 +674,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     return (
       <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
         <table className="w-full text-left">
-          <thead className="bg-[#DACCCC]">
+          <thead className="bg-[var(--table-head)]">
             <tr>
               <th className={th}>Thickness</th>
               <th className={th}>Internal Colour</th>
@@ -698,7 +720,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               );
             })}
           </tbody>
-          <tfoot className="border-t border-grey-100 bg-[#DACCCC]/40">
+          <tfoot className="border-t border-grey-100 bg-[color-mix(in_srgb,var(--table-head)_40%,transparent)]">
             <tr>
               <td colSpan={manyVendors ? 5 : 4} className="px-3 py-2 text-sm font-body font-semibold text-grey-900">Total</td>
               <td className="px-3 py-2 text-center text-sm font-number font-semibold text-grey-900">{combos.reduce((t, [, g]) => t + g.length, 0)}</td>
@@ -810,7 +832,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             Delete
           </Button>
           {/* Cancel: back to the purchase orders list. With unsaved edits it asks first, then throws them away. */}
-          <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => (dirty ? setDiscardOpen(true) : router.push(base))}>
+          <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => (dirty ? setDiscardOpen(true) : void leave())}>
             <X className="h-4 w-4" />
             Cancel
           </Button>
@@ -1027,10 +1049,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           </SpecTable>
           </div>
           <div role="tabpanel" className={tab === "material" ? "block" : "hidden"}>
-        <section className="po-card rounded-xl border border-t-4 border-stone/60 border-t-stone bg-stone/40 p-4 shadow-sm">
-          <h2 className="font-heading text-lg font-semibold text-grey-900">Material Details</h2>
+        <section className="po-card flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-4 shadow-sm">
           {/* Two columns on wide screens: Raw Material | Primary on top, Secondary under. */}
-          <div className="mt-3 grid items-start gap-x-6 gap-y-5 xl:grid-cols-2">
+          <div className="grid items-start gap-x-6 gap-y-4 xl:grid-cols-2">
             {finishTable("Raw Material Detail", "raw")}
             {finishTable("Primary Color Selection", "primary")}
             {finishTable("Secondary Color Selection", "secondary")}
@@ -1042,7 +1063,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         <div className="flex items-center justify-between gap-3">
           {shownView === "cabinet" && (
             <h2 className="font-heading text-base font-semibold text-grey-900" style={{ fontSize: 14 }}>
-              {isDirect ? "Item Details" : <>Cabinets <span className="font-number text-sm font-normal text-grey-500">({cabinetNos.length})</span></>}
+              Item Details
             </h2>
           )}
           <div className="ml-auto flex items-center gap-2">
@@ -1117,14 +1138,24 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 </button>
               ))}
             </div>)}
-            {shownView === "cabinet" && (!isDirect || directTab === "carcass") && (
-              <Button type="button" variant="outline" size="sm" onClick={addCabinet}>
-                <Plus className="h-4 w-4" />
-                {isDirect ? "Add Cabinet Type" : "Add Cabinet"}
-              </Button>
-            )}
           </div>
         </div>
+        {/* Like the Shutter / Other Panel band: the group name and count on the left, total and Add button on the right. */}
+        {shownView === "cabinet" && (!isDirect || directTab === "carcass") && (
+          <div className="flex items-center justify-between rounded-md border-l-4 border-primary bg-white px-3 py-2">
+            <h3 className="font-heading text-base font-semibold text-grey-900">
+              {isDirect ? "Cabinet Types" : "Cabinets"} <span className="font-number text-sm font-normal text-grey-500">({cabinetNos.length})</span>
+            </h3>
+            <div className="flex items-center gap-3">
+              {isProforma && <span className="font-number text-sm text-grey-500">{draft.lines.filter((l) => l.group === "carcass").reduce((t, l) => t + l.sqft, 0).toFixed(2)} sq.ft</span>}
+              <span className="font-number text-sm text-grey-700">{formatInr(draft.lines.filter((l) => l.group === "carcass").reduce((t, l) => t + lineAmount(l), 0))}</span>
+              <Button type="button" variant="outline" size="sm" onClick={addCabinet}>
+                <Plus className="h-3.5 w-3.5" />
+                {isDirect ? "Add Cabinet Type" : "Add Cabinet"}
+              </Button>
+            </div>
+          </div>
+        )}
         {cabinetNos.length === 0 && !isDirect && (
           <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">
             No cabinets yet. Click Add Cabinet, then add its rows.
@@ -1134,7 +1165,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           <PoLinesTable
             key={directTab}
             group={directTab}
-            title={{ carcass: "Carcass", shutter: "Shutter", "other-panel": "Other Panel", hardware: "Hardware" }[directTab]}
+            title={{ carcass: "Cabinet Components", shutter: "Shutter", "other-panel": "Other Panel", hardware: "Hardware" }[directTab]}
             // New Shutter rows take the Shutter Details card's material and finishes; Other Panel rows take the Cabinet Details card's.
             newRowDefaults={
               directTab === "shutter"
@@ -1204,7 +1235,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             ) : (
               <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
                 <table className="w-full text-left">
-                  <thead className="bg-[#DACCCC]">
+                  <thead className="bg-[var(--table-head)]">
                     <tr>
                       <th className="w-24 whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">SR No</th>
                       <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Brand</th>
@@ -1408,60 +1439,129 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className={`${card} lg:col-span-2`}>
-          <h2 className="font-heading text-base font-semibold text-grey-900">Remarks</h2>
+      <div className={`grid gap-4 ${isProforma ? "lg:grid-cols-[1.1fr_1.3fr_1fr]" : "lg:grid-cols-3"}`}>
+        <div className={`${cardTight} ${isProforma ? "" : "lg:col-span-2"}`}>
+          <h2 className="font-heading text-sm font-semibold text-grey-900">Remarks</h2>
           <textarea
             value={draft.remarks}
             onChange={(e) => set({ remarks: e.target.value })}
-            rows={4}
+            rows={3}
             placeholder="Additional remarks"
-            className="rounded-lg border border-grey-100 bg-card p-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
+            className="h-0 min-h-24 flex-1 resize-none rounded-lg border border-grey-100 bg-card p-3 text-xs font-body text-grey-900 outline-none focus:border-primary"
           />
         </div>
-        <div className={card}>
-          <h2 className="font-heading text-base font-semibold text-grey-900">Totals</h2>
-          <div className="flex flex-col text-sm font-body">
-            <div className="flex h-9 items-center justify-between"><span>Total Amount</span><span className="font-number">{formatInr(totals.amount)}</span></div>
-            <div className="flex h-9 items-center justify-between gap-2">
-              <span>Special Discount %</span>
-              <input
-                type="number" min={0} max={100} step="any"
-                value={draft.discountPct === 0 ? "" : draft.discountPct}
-                placeholder="0"
-                onChange={(e) => set({ discountPct: e.target.value === "" ? 0 : Number(e.target.value) })}
-                className={`${field} h-8 w-44 text-right font-number`}
-              />
+        {isProforma && (
+          <div className={cardTight}>
+            <h2 className="font-heading text-sm font-semibold text-grey-900">Summary</h2>
+            <div className="flex-1 overflow-x-auto rounded-lg border border-grey-100 bg-white">
+              <table className="h-full w-full text-xs">
+                <thead className="bg-[var(--table-head)]">
+                  <tr>
+                    <th className="px-3 py-1 text-left font-body font-semibold text-grey-900">Category</th>
+                    <th className="px-3 py-1 text-center font-body font-semibold text-grey-900">Total Sq.Ft</th>
+                    <th className="px-3 py-1 text-right font-body font-semibold text-grey-900">Total Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {PO_GROUPS.map((g) => {
+                    const rows = draft.lines.filter((l) => l.group === g.key);
+                    return (
+                      <tr key={g.key} className="border-t border-grey-100">
+                        <td className="px-3 py-1 font-body text-grey-900">{g.key === "carcass" ? "Cabinet" : g.label}</td>
+                        <td className="px-3 py-1 text-center font-number text-grey-700">{g.key === "hardware" ? "—" : rows.reduce((t, l) => t + l.sqft, 0).toFixed(3)}</td>
+                        <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(rows.reduce((t, l) => t + lineAmount(l), 0))}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="border-t border-grey-100 bg-[color-mix(in_srgb,var(--table-head)_40%,transparent)]">
+                  <tr>
+                    <td className="px-3 py-1 font-body font-semibold text-grey-900">Total</td>
+                    <td className="px-3 py-1 text-center font-number font-semibold text-grey-900">{draft.lines.filter((l) => l.group !== "hardware").reduce((t, l) => t + l.sqft, 0).toFixed(3)}</td>
+                    <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(draft.lines.reduce((t, l) => t + lineAmount(l), 0))}</td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
-            <div className="flex h-9 items-center justify-between"><span>Total After Discount</span><span className="font-number">{formatInr(totals.taxable)}</span></div>
-            <div className="flex h-9 items-center justify-between gap-2">
-              <span>GST</span>
-              <SelectField value={draft.gstMode} onChange={(e) => set({ gstMode: e.target.value as GstMode })} className={`${field} h-8 w-44`}>
-                <option value="intra">State + Central (9% + 9%)</option>
-                <option value="inter">Integrated (18%)</option>
-              </SelectField>
-            </div>
-            {draft.gstMode === "intra" ? (
-              <>
-                <div className="flex h-9 items-center justify-between text-grey-700"><span>State GST 9%</span><span className="font-number">{formatInr(totals.stateGst)}</span></div>
-                <div className="flex h-9 items-center justify-between text-grey-700"><span>Central GST 9%</span><span className="font-number">{formatInr(totals.centralGst)}</span></div>
-              </>
-            ) : (
-              <div className="flex h-9 items-center justify-between text-grey-700"><span>Integrated GST 18%</span><span className="font-number">{formatInr(totals.igst)}</span></div>
-            )}
-            <div className="flex h-9 items-center justify-between gap-2">
-              <span>Round Off</span>
-              <input
-                type="number" step="any"
-                value={draft.roundOff === 0 ? "" : draft.roundOff}
-                placeholder="0"
-                onChange={(e) => set({ roundOff: e.target.value === "" ? 0 : Number(e.target.value) })}
-                className={`${field} h-8 w-44 text-right font-number`}
-              />
-            </div>
-            <div className="mt-1 flex h-11 items-center justify-between border-t border-grey-100 font-semibold text-grey-900">
-              <span>Final Amount</span><span className="font-number">{formatInr(totals.final)}</span>
-            </div>
+          </div>
+        )}
+        <div className={cardTight}>
+          <h2 className="font-heading text-sm font-semibold text-grey-900">Totals</h2>
+          <div className="flex-1 overflow-x-auto rounded-lg border border-grey-100 bg-white">
+            <table className="h-full w-full text-xs">
+              <thead className="bg-[var(--table-head)]">
+                <tr>
+                  <th className="px-3 py-1 text-left font-body font-semibold text-grey-900">Particulars</th>
+                  <th className="px-3 py-1 text-right font-body font-semibold text-grey-900">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t border-grey-100">
+                  <td className="px-3 py-1 font-body text-grey-900">Total Amount</td>
+                  <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(totals.amount)}</td>
+                </tr>
+                <tr className="border-t border-grey-100">
+                  <td className="px-3 py-1 font-body text-grey-900">Special Discount %</td>
+                  <td className="px-3 py-1 text-right">
+                    <div className="ml-auto flex items-center justify-end gap-2">
+                    <div className="relative w-20">
+                      <input
+                        type="number" min={0} max={100} step="any"
+                        value={draft.discountPct === 0 ? "" : draft.discountPct}
+                        placeholder="0"
+                        onChange={(e) => set({ discountPct: e.target.value === "" ? 0 : Math.min(100, Math.max(0, Number(e.target.value))) })}
+                        className={`${field} h-6! w-full pr-6! text-xs! text-right font-number`}
+                      />
+                      <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs font-number text-grey-500">%</span>
+                    </div>
+                    <span className="w-28 text-right text-xs font-number text-grey-900" title="Discount amount">{formatInr(totals.amount - totals.taxable)}</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr className="border-t border-grey-100">
+                  <td className="px-3 py-1 font-body text-grey-900">Total After Discount</td>
+                  <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(totals.taxable)}</td>
+                </tr>
+                <tr className="border-t border-grey-100">
+                  <td className="px-3 py-1 font-body text-grey-900">
+                    <div className="flex items-center gap-2">
+                      <span>GST</span>
+                      <SelectField value={draft.gstMode} onChange={(e) => set({ gstMode: e.target.value as GstMode })} className={`${field} h-6! w-44 text-xs!`}>
+                        <option value="intra">State + Central (9% + 9%)</option>
+                        <option value="inter">Integrated (18%)</option>
+                      </SelectField>
+                    </div>
+                  </td>
+                  <td />
+                </tr>
+                {draft.gstMode === "intra" ? (
+                  <>
+                    <tr className="border-t border-grey-100"><td className="px-3 py-1 font-body text-grey-700">State GST 9%</td><td className="px-3 py-1 text-right font-number text-grey-900">{formatInr(totals.stateGst)}</td></tr>
+                    <tr className="border-t border-grey-100"><td className="px-3 py-1 font-body text-grey-700">Central GST 9%</td><td className="px-3 py-1 text-right font-number text-grey-900">{formatInr(totals.centralGst)}</td></tr>
+                  </>
+                ) : (
+                  <tr className="border-t border-grey-100"><td className="px-3 py-1 font-body text-grey-700">Integrated GST 18%</td><td className="px-3 py-1 text-right font-number text-grey-900">{formatInr(totals.igst)}</td></tr>
+                )}
+                <tr className="border-t border-grey-100">
+                  <td className="px-3 py-1 font-body text-grey-900">Round Off</td>
+                  <td className="px-3 py-1 text-right">
+                    <input
+                      type="number" step="any"
+                      value={draft.roundOff === 0 ? "" : draft.roundOff}
+                      placeholder="0"
+                      onChange={(e) => set({ roundOff: e.target.value === "" ? 0 : Number(e.target.value) })}
+                      className={`${field} h-6! w-36 text-xs! text-right font-number`}
+                    />
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot className="border-t border-grey-100 bg-[color-mix(in_srgb,var(--table-head)_40%,transparent)]">
+                <tr>
+                  <td className="px-3 py-1 font-body font-semibold text-grey-900">Final Amount</td>
+                  <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(totals.final)}</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </div>
       </div>
@@ -1525,7 +1625,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         title="Discard your changes?"
         description={isProforma ? "You have unsaved changes on this proforma invoice. They will be lost and you will go back to the proforma invoices list." : "You have unsaved changes on this purchase order. They will be lost and you will go back to the purchase orders list."}
         confirmLabel="Discard"
-        onConfirm={() => router.push(base)}
+        onConfirm={() => void leave()}
       />
       <ConfirmDialog
         open={deleteOpen}

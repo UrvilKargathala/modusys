@@ -47,11 +47,12 @@ function duplicateAt<T extends { id: string }>(items: T[], id: string, makeId: (
 
 // One accent per group so a scanning eye can immediately tell Carcass from
 // Shutter from Other Panel without reading the header.
+// Each colour can be changed in Templates > Colour Palette (--sec-* variables); the fallbacks are the built-in colours.
 const groupAccent = {
-  primary: { border: "border-l-primary", header: "bg-primary-transparent" },
-  teal: { border: "border-l-teal", header: "bg-teal-transparent" },
-  warning: { border: "border-l-warning", header: "bg-warning-transparent" },
-  info: { border: "border-l-info", header: "bg-info-transparent" },
+  primary: { border: "border-l-[color:var(--sec-carcass-edge,var(--primary))]", header: "bg-[var(--sec-carcass,#E0ECD4)]" },
+  teal: { border: "border-l-[color:var(--sec-shutter-edge,var(--color-teal))]", header: "bg-[var(--sec-shutter,var(--color-teal-transparent))]" },
+  warning: { border: "border-l-[color:var(--sec-other-panel-edge,var(--color-warning))]", header: "bg-[var(--sec-other-panel,var(--color-warning-transparent))]" },
+  info: { border: "border-l-[color:var(--sec-hardware-edge,var(--color-info))]", header: "bg-[var(--sec-hardware,rgb(255_213_153/0.5))]" },
 } as const;
 
 export function FurnitureGroup({

@@ -57,7 +57,7 @@ export default function ProcurementPage() {
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full text-left">
-            <thead className="bg-[#DACCCC]">
+            <thead className="bg-[var(--table-head)]">
               <tr>
                 {["Procurement No", "Quote No", "Customer", "Quote Status", "Copied On", "Last Edited", "Actions"].map((h) => (
                   <th key={h} className={`${th} ${h === "Actions" ? "text-right" : ""}`}>{h}</th>

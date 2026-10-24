@@ -66,7 +66,7 @@ export function PoCabinetListHeader({ proforma = false }: { proforma?: boolean }
   const heads = ["", "Sr No", "Cabinet Type", "Cabinet Name", "Design", ...(proforma ? [] : ["Vendor"]), "Width", "Depth", "Height", "Qty", "Internal Colour", "External Colour", "Material", ...(proforma ? ["Sq.Ft"] : []), "Total", "Remarks", "Action"];
   return (
     // The pink band runs the full width of the list; the grid inside lines up with the cabinet lines below it.
-    <div className="rounded-t-md border border-grey-200 bg-[#DACCCC] pl-[40px] pr-2">
+    <div className="rounded-t-md border border-grey-200 bg-[var(--table-head)] pl-[40px] pr-2">
       <div className={`${cabinetRowGrid(proforma)} cab-head whitespace-nowrap text-sm font-body font-bold text-grey-900`}>
         {heads.map((h, i) => (
           <div key={i} className="cell justify-center text-center">{h}</div>

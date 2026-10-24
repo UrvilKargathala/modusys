@@ -124,7 +124,7 @@ export function NotificationPanel({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary-100"
+        className={inSidebar ? "relative flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10" : "relative flex h-9 w-9 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary-100"}
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (

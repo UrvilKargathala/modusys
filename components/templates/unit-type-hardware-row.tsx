@@ -26,7 +26,7 @@ export const HARDWARE_TABLE_COLUMNS = "20px 104px minmax(100px,0.9fr) minmax(90p
 export function HardwareTableHeader({ withNo = false, sort, onSort }: { withNo?: boolean; sort?: LineSort; onSort?: (key: string) => void }) {
   const heads: [string, string?][] = [[withNo ? "No." : "", "no"], ["Article No.", "articleNo"], ["Category", "category"], ["Brand", "brand"], ["Description", "description"], ["Level Type", "levelType"], ["Qty", "qty"], ["Unit", "unit"], ["Rate", "rate"], ["Amount", "amount"], ["", undefined]];
   return (
-    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[#DACCCC] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: withNo ? HARDWARE_TABLE_COLUMNS.replace("20px", "44px") : HARDWARE_TABLE_COLUMNS }}>
+    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[var(--table-head)] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: withNo ? HARDWARE_TABLE_COLUMNS.replace("20px", "44px") : HARDWARE_TABLE_COLUMNS }}>
       {heads.map(([h, k], i) => (
         <span key={i} className={["Qty", "Unit"].includes(h) ? "text-center" : ["Rate", "Amount"].includes(h) ? "text-right" : ""}>
           <SortLabel label={h} k={k} sort={sort} onSort={onSort} />
@@ -363,7 +363,7 @@ export function UnitTypeHardwareRow({
             placeholder="e.g. BLM-CLIP-110"
             value={value.articleNo ?? ""}
             onChange={(e) => handleArticleNoChange(e.target.value)}
-            className="bg-[#F0E4E4]"
+            className="bg-[var(--input-bg,#EAF7FC)]"
           />
         </div>
 
@@ -375,7 +375,7 @@ export function UnitTypeHardwareRow({
             sorted
             value={value.categoryId}
             onChange={handleCategoryChange}
-            triggerClassName="bg-[#F0E4E4]"
+            triggerClassName="bg-[var(--input-bg,#EAF7FC)]"
           />
         </div>
 
@@ -385,7 +385,7 @@ export function UnitTypeHardwareRow({
             id={`hw-brand-${value.id}`}
             value={value.brandId ?? ""}
             onChange={(e) => handleBrandChange(e.target.value)}
-            className="w-full rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+            className="w-full rounded-lg border border-grey-100 bg-[var(--input-bg,#EAF7FC)] px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
           >
             <option value="">Select brand</option>
             {brandOptions.map((b) => (
@@ -411,7 +411,7 @@ export function UnitTypeHardwareRow({
             category="level-type"
             value={value.levelTypeId ?? ""}
             onChange={(id) => commit("Level Type", { levelTypeId: id })}
-            triggerClassName="bg-[#F0E4E4]"
+            triggerClassName="bg-[var(--input-bg,#EAF7FC)]"
           />
         </div>
 
@@ -422,13 +422,13 @@ export function UnitTypeHardwareRow({
             placeholder="e.g. 2 or H/450"
             value={value.qtyFormula}
             onChange={(e) => onChange({ qtyFormula: e.target.value })}
-            className="font-number bg-[#F0E4E4]"
+            className="font-number bg-[var(--input-bg,#EAF7FC)]"
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
           <Label>Unit</Label>
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 text-sm font-body text-grey-700">
+          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[var(--input-bg,#EAF7FC)] px-3 text-sm font-body text-grey-700">
             {matched ? unitName(matched.unitId) : "—"}
           </div>
         </div>
@@ -449,7 +449,7 @@ export function UnitTypeHardwareRow({
                 const raw = e.target.value;
                 onChange({ rateOverride: raw === "" ? undefined : Number(raw) });
               }}
-              className={`pl-5 font-number bg-[#F0E4E4] ${rateReadOnly ? "cursor-not-allowed" : ""}`}
+              className={`pl-5 font-number bg-[var(--input-bg,#EAF7FC)] ${rateReadOnly ? "cursor-not-allowed" : ""}`}
             />
           </div>
           {!rateReadOnly && value.rateOverride !== undefined && priceListRate !== undefined && value.rateOverride !== priceListRate && (
@@ -465,7 +465,7 @@ export function UnitTypeHardwareRow({
 
         <div className="flex flex-col gap-1.5 lg:col-span-2">
           <Label>Amount</Label>
-          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 text-sm font-number font-semibold text-grey-900">
+          <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[var(--input-bg,#EAF7FC)] px-3 text-sm font-number font-semibold text-grey-900">
             {amount !== undefined ? `₹${amount.toFixed(2)}` : "—"}
           </div>
         </div>
@@ -507,7 +507,7 @@ function DescriptionCombobox({
           if (!next) setQuery("");
         }}
       >
-        <PopoverTrigger className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary">
+        <PopoverTrigger className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-[var(--input-bg,#EAF7FC)] px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary">
           <span title={value || undefined} className="min-w-0 truncate">
             {value || <span className="text-grey-400">Select description</span>}
           </span>

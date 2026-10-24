@@ -7,7 +7,7 @@ export function SpecTable({ children }: { children: ReactNode }) {
     <div className="spec-table overflow-x-auto rounded-lg border border-grey-100 bg-card">
       <table className="w-full min-w-[760px] border-collapse">
         <thead>
-          <tr className="bg-[#DACCCC] text-left text-sm font-medium text-grey-900">
+          <tr className="bg-[var(--table-head)] text-left text-sm font-medium text-grey-900">
             <th className="px-3 py-1.5">Field</th>
             <th className="px-3 py-1.5">Selection</th>
             <th className="border-l border-grey-200 px-3 py-1.5">Field</th>
@@ -24,7 +24,7 @@ export function SpecTable({ children }: { children: ReactNode }) {
 
 export function L({ children, required }: { children: ReactNode; required?: boolean }) {
   return (
-    <td className="w-44 whitespace-nowrap border-r border-grey-100 bg-[#EFE6E6] px-3 py-1 text-sm font-body font-semibold text-grey-900">
+    <td className="w-44 whitespace-nowrap border-r border-grey-100 bg-white px-3 py-1 text-sm font-body font-semibold text-grey-900">
       {children}
       {required && <span className="text-error"> *</span>}
     </td>

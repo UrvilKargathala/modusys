@@ -22,7 +22,7 @@ export type Vendor = {
 export type PoGroup = "carcass" | "shutter" | "other-panel" | "hardware";
 
 export const PO_GROUPS: { key: PoGroup; code: string; label: string }[] = [
-  { key: "carcass", code: "A", label: "Carcass" },
+  { key: "carcass", code: "A", label: "Cabinet Components" },
   { key: "shutter", code: "B", label: "Shutter" },
   { key: "other-panel", code: "C", label: "Other Panel" },
   { key: "hardware", code: "D", label: "Hardware" },
@@ -196,6 +196,14 @@ export type PoMaterial = {
   finishEntries?: { id: string; where: string; rawMaterial: string; internal: string; external: string }[];
   // Proforma Production page: per cut-list row, one entry per piece (Qty) ticked as produced, with its own note (same shape as packing, no boxes).
   production?: Record<string, { pieces: { done: boolean; note: string }[] }>;
+  // Proforma Production page, Edge Band tab: one entry per thickness + internal + external colour combination found on the components (key "thk|internal|external"), with its edge band and the sides it is used on (Top, Bottom, LH, RH; "A,B").
+  edgeBandCombos?: Record<string, { band: string; where: string }>;
+  // Same tab, Primary Color Selection: the internal / external colour (text labels, as on the rows) for each side (Top, Bottom, LH, RH).
+  // Same page, Components table: per cut-list row, the sides (top / bottom / LH / RH) ticked or un-ticked by hand; a side not listed follows the row's Edge Band Detail combination.
+  // Same page: the edge band code typed beside a ticked side of a row; a side not listed shows its Edge Band Detail combination's code.
+  edgeBandCodes?: Record<string, Partial<{ top: string; bottom: string; lh: string; rh: string }>>;
+  edgeBandSides?: Record<string, Partial<{ top: boolean; bottom: boolean; lh: boolean; rh: boolean }>>;
+  edgeBandColours?: { id: string; where: string; internal: string; external: string }[];
   // Proforma Packing page, Transport Details: one entry per transport (name from the Proforma Library list), its LR number and box count.
   transport?: { name: string; lr: string; date?: string; boxes: number }[];
   // Proforma Packing page: per cut-list row, one entry per piece (Qty): ticked as packed or not, with its own note.
@@ -267,6 +275,20 @@ export function buildPoNumber(parts: (string | undefined)[], otherNumbers: strin
     return Number.isInteger(id) ? Math.max(m, id) : m;
   }, 0);
   return `${base}-${String(max + 1).padStart(2, "0")}`;
+}
+
+// The number a copy gets: the original's number with its trailing -NN counted up past every number sharing that start
+// (PI-171026-KT-01 -> PI-171026-KT-02). "" when the original has no such number.
+export function nextCopyNumber(original: string, otherNumbers: string[]) {
+  const m = /^(.*)-(\d+)$/.exec(original.trim());
+  if (!m) return "";
+  const prefix = `${m[1]}-`.toUpperCase();
+  const max = otherNumbers.reduce((hi, n) => {
+    const u = n.toUpperCase();
+    const id = u.startsWith(prefix) ? Number(u.slice(prefix.length)) : NaN;
+    return Number.isInteger(id) ? Math.max(hi, id) : hi;
+  }, Number(m[2]));
+  return `${m[1]}-${String(max + 1).padStart(m[2].length, "0")}`;
 }
 
 // The value most rows use (first seen wins a tie); "" when none. Header pickers show this, so changing one row

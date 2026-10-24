@@ -76,7 +76,7 @@ export async function exportLinesExcel(kind: LinesKind, lines: PurchaseOrderLine
   head.height = 22;
   head.eachCell((cell) => {
     cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF9E7676" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF288AB8" } };
     cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
   });
   for (const l of rows) ws.addRow(cols.map((c) => c.get(l)));

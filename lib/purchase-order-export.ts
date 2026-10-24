@@ -238,8 +238,8 @@ export const CUT_LIST_HEADERS = ["Sr", "Cabinet Type", "Cabinet Name", "Descript
 // Same rows for the Excel and the on-screen preview, numbered cabinet.row (1.1, 1.2, 2.1 ...) as in Full Details.
 // A Proforma Invoice's cut list also has a Design column after Cabinet Name; Design and Remarks are the component's own.
 export const cutListHeaders = (po: PurchaseOrder) => (po.material.proforma ? [...CUT_LIST_HEADERS.slice(0, 3), "Design", ...CUT_LIST_HEADERS.slice(3)] : CUT_LIST_HEADERS);
-export function cutListRows(po: PurchaseOrder): (string | number)[][] {
-  const rows: (string | number)[][] = [];
+function cutListEntries(po: PurchaseOrder): { l: PurchaseOrder["lines"][number]; cells: (string | number)[] }[] {
+  const rows: { l: PurchaseOrder["lines"][number]; cells: (string | number)[] }[] = [];
   for (const g of PO_GROUPS.filter((x) => x.key !== "hardware"))
     for (const c of byCabinet(po, g.key))
       for (const { l, sr } of c.rows) {
@@ -251,21 +251,46 @@ export function cutListRows(po: PurchaseOrder): (string | number)[][] {
         // A proforma cut list shows a dash where a row has no cabinet type or cabinet name (rows added straight in Shutter / Other Panel).
         const head = po.material.proforma ? [sr, typeName || "-", cabName.trim() ? cabName : "-"] : [sr, typeName, cabName];
         const rest = [l.description, l.width, l.height, l.depth, l.qty, Number(l.sqft.toFixed(2)), l.material, l.internalColour, l.externalColour];
-        rows.push(
-          po.material.proforma
-            ? [...head, l.designType, ...rest, l.remarks]
-            : [...head, ...rest, l.remarks]
-        );
+        rows.push({ l, cells: po.material.proforma ? [...head, l.designType, ...rest, l.remarks] : [...head, ...rest, l.remarks] });
       }
   // A Proforma Invoice's cut list is sorted by material, then thickness, then external colour, then internal colour.
   if (po.material.proforma) {
     const cmp = (x: string, y: string) => x.localeCompare(y, undefined, { sensitivity: "base", numeric: true });
     return rows
       .map((r, i) => ({ r, i }))
-      .sort((a, b) => cmp(String(a.r[10]), String(b.r[10])) || Number(a.r[7]) - Number(b.r[7]) || cmp(String(a.r[12]), String(b.r[12])) || cmp(String(a.r[11]), String(b.r[11])) || a.i - b.i)
+      .sort((a, b) => cmp(String(a.r.cells[10]), String(b.r.cells[10])) || Number(a.r.cells[7]) - Number(b.r.cells[7]) || cmp(String(a.r.cells[12]), String(b.r.cells[12])) || cmp(String(a.r.cells[11]), String(b.r.cells[11])) || a.i - b.i)
       .map((x) => x.r);
   }
   return rows;
+}
+export const cutListRows = (po: PurchaseOrder): (string | number)[][] => cutListEntries(po).map((e) => e.cells);
+
+// Edge band of every component row, as the Production page shows it (Width-1 / Width-2 / Height-1 / Height-2: a tick and its code).
+// A side follows its thickness + colours combination (Edge Band tab) until it is ticked / un-ticked or its code typed by hand; the keys are the
+// Production page's: Sr|Description|WxH, with #n on identical rows in cut list order. Used by the Production Work Order PDF.
+export const EDGE_SIDES = [["top", "Width-1"], ["bottom", "Width-2"], ["lh", "Height-1"], ["rh", "Height-2"]] as const;
+export type EdgeBand = Record<(typeof EDGE_SIDES)[number][0], { on: boolean; code: string }>;
+export function edgeBandByLine(po: PurchaseOrder): Map<string, EdgeBand> {
+  const m = po.material;
+  const h = cutListHeaders(po);
+  const [ti, ii, ei] = ["Thk", "Internal Brand & Colour", "External Brand & Colour"].map((x) => h.indexOf(x));
+  // Sides saved before the rename (Top / Bottom / LH / RH) read as Width-1 / Width-2 / Height-1 / Height-2.
+  const legacy: Record<string, string> = { Top: "Width-1", Bottom: "Width-2", LH: "Height-1", RH: "Height-2" };
+  const seen = new Map<string, number>();
+  const out = new Map<string, EdgeBand>();
+  for (const { l, cells } of cutListEntries(po)) {
+    const base = `${cells[0]}|${cells[4]}|${cells[5]}x${cells[6]}`;
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    const key = n ? `${base}#${n}` : base;
+    const combo = m.edgeBandCombos?.[[ti, ii, ei].map((i) => String(cells[i] ?? "").trim()).join("|")];
+    const where = (combo?.where ?? "").split(",").map((x) => x.trim()).filter(Boolean).map((x) => legacy[x] ?? x);
+    out.set(l.id, Object.fromEntries(EDGE_SIDES.map(([side, label]) => {
+      const on = m.edgeBandSides?.[key]?.[side] ?? (!!combo && where.includes(label));
+      return [side, { on, code: on ? m.edgeBandCodes?.[key]?.[side] ?? combo?.band ?? "" : "" }];
+    })) as EdgeBand);
+  }
+  return out;
 }
 // Proforma cut list: the Design and Remarks cells that have a value are filled a light red, as in the PDFs (needs ExcelJS for cell colours).
 async function downloadCutListColoured(po: PurchaseOrder) {

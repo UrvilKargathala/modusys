@@ -8,7 +8,7 @@ import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt";
 import { ToastViewport } from "@/components/shared/toast-viewport";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 
-const BRAND = "#9e7676";
+const BRAND = "#288AB8";
 
 const raleway = localFont({
   variable: "--font-heading",

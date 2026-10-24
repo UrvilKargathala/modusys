@@ -140,6 +140,37 @@ export function cleanMaterial(m: unknown) {
           { pieces: (Array.isArray(v?.pieces) ? (v.pieces as Record<string, unknown>[]) : []).slice(0, 500).map((x) => ({ done: x?.done === true, note: str(x?.note).slice(0, 300) })) },
         ] as const)
     ),
+    // Proforma Production page, Edge Band tab.
+    edgeBandCombos: Object.fromEntries(
+      Object.entries((o.edgeBandCombos ?? {}) as Record<string, Record<string, unknown>>)
+        .filter(([k]) => k)
+        .slice(0, 500)
+        .map(([k, v]) => [str(k).slice(0, 300), { band: str(v?.band).slice(0, 100), where: str(v?.where).slice(0, 60) }] as const)
+    ),
+    edgeBandSides: Object.fromEntries(
+      Object.entries((o.edgeBandSides ?? {}) as Record<string, Record<string, unknown>>)
+        .filter(([k]) => k)
+        .slice(0, 2000)
+        .map(([k, v]) => [
+          str(k).slice(0, 200),
+          Object.fromEntries((["top", "bottom", "lh", "rh"] as const).filter((side) => typeof v?.[side] === "boolean").map((side) => [side, v[side] === true] as const)),
+        ] as const)
+    ),
+    edgeBandCodes: Object.fromEntries(
+      Object.entries((o.edgeBandCodes ?? {}) as Record<string, Record<string, unknown>>)
+        .filter(([k]) => k)
+        .slice(0, 2000)
+        .map(([k, v]) => [
+          str(k).slice(0, 200),
+          Object.fromEntries((["top", "bottom", "lh", "rh"] as const).filter((side) => typeof v?.[side] === "string").map((side) => [side, str(v[side]).slice(0, 100)] as const)),
+        ] as const)
+    ),
+    edgeBandColours: (Array.isArray(o.edgeBandColours) ? (o.edgeBandColours as Record<string, unknown>[]) : []).slice(0, 100).map((r) => ({
+      id: str(r?.id).slice(0, 60),
+      where: str(r?.where).slice(0, 60),
+      internal: str(r?.internal).slice(0, 200),
+      external: str(r?.external).slice(0, 200),
+    })),
     additionalColors: (() => {
       const raw = (o.additionalColors ?? {}) as Record<string, unknown>;
       const side = (v: unknown) =>

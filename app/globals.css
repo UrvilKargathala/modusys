@@ -12,11 +12,14 @@
   --font-body: var(--font-body);
   --font-number: var(--font-number);
 
+}
+
+/* Colour tokens as plain theme variables so utilities reference var(--color-*): the Colour Palette can then override them at runtime. */
+@theme {
   /* Brand */
   --color-white: #ffffff;
   --color-dark: #262626;
   --color-secondary: #3f88fe;
-  --color-primary: #9e7676;
   --color-light: #f7f8f9;
 
   /* Grey scale */
@@ -50,7 +53,7 @@
   /* Ice blue: the cabinet cards in By Component / By Unit */
   --color-ice: #e4f1fb;
   /* Blush: the frame of each cabinet card in By Component / By Unit, like a unit on the quote page */
-  --color-blush: #d9c8c9;
+  --color-blush: #D6EFFA;
   --color-ice-200: #bcd8ee;
   --color-ice-300: #cfe3f4;
   --color-success: #27ae60;
@@ -66,7 +69,7 @@
 
   /* Transparent variants */
   --color-grey-transparent: #f4f4f4;
-  --color-primary-transparent: #f9f7f7;
+  --color-primary-transparent: #EAF7FC;
   --color-secondary-transparent: #eef4ff;
   --color-success-transparent: #f4f8f7;
   --color-warning-transparent: #fef3f5;
@@ -80,16 +83,16 @@
   --color-teal-transparent: #eaf4fe;
   --color-light-transparent: #fdfdfe;
 
-  /* Primary shades — tonal scale of #9E7676 (mauve) toward white */
-  --color-primary-900: #9e7676;
-  --color-primary-800: #ac8a8a;
-  --color-primary-700: #ba9e9e;
-  --color-primary-600: #c8b2b2;
-  --color-primary-500: #d6c5c5;
-  --color-primary-400: #e0d3d3;
-  --color-primary-300: #eae1e1;
-  --color-primary-200: #f3efef;
-  --color-primary-100: #f9f7f7;
+  /* Primary shades — tonal scale of #288AB8 (cyan) toward white */
+  --color-primary-900: #288AB8;
+  --color-primary-800: #2D9CCF;
+  --color-primary-700: #32ADE6;
+  --color-primary-600: #47B5E8;
+  --color-primary-500: #5BBDEB;
+  --color-primary-400: #84CEF0;
+  --color-primary-300: #ADDEF5;
+  --color-primary-200: #D6EFFA;
+  --color-primary-100: #EAF7FC;
 
   /* Secondary shades */
   --color-secondary-900: #5297fe;
@@ -211,6 +214,9 @@
   --color-teal-300: #c0e2de;
   --color-teal-200: #d5ede9;
   --color-teal-100: #e9f7f4;
+}
+
+@theme inline {
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -269,18 +275,27 @@
   --card-foreground: #262626;
   --popover: #ffffff;
   --popover-foreground: #262626;
-  --primary: #9e7676;
+  --primary: #288AB8;
+  /* Colour Palette defaults (Templates > Colour Palette can override them): table headings, sidebar, page. */
+  --table-head: #ADDEF5;
+  --sb-1: #288AB8;
+  --sb-2: #2D9CCF;
+  --sb-3: #32ADE6;
+  --sb-accent: #ADDEF5;
+  --page-1: #DEDDF7;
+  --page-2: #D6EFFA;
+  --page-3: #EAF7FC;
   --primary-foreground: #ffffff;
   --shadcn-muted-btn: #e2e4e8;
   --shadcn-muted-btn-foreground: #262626;
   --muted: #f4f4f4;
   --muted-foreground: #5d6772;
-  --accent: #f9f7f7;
-  --accent-foreground: #9e7676;
+  --accent: #EAF7FC;
+  --accent-foreground: #288AB8;
   --destructive: #ef1e1e;
   --border: #e2e4e8;
   --input: #e2e4e8;
-  --ring: #9e7676;
+  --ring: #288AB8;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -367,7 +382,7 @@
      - .pdf-print-mode (Print flow, white). */
   html:has(.quote-pdf-sheet:not(.pdf-print-mode)),
   body:has(.quote-pdf-sheet:not(.pdf-print-mode)) {
-    background-color: #9E7676 !important;
+    background-color: var(--pdf-quote, #9E7676) !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -395,7 +410,7 @@
 
 /* Quote PDF — mauve theme for Download, white+black for Print. */
 .quote-pdf-sheet {
-  background-color: #9E7676;
+  background-color: var(--pdf-quote, #9E7676);
   color: #FFF8EA;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
@@ -427,13 +442,13 @@
   color: #5d6772;
 }
 .quote-pdf-sheet.pdf-print-mode th {
-  background-color: #9E7676;
+  background-color: var(--pdf-quote, #9E7676);
   color: #fff;
 }
 .quote-pdf-sheet.pdf-print-mode .pdf-heading,
 .quote-pdf-sheet.pdf-print-mode .pdf-heading td,
 .quote-pdf-sheet.pdf-print-mode .pdf-heading span {
-  color: #9E7676;
+  color: var(--pdf-quote, #9E7676);
   font-weight: 700;
 }
 .pdf-print-mode .pdf-border,
@@ -442,15 +457,15 @@
   border-color: #e2e4e8;
 }
 .quote-pdf-sheet.pdf-print-mode .pdf-rule {
-  border-top-color: #9E7676;
+  border-top-color: var(--pdf-quote, #9E7676);
 }
 .quote-pdf-sheet.pdf-print-mode .pdf-rule td {
-  color: #9E7676;
+  color: var(--pdf-quote, #9E7676);
   font-weight: 700;
 }
 .pdf-print-mode svg rect,
 .pdf-print-mode svg path {
-  fill: #9E7676;
+  fill: var(--pdf-logo, #9E7676);
 }
 .quote-pdf-sheet.pdf-print-mode .font-number {
   font-weight: 400;
@@ -797,11 +812,11 @@
 
 /* The Action cell stays at the right edge while the cabinet table scrolls sideways. */
 .po-dense .cab-table > .cell:last-child { position: sticky; right: 0; z-index: 2; background-color: var(--color-card); box-shadow: -6px 0 6px -6px rgba(0, 0, 0, 0.18); }
-.po-dense .cab-head > .cell:last-child { background-color: #DACCCC; }
+.po-dense .cab-head > .cell:last-child { background-color: var(--table-head); }
 
 /* Proforma Invoices keep the brand colour behind the line table headings (the other PO pages use the light grey). */
 .po-proforma .po-dense thead,
-.po-proforma .po-dense thead th { background-color: #DACCCC; color: var(--color-grey-900); }
+.po-proforma .po-dense thead th { background-color: var(--table-head); color: var(--color-grey-900); }
 
 /* Remarks: a wide column, the field fills it. */
 .po-dense th[data-col="remarks"] { width: 18rem; min-width: 18rem; }
@@ -814,3 +829,47 @@
 .po-dense .cab-table:not(.cab-head) button[aria-haspopup] { height: 20px; }
 /* Line table headings: taller and centred. */
 .po-dense th { padding-block: 9px; text-align: center; vertical-align: middle; }
+/* Material Details tables: the highlight-colour swatch beside a colour picker is a small square. */
+.po-dense td button[aria-label^="Highlight colour"] { width: 24px; height: 24px; min-width: 24px; max-width: 24px; flex: none; padding: 3px; border-radius: 6px; }
+.po-dense td button[aria-label^="Highlight colour"] > span { display: block; width: 100%; height: 100%; border-radius: 3px; }
+/* Material Details tables: dropdowns as short as the other tables' fields (they still grow to fit several chosen colours). */
+.po-dense.finish-table td button[aria-haspopup]:not([aria-label^="Highlight colour"]) { height: auto; min-height: 24px; padding-block: 2px; }
+.po-dense.finish-table th { text-align: left; }
+.po-dense.finish-table th:last-child { text-align: center; }
+/* Hardware line tables: heading row in peach. */
+.po-dense thead.hw-head,
+.po-dense thead.hw-head th { background-color: rgb(255 213 153 / 0.5); }
+
+/* Glassmorphism: inside the app shell, cards and panels are frosted glass over the soft Cyan page. */
+.glass-app :is(.rounded-xl, .rounded-2xl, .rounded-lg):is(.bg-white, .bg-card):not(input, select, textarea, button, td, th, tr) {
+  background-color: rgb(255 255 255 / 0.5);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+  border-color: rgb(255 255 255 / 0.7);
+  box-shadow: 0 8px 32px rgb(40 138 184 / 0.12), inset 0 1px 0 rgb(255 255 255 / 0.6);
+}
+/* Fields stay readable: a lighter frost. */
+.glass-app :is(input, select, textarea):not([type="checkbox"], [type="radio"], [class*="bg-[#"]) { background-color: rgb(255 255 255 / 0.65); }
+/* Material Details tables: Cyan 100 heading row. */
+.po-dense.finish-table thead,
+.po-dense.finish-table thead th { background-color: var(--table-head); color: var(--color-grey-900); }
+/* Detail tabs (Vendor / Purchase Order / Proforma Details) and the Material Details tables: 12px text. */
+.spec-table th,
+.spec-table td,
+.spec-table input,
+.spec-table select,
+.spec-table textarea,
+.spec-table button,
+.spec-table label,
+.spec-table span { font-size: 12px; }
+.po-dense.finish-table th,
+.po-dense.finish-table td,
+.po-dense.finish-table input,
+.po-dense.finish-table button,
+.po-dense.finish-table span { font-size: 12px; }
+.po-dense.finish-table td button[aria-haspopup] { font-size: 12px; }
+
+/* Resizable table columns (components/layout/resizable-tables.tsx). */
+.col-resizer { position: absolute; top: 0; right: 0; z-index: 5; width: 6px; height: 100%; cursor: col-resize; user-select: none; touch-action: none; }
+.col-resizer:hover { background: rgb(40 138 184 / 0.45); }
+table.col-fixed td, table.col-fixed th { overflow: hidden; text-overflow: ellipsis; }

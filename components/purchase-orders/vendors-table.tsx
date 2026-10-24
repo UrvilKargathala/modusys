@@ -63,7 +63,7 @@ export function VendorsTable({ dealers = false }: { dealers?: boolean }) {
       ) : (
         <div className="overflow-x-auto rounded-lg border border-grey-100">
           <table className="w-full text-left">
-            <thead className="bg-[#DACCCC]">
+            <thead className="bg-[var(--table-head)]">
               <tr>
                 {(dealers ? [word, "Code", "Category", "Area", "Sales Person", "City / State", "GST No", "Contact", "Email", ""] : [word, "Code", "City / State", "GST No", "Contact", "Email", ""]).map((h) => (
                   <th key={h} className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">

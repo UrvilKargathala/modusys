@@ -10,7 +10,7 @@ export type TrackerOptions = {
   branding?: { companyName: string; address: string; addressLine2?: string };
 };
 // The app's brand colour (--primary).
-const BRAND = "9E7676";
+const BRAND = "288AB8";
 const companyLines = (o: TrackerOptions) => [o.branding?.companyName ?? "THE FURN PROJECT LLP", [o.branding?.address, o.branding?.addressLine2].filter(Boolean).join(", ") || "ADDRESS.", "PURCHASE ORDER TRACKER DETAIL"];
 type Col = { header: string; width: number; left?: boolean; date?: boolean; amount?: boolean; value: (po: PurchaseOrder, c?: Cust) => string | number | Date | null };
 const toDate = (iso: string) => (iso ? new Date(`${iso.slice(0, 10)}T00:00:00`) : null);
