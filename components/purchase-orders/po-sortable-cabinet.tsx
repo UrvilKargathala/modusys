@@ -32,7 +32,7 @@ export function SortableCabinet({ no, children }: { no: number; children: React.
   return (
     <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : undefined, opacity: isDragging ? 0.85 : 1 }} className="relative">
       {no > 0 && (
-      <button type="button" aria-label={`Drag cabinet ${no} to reorder`} title="Drag to reorder" {...attributes} {...listeners} className="absolute left-1.5 top-4 z-10 cursor-grab touch-none rounded p-1 text-grey-400 hover:bg-white/60 hover:text-primary active:cursor-grabbing">
+      <button type="button" aria-label={`Drag cabinet ${no} to reorder`} title="Drag to reorder" {...attributes} {...listeners} className="absolute left-1.5 top-[7px] z-10 cursor-grab touch-none rounded p-1 text-grey-400 hover:bg-white/60 hover:text-primary active:cursor-grabbing">
         <GripVertical className="h-4 w-4" />
       </button>
       )}

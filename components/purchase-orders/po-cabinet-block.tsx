@@ -55,7 +55,7 @@ export function PoCabinetBlock({
   const common = (k: "internalColour" | "externalColour" | "material") => mostUsed(mine.map((l) => l[k]));
   const applyAll = (fields: Partial<PurchaseOrderLine>) => onChange(lines.map((l) => (l.srNo === srNo && l.group === "carcass" ? { ...l, ...fields } : l)));
   const finishRow = (
-    <div className="grid grid-cols-1 gap-3 pl-8 md:grid-cols-4">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       {(
         [
           ...(cabinet
@@ -66,9 +66,9 @@ export function PoCabinetBlock({
           ["Material", <PoRawMaterialSelect key="m" compact value={common("material")} onChange={(v) => ask("material", !!common("material") && common("material") !== v, () => applyAll({ material: v }))} />],
         ] as const
       ).map(([label, field]) => (
-        <Field key={label} label={label}>
-          {field}
-        </Field>
+        <div key={label} className="w-72 max-w-full">
+          <Field label={label}>{field}</Field>
+        </div>
       ))}
     </div>
   );
@@ -87,7 +87,7 @@ export function PoCabinetBlock({
 
   // Second row: Cabinet Name, W / D / H / Qty, Design, Remark, then the checkbox, Copy and Auto Populate. Labels sit above the boxes.
   const fieldsRow = cabinet ? (
-    <div className="flex flex-wrap items-end gap-3 pl-8">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <div className="w-56">
         <Field label="Cabinet Name">
           <PoCabinetNameField stacked value={cabinet.cabinetName ?? ""} onChange={(v) => ask("cabinet name", !!cabinet.cabinetName && v !== cabinet.cabinetName, () => onCabinetChange({ ...cabinet, cabinetName: v }))} />
@@ -135,8 +135,7 @@ export function PoCabinetBlock({
   ) : null;
 
   return (
-    <div className="rounded-2xl bg-blush p-3">
-    <div className="rounded-xl bg-blush p-3">
+    <div className="unit-row border-b border-grey-100 bg-card px-2 py-1">
       {changeDialog}
       <PoLinesTable
         group={group}
@@ -144,19 +143,16 @@ export function PoCabinetBlock({
         lines={lines}
         srNo={srNo}
         vars={cabinet ? { W: cabinet.width, D: cabinet.depth, H: cabinet.height } : undefined}
-        header={header}
-        subHeader={
-          fieldsRow || group === "carcass" ? (
-            <div className="flex flex-col gap-3">
-              {fieldsRow}
-              {group === "carcass" ? finishRow : null}
-            </div>
-          ) : undefined
+        header={
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 px-2">
+            {header}
+            {fieldsRow}
+            {group === "carcass" ? finishRow : null}
+          </div>
         }
         defaultCollapsed
         onChange={onChange}
       />
-    </div>
     </div>
   );
 }

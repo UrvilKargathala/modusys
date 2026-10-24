@@ -42,7 +42,7 @@ export const GROUP_BAND: Record<PoGroup, string> = {
 const cell =
   "h-8 w-full rounded-md border border-transparent bg-transparent px-2 text-sm font-body text-grey-900 outline-none hover:border-grey-100 focus:border-primary focus:bg-card";
 const numCell = `${cell} font-number text-right`;
-const th = "whitespace-nowrap px-2 py-2 text-xs font-body font-semibold uppercase tracking-wide text-grey-900";
+const th = "whitespace-nowrap px-2 py-2 text-xs font-body font-semibold uppercase tracking-wide text-grey-600";
 
 type Col = { key: string; label: string; width: string };
 
@@ -277,7 +277,7 @@ export function PoLinesTable({
           onClick={() => setCollapsed((c) => !c)}
           aria-label={`${collapsed ? "Expand" : "Collapse"} ${title}`}
           aria-expanded={!collapsed}
-          className="flex items-center gap-1.5 rounded-md text-left hover:text-primary"
+          className={cn("flex items-center gap-1.5 rounded-md text-left hover:text-primary", header && "h-7 w-7 shrink-0 justify-center text-grey-500 hover:bg-primary-transparent")}
         >
           {collapsed ? <ChevronRight className="h-4 w-4 text-grey-500" /> : <ChevronDown className="h-4 w-4 text-grey-500" />}
           {!header && (
@@ -453,8 +453,8 @@ export function PoLinesTable({
           </table>
         </div>
       )}
-      {/* The same Add Row under a long table, so a row can be added without scrolling back up. */}
-      {!only && !collapsed && mine.length > 0 && (
+      {/* The same Add Row under a long table (more than 8 rows), so a row can be added without scrolling back up. */}
+      {!only && !collapsed && mine.length > 8 && (
         <div className="flex justify-end">
           <Button type="button" variant="outline" size="sm" onClick={add}>
             <Plus className="h-3.5 w-3.5" />

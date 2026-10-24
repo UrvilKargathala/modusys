@@ -6,12 +6,11 @@ import { SelectField } from "@/components/shared/select-field";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Download, FileText, Plus, RotateCcw, Save, Search, Trash2, Upload, X } from "lucide-react";
+import { ArrowLeft, Boxes, Calendar, CheckCircle2, ChevronDown, ChevronRight, Download, FileText, Hash, IndianRupee, Layers, Plus, RotateCcw, Save, Search, Store, Trash2, Upload, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { PoCabinetCard } from "@/components/purchase-orders/po-cabinet-card";
+import { PoCabinetCard, PoCabinetListHeader } from "@/components/purchase-orders/po-cabinet-card";
 import { GROUP_BAND, PoBrandVendorContext, PoDefaultVendorContext, PoDimNotesContext, PoLinesTable, PoVendorContext } from "@/components/purchase-orders/po-lines-table";
 import { applyPurchaseRates, purchaseRateFor } from "@/lib/purchase-order-rate";
 import { useHardwarePriceItems } from "@/lib/store/pricing-list-store";
@@ -27,7 +26,9 @@ import { ColourPopover } from "@/components/shared/colour-popover";
 import { PoWhereSelect } from "@/components/purchase-orders/po-where-select";
 import { CabinetSortList, SortableCabinet } from "@/components/purchase-orders/po-sortable-cabinet";
 import { DEFAULT_HIGHLIGHT, PoAllowedColoursContext, PoFinishMultiSelect, PoFinishSelect, finishLabel } from "@/components/purchase-orders/po-finish-select";
-import { addDaysIso } from "@/components/purchase-orders/po-dates";
+import { addDaysIso, formatPoDate } from "@/components/purchase-orders/po-dates";
+import { SpecTable, L, V } from "@/components/quotes/create/spec-table";
+import { StripCell } from "@/components/quotes/create/quote-info-strip";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { useDealers, useVendors, vendorsStore } from "@/lib/store/vendors-store";
 import { VendorFormDialog } from "@/components/purchase-orders/vendor-form-dialog";
@@ -45,31 +46,6 @@ const NEW_VENDOR = "__new-vendor__";
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
 const card = "flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-5 shadow-sm";
 
-// A collapsible section like the quote's: a tinted bar with a chevron, a short summary on the right, and the fields in a grid when open.
-function PoSection({ title, summary, tone, children }: { title: React.ReactNode; summary?: string; tone: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <section className={`po-card rounded-xl border border-t-4 p-4 shadow-sm ${tone}`}>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-2 text-left">
-        {open ? <ChevronDown className="h-4 w-4 shrink-0 text-grey-600" /> : <ChevronRight className="h-4 w-4 shrink-0 text-grey-600" />}
-        <h2 className="font-heading text-lg font-semibold text-grey-900">{title}</h2>
-        {summary && !open && <span className="ml-auto truncate pl-4 text-sm font-body text-grey-600">{summary}</span>}
-      </button>
-      {open && <div className="grid gap-x-6 gap-y-4 pt-4 md:grid-cols-2 xl:grid-cols-4">{children}</div>}
-    </section>
-  );
-}
-
-// A read-only value with its label above (used in the Vendor section).
-function Info({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
-  return (
-    <div className={`flex flex-col gap-1 text-sm font-body ${wide ? "col-span-full" : ""}`}>
-      <span className="text-xs font-semibold text-grey-700">{label}</span>
-      <span className="whitespace-pre-line text-grey-900"><Nums>{value || "—"}</Nums></span>
-    </div>
-  );
-}
-
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-2 text-sm font-body">
@@ -78,6 +54,33 @@ function Row({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+// Two label / value pairs per row (the Vendor and Order Details tabs); an odd last pair leaves the right half empty.
+function pairRows(cells: { label: React.ReactNode; required?: boolean; node: React.ReactNode }[]) {
+  const rows: React.ReactNode[] = [];
+  for (let i = 0; i < cells.length; i += 2) {
+    const a = cells[i];
+    const b = cells[i + 1];
+    rows.push(
+      <tr key={i}>
+        <L required={a.required}>{a.label}</L>
+        <V>{a.node}</V>
+        {b ? (
+          <>
+            <L required={b.required}>{b.label}</L>
+            <V>{b.node}</V>
+          </>
+        ) : (
+          <td colSpan={2} />
+        )}
+      </tr>
+    );
+  }
+  return rows;
+}
+
+// A read-only value inside a table cell.
+const cellText = (value: string) => <span className="block whitespace-pre-line px-1 py-1 text-sm font-body text-grey-900"><Nums>{value || "—"}</Nums></span>;
 
 export function PurchaseOrderEditor({ id }: { id: string }) {
   const router = useRouter();
@@ -180,6 +183,21 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const { ask: askBrandVendor, dialog: brandVendorDialog } = useConfirmChange("row");
   const [partyOpen, setPartyOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
+  // The page is split into tabs; the tab line sticks just under the sticky page header, whose height is measured into --po-header-h.
+  const [tab, setTab] = useState<"vendor" | "details" | "material" | "lines">("lines");
+  const rootRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const hasDraft = !!draft;
+  useEffect(() => {
+    const header = headerRef.current;
+    const root = rootRef.current;
+    if (!header || !root) return;
+    const set = () => root.style.setProperty("--po-header-h", `${header.offsetHeight}px`);
+    set();
+    const observer = new ResizeObserver(set);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, [hasDraft]);
   const [deleteFinishId, setDeleteFinishId] = useState<string | null>(null);
   const [pendingApply, setPendingApply] = useState<{ scope: "shutter" | "cabinet"; run: () => void; cancel?: () => void; extra?: boolean } | null>(null);
   const fromQuote = useMemo(() => (draft?.quoteId ? quoteCabinetInfo(quotes.find((q) => q.id === draft.quoteId) ?? ({ units: [] } as never)) : new Map<number, { cabinetTypeId: string; unitQty: number }>()), [draft?.quoteId, quotes]);
@@ -713,9 +731,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         set: (key, value) => setDraft((d) => (d ? { ...d, material: { ...d.material, dimNotes: { ...d.material.dimNotes, [key]: value } } } : d)),
       }}
     >
-    <div className={`flex flex-col gap-6${isDirect ? " no-spin" : ""}`}>
+    <div ref={rootRef} className={`flex flex-col gap-6${isDirect ? " no-spin" : ""}`}>
       {/* Stays at the top while the page scrolls. */}
-      <div className="sticky -top-4 z-30 -mx-4 -mt-4 flex flex-wrap items-center justify-between gap-3 bg-background px-4 pb-2 pt-4 lg:-top-6 lg:-mx-6 lg:-mt-6 lg:bg-grey-transparent lg:px-6 lg:pt-6">
+      <div ref={headerRef} className="sticky -top-4 z-30 -mx-4 -mt-4 flex flex-wrap items-center justify-between gap-3 bg-background px-4 pb-2 pt-4 lg:-top-6 lg:-mx-6 lg:-mt-6 lg:bg-grey-transparent lg:px-6 lg:pt-6">
         <div className="flex items-center gap-3">
           <Link href={base} aria-label="Back" className="rounded-md p-1.5 text-grey-500 hover:bg-light-600">
             <ArrowLeft className="h-5 w-5" />
@@ -772,162 +790,211 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <PoSection tone="border-slate/40 border-t-slate bg-slate/30" title={<>{isProforma ? "Dealer Details" : "Vendor Details"} <span className="text-error">*</span></>} summary={vendor?.name}>
-          <div className="flex flex-col gap-1.5">
-          <Label>{isProforma ? "Dealer Name" : "Vendor Name"}</Label>
-          <SelectField
-            value={draft.vendorId}
-            onChange={(e) => {
-              const v = vendors.find((x) => x.id === e.target.value);
-              set({
-                vendorId: e.target.value,
-                ...(v ? { gstMode: gstModeFor(v.state) } : {}),
-              });
-            }}
-            className={field}
-            addLabel={isProforma ? "Add new dealer" : "Add new vendor"}
-            searchPlaceholder={isProforma ? "Search dealer" : "Search vendor"}
-            onAddClick={() => setPartyOpen(true)}
-          >
-            <option value="">Select a vendor…</option>
-            {!vendor && draft.vendorId && <option value={draft.vendorId}>{draft.vendorName || "Unknown vendor"}</option>}
-            {vendors.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name}{v.code ? ` (${v.code})` : ""}
-              </option>
-            ))}
-          </SelectField>
-          </div>
-          {vendor && (
-            <>
-              {vendor.code && <Info label="Code" value={vendor.code} />}
-              <Info label="GST No" value={vendor.gst} />
-              {vendor.contacts.length > 0 && <Info label="Contact" value={vendor.contacts.map((c) => [c.name, c.phone].filter(Boolean).join(": ")).join("\n")} />}
-              {(vendor.emails ?? []).length > 0 && <Info label="Email" value={(vendor.emails ?? []).join(", ")} />}
-              <Info label="Address" value={[vendor.address, vendor.city, vendor.state].filter(Boolean).join(", ")} wide />
-            </>
-          )}
-        </PoSection>
+      {/* Read-only recap under the title; everything shown here is edited in the tabs below. */}
+      <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-grey-100 bg-white sm:grid-cols-2 lg:grid-cols-5">
+        <StripCell icon={<Store className="h-4 w-4" />} label={isProforma ? "Dealer" : "Vendor"}>{vendor?.name ?? "Not selected"}</StripCell>
+        {!isProforma ? (
+          <StripCell icon={<User className="h-4 w-4" />} label="Customer">{customers.find((c) => c.id === draft.customerId)?.name ?? "Not selected"}</StripCell>
+        ) : (
+          <StripCell icon={<Layers className="h-4 w-4" />} label="Type">{draft.material.orderType || "—"}</StripCell>
+        )}
+        <StripCell icon={<Hash className="h-4 w-4" />} label={isProforma ? "PI No" : "PO No"}>{draft.poNumber || "Not set"}</StripCell>
+        <StripCell icon={<Calendar className="h-4 w-4" />} label={isProforma ? "PI Date" : "PO Date"}><span className="font-number">{formatPoDate(draft.poDate)}</span></StripCell>
+        <StripCell icon={<IndianRupee className="h-4 w-4" />} label="Amount"><span className="font-number">{formatInr(totals.final)}</span></StripCell>
+      </div>
 
-        <PoSection tone="border-taupe/50 border-t-taupe bg-taupe/40" title={<>{isProforma ? "Proforma Details" : "Purchase Order Details"}{quote?.quoteNumber && <span className="ml-2 font-number text-base font-normal text-grey-700">({quote.quoteNumber})</span>}</>} summary={draft.poNumber}>
-          {!isProforma && (
-          <div className="flex flex-col gap-1.5">
-            <Label>Customer <span className="text-error">*</span></Label>
-            <SelectField
-              aria-label="Customer"
-              className={field}
-              value={draft.customerId ?? ""}
-              onChange={(e) => {
-                const c = customers.find((x) => x.id === e.target.value);
-                set({ customerId: c?.id ?? null });
-              }}
+      <div className="rounded-xl border border-grey-100 bg-card">
+        {/* Sticks just under the page header while the lines scroll. */}
+        <div role="tablist" className="sticky top-[calc(var(--po-header-h,0px)-1rem)] z-10 flex gap-1 overflow-x-auto rounded-t-xl border-b border-grey-100 bg-card px-3 lg:top-[calc(var(--po-header-h,0px)-1.5rem)]">
+          {([
+            ["vendor", isProforma ? "Dealer Details" : "Vendor Details", Store],
+            ["details", isProforma ? "Proforma Details" : "Purchase Order Details", FileText],
+            ["material", "Material Details", Layers],
+            ["lines", isDirect ? "Items" : "Cabinets", Boxes],
+          ] as const).map(([key, label, Icon]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={tab === key}
+              onClick={() => setTab(key)}
+              className={`-mb-px flex shrink-0 items-center gap-2 border-b-2 px-4 py-3 text-sm font-body font-medium transition-colors ${tab === key ? "border-primary text-primary" : "border-transparent text-grey-500 hover:text-grey-800"}`}
             >
-              <option value="">Select customer</option>
-              {[...customers].sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
-                <option key={c.id} value={c.id}>{c.name} ({custCode(c)})</option>
-              ))}
-            </SelectField>
+              <Icon className="h-4 w-4" />
+              {label}
+              {key === "vendor" && <span className="text-error">*</span>}
+            </button>
+          ))}
+        </div>
+        <div className="p-4 lg:p-6">
+          <div role="tabpanel" className={tab === "vendor" ? "block" : "hidden"}>
+          <SpecTable>
+            {pairRows([
+              {
+                label: isProforma ? "Dealer Name" : "Vendor Name",
+                required: true,
+                node: (
+                  <SelectField
+                    value={draft.vendorId}
+                    onChange={(e) => {
+                      const v = vendors.find((x) => x.id === e.target.value);
+                      set({
+                        vendorId: e.target.value,
+                        ...(v ? { gstMode: gstModeFor(v.state) } : {}),
+                      });
+                    }}
+                    className={field}
+                    addLabel={isProforma ? "Add new dealer" : "Add new vendor"}
+                    searchPlaceholder={isProforma ? "Search dealer" : "Search vendor"}
+                    onAddClick={() => setPartyOpen(true)}
+                  >
+                    <option value="">{isProforma ? "Select a dealer…" : "Select a vendor…"}</option>
+                    {!vendor && draft.vendorId && <option value={draft.vendorId}>{draft.vendorName || "Unknown vendor"}</option>}
+                    {vendors.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name}{v.code ? ` (${v.code})` : ""}
+                      </option>
+                    ))}
+                  </SelectField>
+                ),
+              },
+              ...(vendor
+                ? [
+                    { label: "Code", node: cellText(vendor.code ?? "") },
+                    { label: "GST No", node: cellText(vendor.gst) },
+                    { label: "Contact", node: cellText(vendor.contacts.map((c) => [c.name, c.phone].filter(Boolean).join(": ")).join("\n")) },
+                    { label: "Email", node: cellText((vendor.emails ?? []).join(", ")) },
+                    { label: "Address", node: cellText([vendor.address, vendor.city, vendor.state].filter(Boolean).join(", ")) },
+                  ]
+                : []),
+            ])}
+          </SpecTable>
           </div>
-          )}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="e-ppt">{isProforma ? "Proforma Product Type" : "Purchase Product Type"} <span className="text-error">*</span></Label>
-            <SelectField
-              id="e-ppt"
-              className={field}
-              value={draft.material.productTypeId ?? ""}
-              onChange={(e) =>
-                set({ material: { ...draft.material, productTypeId: e.target.value || undefined } })
-              }
-              addLabel={isProforma ? "Add new proforma product type" : "Add new purchase product type"}
-              searchPlaceholder={isProforma ? "Search proforma product type" : "Search purchase product type"}
-              // Opens the same Add form as Purchase Material Library > Purchase Product Type; the new type is picked here.
-              onAddClick={() => setProductTypeDialog(true)}
-            >
-              <option value="">Select product type…</option>
-              {productTypes.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}{m.description ? ` (${m.description})` : ""}
-                </option>
-              ))}
-            </SelectField>
+          <div role="tabpanel" className={tab === "details" ? "block" : "hidden"}>
+          <SpecTable>
+            {pairRows([
+              ...(!isProforma
+                ? [{
+                    label: "Customer",
+                    required: true,
+                    node: (
+                      <SelectField
+                        aria-label="Customer"
+                        className={field}
+                        value={draft.customerId ?? ""}
+                        onChange={(e) => {
+                          const c = customers.find((x) => x.id === e.target.value);
+                          set({ customerId: c?.id ?? null });
+                        }}
+                      >
+                        <option value="">Select customer</option>
+                        {[...customers].sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
+                          <option key={c.id} value={c.id}>{c.name} ({custCode(c)})</option>
+                        ))}
+                      </SelectField>
+                    ),
+                  }]
+                : []),
+              {
+                label: isProforma ? "Proforma Product Type" : "Purchase Product Type",
+                required: true,
+                node: (
+                  <SelectField
+                    id="e-ppt"
+                    className={field}
+                    value={draft.material.productTypeId ?? ""}
+                    onChange={(e) => set({ material: { ...draft.material, productTypeId: e.target.value || undefined } })}
+                    addLabel={isProforma ? "Add new proforma product type" : "Add new purchase product type"}
+                    searchPlaceholder={isProforma ? "Search proforma product type" : "Search purchase product type"}
+                    // Opens the same Add form as Purchase Material Library > Purchase Product Type; the new type is picked here.
+                    onAddClick={() => setProductTypeDialog(true)}
+                  >
+                    <option value="">Select product type…</option>
+                    {productTypes.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}{m.description ? ` (${m.description})` : ""}
+                      </option>
+                    ))}
+                  </SelectField>
+                ),
+              },
+              {
+                label: isProforma ? "PI Number" : "PO Number",
+                required: true,
+                node: (
+                  <>
+                    <Input id="e-po" value={draft.poNumber} onChange={(e) => set({ poNumber: e.target.value })} placeholder={isProforma ? "Type the PI number" : "Type the PO number"} className="bg-white font-number" />
+                    {draft.poNumber.trim() && orders.some((o) => o.id !== draft.id && o.poNumber.trim().toLowerCase() === draft.poNumber.trim().toLowerCase()) && (
+                      <span className="text-xs font-body text-error">{isProforma ? "Another proforma invoice already uses this number." : "Another purchase order already uses this number."}</span>
+                    )}
+                  </>
+                ),
+              },
+              {
+                label: isProforma ? "PI Date" : "PO Date",
+                required: true,
+                node: (
+                  <Input
+                    id="e-date"
+                    type="date"
+                    value={draft.poDate}
+                    onChange={(e) => set({ poDate: e.target.value, ...(e.target.value ? { requiredDate: addDaysIso(e.target.value, 10) } : {}) })}
+                    className="bg-white font-number"
+                  />
+                ),
+              },
+              { label: "Required Date", node: <Input id="e-req" type="date" value={draft.requiredDate} onChange={(e) => set({ requiredDate: e.target.value })} className="bg-white font-number" /> },
+              { label: "Approx Delivery Date", node: <Input id="e-approx" type="date" value={draft.material.approxDeliveryDate ?? ""} onChange={(e) => setMaterial({ approxDeliveryDate: e.target.value || undefined })} className="bg-white font-number" /> },
+              {
+                label: isProforma ? "Proforma Type" : "Purchase Order Type",
+                node: (
+                  <SelectField
+                    id="e-otype"
+                    className={field}
+                    value={draft.material.orderType ?? ""}
+                    onChange={(e) => setMaterial({ orderType: e.target.value || undefined })}
+                    addLabel={isProforma ? "Add new proforma type" : "Add new purchase order type"}
+                    searchPlaceholder={isProforma ? "Search proforma type" : "Search purchase order type"}
+                    // Opens the same Add form as Purchase Material Library > Purchase Order Type; the new type is picked here.
+                    onAddClick={() => setOrderTypeDialog(true)}
+                  >
+                    <option value="">{isProforma ? "Select proforma type…" : "Select order type…"}</option>
+                    {materials.filter((m) => m.category === libKey(lib, "purchase-order-type") && !m.deleted).map((m) => (
+                      <option key={m.id} value={m.name}>{m.name}</option>
+                    ))}
+                  </SelectField>
+                ),
+              },
+              { label: isProforma ? "Dealer Ref" : "Vendor PI No", node: <Input id="e-pino" value={draft.material.vendorPiNo ?? ""} onChange={(e) => setMaterial({ vendorPiNo: e.target.value || undefined })} className="bg-white font-number" /> },
+              { label: isProforma ? "Dealer Ref Date" : "Vendor PI Date", node: <Input id="e-pidate" type="date" value={draft.material.vendorPiDate ?? ""} onChange={(e) => setMaterial({ vendorPiDate: e.target.value || undefined })} className="bg-white font-number" /> },
+              ...(!isProforma
+                ? [{
+                    label: "Vendor PI Amount",
+                    node: (
+                      <Input id="e-piamt" key={draft.id} type="text" inputMode="decimal" placeholder="0.00" defaultValue={draft.material.vendorPiAmount === undefined ? "" : draft.material.vendorPiAmount.toFixed(2)}
+                        onChange={(e) => { const v = e.target.value.replace(/[^\d.]/g, ""); if (v !== e.target.value || /\.\d{3,}|\..*\./.test(v)) { e.target.value = v.replace(/(\.\d*)\./, "$1").replace(/(\.\d{2}).*/, "$1"); } const n = Number(e.target.value); setMaterial({ vendorPiAmount: e.target.value === "" || Number.isNaN(n) ? undefined : n }); }}
+                        onBlur={(e) => { const n = Number(e.target.value); e.target.value = e.target.value === "" || Number.isNaN(n) ? "" : n.toFixed(2); }} className="bg-white font-number" />
+                    ),
+                  }]
+                : []),
+              {
+                label: "Order Tracker",
+                node: (
+                  <div className="flex w-fit items-center gap-2 px-1 py-1">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm font-body text-grey-700">
+                      <input type="checkbox" checked={!!draft.material.highlight} onChange={(e) => setMaterial({ highlight: e.target.checked || undefined })} className="h-4 w-4 accent-primary" />
+                      Highlight in Order Tracker
+                    </label>
+                    {draft.material.highlight && (
+                      <ColourPopover value={draft.material.highlightColor ?? (isProforma ? "#ffff00" : "#b6d7a8")} onChange={(hex) => setMaterial({ highlightColor: hex })} reset={isProforma ? "#ffff00" : "#b6d7a8"} label="Row colour in the Order Tracker" />
+                    )}
+                  </div>
+                ),
+              },
+            ])}
+          </SpecTable>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="e-po">{isProforma ? "PI Number" : "PO Number"} <span className="text-error">*</span></Label>
-            <Input id="e-po" value={draft.poNumber} onChange={(e) => set({ poNumber: e.target.value })} placeholder={isProforma ? "Type the PI number" : "Type the PO number"} className="bg-white font-number" />
-            {draft.poNumber.trim() && orders.some((o) => o.id !== draft.id && o.poNumber.trim().toLowerCase() === draft.poNumber.trim().toLowerCase()) && (
-              <span className="text-xs font-body text-error">{isProforma ? "Another proforma invoice already uses this number." : "Another purchase order already uses this number."}</span>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="e-date">{isProforma ? "PI Date" : "PO Date"} <span className="text-error">*</span></Label>
-              <Input
-                id="e-date"
-                type="date"
-                value={draft.poDate}
-                onChange={(e) => set({ poDate: e.target.value, ...(e.target.value ? { requiredDate: addDaysIso(e.target.value, 10) } : {}) })}
-                className="bg-white font-number"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="e-req">Required Date</Label>
-              <Input id="e-req" type="date" value={draft.requiredDate} onChange={(e) => set({ requiredDate: e.target.value })} className="bg-white font-number" />
-            </div>
-          </div>
-          <>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="e-approx">Approx Delivery Date</Label>
-            <Input id="e-approx" type="date" value={draft.material.approxDeliveryDate ?? ""} onChange={(e) => setMaterial({ approxDeliveryDate: e.target.value || undefined })} className="bg-white font-number" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="e-otype">{isProforma ? "Proforma Type" : "Purchase Order Type"}</Label>
-            <SelectField
-              id="e-otype"
-              className={field}
-              value={draft.material.orderType ?? ""}
-              onChange={(e) => setMaterial({ orderType: e.target.value || undefined })}
-              addLabel={isProforma ? "Add new proforma type" : "Add new purchase order type"}
-              searchPlaceholder={isProforma ? "Search proforma type" : "Search purchase order type"}
-              // Opens the same Add form as Purchase Material Library > Purchase Order Type; the new type is picked here.
-              onAddClick={() => setOrderTypeDialog(true)}
-            >
-              <option value="">{isProforma ? "Select proforma type…" : "Select order type…"}</option>
-              {materials.filter((m) => m.category === libKey(lib, "purchase-order-type") && !m.deleted).map((m) => (
-                <option key={m.id} value={m.name}>{m.name}</option>
-              ))}
-            </SelectField>
-          </div>
-          <div className="contents">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="e-pino">{isProforma ? "Dealer Ref" : "Vendor PI No"}</Label>
-              <Input id="e-pino" value={draft.material.vendorPiNo ?? ""} onChange={(e) => setMaterial({ vendorPiNo: e.target.value || undefined })} className="bg-white font-number" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="e-pidate">{isProforma ? "Dealer Ref Date" : "Vendor PI Date"}</Label>
-              <Input id="e-pidate" type="date" value={draft.material.vendorPiDate ?? ""} onChange={(e) => setMaterial({ vendorPiDate: e.target.value || undefined })} className="bg-white font-number" />
-            </div>
-          </div>
-          {!isProforma && (
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="e-piamt">Vendor PI Amount</Label>
-            <Input id="e-piamt" key={draft.id} type="text" inputMode="decimal" placeholder="0.00" defaultValue={draft.material.vendorPiAmount === undefined ? "" : draft.material.vendorPiAmount.toFixed(2)}
-              onChange={(e) => { const v = e.target.value.replace(/[^\d.]/g, ""); if (v !== e.target.value || /\.\d{3,}|\..*\./.test(v)) { e.target.value = v.replace(/(\.\d*)\./, "$1").replace(/(\.\d{2}).*/, "$1"); } const n = Number(e.target.value); setMaterial({ vendorPiAmount: e.target.value === "" || Number.isNaN(n) ? undefined : n }); }}
-              onBlur={(e) => { const n = Number(e.target.value); e.target.value = e.target.value === "" || Number.isNaN(n) ? "" : n.toFixed(2); }} className="bg-white font-number" />
-          </div>
-          )}
-          <div className="col-span-full flex w-fit items-center gap-2">
-            <label className="flex cursor-pointer items-center gap-2 text-sm font-body text-grey-700">
-              <input type="checkbox" checked={!!draft.material.highlight} onChange={(e) => setMaterial({ highlight: e.target.checked || undefined })} className="h-4 w-4 accent-primary" />
-              Highlight in Order Tracker
-            </label>
-            {draft.material.highlight && (
-              <ColourPopover value={draft.material.highlightColor ?? (isProforma ? "#ffff00" : "#b6d7a8")} onChange={(hex) => setMaterial({ highlightColor: hex })} reset={isProforma ? "#ffff00" : "#b6d7a8"} label="Row colour in the Order Tracker" />
-            )}
-          </div>
-          </>
-        </PoSection>
-
+          <div role="tabpanel" className={tab === "material" ? "block" : "hidden"}>
         <section className="po-card rounded-xl border border-t-4 border-stone/60 border-t-stone bg-stone/40 p-4 shadow-sm">
           <h2 className="font-heading text-lg font-semibold text-grey-900">Material Details</h2>
           {/* Two columns on wide screens: Raw Material | Primary on top, Secondary under. */}
@@ -937,9 +1004,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             {finishTable("Secondary Color Selection", "secondary")}
           </div>
         </section>
-      </div>
-
-      <div className={card}>
+          </div>
+          <div role="tabpanel" className={tab === "lines" ? "block" : "hidden"}>
+      <div className={`${card} po-dense`}>
         <div className="flex items-center justify-between gap-3">
           {shownView === "cabinet" && (
             <h2 className="font-heading text-base font-semibold text-grey-900">
@@ -1196,8 +1263,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                     .map((no) => {
                       const c = cabinetFor(no);
                       return (
-                        <div key={no} className="rounded-2xl bg-blush p-3">
-                          <div className="rounded-xl bg-blush p-3">
+                        <div key={no} className="unit-row border-b border-grey-100 bg-card px-2 py-1">
+                          <div>
                           <PoLinesTable
                             group={g.key}
                             title={g.label}
@@ -1270,6 +1337,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           })
           : (
             <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
+              <PoCabinetListHeader />
               {cabinetNos.map((no) => (
               <SortableCabinet key={no} no={no}>
               <PoCabinetCard
@@ -1297,6 +1365,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             </Button>
           </div>
         )}
+      </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

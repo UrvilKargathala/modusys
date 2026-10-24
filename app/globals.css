@@ -668,3 +668,84 @@
 .unit-top:not(.unit-head) button[aria-haspopup] span,
 .unit-top:not(.unit-head) select,
 .unit-top:not(.unit-head) .num:not(.text-primary) { color: inherit; }
+
+/* Lines on a purchase order / direct PO / proforma invoice: 11px, text in Outfit Light, numbers in Manrope, tight rows. */
+.po-dense table { font-size: 11px; }
+.po-dense th { padding-block: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.po-dense td { padding-block: 0; }
+.po-dense td input,
+.po-dense td select,
+.po-dense td button[aria-haspopup] { height: 24px; font-size: 11px; font-family: var(--font-number), system-ui, sans-serif; }
+.po-dense td span,
+.po-dense td .font-number { font-size: 11px; }
+.po-dense .font-number { font-family: var(--font-manrope), system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+/* The cabinet blocks and line groups around the PO lines (blush cards, field rows, group bands): same tight 11px look. */
+.po-dense.p-5 { padding: 10px; }
+.po-dense.gap-4 { gap: 8px; }
+.po-dense .p-3 { padding: 6px; }
+.po-dense .rounded-2xl,
+.po-dense .rounded-xl { border-radius: 8px; }
+.po-dense .gap-3 { gap: 6px; }
+.po-dense .gap-2 { gap: 4px; }
+.po-dense .py-2 { padding-block: 4px; }
+.po-dense input:not([type="checkbox"]),
+.po-dense select,
+.po-dense button[aria-haspopup],
+.po-dense .h-9,
+.po-dense .h-8 { height: 24px; font-size: 11px; font-family: var(--font-number), system-ui, sans-serif; }
+.po-dense label span,
+.po-dense label,
+.po-dense button,
+.po-dense p { font-size: 11px; }
+.po-dense h2,
+.po-dense h3 { font-size: 11px; line-height: 1.3; }
+.po-dense .font-number { font-size: 11px; }
+.po-dense input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+.po-dense input[type="number"]::-webkit-inner-spin-button,
+.po-dense input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* The two nested blush cards of a cabinet block share one thin frame. */
+.po-dense .rounded-2xl.bg-blush { padding: 3px; }
+.po-dense .rounded-xl.bg-blush { padding: 4px 6px 4px 30px; }
+.po-dense .pl-8 { padding-left: 0; }
+
+/* Everything in the PO lines area is 11px; cabinet rows leave room between the drag handle and the expand arrow. */
+.po-dense,
+.po-dense * { font-size: 11px; }
+.po-dense .unit-row { padding-left: 8px; }
+/* Only rows with a drag handle (inside a sortable cabinet) leave room for it. */
+.po-dense .relative > .unit-row { padding-left: 40px; }
+
+/* Tighter spacing in the cabinet list: no gap between cabinet lines (they carry their own divider), 24px buttons, thin group bands. */
+.po-dense .relative:has(> .unit-row) + .relative:has(> .unit-row) { margin-top: -8px; }
+.po-dense .h-7 { height: 24px; }
+.po-dense .border-l-4 { padding-block: 1px; }
+.po-dense .unit-row { padding-block: 2px; }
+
+/* By Unit cabinet list drawn as a table: a line between every cell, the header row and each cabinet line share one grid. */
+.po-dense .cab-table { column-gap: 0; }
+.po-dense .cab-table > .cell { display: flex; align-items: center; gap: 2px; min-width: 0; min-height: 28px; padding-inline: 4px; border-right: 1px solid var(--color-grey-100); }
+.po-dense .cab-table > .cell:last-child { border-right: 0; }
+.po-dense .cab-head > .cell { border-right-color: var(--color-grey-200); padding-block: 4px; }
+.po-dense .cab-table input,
+.po-dense .cab-table select,
+.po-dense .cab-table button[aria-haspopup] { width: 100%; }
+.po-dense .relative > .unit-row { border: 1px solid var(--color-grey-100); border-top: 0; padding-block: 0; }
+
+/* PO line tables: light grey header with small capitals and a line between every cell; numbers in Manrope. */
+.po-dense table { border-collapse: collapse; }
+.po-dense thead,
+.po-dense thead th { background-color: #F4F4F5; color: var(--color-grey-600); }
+.po-dense th,
+.po-dense td { border: 1px solid #ECECEE; }
+.po-dense td input.font-number,
+.po-dense td input[type="number"],
+.po-dense td .font-number { font-family: var(--font-manrope), system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+/* Every number in the PO lines area (cabinet table amounts, W/D/H/Qty, line amounts and sq.ft) is Manrope. */
+.po-dense .num,
+.po-dense .font-number,
+.po-dense input[type="number"],
+.po-dense td input.font-number,
+.po-dense .cab-table .cell.num { font-family: var(--font-manrope), system-ui, sans-serif !important; font-variant-numeric: tabular-nums; }

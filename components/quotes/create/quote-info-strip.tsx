@@ -29,7 +29,7 @@ function useFinalOffer(quote: Quote) {
   ).finalOffer;
 }
 
-function Cell({ icon, label, children, className }: { icon: ReactNode; label: string; children: ReactNode; className?: string }) {
+export function StripCell({ icon, label, children, className }: { icon: ReactNode; label: string; children: ReactNode; className?: string }) {
   return (
     <div className={cn("flex min-w-0 items-center gap-3 bg-[#F0E4E4] px-4 py-2.5", className)}>
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/70 text-primary">{icon}</span>
@@ -52,21 +52,21 @@ export function QuoteInfoStrip({ quote }: { quote: Quote }) {
   // gap-px over a grey background draws the dividers between cells at every width.
   return (
     <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-grey-100 bg-white sm:grid-cols-2 lg:grid-cols-5">
-      <Cell icon={<User className="h-4 w-4" />} label="Customer">{customer ?? "Not selected"}</Cell>
-      <Cell icon={<UserRound className="h-4 w-4" />} label="Architect">{architect ?? "Not selected"}</Cell>
-      <Cell icon={<Calendar className="h-4 w-4" />} label="Quote Date">
+      <StripCell icon={<User className="h-4 w-4" />} label="Customer">{customer ?? "Not selected"}</StripCell>
+      <StripCell icon={<UserRound className="h-4 w-4" />} label="Architect">{architect ?? "Not selected"}</StripCell>
+      <StripCell icon={<Calendar className="h-4 w-4" />} label="Quote Date">
         <span className="font-number">{formatDate(quote.date)}</span>
         <span className="ml-2 font-number text-xs font-normal text-grey-500">Rev {quote.revision}</span>
-      </Cell>
-      <Cell icon={<Activity className="h-4 w-4" />} label="Status">
+      </StripCell>
+      <StripCell icon={<Activity className="h-4 w-4" />} label="Status">
         <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium", status.bg, status.color)}>
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
           {status.label}
         </span>
-      </Cell>
-      <Cell icon={<IndianRupee className="h-4 w-4" />} label="Final Offer">
+      </StripCell>
+      <StripCell icon={<IndianRupee className="h-4 w-4" />} label="Final Offer">
         <span className="font-number">{formatInr(finalOffer)}</span>
-      </Cell>
+      </StripCell>
     </div>
   );
 }

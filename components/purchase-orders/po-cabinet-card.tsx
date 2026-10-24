@@ -25,15 +25,15 @@ import { PO_GROUPS, lineAmount, mostUsed, type PoCabinet, type PurchaseOrderLine
 // underneath, grouped Carcass / Shutter / Other Panel / Hardware — the same flow as the quote.
 // W/D/H/Qty start as the quote's cabinet size and are editable; the rows are snapshots, so they only
 // change when you press Auto Populate (same as the quote: carcass rows only, from the cabinet type's formulas).
-// A form field with its label above it.
+// A form field with its label beside it (one line per field, so a cabinet's fields take few lines).
 export { selectOnClick } from "@/components/shared/select-on-click";
 import { selectOnClick } from "@/components/shared/select-on-click";
 export const fieldInput = "h-9 w-full rounded-lg border border-grey-100 bg-card px-2 text-[13px] font-body text-grey-900 outline-none focus:border-primary";
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+export function Field({ label, children, stacked }: { label: string; children: React.ReactNode; stacked?: boolean }) {
   return (
-    <label className="flex min-w-0 flex-col gap-1 text-xs">
-      <span className="font-semibold text-grey-900">{label}</span>
-      {children}
+    <label className={stacked ? "flex min-w-0 flex-col gap-0.5 text-xs" : "flex min-w-0 items-center gap-1.5 text-xs"}>
+      <span className={stacked ? "font-body font-medium text-grey-600" : "shrink-0 whitespace-nowrap font-semibold text-grey-900"}>{label}</span>
+      <span className="min-w-0 flex-1">{children}</span>
     </label>
   );
 }
@@ -50,6 +50,23 @@ export function PoCabinetVendorSelect({ srNo, cabinet, onCabinetChange, classNam
         <option key={v.id} value={v.id}>{v.name}</option>
       ))}
     </SelectField>
+  );
+}
+
+// One grid for a cabinet's line and the header row above the list, drawn as a table with a line between cells:
+// expand, no., cabinet type, cabinet name, W, D, H, Qty, the four group amounts, total, buttons, remark.
+export const CABINET_ROW_GRID = "cab-table grid grid-cols-[32px_32px_minmax(150px,1.2fr)_minmax(120px,1fr)_52px_52px_52px_44px_84px_84px_84px_84px_96px_104px_minmax(110px,1fr)] items-stretch";
+export function PoCabinetListHeader() {
+  const heads = ["", "No", "Cabinet Type", "Cabinet Name", "W", "D", "H", "Qty", "Carcass", "Shutter", "Other Panel", "Hardware", "Total", "", "Remark"];
+  const numeric = ["Carcass", "Shutter", "Other Panel", "Hardware", "Total"];
+  return (
+    <div className="pl-[40px] pr-2">
+      <div className={`${CABINET_ROW_GRID} cab-head rounded-t-md border border-grey-200 bg-[#DACCCC] text-sm font-body font-medium text-grey-900`}>
+        {heads.map((h, i) => (
+          <div key={i} className={`cell ${["W", "D", "H", "Qty", "No"].includes(h) ? "justify-center" : numeric.includes(h) ? "justify-end" : ""}`}>{h}</div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -135,71 +152,96 @@ export function PoCabinetCard({
     else onChange(lines.map((l) => (l.srNo === srNo && l.group === "carcass" ? { ...l, ...fields } : l)));
   };
 
+  // A cabinet with no stored details (older PO, or rows added without them) still shows editable fields; the first edit saves them.
+  const cab: PoCabinet = cabinet ?? { label: "", unitName: "", space: "", width: 0, depth: 0, height: 0, qty: 1, cabinetTypeId: "", unitQty: 1, designType };
+  const stackedField = (label: string, node: React.ReactNode) => <Field key={label} label={label} stacked>{node}</Field>;
+  // The less-used fields of a cabinet, labels above the boxes, shown when it is opened.
+  const extras = cabinet && (
+    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-grey-100 px-1 pb-1 pt-1.5 md:grid-cols-3 xl:grid-cols-6">
+      {stackedField("Design", <input aria-label={`Cabinet ${srNo} design`} {...selectOnClick} className={fieldInput} value={cabinet.design ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, design: e.target.value })} />)}
+      {!direct &&
+        stackedField(
+          "Unit Type",
+          <SelectField aria-label={`Cabinet ${srNo} unit type`} className={fieldInput} value={cabinet.unitName ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, unitName: e.target.value })}>
+            <option value="">Select unit type</option>
+            {cabinet.unitName && !unitTypes.some((u) => u.name === cabinet.unitName) && <option value={cabinet.unitName}>{cabinet.unitName}</option>}
+            {unitTypes.map((u) => (
+              <option key={u.id} value={u.name}>{u.name}</option>
+            ))}
+          </SelectField>
+        )}
+      {/* A Proforma Invoice has a dealer for the whole invoice, so no vendor is picked per cabinet. */}
+      {!proforma && stackedField("Vendor", <PoCabinetVendorSelect srNo={srNo} cabinet={cabinet} onCabinetChange={(c) => ask("vendor", !!cabinet.vendorId && c.vendorId !== cabinet.vendorId, () => onCabinetChange(c))} />)}
+      {(direct || mine.some((l) => l.group === "carcass")) && (
+        <>
+          {stackedField("Internal Brand & Colour", <PoFinishSelect kind="internal" value={commonCarcass("internalColour")} onChange={(v) => askCarcass("internalColour", v)} />)}
+          {stackedField("External Brand & Colour", <PoFinishSelect kind="external" value={commonCarcass("externalColour")} onChange={(v) => askCarcass("externalColour", v)} />)}
+          {stackedField("Material", <PoRawMaterialSelect value={commonCarcass("material")} onChange={(v) => askCarcass("material", v)} />)}
+        </>
+      )}
+    </div>
+  );
+
   return (
-    <div className="rounded-2xl bg-blush p-3">
-    <div className="flex flex-col gap-3 rounded-xl bg-blush p-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {isManual && cabinet ? (
-          <div className="flex min-w-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setCollapsed((c) => !c)}
-              aria-label={`${collapsed ? "Expand" : "Collapse"} cabinet ${srNo}`}
-              aria-expanded={!collapsed}
-              className="flex items-center gap-2 hover:text-primary"
-            >
-              {collapsed ? <ChevronRight className="h-4 w-4 shrink-0 text-grey-500" /> : <ChevronDown className="h-4 w-4 shrink-0 text-grey-500" />}
-              <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-primary/20 px-1.5 font-number text-sm font-semibold text-primary">{srNo}</span>
-            </button>
-            {/* Locked: the name comes from the Cabinet Type, so there is nothing to type here. */}
-            <div
-              aria-label={`Cabinet ${srNo} name (set by the Cabinet Type)`}
-              title="Pick a Cabinet Type below; the name is set from it"
-              className="flex h-8 w-72 min-w-0 cursor-not-allowed items-center gap-2 rounded-md border border-grey-100 bg-grey-transparent px-2 text-sm font-body text-grey-400"
-            >
-              <span className="min-w-0 flex-1 truncate">{cabinet.label || "Select a Cabinet Type"}</span>
-            </div>
-          </div>
-        ) : (
-        <div className="flex min-w-0 items-center gap-2">
+    <div className="unit-row border-b border-grey-100 bg-card px-2 py-0.5">
+    <div className="flex flex-col gap-1">
+      {/* One table line per cabinet, the columns named by the header row above the list (PoCabinetListHeader). */}
+      <div className={CABINET_ROW_GRID}>
+        <div className="cell justify-center">
           <button
             type="button"
             onClick={() => setCollapsed((c) => !c)}
             aria-label={`${collapsed ? "Expand" : "Collapse"} cabinet ${srNo}`}
             aria-expanded={!collapsed}
-            className="flex items-center gap-2 hover:text-primary"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-grey-500 hover:bg-primary-transparent hover:text-grey-800"
           >
-            {collapsed ? <ChevronRight className="h-4 w-4 shrink-0 text-grey-500" /> : <ChevronDown className="h-4 w-4 shrink-0 text-grey-500" />}
-            <span className="flex h-7 min-w-7 items-center justify-center rounded-md bg-primary/20 px-1.5 font-number text-sm font-semibold text-primary">{srNo}</span>
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
-          {/* A cabinet with a Cabinet Type has its name filled from the type: shown in a grey locked box. */}
-          <div
-            aria-label={`Cabinet ${srNo} name (set by the Cabinet Type)`}
-            title="Set by the Cabinet Type"
-            className="flex h-8 w-72 min-w-0 cursor-not-allowed items-center gap-2 rounded-md border border-grey-100 bg-grey-transparent px-2 text-sm font-body font-semibold text-grey-700"
-          >
-            <span className="min-w-0 flex-1 truncate">
-              {cabinet?.unitName || name || cabinet?.designType || `Cabinet ${srNo}`}
-              {designType && <span className="ml-2 font-number text-xs font-normal text-error">{designType}</span>}
-            </span>
-          </div>
-          {cabinet?.space && <span className="hidden text-xs font-body text-grey-500 md:inline">{cabinet.space}</span>}
         </div>
-        )}
-        <div className="flex items-center gap-3">
+        <div className="cell num justify-center font-semibold text-primary">{srNo}</div>
+        <div className="cell">
+          <PoCabinetNameSelect field value={cab.designType ?? ""} fallback={cab.label} onChange={(v, cabinetTypeId) => ask("cabinet type", !!cab.designType && v !== cab.designType, () => onCabinetChange({ ...cab, designType: v, cabinetTypeId }))} />
+        </div>
+        <div className="cell">
+          <PoCabinetNameField stacked value={cab.cabinetName ?? ""} onChange={(v) => ask("cabinet name", !!cab.cabinetName && v !== cab.cabinetName, () => onCabinetChange({ ...cab, cabinetName: v }))} />
+        </div>
+        {(["width", "depth", "height", "qty"] as const).map((k) => (
+          <div key={k} className="cell">
+            <input
+              type="number"
+              min={k === "qty" ? 1 : 0}
+              aria-label={`Cabinet ${srNo} ${k}`}
+              {...selectOnClick}
+              className="num text-center"
+              value={cab[k]}
+              onChange={(e) => onCabinetChange({ ...cab, [k]: e.target.value === "" ? 0 : Number(e.target.value) })}
+            />
+          </div>
+        ))}
+        {PO_GROUPS.map((g) => {
+          const amount = mine.filter((l) => l.group === g.key).reduce((t, l) => t + lineAmount(l), 0);
+          return (
+            <div key={g.key} className="cell num justify-end text-grey-700">
+              {mine.some((l) => l.group === g.key) ? formatInr(amount) : "—"}
+            </div>
+          );
+        })}
+        <div className="cell num justify-end font-semibold text-grey-900">
           {/* A Proforma Invoice shows the cabinet's total sq.ft before its amount. */}
-          {proforma && <span className="font-number text-sm text-grey-500">{totalSqft.toFixed(2)} sq.ft</span>}
-          <span className="font-number text-base font-semibold text-grey-900">{formatInr(total)}</span>
+          {proforma && <span className="mr-2 font-normal text-grey-500">{totalSqft.toFixed(2)}</span>}
+          {formatInr(total)}
+        </div>
+        <div className="cell justify-end">
           {cabinet && !isManual && <PoComponentsToggle unitName={cabinet.unitName} cabinet={cabinet} onCabinetChange={onCabinetChange} proforma={proforma} />}
           {cabinet && onCopyCabinet && (
-            <Button type="button" size="icon-sm" variant="outline" className="border-primary/30 bg-primary/15 text-primary hover:bg-primary/25" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
-              <Copy className="h-3.5 w-3.5" />
-            </Button>
+            <button type="button" className="rounded-md p-1 text-grey-400 hover:bg-primary-transparent hover:text-primary" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
+              <Copy className="h-4 w-4" />
+            </button>
           )}
           {cabinet && (
-            <Button type="button" size="icon-sm" variant="outline" className="border-error/30 bg-error-transparent text-error hover:bg-error-100" aria-label="Delete cabinet" title="Delete this cabinet and all its rows" onClick={() => setDeleteOpen(true)}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            <button type="button" className="rounded-md p-1 text-grey-400 hover:bg-error-transparent hover:text-error" aria-label="Delete cabinet" title="Delete this cabinet and all its rows" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4" />
+            </button>
           )}
           {cabinet && !isManual && (
             <Button
@@ -214,70 +256,12 @@ export function PoCabinetCard({
             </Button>
           )}
         </div>
+        <div className="cell">
+          <input aria-label={`Cabinet ${srNo} remark`} {...selectOnClick} placeholder="Remark" value={cab.remark ?? ""} onChange={(e) => onCabinetChange({ ...cab, remark: e.target.value })} />
+        </div>
       </div>
 
-      {cabinet && (
-        <div className="grid grid-cols-2 gap-3 pl-8 md:grid-cols-4 lg:grid-cols-[2fr_2fr_repeat(4,1fr)_2fr_3fr]">
-          <Field label="Cabinet Type">
-            <PoCabinetNameSelect field value={cabinet.designType ?? ""} fallback={cabinet.label} onChange={(v, cabinetTypeId) => ask("cabinet type", !!cabinet.designType && v !== cabinet.designType, () => onCabinetChange({ ...cabinet, designType: v, cabinetTypeId }))} />
-          </Field>
-          <Field label="Cabinet Name">
-            <PoCabinetNameField stacked value={cabinet.cabinetName ?? ""} onChange={(v) => ask("cabinet name", !!cabinet.cabinetName && v !== cabinet.cabinetName, () => onCabinetChange({ ...cabinet, cabinetName: v }))} />
-          </Field>
-          {(["width", "depth", "height", "qty"] as const).map((k) => (
-            <Field key={k} label={k === "qty" ? "Qty" : k === "width" ? "W" : k === "depth" ? "D" : "H"}>
-              <input
-                type="number"
-                min={k === "qty" ? 1 : 0}
-                aria-label={`Cabinet ${srNo} ${k}`}
-                {...selectOnClick}
-                className={fieldInput + " text-right font-number"}
-                value={cabinet[k]}
-                onChange={(e) => onCabinetChange({ ...cabinet, [k]: e.target.value === "" ? 0 : Number(e.target.value) })}
-              />
-            </Field>
-          ))}
-          <Field label="Design">
-            <input aria-label={`Cabinet ${srNo} design`} {...selectOnClick} className={fieldInput} value={cabinet.design ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, design: e.target.value })} />
-          </Field>
-          <Field label="Remark">
-            <input aria-label={`Cabinet ${srNo} remark`} {...selectOnClick} className={fieldInput} value={cabinet.remark ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, remark: e.target.value })} />
-          </Field>
-        </div>
-      )}
-
-      {cabinet && (
-        <div className={`grid grid-cols-1 gap-3 pl-8 ${direct ? (proforma ? "md:grid-cols-3" : "md:grid-cols-4") : "md:grid-cols-5"}`}>
-          {!direct && <Field label="Unit Type">
-            <SelectField aria-label={`Cabinet ${srNo} unit type`} className={fieldInput} value={cabinet.unitName ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, unitName: e.target.value })}>
-              <option value="">Select unit type</option>
-              {cabinet.unitName && !unitTypes.some((u) => u.name === cabinet.unitName) && <option value={cabinet.unitName}>{cabinet.unitName}</option>}
-              {unitTypes.map((u) => (
-                <option key={u.id} value={u.name}>{u.name}</option>
-              ))}
-            </SelectField>
-          </Field>}
-          {/* A Proforma Invoice has a dealer for the whole invoice, so no vendor is picked per cabinet. */}
-          {!proforma && (
-          <Field label="Vendor">
-            <PoCabinetVendorSelect srNo={srNo} cabinet={cabinet} onCabinetChange={(c) => ask("vendor", !!cabinet.vendorId && c.vendorId !== cabinet.vendorId, () => onCabinetChange(c))} />
-          </Field>
-          )}
-          {(direct || mine.some((l) => l.group === "carcass")) && (
-            <>
-          <Field label="Internal Brand & Colour">
-            <PoFinishSelect kind="internal" value={commonCarcass("internalColour")} onChange={(v) => askCarcass("internalColour", v)} />
-          </Field>
-          <Field label="External Brand & Colour">
-            <PoFinishSelect kind="external" value={commonCarcass("externalColour")} onChange={(v) => askCarcass("externalColour", v)} />
-          </Field>
-          <Field label="Material">
-            <PoRawMaterialSelect value={commonCarcass("material")} onChange={(v) => askCarcass("material", v)} />
-          </Field>
-            </>
-          )}
-        </div>
-      )}
+      {!collapsed && extras}
 
       {!collapsed && (
         <>

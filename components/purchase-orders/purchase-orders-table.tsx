@@ -143,8 +143,9 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           </button>
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2" role="tablist" aria-label="Purchase order status">
+      <div className="overflow-hidden rounded-xl border border-grey-100 bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-grey-100 p-2">
+        <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Purchase order status">
           {/* Proforma: Packing has its own tab on the page, so no Packing pill here (its invoices still show under All Invoices). */}
           {(proforma ? ["all", ...statuses.filter((st) => st.toLowerCase() !== "packing" && st !== "in-production")] : statuses).map((st) => (
             <button
@@ -154,7 +155,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
               aria-selected={status === st}
               onClick={() => setStatus(st)}
               className={cn(
-                "rounded-full border px-3.5 py-1.5 text-sm font-body font-medium transition-colors",
+                "rounded-full border px-3 py-1 text-xs font-body font-medium transition-colors",
                 status === st ? "border-primary bg-primary-transparent text-primary" : "border-grey-100 bg-card text-grey-600 hover:bg-light-600"
               )}
             >
@@ -200,14 +201,14 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           cta={status === "pending" && onNew ? { label: proforma ? "Create Proforma Invoice" : direct ? "Create Direct Purchase Order" : "Create Purchase Order", onClick: onNew } : undefined}
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-grey-100">
+        <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-[#DACCCC]">
               <tr>
                 {[proforma ? "PI No" : "PO No", proforma ? "PI Date" : "Date", "Required", proforma ? "Dealer" : "Vendor", "Customer", "Quote", "Amount", "Status", "Actions"].map((h) => (
                   <th
                     key={h}
-                    className={`px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900 ${h === "Amount" ? "text-right" : h === "Actions" ? "text-right" : ""}`}
+                    className={`whitespace-nowrap px-2 py-1 text-sm font-body font-medium text-grey-900 ${h === "Amount" ? "text-right" : h === "Actions" ? "text-right" : ""}`}
                   >
                     {h}
                   </th>
@@ -216,17 +217,17 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
             </thead>
             <tbody>
               {paged.map(({ po, customer, quote, total }) => (
-                <tr key={po.id} className="border-t border-grey-100">
-                  <td className="px-4 py-1.5 font-number text-sm text-grey-900">
+                <tr key={po.id} className="border-t border-grey-100 hover:bg-light-600/60">
+                  <td className="px-2 py-1 font-number text-sm text-grey-900">
                     <Link href={`${base}/${po.id}`} className="text-primary hover:underline">{po.poNumber || <span className="text-grey-400">Not set</span>}</Link>
                   </td>
-                  <td className="px-4 py-1.5 font-number text-sm text-grey-700">{formatPoDate(po.poDate)}</td>
-                  <td className="px-4 py-1.5 font-number text-sm text-grey-700">{formatPoDate(po.requiredDate)}</td>
-                  <td className="px-4 py-1.5 text-sm font-body text-grey-900">{po.vendorName || <span className="text-grey-400">No vendor yet</span>}</td>
-                  <td className="px-4 py-1.5 text-sm font-body text-grey-700">{customer || "—"}</td>
-                  <td className="px-4 py-1.5 font-number text-sm text-grey-700">{quote || "—"}</td>
-                  <td className="px-4 py-1.5 text-right font-number text-sm text-grey-900">{formatInr(total)}</td>
-                  <td className="px-4 py-1.5">
+                  <td className="px-2 py-1 font-number text-sm text-grey-700">{formatPoDate(po.poDate)}</td>
+                  <td className="px-2 py-1 font-number text-sm text-grey-700">{formatPoDate(po.requiredDate)}</td>
+                  <td className="px-2 py-1 text-sm font-body text-grey-900">{po.vendorName || <span className="text-grey-400">No vendor yet</span>}</td>
+                  <td className="px-2 py-1 text-sm font-body text-grey-700">{customer || "—"}</td>
+                  <td className="px-2 py-1 font-number text-sm text-grey-700">{quote || "—"}</td>
+                  <td className="px-2 py-1 text-right font-number text-sm text-grey-900">{formatInr(total)}</td>
+                  <td className="px-2 py-1">
                     {/* Changeable here like the Quotes status. Completing needs the PO's required fields filled in. */}
                     <StatusMenu
                       label={`Status of ${po.poNumber || "this PO"}`}
@@ -236,7 +237,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                       onAdd={(name) => addStatus(po, name)}
                     />
                   </td>
-                  <td className="px-4 py-1.5">
+                  <td className="px-2 py-1">
                     <PoRowActions po={po} proforma={proforma} base={base} showPacking />
                   </td>
                 </tr>
@@ -245,6 +246,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           </table>
         </div>
       )}
+      </div>
       <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
     </div>
   );
