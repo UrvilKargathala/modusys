@@ -58,19 +58,18 @@ export function PoCabinetVendorSelect({ srNo, cabinet, onCabinetChange, classNam
 // material, total, buttons, remark.
 // (Whole class names, so Tailwind sees them.)
 const GRID_WITH_VENDOR =
-  "cab-table grid grid-cols-[32px_32px_minmax(160px,1.4fr)_minmax(130px,1.1fr)_minmax(70px,0.8fr)_minmax(90px,1fr)_46px_46px_46px_40px_minmax(125px,1.2fr)_minmax(125px,1.2fr)_minmax(90px,1fr)_86px_44px_minmax(110px,0.8fr)_124px] items-stretch";
+  "cab-table grid grid-cols-[32px_48px_minmax(200px,1.6fr)_minmax(130px,1.1fr)_minmax(70px,0.8fr)_minmax(90px,1fr)_56px_56px_56px_40px_minmax(125px,1.2fr)_minmax(125px,1.2fr)_minmax(90px,1fr)_86px_minmax(110px,0.8fr)_150px] items-stretch";
 const GRID_NO_VENDOR =
-  "cab-table grid grid-cols-[32px_32px_minmax(160px,1.4fr)_minmax(130px,1.1fr)_minmax(70px,0.8fr)_46px_46px_46px_40px_minmax(125px,1.2fr)_minmax(125px,1.2fr)_minmax(90px,1fr)_86px_44px_minmax(110px,0.8fr)_124px] items-stretch";
+  "cab-table grid grid-cols-[32px_48px_minmax(200px,1.6fr)_minmax(130px,1.1fr)_minmax(70px,0.8fr)_56px_56px_56px_40px_minmax(125px,1.2fr)_minmax(125px,1.2fr)_minmax(90px,1fr)_64px_100px_minmax(110px,0.8fr)_150px] items-stretch";
 export const cabinetRowGrid = (proforma: boolean) => (proforma ? GRID_NO_VENDOR : GRID_WITH_VENDOR);
 export function PoCabinetListHeader({ proforma = false }: { proforma?: boolean }) {
-  const heads = ["", "No", "Cabinet Type", "Cabinet Name", "Design", ...(proforma ? [] : ["Vendor"]), "W", "D", "H", "Qty", "Internal", "External", "Material", "Total", "", "Remark", "Action"];
-  const numeric = ["Total"];
+  const heads = ["", "Sr No", "Cabinet Type", "Cabinet Name", "Design", ...(proforma ? [] : ["Vendor"]), "Width", "Depth", "Height", "Qty", "Internal Colour", "External Colour", "Material", ...(proforma ? ["Sq.Ft"] : []), "Total", "Remarks", "Action"];
   return (
     // The pink band runs the full width of the list; the grid inside lines up with the cabinet lines below it.
     <div className="rounded-t-md border border-grey-200 bg-[#DACCCC] pl-[40px] pr-2">
-      <div className={`${cabinetRowGrid(proforma)} cab-head text-sm font-body font-medium text-grey-900`}>
+      <div className={`${cabinetRowGrid(proforma)} cab-head whitespace-nowrap text-sm font-body font-bold text-grey-900`}>
         {heads.map((h, i) => (
-          <div key={i} className={`cell ${["W", "D", "H", "Qty", "No", "Action"].includes(h) ? "justify-center" : numeric.includes(h) ? "justify-end" : ""}`}>{h}</div>
+          <div key={i} className="cell justify-center text-center">{h}</div>
         ))}
       </div>
     </div>
@@ -243,18 +242,14 @@ export function PoCabinetCard({
             <div className="cell justify-center text-grey-400">—</div>
           </>
         )}
-        <div className="cell num justify-end font-semibold text-grey-900">
-          {/* A Proforma Invoice shows the cabinet's total sq.ft before its amount. */}
-          {proforma && <span className="mr-2 font-normal text-grey-500">{totalSqft.toFixed(2)}</span>}
-          {formatInr(total)}
-        </div>
-        <div className="cell justify-end">
-          {cabinet && !isManual && <PoComponentsToggle unitName={cabinet.unitName} cabinet={cabinet} onCabinetChange={onCabinetChange} proforma={proforma} />}
-        </div>
+        {/* A Proforma Invoice shows the cabinet's total sq.ft in its own column before the amount. */}
+        {proforma && <div className="cell num justify-end text-grey-700">{totalSqft.toFixed(2)}</div>}
+        <div className="cell num justify-end font-semibold text-grey-900">{formatInr(total)}</div>
         <div className="cell">
           <input aria-label={`Cabinet ${srNo} remark`} {...selectOnClick} placeholder="Remark" value={cab.remark ?? ""} onChange={(e) => onCabinetChange({ ...cab, remark: e.target.value })} />
         </div>
         <div className="cell justify-center gap-0.5">
+          {cabinet && !isManual && <PoComponentsToggle unitName={cabinet.unitName} cabinet={cabinet} onCabinetChange={onCabinetChange} proforma={proforma} />}
           {onCopyCabinet && (
             <button type="button" className="rounded-md p-1 text-grey-400 hover:bg-primary-transparent hover:text-primary" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
               <Copy className="h-4 w-4" />

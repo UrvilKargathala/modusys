@@ -80,7 +80,7 @@ export function PoCabinetBlock({
         srNo={srNo}
         vars={cabinet ? { W: cabinet.width, D: cabinet.depth, H: cabinet.height } : undefined}
         // The cabinet drawn as one table line (same columns as By Unit); the group's rows open underneath.
-        renderBand={({ collapsed, toggle, total }) => (
+        renderBand={({ collapsed, toggle, total, totalSqft }) => (
           <>
             <div className={cabinetRowGrid(proforma)}>
               <div className="cell justify-center">
@@ -141,14 +141,13 @@ export function PoCabinetBlock({
                   <div className="cell justify-center text-grey-400">—</div>
                 </>
               )}
+              {proforma && group !== "hardware" && <div className="cell num justify-end text-grey-700">{totalSqft.toFixed(2)}</div>}
               <div className="cell num justify-end font-semibold text-grey-900">{formatInr(total)}</div>
-              <div className="cell justify-end">
-                {group === "carcass" && cabinet && <PoComponentsToggle unitName={cabinet.unitName} cabinet={cabinet} onCabinetChange={onCabinetChange} />}
-              </div>
               <div className="cell">
                 <input aria-label={`Cabinet ${srNo} remark`} {...selectOnClick} placeholder="Remark" value={cab.remark ?? ""} onChange={(e) => onCabinetChange({ ...cab, remark: e.target.value })} />
               </div>
               <div className="cell justify-center gap-0.5">
+                {group === "carcass" && cabinet && <PoComponentsToggle unitName={cabinet.unitName} cabinet={cabinet} onCabinetChange={onCabinetChange} />}
                 <button type="button" className={iconBtn} aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
                   <Copy className="h-4 w-4" />
                 </button>

@@ -671,7 +671,7 @@
 
 /* Lines on a purchase order / direct PO / proforma invoice: 11px, text in Outfit Light, numbers in Manrope, tight rows. */
 .po-dense table { font-size: 11px; }
-.po-dense th { padding-block: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.po-dense th { padding-block: 4px; font-size: 10px; text-transform: capitalize; letter-spacing: 0; font-weight: 600; }
 .po-dense td { padding-block: 0; }
 .po-dense td input,
 .po-dense td select,
@@ -764,7 +764,7 @@
 .po-dense td { white-space: nowrap; }
 .po-dense td input.text-right { display: block; margin-left: auto; }
 /* The Description column stays wide (the other columns follow their text). */
-.po-dense thead th.w-72 { width: 16rem; min-width: 16rem; }
+.po-dense thead th.w-72 { width: 13rem; min-width: 13rem; }
 /* The Material column is a short code: keep it small. */
 .po-dense th[data-col="material"] { width: 6.5rem; min-width: 0; }
 .po-dense td[data-col="material"] > *,
@@ -798,3 +798,19 @@
 /* The Action cell stays at the right edge while the cabinet table scrolls sideways. */
 .po-dense .cab-table > .cell:last-child { position: sticky; right: 0; z-index: 2; background-color: var(--color-card); box-shadow: -6px 0 6px -6px rgba(0, 0, 0, 0.18); }
 .po-dense .cab-head > .cell:last-child { background-color: #DACCCC; }
+
+/* Proforma Invoices keep the brand colour behind the line table headings (the other PO pages use the light grey). */
+.po-proforma .po-dense thead,
+.po-proforma .po-dense thead th { background-color: #DACCCC; color: var(--color-grey-900); }
+
+/* Remarks: a wide column, the field fills it. */
+.po-dense th[data-col="remarks"] { width: 18rem; min-width: 18rem; }
+.po-dense td[data-col="remarks"] input:not([type="checkbox"]) { width: 100%; min-width: 16rem; }
+.po-dense th button { text-transform: capitalize; }
+/* Cabinet table: shorter rows and fields. */
+.po-dense .cab-table > .cell { min-height: 24px; }
+.po-dense .cab-table:not(.cab-head) input,
+.po-dense .cab-table:not(.cab-head) select,
+.po-dense .cab-table:not(.cab-head) button[aria-haspopup] { height: 20px; }
+/* Line table headings: taller and centred. */
+.po-dense th { padding-block: 9px; text-align: center; vertical-align: middle; }

@@ -655,14 +655,14 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           <thead className="bg-[#DACCCC]">
             <tr>
               <th className={th}>Thickness</th>
-              <th className={th}>Internal Brand &amp; Colour</th>
-              <th className={th}>External Brand &amp; Colour</th>
+              <th className={th}>Internal Colour</th>
+              <th className={th}>External Colour</th>
               <th className={th}>Raw Material</th>
               {manyVendors && <th className={th}>Vendor</th>}
-              <th className={`${th} text-right`}>Rows</th>
-              <th className={`${th} text-right`}>Total Sq.Ft</th>
-              <th className={`${th} w-40 text-right`}>Price</th>
-              <th className={`${th} text-right`}>Amount</th>
+              <th className={`${th} text-center`}>Rows</th>
+              <th className={`${th} text-center`}>Total Sq.Ft</th>
+              <th className={`${th} w-40`} style={{ textAlign: "right" }}>Price</th>
+              <th className={th} style={{ textAlign: "right" }}>Amount</th>
             </tr>
           </thead>
           <tbody>
@@ -671,13 +671,13 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               const rate = f.rate;
               return (
                 <tr key={key} className="border-t border-grey-100">
-                  <td className="px-3 py-2 text-sm font-number text-grey-900">{f.depth ? `${f.depth} mm` : "—"}</td>
-                  <td className="px-3 py-2 text-sm font-body text-grey-900"><Nums>{f.internalColour || "—"}</Nums></td>
-                  <td className="px-3 py-2 text-sm font-body text-grey-900"><Nums>{f.externalColour || "—"}</Nums></td>
-                  <td className="px-3 py-2 text-sm font-body text-grey-900">{f.material || "—"}</td>
-                  {manyVendors && <td className="px-3 py-2 text-sm font-body text-grey-900">{vendors.find((v) => v.id === vendorOfRow(f))?.name ?? "—"}</td>}
-                  <td className="px-3 py-2 text-right text-sm font-number text-grey-700">{group.length}</td>
-                  <td className="px-3 py-2 text-right text-sm font-number text-grey-700">{group.reduce((t, l) => t + l.sqft, 0).toFixed(2)}</td>
+                  <td className="px-3 py-2 text-center text-sm font-number text-grey-900">{f.depth ? `${f.depth} mm` : "—"}</td>
+                  <td className="px-3 py-2 text-center text-sm font-body text-grey-900"><Nums>{f.internalColour || "—"}</Nums></td>
+                  <td className="px-3 py-2 text-center text-sm font-body text-grey-900"><Nums>{f.externalColour || "—"}</Nums></td>
+                  <td className="px-3 py-2 text-center text-sm font-body text-grey-900">{f.material || "—"}</td>
+                  {manyVendors && <td className="px-3 py-2 text-center text-sm font-body text-grey-900">{vendors.find((v) => v.id === vendorOfRow(f))?.name ?? "—"}</td>}
+                  <td className="px-3 py-2 text-center text-sm font-number text-grey-700">{group.length}</td>
+                  <td className="px-3 py-2 text-center text-sm font-number text-grey-700">{group.reduce((t, l) => t + l.sqft, 0).toFixed(3)}</td>
                   <td className="px-3 py-1.5 text-right">
                     <Input
                       key={`${key}|${rate}`}
@@ -685,7 +685,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                       min={0}
                       step="any"
                       placeholder="0.00"
-                      defaultValue={rate || ""}
+                      defaultValue={rate ? rate.toFixed(2) : ""}
                       aria-label="Price for this combination"
                       onBlur={(e) => setComboRate(key, Number(e.target.value))}
                       onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
@@ -698,25 +698,19 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               );
             })}
           </tbody>
+          <tfoot className="border-t border-grey-100 bg-[#DACCCC]/40">
+            <tr>
+              <td colSpan={manyVendors ? 5 : 4} className="px-3 py-2 text-sm font-body font-semibold text-grey-900">Total</td>
+              <td className="px-3 py-2 text-center text-sm font-number font-semibold text-grey-900">{combos.reduce((t, [, g]) => t + g.length, 0)}</td>
+              <td className="px-3 py-2 text-center text-sm font-number font-semibold text-grey-900">{combos.reduce((t, [, g]) => t + g.reduce((u, l) => u + l.sqft, 0), 0).toFixed(3)}</td>
+              <td />
+              <td className="px-3 py-2 text-right text-sm font-number font-semibold text-grey-900">{formatInr(combos.reduce((t, [, g]) => t + g.reduce((u, l) => u + lineAmount(l), 0), 0))}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     );
   };
-  // Hardware rows have their own MRP and stay as a table.
-  const hardwareTable = (only: (l: PurchaseOrderLine) => boolean) => (
-    <PoLinesTable
-      group="hardware"
-      title="Hardware"
-      lines={draft.lines}
-      only={only}
-      defaultCollapsed
-      varsFor={(no) => {
-        const c = cabinetFor(no);
-        return c ? { W: c.width, D: c.depth, H: c.height } : undefined;
-      }}
-      onChange={(lines) => set({ lines })}
-    />
-  );
   const rateBlock = (
     <div className="flex flex-col gap-3">
       <div className="flex w-fit rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Rates">
@@ -739,7 +733,6 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         ) : (
           <div className="flex flex-col gap-4">
             {comboTable(pendingRows)}
-            {pendingRows.some((l) => l.group === "hardware") && hardwareTable((l) => pendingIds.has(l.id))}
           </div>
         )
       ) : usedRows.length === 0 ? (
@@ -747,7 +740,6 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       ) : (
         <div className="flex flex-col gap-4">
           {comboTable(usedRows)}
-          {usedRows.some((l) => l.group === "hardware") && hardwareTable((l) => l.rate > 0)}
         </div>
       )}
     </div>
@@ -771,7 +763,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         set: (key, value) => setDraft((d) => (d ? { ...d, material: { ...d.material, dimNotes: { ...d.material.dimNotes, [key]: value } } } : d)),
       }}
     >
-    <div ref={rootRef} className={`flex flex-col gap-6${isDirect ? " no-spin" : ""}`}>
+    <div ref={rootRef} className={`flex flex-col gap-6${isDirect ? " no-spin" : ""}${isProforma ? " po-proforma" : ""}`}>
       {/* Stays at the top while the page scrolls. */}
       <div ref={headerRef} className="sticky -top-4 z-30 -mx-4 -mt-4 flex flex-wrap items-center justify-between gap-3 bg-background px-4 pb-2 pt-4 lg:-top-6 lg:-mx-6 lg:-mt-6 lg:bg-grey-transparent lg:px-6 lg:pt-6">
         <div className="flex items-center gap-3">
@@ -1049,8 +1041,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
       <div className={`${card} po-dense`}>
         <div className="flex items-center justify-between gap-3">
           {shownView === "cabinet" && (
-            <h2 className="font-heading text-base font-semibold text-grey-900">
-              {isDirect ? "Items" : <>Cabinets <span className="font-number text-sm font-normal text-grey-500">({cabinetNos.length})</span></>}
+            <h2 className="font-heading text-base font-semibold text-grey-900" style={{ fontSize: 14 }}>
+              {isDirect ? "Item Details" : <>Cabinets <span className="font-number text-sm font-normal text-grey-500">({cabinetNos.length})</span></>}
             </h2>
           )}
           <div className="ml-auto flex items-center gap-2">
@@ -1352,7 +1344,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 </div>
                 {carcassOpen && (
                   <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
-<div className="overflow-x-auto"><div className="min-w-[1470px]">
+<div className="overflow-x-auto"><div className="min-w-[1540px]">
                 <PoCabinetListHeader proforma={isProforma} />
                 {cabinetNos
                   .filter((no) => draft.lines.some((l) => l.group === g.key && l.srNo === no))
@@ -1381,7 +1373,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           })
           : (
             <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
-<div className="overflow-x-auto"><div className="min-w-[1470px]">
+<div className="overflow-x-auto"><div className="min-w-[1540px]">
               <PoCabinetListHeader proforma={isProforma} />
               {cabinetNos.map((no) => (
               <SortableCabinet key={no} no={no}>
@@ -1429,45 +1421,45 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         </div>
         <div className={card}>
           <h2 className="font-heading text-base font-semibold text-grey-900">Totals</h2>
-          <div className="flex flex-col gap-2 text-sm font-body">
-            <div className="flex justify-between"><span>Total Amount</span><span className="font-number">{formatInr(totals.amount)}</span></div>
-            <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col text-sm font-body">
+            <div className="flex h-9 items-center justify-between"><span>Total Amount</span><span className="font-number">{formatInr(totals.amount)}</span></div>
+            <div className="flex h-9 items-center justify-between gap-2">
               <span>Special Discount %</span>
               <input
                 type="number" min={0} max={100} step="any"
                 value={draft.discountPct === 0 ? "" : draft.discountPct}
                 placeholder="0"
                 onChange={(e) => set({ discountPct: e.target.value === "" ? 0 : Number(e.target.value) })}
-                className={`${field} h-8 w-20 text-right font-number`}
+                className={`${field} h-8 w-44 text-right font-number`}
               />
             </div>
-            <div className="flex justify-between"><span>Total After Discount</span><span className="font-number">{formatInr(totals.taxable)}</span></div>
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex h-9 items-center justify-between"><span>Total After Discount</span><span className="font-number">{formatInr(totals.taxable)}</span></div>
+            <div className="flex h-9 items-center justify-between gap-2">
               <span>GST</span>
-              <SelectField value={draft.gstMode} onChange={(e) => set({ gstMode: e.target.value as GstMode })} className={`${field} h-8`}>
+              <SelectField value={draft.gstMode} onChange={(e) => set({ gstMode: e.target.value as GstMode })} className={`${field} h-8 w-44`}>
                 <option value="intra">State + Central (9% + 9%)</option>
                 <option value="inter">Integrated (18%)</option>
               </SelectField>
             </div>
             {draft.gstMode === "intra" ? (
               <>
-                <div className="flex justify-between text-grey-700"><span>State GST 9%</span><span className="font-number">{formatInr(totals.stateGst)}</span></div>
-                <div className="flex justify-between text-grey-700"><span>Central GST 9%</span><span className="font-number">{formatInr(totals.centralGst)}</span></div>
+                <div className="flex h-9 items-center justify-between text-grey-700"><span>State GST 9%</span><span className="font-number">{formatInr(totals.stateGst)}</span></div>
+                <div className="flex h-9 items-center justify-between text-grey-700"><span>Central GST 9%</span><span className="font-number">{formatInr(totals.centralGst)}</span></div>
               </>
             ) : (
-              <div className="flex justify-between text-grey-700"><span>Integrated GST 18%</span><span className="font-number">{formatInr(totals.igst)}</span></div>
+              <div className="flex h-9 items-center justify-between text-grey-700"><span>Integrated GST 18%</span><span className="font-number">{formatInr(totals.igst)}</span></div>
             )}
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex h-9 items-center justify-between gap-2">
               <span>Round Off</span>
               <input
                 type="number" step="any"
                 value={draft.roundOff === 0 ? "" : draft.roundOff}
                 placeholder="0"
                 onChange={(e) => set({ roundOff: e.target.value === "" ? 0 : Number(e.target.value) })}
-                className={`${field} h-8 w-24 text-right font-number`}
+                className={`${field} h-8 w-44 text-right font-number`}
               />
             </div>
-            <div className="flex justify-between border-t border-grey-100 pt-2 font-semibold text-grey-900">
+            <div className="mt-1 flex h-11 items-center justify-between border-t border-grey-100 font-semibold text-grey-900">
               <span>Final Amount</span><span className="font-number">{formatInr(totals.final)}</span>
             </div>
           </div>
