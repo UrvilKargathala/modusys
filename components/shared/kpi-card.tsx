@@ -8,6 +8,8 @@ type KpiCardProps = {
   trend?: { value: string; positive: boolean };
   className?: string;
   notTracked?: boolean;
+  // A short card: icon beside the label and number, no extra height.
+  compact?: boolean;
   accent?: "primary" | "success" | "error" | "warning" | "secondary" | "info" | "orange" | "teal";
 };
 
@@ -23,7 +25,22 @@ const accentStyles: Record<string, string> = {
   teal: "bg-teal-transparent text-teal",
 };
 
-export function KpiCard({ label, value, icon: Icon, trend, className, notTracked, accent = "primary" }: KpiCardProps) {
+export function KpiCard({ label, value, icon: Icon, trend, className, notTracked, compact, accent = "primary" }: KpiCardProps) {
+  if (compact) {
+    return (
+      <div className={cn("flex items-center gap-3 rounded-xl border border-grey-100 bg-white px-3 py-2 shadow-sm", className)}>
+        {Icon && (
+          <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", accentStyles[accent] ?? accentStyles.primary)}>
+            <Icon className="h-4 w-4" />
+          </span>
+        )}
+        <div className="flex min-w-0 flex-col leading-tight">
+          <span className="truncate text-xs font-body font-medium text-grey-600">{label}</span>
+          <span className="truncate text-base font-number font-semibold text-grey-900">{notTracked ? "—" : value}</span>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={cn("flex flex-col gap-3 rounded-xl border border-grey-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-md", className)}>
       <div className="flex items-start justify-between gap-3">

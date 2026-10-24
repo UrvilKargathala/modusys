@@ -752,3 +752,24 @@
 
 /* By Component cabinet lines (no table grid inside): a little room above and below each line. */
 .po-dense .relative > .unit-row:not(:has(.cab-table)) { padding-block: 7px; }
+
+/* An opened cabinet: some room between its table line and its rows, and below it before the next cabinet. */
+.po-dense .relative > .unit-row > .flex.flex-col:has(table) { gap: 10px; padding-block: 2px 12px; }
+
+/* PO line tables: each column is as wide as its text (instead of a fixed width), so the table is not cut at the right edge. */
+.po-dense table { table-layout: auto; }
+.po-dense thead th { width: auto; }
+.po-dense td input:not([type="checkbox"]) { width: auto; min-width: 44px; field-sizing: content; }
+.po-dense td button[aria-haspopup] { width: 100%; max-width: 22rem; }
+.po-dense td { white-space: nowrap; }
+.po-dense td input.text-right { display: block; margin-left: auto; }
+/* The Description column stays wide (the other columns follow their text). */
+.po-dense thead th.w-72 { width: 16rem; min-width: 16rem; }
+/* The Material column is a short code: keep it small. */
+.po-dense th[data-col="material"] { width: 6.5rem; min-width: 0; }
+.po-dense td[data-col="material"] > *,
+.po-dense td[data-col="material"] > button[aria-haspopup] { max-width: 6.5rem; overflow: hidden; text-overflow: ellipsis; }
+/* Vendor too. */
+.po-dense th[data-col="vendor"] { width: 8rem; min-width: 0; }
+.po-dense td[data-col="vendor"] > *,
+.po-dense td[data-col="vendor"] > button[aria-haspopup] { max-width: 8rem; overflow: hidden; text-overflow: ellipsis; }

@@ -8,7 +8,7 @@ import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
 import { useConfirmChange } from "@/components/purchase-orders/po-confirm-change";
-import { CABINET_ROW_GRID, Field, fieldInput, selectOnClick, PoCabinetVendorSelect } from "@/components/purchase-orders/po-cabinet-card";
+import { cabinetRowGrid, selectOnClick, PoCabinetVendorSelect } from "@/components/purchase-orders/po-cabinet-card";
 import { PoLibraryContext } from "@/components/purchase-orders/po-library-context";
 import { formatInr } from "@/lib/format";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
@@ -59,20 +59,6 @@ export function PoCabinetBlock({
   const common = (k: "internalColour" | "externalColour" | "material") => mostUsed(mine.map((l) => l[k]));
   const applyAll = (fields: Partial<PurchaseOrderLine>) => onChange(lines.map((l) => (l.srNo === srNo && l.group === "carcass" ? { ...l, ...fields } : l)));
   const iconBtn = "rounded-md p-1 text-grey-400 hover:bg-primary-transparent hover:text-primary";
-  // Less-used cabinet fields, shown when the cabinet is opened.
-  const extras = (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-grey-100 px-1 pb-1 pt-1.5 md:grid-cols-3">
-      <Field label="Design" stacked>
-        <input aria-label={`Cabinet ${srNo} design`} {...selectOnClick} className={fieldInput} value={cab.design ?? ""} onChange={(e) => onCabinetChange({ ...cab, design: e.target.value })} />
-      </Field>
-      {!proforma && cabinet && (
-        <Field label="Vendor" stacked>
-          <PoCabinetVendorSelect srNo={srNo} cabinet={cabinet} onCabinetChange={(c) => ask("vendor", !!cabinet.vendorId && c.vendorId !== cabinet.vendorId, () => onCabinetChange(c))} />
-        </Field>
-      )}
-    </div>
-  );
-
   return (
     <div className="unit-row border-b border-grey-100 bg-card px-2 py-0.5">
       {changeDialog}
@@ -85,7 +71,7 @@ export function PoCabinetBlock({
         // The cabinet drawn as one table line (same columns as By Unit); the group's rows open underneath.
         renderBand={({ collapsed, toggle, total, add, canAdd }) => (
           <>
-            <div className={CABINET_ROW_GRID}>
+            <div className={cabinetRowGrid(proforma)}>
               <div className="cell justify-center">
                 <button
                   type="button"
@@ -104,6 +90,14 @@ export function PoCabinetBlock({
               <div className="cell">
                 <PoCabinetNameField stacked value={cab.cabinetName ?? ""} onChange={(v) => ask("cabinet name", !!cab.cabinetName && v !== cab.cabinetName, () => onCabinetChange({ ...cab, cabinetName: v }))} />
               </div>
+              <div className="cell">
+                <input aria-label={`Cabinet ${srNo} design`} {...selectOnClick} placeholder="Design" value={cab.design ?? ""} onChange={(e) => onCabinetChange({ ...cab, design: e.target.value })} />
+              </div>
+              {!proforma && (
+                <div className="cell">
+                  <PoCabinetVendorSelect srNo={srNo} cabinet={cab} onCabinetChange={(c) => ask("vendor", !!cab.vendorId && c.vendorId !== cab.vendorId, () => onCabinetChange(c))} />
+                </div>
+              )}
               {(["width", "depth", "height", "qty"] as const).map((k) => (
                 <div key={k} className="cell">
                   <input
@@ -159,7 +153,6 @@ export function PoCabinetBlock({
                 <input aria-label={`Cabinet ${srNo} remark`} {...selectOnClick} placeholder="Remark" value={cab.remark ?? ""} onChange={(e) => onCabinetChange({ ...cab, remark: e.target.value })} />
               </div>
             </div>
-            {!collapsed && extras}
           </>
         )}
         defaultCollapsed

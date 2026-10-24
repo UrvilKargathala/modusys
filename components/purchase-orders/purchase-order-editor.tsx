@@ -850,7 +850,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             ["vendor", isProforma ? "Dealer Details" : "Vendor Details", Store],
             ["details", isProforma ? "Proforma Details" : "Purchase Order Details", FileText],
             ["material", "Material Details", Layers],
-            ["lines", isDirect ? "Items" : "Cabinets", Boxes],
+            ["lines", "Item Details", Boxes],
           ] as const).map(([key, label, Icon]) => (
             <button
               key={key}
@@ -1352,7 +1352,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 </div>
                 {carcassOpen && (
                   <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
-                <PoCabinetListHeader />
+<div className="overflow-x-auto"><div className="min-w-[1180px]">
+                <PoCabinetListHeader proforma={isProforma} />
                 {cabinetNos
                   .filter((no) => draft.lines.some((l) => l.group === g.key && l.srNo === no))
                   .map((no) => (
@@ -1370,7 +1371,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                     />
                     </SortableCabinet>
                   ))}
-                  </CabinetSortList>
+                  </div></div>
+</CabinetSortList>
                 )}
               </div>
             )
@@ -1378,7 +1380,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           })
           : (
             <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
-              <PoCabinetListHeader />
+<div className="overflow-x-auto"><div className="min-w-[1180px]">
+              <PoCabinetListHeader proforma={isProforma} />
               {cabinetNos.map((no) => (
               <SortableCabinet key={no} no={no}>
               <PoCabinetCard
@@ -1395,7 +1398,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               />
               </SortableCabinet>
               ))}
-            </CabinetSortList>
+            </div></div>
+</CabinetSortList>
           )}
         {/* The same Add button under the last cabinet, so one can be added without scrolling back up. */}
         {shownView === "cabinet" && (!isDirect || directTab === "carcass") && cabinetNos.length > 0 && (

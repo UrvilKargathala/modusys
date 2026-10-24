@@ -43,10 +43,10 @@ function View() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KpiCard label="Total POs" value={String(kpis.total)} icon={ShoppingCart} accent="primary" />
-        <KpiCard label="This Month" value={String(kpis.thisMonth)} icon={CalendarDays} accent="secondary" />
-        <KpiCard label="Total Value" value={formatInr(kpis.value)} icon={IndianRupee} accent="success" />
-        <KpiCard label="Vendors" value={String(vendors.length)} icon={Store} accent="teal" />
+        <KpiCard compact label="Total POs" value={String(kpis.total)} icon={ShoppingCart} accent="primary" />
+        <KpiCard compact label="This Month" value={String(kpis.thisMonth)} icon={CalendarDays} accent="secondary" />
+        <KpiCard compact label="Total Value" value={formatInr(kpis.value)} icon={IndianRupee} accent="success" />
+        <KpiCard compact label="Vendors" value={String(vendors.length)} icon={Store} accent="teal" />
       </div>
 
       <Tabs value={tab} onValueChange={(v) => router.replace(`${pathname}?tab=${String(v)}`, { scroll: false })}>

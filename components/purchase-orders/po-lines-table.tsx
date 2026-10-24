@@ -317,7 +317,7 @@ export function PoLinesTable({
             <thead className="bg-[#DACCCC]">
               <tr>
                 {cols.map((c) => (
-                  <th key={c.key} className={`${th} ${c.width} ${["width", "depth", "height", "qty", "sqft", "rate", "discountPct", "netRate", "amount"].includes(c.key) ? "text-right" : ""}`}>
+                  <th key={c.key} data-col={c.key} className={`${th} ${c.width} ${["width", "depth", "height", "qty", "sqft", "rate", "discountPct", "netRate", "amount"].includes(c.key) ? "text-right" : ""}`}>
                     {sortable && (c.key === "description" || c.key === "depth") ? (
                       <button
                         type="button"
@@ -344,7 +344,7 @@ export function PoLinesTable({
                 <Fragment key={l.id}>
                 <tr className={`border-t border-grey-100 ${l.rate ? "" : "bg-error-200"}`} title={l.rate ? undefined : "No rate for this row: none in the price list for this vendor. Type one in."}>
                   {cols.map((c) => (
-                    <td key={c.key} className="px-1 py-1">
+                    <td key={c.key} data-col={c.key} className="px-1 py-1">
                       {c.key === "vendor" && !hardware ? (
                         <SelectField
                           aria-label={`Row ${l.srNo} vendor`}

@@ -54,14 +54,20 @@ export function PoCabinetVendorSelect({ srNo, cabinet, onCabinetChange, classNam
 }
 
 // One grid for a cabinet's line and the header row above the list, drawn as a table with a line between cells:
-// expand, no., cabinet type, cabinet name, W, D, H, Qty, internal / external brand & colour, material, total, buttons, remark.
-export const CABINET_ROW_GRID = "cab-table grid grid-cols-[32px_32px_minmax(150px,1.2fr)_minmax(120px,1fr)_52px_52px_52px_44px_minmax(130px,1fr)_minmax(130px,1fr)_minmax(130px,1fr)_96px_132px_minmax(110px,1fr)] items-stretch";
-export function PoCabinetListHeader() {
-  const heads = ["", "No", "Cabinet Type", "Cabinet Name", "W", "D", "H", "Qty", "Internal Brand & Colour", "External Brand & Colour", "Material", "Total", "", "Remark"];
+// expand, no., cabinet type, cabinet name, design, vendor (not on a proforma), W, D, H, Qty, internal / external brand & colour,
+// material, total, buttons, remark.
+// (Whole class names, so Tailwind sees them.)
+const GRID_WITH_VENDOR =
+  "cab-table grid grid-cols-[32px_32px_minmax(120px,1.2fr)_minmax(90px,1fr)_minmax(70px,0.8fr)_minmax(90px,1fr)_46px_46px_46px_40px_minmax(90px,1fr)_minmax(90px,1fr)_minmax(90px,1fr)_86px_112px_minmax(80px,1fr)] items-stretch";
+const GRID_NO_VENDOR =
+  "cab-table grid grid-cols-[32px_32px_minmax(120px,1.2fr)_minmax(90px,1fr)_minmax(70px,0.8fr)_46px_46px_46px_40px_minmax(90px,1fr)_minmax(90px,1fr)_minmax(90px,1fr)_86px_112px_minmax(80px,1fr)] items-stretch";
+export const cabinetRowGrid = (proforma: boolean) => (proforma ? GRID_NO_VENDOR : GRID_WITH_VENDOR);
+export function PoCabinetListHeader({ proforma = false }: { proforma?: boolean }) {
+  const heads = ["", "No", "Cabinet Type", "Cabinet Name", "Design", ...(proforma ? [] : ["Vendor"]), "W", "D", "H", "Qty", "Internal", "External", "Material", "Total", "", "Remark"];
   const numeric = ["Total"];
   return (
     <div className="pl-[40px] pr-2">
-      <div className={`${CABINET_ROW_GRID} cab-head rounded-t-md border border-grey-200 bg-[#DACCCC] text-sm font-body font-medium text-grey-900`}>
+      <div className={`${cabinetRowGrid(proforma)} cab-head rounded-t-md border border-grey-200 bg-[#DACCCC] text-sm font-body font-medium text-grey-900`}>
         {heads.map((h, i) => (
           <div key={i} className={`cell ${["W", "D", "H", "Qty", "No"].includes(h) ? "justify-center" : numeric.includes(h) ? "justify-end" : ""}`}>{h}</div>
         ))}
@@ -156,22 +162,18 @@ export function PoCabinetCard({
   const showFinishes = direct || mine.some((l) => l.group === "carcass");
   const stackedField = (label: string, node: React.ReactNode) => <Field key={label} label={label} stacked>{node}</Field>;
   // The less-used fields of a cabinet, labels above the boxes, shown when it is opened.
-  const extras = cabinet && (
+  const extras = cabinet && !direct && (
     <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-grey-100 px-1 pb-1 pt-1.5 md:grid-cols-3">
-      {stackedField("Design", <input aria-label={`Cabinet ${srNo} design`} {...selectOnClick} className={fieldInput} value={cabinet.design ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, design: e.target.value })} />)}
-      {!direct &&
-        stackedField(
-          "Unit Type",
-          <SelectField aria-label={`Cabinet ${srNo} unit type`} className={fieldInput} value={cabinet.unitName ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, unitName: e.target.value })}>
-            <option value="">Select unit type</option>
-            {cabinet.unitName && !unitTypes.some((u) => u.name === cabinet.unitName) && <option value={cabinet.unitName}>{cabinet.unitName}</option>}
-            {unitTypes.map((u) => (
-              <option key={u.id} value={u.name}>{u.name}</option>
-            ))}
-          </SelectField>
-        )}
-      {/* A Proforma Invoice has a dealer for the whole invoice, so no vendor is picked per cabinet. */}
-      {!proforma && stackedField("Vendor", <PoCabinetVendorSelect srNo={srNo} cabinet={cabinet} onCabinetChange={(c) => ask("vendor", !!cabinet.vendorId && c.vendorId !== cabinet.vendorId, () => onCabinetChange(c))} />)}
+      {stackedField(
+        "Unit Type",
+        <SelectField aria-label={`Cabinet ${srNo} unit type`} className={fieldInput} value={cabinet.unitName ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, unitName: e.target.value })}>
+          <option value="">Select unit type</option>
+          {cabinet.unitName && !unitTypes.some((u) => u.name === cabinet.unitName) && <option value={cabinet.unitName}>{cabinet.unitName}</option>}
+          {unitTypes.map((u) => (
+            <option key={u.id} value={u.name}>{u.name}</option>
+          ))}
+        </SelectField>
+      )}
     </div>
   );
 
@@ -179,7 +181,7 @@ export function PoCabinetCard({
     <div className="unit-row border-b border-grey-100 bg-card px-2 py-0.5">
     <div className="flex flex-col gap-1">
       {/* One table line per cabinet, the columns named by the header row above the list (PoCabinetListHeader). */}
-      <div className={CABINET_ROW_GRID}>
+      <div className={cabinetRowGrid(proforma)}>
         <div className="cell justify-center">
           <button
             type="button"
@@ -198,6 +200,15 @@ export function PoCabinetCard({
         <div className="cell">
           <PoCabinetNameField stacked value={cab.cabinetName ?? ""} onChange={(v) => ask("cabinet name", !!cab.cabinetName && v !== cab.cabinetName, () => onCabinetChange({ ...cab, cabinetName: v }))} />
         </div>
+        <div className="cell">
+          <input aria-label={`Cabinet ${srNo} design`} {...selectOnClick} placeholder="Design" value={cab.design ?? ""} onChange={(e) => onCabinetChange({ ...cab, design: e.target.value })} />
+        </div>
+        {/* A Proforma Invoice has a dealer for the whole invoice, so no vendor is picked per cabinet. */}
+        {!proforma && (
+          <div className="cell">
+            <PoCabinetVendorSelect srNo={srNo} cabinet={cab} onCabinetChange={(c) => ask("vendor", !!cab.vendorId && c.vendorId !== cab.vendorId, () => onCabinetChange(c))} />
+          </div>
+        )}
         {(["width", "depth", "height", "qty"] as const).map((k) => (
           <div key={k} className="cell">
             <input
