@@ -46,7 +46,7 @@ function PriceInput({ value, onChange, locked = false }: { value: number; onChan
       }}
       onBlur={() => setDraft(null)}
       readOnly={locked}
-      className={`w-32 font-number font-semibold ${locked ? "cursor-not-allowed bg-light-600" : ""}`}
+      className={`w-32 font-number ${locked ? "cursor-not-allowed bg-light-600" : ""}`}
     />
   );
 }
@@ -133,8 +133,8 @@ export function FinishOptionsTable({
               </tr>
             ) : (
               options.map((row, idx) => (
-                <tr key={row.id}>
-                  <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-700">
+                <tr key={row.id} className="unit-row unit-top">
+                  <td className="whitespace-nowrap px-3 py-1 text-sm font-body text-grey-700">
                     {letterAt(idx)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-1">
@@ -144,7 +144,6 @@ export function FinishOptionsTable({
                         value={row.productTypeId || current?.productTypeId || ""}
                         onChange={(id) => update(row.id, { productTypeId: id })}
                         nameOnly
-                        bold
                         triggerClassName="h-8 py-0"
                       />
                     </div>
@@ -157,7 +156,6 @@ export function FinishOptionsTable({
                           value={row.externalColourId}
                           onChange={(id) => update(row.id, { externalColourId: id })}
                           nameOnly
-                          bold
                           triggerClassName="h-8 py-0"
                         />
                       </div>
@@ -167,7 +165,6 @@ export function FinishOptionsTable({
                           category="tandem-drawer-type"
                           value={row.tandemDrawerTypeId}
                           onChange={(id) => update(row.id, { tandemDrawerTypeId: id })}
-                          bold
                           triggerClassName="h-8 py-0"
                         />
                       </div>

@@ -175,6 +175,7 @@ export function PoLinesTable({
   varsFor,
   header,
   subHeader,
+  renderBand,
   defaultCollapsed = false,
   only,
   newRowDefaults,
@@ -194,6 +195,8 @@ export function PoLinesTable({
   header?: ReactNode;
   // A second line under the header (e.g. the cabinet's size and details).
   subHeader?: ReactNode;
+  // Replaces the whole heading band (arrow, title, total, Add Row) with the caller's own, e.g. a cabinet drawn as a table line.
+  renderBand?: (ctx: { collapsed: boolean; toggle: () => void; total: number; totalSqft: number; add: () => void; canAdd: boolean }) => ReactNode;
   // Start closed; the user opens what they need.
   defaultCollapsed?: boolean;
   // Other Panel (all cabinets): sort by Description or Thk; click a heading to sort, again to reverse, a third time to clear.
@@ -270,6 +273,10 @@ export function PoLinesTable({
 
   return (
     <div className="flex flex-col gap-2">
+      {renderBand ? (
+        renderBand({ collapsed, toggle: () => setCollapsed((c) => !c), total, totalSqft, add, canAdd: !only })
+      ) : (
+        <>
       {/* A group heading (Carcass, Shutter, ...) is a tinted band with a coloured left edge, like the quote page. */}
       <div className={cn("flex items-center justify-between", !header && `rounded-md border-l-4 px-3 py-2 ${GROUP_BAND[group]}`)}>
         <button
@@ -299,6 +306,8 @@ export function PoLinesTable({
           )}
         </div>
       </div>
+        </>
+      )}
       {subHeader}
       {collapsed ? null : mine.length === 0 ? (
         <p className="rounded-lg border border-dashed border-grey-100 py-4 text-center text-sm font-body text-grey-400">No rows</p>

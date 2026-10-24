@@ -40,7 +40,7 @@ import { useConfirmChange } from "@/components/purchase-orders/po-confirm-change
 import { PoLibraryContext, libKey } from "@/components/purchase-orders/po-library-context";
 import { materialCategories, parseFinishRule, statusColourStyle } from "@/lib/mock/material-spec";
 import { MaterialItemFormDialog } from "@/components/templates/material-item-form-dialog";
-import { PO_GROUPS, asPoStatus, poStatusLabel, poStatusList, poStatusStyle, customerCode, lineAmount, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder } from "@/lib/purchase-order";
+import { PO_GROUPS, asPoStatus, poStatusLabel, poStatusList, poStatusStyle, customerCode, lineAmount, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder, type PurchaseOrderLine } from "@/lib/purchase-order";
 
 const NEW_VENDOR = "__new-vendor__";
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
@@ -119,6 +119,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const [view, setView] = useState<"component" | "cabinet" | "pending" | "vendor" | "hardware">("component");
   // Rate pending: the rows without a rate when the tab was opened. Kept while you type rates so a row doesn't vanish mid-edit.
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  // Inside Rate Pending: Pending = rows with no rate yet, Used = rows that already have one (both grouped by price combination).
+  const [rateTab, setRateTab] = useState<"pending" | "used">("pending");
   const [brandSearch, setBrandSearch] = useState("");
   // Brand whose "+ Add new vendor" form is open; the vendor saved there is picked for that brand.
   const [newVendorFor, setNewVendorFor] = useState<string | null>(null);
@@ -631,86 +633,124 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   // Rate Pending: panel rows with no rate are grouped by what decides their price (thickness, internal + external colour, raw material and
   // vendor), so each combination is listed once with one Price box; typing it prices every row with that combination. Hardware rows have
   // their own MRP and stay as a table.
-  const pendingRows = draft.lines.filter((l) => pendingIds.has(l.id));
-  const panelPending = pendingRows.filter((l) => l.group !== "hardware");
   const vendorOfRow = (l: { srNo: number; vendorId?: string }) => l.vendorId || draft.material.cabinets?.[String(l.srNo)]?.vendorId || draft.vendorId;
   const comboOf = (l: { depth: number; internalColour: string; externalColour: string; material: string; srNo: number; vendorId?: string }) => [l.depth, l.internalColour, l.externalColour, l.material, vendorOfRow(l)].join("|");
-  const combos = [...panelPending.reduce((m, l) => m.set(comboOf(l), [...(m.get(comboOf(l)) ?? []), l]), new Map<string, typeof panelPending>()).entries()];
-  const manyVendors = new Set(combos.map(([, rows]) => vendorOfRow(rows[0]))).size > 1;
+  const groupByCombo = (rows: typeof draft.lines) => [...rows.reduce((m, l) => m.set(comboOf(l), [...(m.get(comboOf(l)) ?? []), l]), new Map<string, typeof rows>()).entries()];
+  const pendingRows = draft.lines.filter((l) => pendingIds.has(l.id));
+  const usedRows = draft.lines.filter((l) => l.rate > 0);
   const setComboRate = (key: string, rate: number) => {
     if (!(rate > 0)) return;
     set({ lines: draft.lines.map((l) => (l.group !== "hardware" && comboOf(l) === key ? { ...l, rate } : l)) });
     toastStore.show("Rate applied to every row with this combination", "success");
   };
   const th = "px-3 py-2.5 text-left text-xs font-body font-semibold uppercase tracking-wide text-grey-900";
-  const pendingBlock = (
-    pendingIds.size === 0 ? (
-      <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">Every row has a rate.</p>
-    ) : (
-      <div className="flex flex-col gap-4">
-        {combos.length > 0 && (
-          <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
-            <table className="w-full text-left">
-              <thead className="bg-[#DACCCC]">
-                <tr>
-                  <th className={th}>Thickness</th>
-                  <th className={th}>Internal Brand &amp; Colour</th>
-                  <th className={th}>External Brand &amp; Colour</th>
-                  <th className={th}>Raw Material</th>
-                  {manyVendors && <th className={th}>Vendor</th>}
-                  <th className={`${th} text-right`}>Rows</th>
-                  <th className={`${th} w-40 text-right`}>Price</th>
+  // One table of price combinations (thickness, colours, raw material, vendor), each with its Price box and the number of rows it prices.
+  const comboTable = (rows: typeof draft.lines) => {
+    const combos = groupByCombo(rows.filter((l) => l.group !== "hardware"));
+    if (combos.length === 0) return null;
+    const manyVendors = new Set(combos.map(([, r]) => vendorOfRow(r[0]))).size > 1;
+    return (
+      <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
+        <table className="w-full text-left">
+          <thead className="bg-[#DACCCC]">
+            <tr>
+              <th className={th}>Thickness</th>
+              <th className={th}>Internal Brand &amp; Colour</th>
+              <th className={th}>External Brand &amp; Colour</th>
+              <th className={th}>Raw Material</th>
+              {manyVendors && <th className={th}>Vendor</th>}
+              <th className={`${th} text-right`}>Rows</th>
+              <th className={`${th} text-right`}>Total Sq.Ft</th>
+              <th className={`${th} w-40 text-right`}>Price</th>
+              <th className={`${th} text-right`}>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {combos.map(([key, group]) => {
+              const f = group[0];
+              const rate = f.rate;
+              return (
+                <tr key={key} className="border-t border-grey-100">
+                  <td className="px-3 py-2 text-sm font-number text-grey-900">{f.depth ? `${f.depth} mm` : "—"}</td>
+                  <td className="px-3 py-2 text-sm font-body text-grey-900"><Nums>{f.internalColour || "—"}</Nums></td>
+                  <td className="px-3 py-2 text-sm font-body text-grey-900"><Nums>{f.externalColour || "—"}</Nums></td>
+                  <td className="px-3 py-2 text-sm font-body text-grey-900">{f.material || "—"}</td>
+                  {manyVendors && <td className="px-3 py-2 text-sm font-body text-grey-900">{vendors.find((v) => v.id === vendorOfRow(f))?.name ?? "—"}</td>}
+                  <td className="px-3 py-2 text-right text-sm font-number text-grey-700">{group.length}</td>
+                  <td className="px-3 py-2 text-right text-sm font-number text-grey-700">{group.reduce((t, l) => t + l.sqft, 0).toFixed(2)}</td>
+                  <td className="px-3 py-1.5 text-right">
+                    <Input
+                      key={`${key}|${rate}`}
+                      type="number"
+                      min={0}
+                      step="any"
+                      placeholder="0.00"
+                      defaultValue={rate || ""}
+                      aria-label="Price for this combination"
+                      onBlur={(e) => setComboRate(key, Number(e.target.value))}
+                      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                      className="ml-auto w-32 text-right font-number"
+                    />
+                  </td>
+                  {/* Total Sq.Ft x Price (each row's sq.ft x its rate). */}
+                  <td className="px-3 py-2 text-right text-sm font-number font-semibold text-grey-900">{formatInr(group.reduce((t, l) => t + lineAmount(l), 0))}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {combos.map(([key, rows]) => {
-                  const f = rows[0];
-                  const rate = f.rate;
-                  return (
-                    <tr key={key} className="border-t border-grey-100">
-                      <td className="px-3 py-2 text-sm font-number text-grey-900">{f.depth ? `${f.depth} mm` : "—"}</td>
-                      <td className="px-3 py-2 text-sm font-body text-grey-900"><Nums>{f.internalColour || "—"}</Nums></td>
-                      <td className="px-3 py-2 text-sm font-body text-grey-900"><Nums>{f.externalColour || "—"}</Nums></td>
-                      <td className="px-3 py-2 text-sm font-body text-grey-900">{f.material || "—"}</td>
-                      {manyVendors && <td className="px-3 py-2 text-sm font-body text-grey-900">{vendors.find((v) => v.id === vendorOfRow(f))?.name ?? "—"}</td>}
-                      <td className="px-3 py-2 text-right text-sm font-number text-grey-700">{rows.length}</td>
-                      <td className="px-3 py-1.5 text-right">
-                        <Input
-                          key={`${key}|${rate}`}
-                          type="number"
-                          min={0}
-                          step="any"
-                          placeholder="0.00"
-                          defaultValue={rate || ""}
-                          aria-label="Price for this combination"
-                          onBlur={(e) => setComboRate(key, Number(e.target.value))}
-                          onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                          className="ml-auto w-32 text-right font-number"
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {pendingRows.some((l) => l.group === "hardware") && (
-          <PoLinesTable
-            group="hardware"
-            title="Hardware"
-            lines={draft.lines}
-            only={(l) => pendingIds.has(l.id)}
-            defaultCollapsed
-            varsFor={(no) => {
-              const c = cabinetFor(no);
-              return c ? { W: c.width, D: c.depth, H: c.height } : undefined;
-            }}
-            onChange={(lines) => set({ lines })}
-          />
-        )}
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-    )
+    );
+  };
+  // Hardware rows have their own MRP and stay as a table.
+  const hardwareTable = (only: (l: PurchaseOrderLine) => boolean) => (
+    <PoLinesTable
+      group="hardware"
+      title="Hardware"
+      lines={draft.lines}
+      only={only}
+      defaultCollapsed
+      varsFor={(no) => {
+        const c = cabinetFor(no);
+        return c ? { W: c.width, D: c.depth, H: c.height } : undefined;
+      }}
+      onChange={(lines) => set({ lines })}
+    />
+  );
+  const rateBlock = (
+    <div className="flex flex-col gap-3">
+      <div className="flex w-fit rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Rates">
+        {([["pending", "Pending", pendingCount], ["used", "Used", usedRows.length]] as const).map(([k, label, n]) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={rateTab === k}
+            onClick={() => setRateTab(k)}
+            className={`rounded-md px-3 py-1 text-sm font-body font-medium transition-colors ${rateTab === k ? "bg-blush font-semibold text-grey-900" : "text-grey-600 hover:bg-light-600"}`}
+          >
+            {label} <span className="font-number">({n})</span>
+          </button>
+        ))}
+      </div>
+      {rateTab === "pending" ? (
+        pendingIds.size === 0 ? (
+          <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">Every row has a rate.</p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {comboTable(pendingRows)}
+            {pendingRows.some((l) => l.group === "hardware") && hardwareTable((l) => pendingIds.has(l.id))}
+          </div>
+        )
+      ) : usedRows.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">No rates in use yet.</p>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {comboTable(usedRows)}
+          {usedRows.some((l) => l.group === "hardware") && hardwareTable((l) => l.rate > 0)}
+        </div>
+      )}
+    </div>
   );
 
   return (
@@ -1098,7 +1138,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             No cabinets yet. Click Add Cabinet, then add its rows.
           </p>
         )}
-        {isDirect && directTab === "pending" ? pendingBlock : isDirect && directTab !== "carcass" && directTab !== "pending" ? (
+        {isDirect && directTab === "pending" ? rateBlock : isDirect && directTab !== "carcass" && directTab !== "pending" ? (
           <PoLinesTable
             key={directTab}
             group={directTab}
@@ -1219,7 +1259,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               </div>
             )}
           </div>
-        ) : shownView === "pending" ? pendingBlock
+        ) : shownView === "pending" ? rateBlock
         : shownView === "component"
           ? [PO_GROUPS.filter((g) => draft.lines.some((l) => l.group === g.key))].flatMap((present) => {
             // Carcass | Shutter | Other Panel | Hardware as tabs across; only the picked group's table shows below.
@@ -1312,6 +1352,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 </div>
                 {carcassOpen && (
                   <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
+                <PoCabinetListHeader />
                 {cabinetNos
                   .filter((no) => draft.lines.some((l) => l.group === g.key && l.srNo === no))
                   .map((no) => (

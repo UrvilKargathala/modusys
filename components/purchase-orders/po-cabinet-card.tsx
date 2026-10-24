@@ -54,11 +54,11 @@ export function PoCabinetVendorSelect({ srNo, cabinet, onCabinetChange, classNam
 }
 
 // One grid for a cabinet's line and the header row above the list, drawn as a table with a line between cells:
-// expand, no., cabinet type, cabinet name, W, D, H, Qty, the four group amounts, total, buttons, remark.
-export const CABINET_ROW_GRID = "cab-table grid grid-cols-[32px_32px_minmax(150px,1.2fr)_minmax(120px,1fr)_52px_52px_52px_44px_84px_84px_84px_84px_96px_104px_minmax(110px,1fr)] items-stretch";
+// expand, no., cabinet type, cabinet name, W, D, H, Qty, internal / external brand & colour, material, total, buttons, remark.
+export const CABINET_ROW_GRID = "cab-table grid grid-cols-[32px_32px_minmax(150px,1.2fr)_minmax(120px,1fr)_52px_52px_52px_44px_minmax(130px,1fr)_minmax(130px,1fr)_minmax(130px,1fr)_96px_132px_minmax(110px,1fr)] items-stretch";
 export function PoCabinetListHeader() {
-  const heads = ["", "No", "Cabinet Type", "Cabinet Name", "W", "D", "H", "Qty", "Carcass", "Shutter", "Other Panel", "Hardware", "Total", "", "Remark"];
-  const numeric = ["Carcass", "Shutter", "Other Panel", "Hardware", "Total"];
+  const heads = ["", "No", "Cabinet Type", "Cabinet Name", "W", "D", "H", "Qty", "Internal Brand & Colour", "External Brand & Colour", "Material", "Total", "", "Remark"];
+  const numeric = ["Total"];
   return (
     <div className="pl-[40px] pr-2">
       <div className={`${CABINET_ROW_GRID} cab-head rounded-t-md border border-grey-200 bg-[#DACCCC] text-sm font-body font-medium text-grey-900`}>
@@ -138,7 +138,6 @@ export function PoCabinetCard({
   const isManual = !!cabinet && !cabinet.unitName && !cabinet.cabinetTypeId;
   const emptyGroups = PO_GROUPS.filter((g) => !mine.some((l) => l.group === g.key));
 
-  const name = cabinet?.label;
   // This cabinet's internal / external brand & colour and material, applied to all its carcass rows (same as By component).
   const carcassRows = mine.filter((l) => l.group === "carcass");
   const commonCarcass = (k: "internalColour" | "externalColour" | "material") =>
@@ -154,10 +153,11 @@ export function PoCabinetCard({
 
   // A cabinet with no stored details (older PO, or rows added without them) still shows editable fields; the first edit saves them.
   const cab: PoCabinet = cabinet ?? { label: "", unitName: "", space: "", width: 0, depth: 0, height: 0, qty: 1, cabinetTypeId: "", unitQty: 1, designType };
+  const showFinishes = direct || mine.some((l) => l.group === "carcass");
   const stackedField = (label: string, node: React.ReactNode) => <Field key={label} label={label} stacked>{node}</Field>;
   // The less-used fields of a cabinet, labels above the boxes, shown when it is opened.
   const extras = cabinet && (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-grey-100 px-1 pb-1 pt-1.5 md:grid-cols-3 xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-grey-100 px-1 pb-1 pt-1.5 md:grid-cols-3">
       {stackedField("Design", <input aria-label={`Cabinet ${srNo} design`} {...selectOnClick} className={fieldInput} value={cabinet.design ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, design: e.target.value })} />)}
       {!direct &&
         stackedField(
@@ -172,13 +172,6 @@ export function PoCabinetCard({
         )}
       {/* A Proforma Invoice has a dealer for the whole invoice, so no vendor is picked per cabinet. */}
       {!proforma && stackedField("Vendor", <PoCabinetVendorSelect srNo={srNo} cabinet={cabinet} onCabinetChange={(c) => ask("vendor", !!cabinet.vendorId && c.vendorId !== cabinet.vendorId, () => onCabinetChange(c))} />)}
-      {(direct || mine.some((l) => l.group === "carcass")) && (
-        <>
-          {stackedField("Internal Brand & Colour", <PoFinishSelect kind="internal" value={commonCarcass("internalColour")} onChange={(v) => askCarcass("internalColour", v)} />)}
-          {stackedField("External Brand & Colour", <PoFinishSelect kind="external" value={commonCarcass("externalColour")} onChange={(v) => askCarcass("externalColour", v)} />)}
-          {stackedField("Material", <PoRawMaterialSelect value={commonCarcass("material")} onChange={(v) => askCarcass("material", v)} />)}
-        </>
-      )}
     </div>
   );
 
@@ -218,14 +211,26 @@ export function PoCabinetCard({
             />
           </div>
         ))}
-        {PO_GROUPS.map((g) => {
-          const amount = mine.filter((l) => l.group === g.key).reduce((t, l) => t + lineAmount(l), 0);
-          return (
-            <div key={g.key} className="cell num justify-end text-grey-700">
-              {mine.some((l) => l.group === g.key) ? formatInr(amount) : "—"}
+        {/* The cabinet's carcass finishes and material, applied to all its carcass rows. */}
+        {showFinishes ? (
+          <>
+            <div className="cell">
+              <PoFinishSelect kind="internal" value={commonCarcass("internalColour")} onChange={(v) => askCarcass("internalColour", v)} />
             </div>
-          );
-        })}
+            <div className="cell">
+              <PoFinishSelect kind="external" value={commonCarcass("externalColour")} onChange={(v) => askCarcass("externalColour", v)} />
+            </div>
+            <div className="cell">
+              <PoRawMaterialSelect value={commonCarcass("material")} onChange={(v) => askCarcass("material", v)} />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="cell justify-center text-grey-400">—</div>
+            <div className="cell justify-center text-grey-400">—</div>
+            <div className="cell justify-center text-grey-400">—</div>
+          </>
+        )}
         <div className="cell num justify-end font-semibold text-grey-900">
           {/* A Proforma Invoice shows the cabinet's total sq.ft before its amount. */}
           {proforma && <span className="mr-2 font-normal text-grey-500">{totalSqft.toFixed(2)}</span>}

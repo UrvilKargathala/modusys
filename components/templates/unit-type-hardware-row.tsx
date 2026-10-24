@@ -16,18 +16,21 @@ import { useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { rateAfterDiscount } from "@/lib/mock/pricing-list";
 import { cn } from "@/lib/utils";
+import { SortLabel, type LineSort } from "@/components/templates/line-sort";
 import type { UnitTypeHardware } from "@/lib/mock/unit-type";
 
 
 // Column widths for the table layout (Quotes' cabinet groups): drag, Article No., Category, Brand, Description, Level Type, Qty, Unit,
 // Rate, Amount, actions. The group's header row uses the same string so the columns line up.
 export const HARDWARE_TABLE_COLUMNS = "20px 104px minmax(100px,0.9fr) minmax(90px,0.8fr) minmax(140px,1.6fr) minmax(90px,0.8fr) 56px 44px 76px 84px 76px";
-export function HardwareTableHeader() {
-  const heads = ["", "Article No.", "Category", "Brand", "Description", "Level Type", "Qty", "Unit", "Rate", "Amount", ""];
+export function HardwareTableHeader({ withNo = false, sort, onSort }: { withNo?: boolean; sort?: LineSort; onSort?: (key: string) => void }) {
+  const heads: [string, string?][] = [[withNo ? "No." : "", "no"], ["Article No.", "articleNo"], ["Category", "category"], ["Brand", "brand"], ["Description", "description"], ["Level Type", "levelType"], ["Qty", "qty"], ["Unit", "unit"], ["Rate", "rate"], ["Amount", "amount"], ["", undefined]];
   return (
-    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[#DACCCC] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: HARDWARE_TABLE_COLUMNS }}>
-      {heads.map((h, i) => (
-        <span key={i} className={["Qty", "Unit"].includes(h) ? "text-center" : ["Rate", "Amount"].includes(h) ? "text-right" : ""}>{h}</span>
+    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[#DACCCC] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: withNo ? HARDWARE_TABLE_COLUMNS.replace("20px", "44px") : HARDWARE_TABLE_COLUMNS }}>
+      {heads.map(([h, k], i) => (
+        <span key={i} className={["Qty", "Unit"].includes(h) ? "text-center" : ["Rate", "Amount"].includes(h) ? "text-right" : ""}>
+          <SortLabel label={h} k={k} sort={sort} onSort={onSort} />
+        </span>
       ))}
     </div>
   );
@@ -46,6 +49,7 @@ export function UnitTypeHardwareRow({
   rateReadOnly,
   collapsible,
   table,
+  rowNo,
 }: {
   value: UnitTypeHardware;
   onChange: (patch: Partial<UnitTypeHardware>) => void;
@@ -57,6 +61,8 @@ export function UnitTypeHardwareRow({
   collapsible?: boolean;
   // Quotes' cabinet groups: one compact table line per row (columns from hardwareTableColumns) instead of the card form.
   table?: boolean;
+  // Table layout only: a row number (1.1, 1.2 ...) shown in place of the drag handle.
+  rowNo?: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -234,10 +240,14 @@ export function UnitTypeHardwareRow({
         style={{ transform: CSS.Transform.toString(transform), transition }}
         className={cn("unit-row border-b border-grey-100 bg-card px-2 py-0.5 last:border-b-0", isDragging && "opacity-50")}
       >
-        <div className="grid items-center gap-x-1.5" style={{ gridTemplateColumns: HARDWARE_TABLE_COLUMNS }}>
-          <button type="button" {...attributes} {...listeners} className="cursor-grab touch-none text-grey-300 hover:text-grey-500 active:cursor-grabbing" aria-label="Drag to reorder">
-            <GripVertical className="h-4 w-4" />
-          </button>
+        <div className="grid items-center gap-x-1.5" style={{ gridTemplateColumns: rowNo ? HARDWARE_TABLE_COLUMNS.replace("20px", "44px") : HARDWARE_TABLE_COLUMNS }}>
+          {rowNo ? (
+            <span className="num text-xs font-semibold text-grey-700">{rowNo}</span>
+          ) : (
+            <button type="button" {...attributes} {...listeners} className="cursor-grab touch-none text-grey-300 hover:text-grey-500 active:cursor-grabbing" aria-label="Drag to reorder">
+              <GripVertical className="h-4 w-4" />
+            </button>
+          )}
           <Input aria-label="Article No." placeholder="Article No." value={value.articleNo ?? ""} onChange={(e) => handleArticleNoChange(e.target.value)} className="num" />
           <MaterialReferenceSelect category="category" wide sorted value={value.categoryId} onChange={handleCategoryChange} />
           <SelectField aria-label="Brand" value={value.brandId ?? ""} onChange={(e) => handleBrandChange(e.target.value)} className="w-full min-w-0 rounded-lg border px-2 text-sm font-body text-grey-900 outline-none">

@@ -65,6 +65,7 @@ export function FurnitureGroup({
   addLabel,
   accent = "primary",
   hideWhenEmpty,
+  defaultOpen,
 }: {
   title: string;
   label: string;
@@ -76,13 +77,15 @@ export function FurnitureGroup({
   addLabel: string;
   accent?: keyof typeof groupAccent;
   hideWhenEmpty?: boolean;
+  // Starts opened (the Shutter / Hardware filter views); otherwise a group starts closed.
+  defaultOpen?: boolean;
 }) {
   const furnitureItems = useFurniturePriceItems();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const subtotal = groupTotal(items, unit, furnitureItems);
   const totalSqFt = groupSqFt(items, unit);
   const isViewMode = useSearchParams().get("mode") === "view";
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(!defaultOpen);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -161,22 +164,24 @@ export function FurnitureGroup({
   );
 }
 
-function HardwareGroup({
+export function HardwareGroup({
   items,
   unit,
   onChange,
   hideWhenEmpty,
+  defaultOpen,
 }: {
   items: UnitTypeHardware[];
   unit: { width: number; depth: number; height: number; qty: number };
   onChange: (items: UnitTypeHardware[]) => void;
   hideWhenEmpty?: boolean;
+  defaultOpen?: boolean;
 }) {
   const hardwareItems = useHardwarePriceItems();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const total = items.reduce((sum, h) => sum + hardwareLineTotal(h, unit, hardwareItems), 0);
   const isViewMode = useSearchParams().get("mode") === "view";
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(!defaultOpen);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;

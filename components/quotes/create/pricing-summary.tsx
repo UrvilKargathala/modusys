@@ -39,13 +39,13 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
           </thead>
           <tbody>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">Raw Total</td>
-              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-number text-grey-900">Raw Total</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm [font-family:var(--font-manrope)] text-grey-800">
                 {formatInr(rawTotal)}
               </td>
             </tr>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-number text-grey-900">
                 <span className="flex items-center gap-2">
                   Markup Multiplier
                   <span className="relative">
@@ -64,12 +64,12 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
                   </span>
                 </span>
               </td>
-              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm [font-family:var(--font-manrope)] text-grey-800">
                 {formatInr(waterfall.total)}
               </td>
             </tr>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-number text-grey-900">
                 <span className="flex items-center gap-2">
                   Special Discount
                   <span className="relative">
@@ -85,18 +85,18 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
                   </span>
                 </span>
               </td>
-              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm [font-family:var(--font-manrope)] text-grey-800">
                 -{formatInr(waterfall.discount)}
               </td>
             </tr>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">Amount After Discount</td>
-              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-number text-grey-900">Amount After Discount</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm [font-family:var(--font-manrope)] text-grey-800">
                 {formatInr(waterfall.afterDiscount)}
               </td>
             </tr>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-number text-grey-900">
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -107,7 +107,7 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
                   Installation &amp; Freight Included
                 </label>
               </td>
-              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-body font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number text-grey-800">
                 {quote.installationFreightIncluded ? (
                   "Included"
                 ) : (
@@ -129,14 +129,14 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
               </td>
             </tr>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">Round Off</td>
-              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-number text-grey-900">Round Off</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm [font-family:var(--font-manrope)] text-grey-800">
                 {formatInr(waterfall.roundOff)}
               </td>
             </tr>
             <tr className="border-t-2 border-grey-100 bg-light-600/40">
-              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">Final Offer Amount</td>
-              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-900">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-number font-semibold text-grey-900">Final Offer Amount</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-semibold [font-family:var(--font-manrope)] text-grey-900">
                 {formatInr(waterfall.finalOffer)}
               </td>
             </tr>

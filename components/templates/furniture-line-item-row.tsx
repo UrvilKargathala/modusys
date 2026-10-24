@@ -13,6 +13,7 @@ import { FurniturePriceFormDialog } from "@/components/templates/furniture-price
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useFurniturePriceItems, pricingListStore } from "@/lib/store/pricing-list-store";
 import { cn } from "@/lib/utils";
+import { SortLabel, type LineSort } from "@/components/templates/line-sort";
 import type { FurnitureLineItem } from "@/lib/mock/unit-type";
 
 // True on the New Quote page (not when editing a saved quote): a component row's Rate then follows the price list for its
@@ -30,9 +31,9 @@ const materialFieldLabel: Record<string, string> = {
 
 // Column widths for the table layout (Quotes' cabinet groups): drag, [name], W, H, Qty, Thickness, sq.ft, Raw, External, Internal,
 // Amount, Rate, [Level Type], actions. The group's header row uses the same string so the columns line up.
-export function furnitureTableColumns(showComponentName: boolean, showLevelType: boolean) {
+export function furnitureTableColumns(showComponentName: boolean, showLevelType: boolean, withNo = false) {
   return [
-    "20px",
+    withNo ? "44px" : "20px",
     showComponentName && "minmax(110px,1.1fr)",
     "56px", "56px", "40px", "72px", "52px",
     "minmax(100px,1fr)", "minmax(100px,1fr)", "minmax(100px,1fr)",
@@ -42,12 +43,18 @@ export function furnitureTableColumns(showComponentName: boolean, showLevelType:
   ].filter(Boolean).join(" ");
 }
 
-export function FurnitureTableHeader({ showComponentName, showLevelType, nameLabel }: { showComponentName: boolean; showLevelType: boolean; nameLabel: string }) {
-  const heads = ["", showComponentName && nameLabel, "Width", "Height", "Qty", "Thk", "Sq.ft", "Raw Material", "External Colour", "Internal Colour", "Amount", "Rate", showLevelType && "Level Type", ""].filter((h) => h !== false);
+export function FurnitureTableHeader({ showComponentName, showLevelType, nameLabel, withNo = false, sort, onSort }: { showComponentName: boolean; showLevelType: boolean; nameLabel: string; withNo?: boolean; sort?: LineSort; onSort?: (key: string) => void }) {
+  const heads: [string, string?][] = [[withNo ? "No." : "", "no"]];
+  if (showComponentName) heads.push([nameLabel, "name"]);
+  heads.push(["Width", "width"], ["Height", "height"], ["Qty", "qty"], ["Thk", "thk"], ["Sq.ft", "sqft"], ["Raw Material", "raw"], ["External Colour", "external"], ["Internal Colour", "internal"], ["Amount", "amount"], ["Rate", "rate"]);
+  if (showLevelType) heads.push(["Level Type", "level"]);
+  heads.push(["", undefined]);
   return (
-    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[#DACCCC] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: furnitureTableColumns(showComponentName, showLevelType) }}>
-      {heads.map((h, i) => (
-        <span key={i} className={["Width", "Height", "Qty", "Sq.ft"].includes(h as string) ? "text-center" : ["Amount", "Rate"].includes(h as string) ? "text-right" : ""}>{h}</span>
+    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[#DACCCC] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: furnitureTableColumns(showComponentName, showLevelType, withNo) }}>
+      {heads.map(([h, k], i) => (
+        <span key={i} className={["Width", "Height", "Qty", "Sq.ft"].includes(h) ? "text-center" : ["Amount", "Rate"].includes(h) ? "text-right" : ""}>
+          <SortLabel label={h} k={k} sort={sort} onSort={onSort} />
+        </span>
       ))}
     </div>
   );
@@ -73,6 +80,7 @@ export function FurnitureLineItemRow({
   collapsible,
   unitDims,
   table,
+  rowNo,
 }: {
   value: FurnitureLineItem;
   onChange: (patch: Partial<FurnitureLineItem>) => void;
@@ -102,6 +110,8 @@ export function FurnitureLineItemRow({
   collapsible?: boolean;
   // Quotes' cabinet groups: one compact table line per row (columns from furnitureTableColumns) instead of the card form.
   table?: boolean;
+  // Table layout only: a row number (1.1, 1.2 ...) shown in place of the drag handle.
+  rowNo?: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   const [addPriceOpen, setAddPriceOpen] = useState(false);
@@ -224,10 +234,14 @@ export function FurnitureLineItemRow({
         style={{ transform: CSS.Transform.toString(transform), transition }}
         className={cn("unit-row border-b border-grey-100 bg-card px-2 py-0.5 last:border-b-0", isDragging && "opacity-50")}
       >
-        <div className="grid items-center gap-x-1.5" style={{ gridTemplateColumns: furnitureTableColumns(!!showComponentName, !!showLevelType) }}>
-          <button type="button" {...attributes} {...listeners} className="cursor-grab touch-none text-grey-300 hover:text-grey-500 active:cursor-grabbing" aria-label="Drag to reorder">
-            <GripVertical className="h-4 w-4" />
-          </button>
+        <div className="grid items-center gap-x-1.5" style={{ gridTemplateColumns: furnitureTableColumns(!!showComponentName, !!showLevelType, !!rowNo) }}>
+          {rowNo ? (
+            <span className="num text-xs font-semibold text-grey-700">{rowNo}</span>
+          ) : (
+            <button type="button" {...attributes} {...listeners} className="cursor-grab touch-none text-grey-300 hover:text-grey-500 active:cursor-grabbing" aria-label="Drag to reorder">
+              <GripVertical className="h-4 w-4" />
+            </button>
+          )}
           {showComponentName && (
             <MaterialReferenceSelect category="furniture-component" wide sorted value={value.componentTypeId ?? ""} onChange={(id) => requestMaterialChange("componentTypeId", id)} />
           )}

@@ -749,3 +749,6 @@
 .po-dense input[type="number"],
 .po-dense td input.font-number,
 .po-dense .cab-table .cell.num { font-family: var(--font-manrope), system-ui, sans-serif !important; font-variant-numeric: tabular-nums; }
+
+/* By Component cabinet lines (no table grid inside): a little room above and below each line. */
+.po-dense .relative > .unit-row:not(:has(.cab-table)) { padding-block: 7px; }
