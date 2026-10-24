@@ -1,7 +1,8 @@
 "use client";
 
-import { useContext } from "react";
-import { ChevronDown, ChevronRight, Copy, Plus, Sparkles } from "lucide-react";
+import { useContext, useState } from "react";
+import { ChevronDown, ChevronRight, Copy, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PoComponentsToggle } from "@/components/purchase-orders/po-components-toggle";
 import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
@@ -28,6 +29,7 @@ export function PoCabinetBlock({
   onCabinetChange,
   onChange,
   onCopyCabinet,
+  onRemove,
 }: {
   group: PoGroup;
   title: string;
@@ -37,7 +39,9 @@ export function PoCabinetBlock({
   onCabinetChange: (cabinet: PoCabinet) => void;
   onChange: (lines: PurchaseOrderLine[]) => void;
   onCopyCabinet: () => void;
+  onRemove: () => void;
 }) {
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const cabinetType = useCabinetTypes().find((t) => t.id === cabinet?.cabinetTypeId);
   const { ask, dialog: changeDialog } = useConfirmChange();
   const isManual = !!cabinet && !cabinet.unitName && !cabinet.cabinetTypeId;
@@ -62,6 +66,13 @@ export function PoCabinetBlock({
   return (
     <div className="unit-row border-b border-grey-100 bg-card px-2 py-0.5">
       {changeDialog}
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Delete cabinet ${srNo}?`}
+        description="This removes the cabinet and all its rows. It can't be undone until you Cancel the PO without saving."
+        onConfirm={onRemove}
+      />
       <PoLinesTable
         group={group}
         title={title}
@@ -69,7 +80,7 @@ export function PoCabinetBlock({
         srNo={srNo}
         vars={cabinet ? { W: cabinet.width, D: cabinet.depth, H: cabinet.height } : undefined}
         // The cabinet drawn as one table line (same columns as By Unit); the group's rows open underneath.
-        renderBand={({ collapsed, toggle, total, add, canAdd }) => (
+        renderBand={({ collapsed, toggle, total }) => (
           <>
             <div className={cabinetRowGrid(proforma)}>
               <div className="cell justify-center">
@@ -132,25 +143,26 @@ export function PoCabinetBlock({
               )}
               <div className="cell num justify-end font-semibold text-grey-900">{formatInr(total)}</div>
               <div className="cell justify-end">
-                {canAdd && (
-                  <button type="button" className={iconBtn} aria-label="Add Row" title="Add Row" onClick={add}>
-                    <Plus className="h-4 w-4" />
-                  </button>
-                )}
                 {group === "carcass" && cabinet && <PoComponentsToggle unitName={cabinet.unitName} cabinet={cabinet} onCabinetChange={onCabinetChange} />}
-                {group === "carcass" && cabinet && (
-                  <button type="button" className={iconBtn} aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
-                    <Copy className="h-4 w-4" />
-                  </button>
-                )}
-                {group === "carcass" && cabinet && !isManual && (
+              </div>
+              <div className="cell">
+                <input aria-label={`Cabinet ${srNo} remark`} {...selectOnClick} placeholder="Remark" value={cab.remark ?? ""} onChange={(e) => onCabinetChange({ ...cab, remark: e.target.value })} />
+              </div>
+              <div className="cell justify-center gap-0.5">
+                <button type="button" className={iconBtn} aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
+                  <Copy className="h-4 w-4" />
+                </button>
+                <button type="button" className={iconBtn} aria-label={`${collapsed ? "Open" : "Close"} cabinet ${srNo} to edit`} title={collapsed ? "Open to edit" : "Close"} onClick={toggle}>
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button type="button" className="rounded-md p-1 text-grey-400 hover:bg-error-transparent hover:text-error" aria-label="Delete cabinet" title="Delete this cabinet and all its rows" onClick={() => setDeleteOpen(true)}>
+                  <Trash2 className="h-4 w-4" />
+                </button>
+                {group === "carcass" && !isManual && (
                   <button type="button" className="rounded-md bg-primary p-1 text-white hover:bg-primary/90 disabled:opacity-50" aria-label="Auto Populate" disabled={!cabinetType} onClick={autoPopulate} title="Auto Populate: recalculate this cabinet's carcass sizes from its W / D / H">
                     <Sparkles className="h-3.5 w-3.5" />
                   </button>
                 )}
-              </div>
-              <div className="cell">
-                <input aria-label={`Cabinet ${srNo} remark`} {...selectOnClick} placeholder="Remark" value={cab.remark ?? ""} onChange={(e) => onCabinetChange({ ...cab, remark: e.target.value })} />
               </div>
             </div>
           </>

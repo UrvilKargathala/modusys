@@ -1352,7 +1352,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 </div>
                 {carcassOpen && (
                   <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
-<div className="overflow-x-auto"><div className="min-w-[1180px]">
+<div className="overflow-x-auto"><div className="min-w-[1470px]">
                 <PoCabinetListHeader proforma={isProforma} />
                 {cabinetNos
                   .filter((no) => draft.lines.some((l) => l.group === g.key && l.srNo === no))
@@ -1368,6 +1368,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                       onCabinetChange={(next) => setCabinet(no, next)}
                       onChange={(lines) => set({ lines })}
                       onCopyCabinet={() => copyCabinet(no)}
+                      onRemove={() => removeCabinet(no)}
                     />
                     </SortableCabinet>
                   ))}
@@ -1380,7 +1381,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           })
           : (
             <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
-<div className="overflow-x-auto"><div className="min-w-[1180px]">
+<div className="overflow-x-auto"><div className="min-w-[1470px]">
               <PoCabinetListHeader proforma={isProforma} />
               {cabinetNos.map((no) => (
               <SortableCabinet key={no} no={no}>

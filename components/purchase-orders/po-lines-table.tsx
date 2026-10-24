@@ -463,7 +463,7 @@ export function PoLinesTable({
         </div>
       )}
       {/* The same Add Row under a long table (more than 8 rows), so a row can be added without scrolling back up. */}
-      {!only && !collapsed && mine.length > 8 && (
+      {!only && !collapsed && mine.length > 0 && (mine.length > 8 || !!renderBand) && (
         <div className="flex justify-end">
           <Button type="button" variant="outline" size="sm" onClick={add}>
             <Plus className="h-3.5 w-3.5" />

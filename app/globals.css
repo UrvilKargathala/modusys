@@ -773,3 +773,28 @@
 .po-dense th[data-col="vendor"] { width: 8rem; min-width: 0; }
 .po-dense td[data-col="vendor"] > *,
 .po-dense td[data-col="vendor"] > button[aria-haspopup] { max-width: 8rem; overflow: hidden; text-overflow: ellipsis; }
+
+/* Cabinet table lines (By Unit / By Component, Direct PO Cabinet tab included): a little more room between lines. */
+.po-dense .relative > .unit-row:has(.cab-table) { padding-block: 5px; }
+
+/* A field inside a table line: a thin border when you click into it, no thick focus ring spilling out of the cell. */
+.unit-row input:focus,
+.unit-row input:focus-visible,
+.unit-row select:focus-visible,
+.unit-row button[aria-haspopup]:focus-visible { box-shadow: none; outline: none; }
+
+/* PO line tables: no rectangle round the fields; a thin border shows on hover and when you click in. */
+.po-dense td input:not([type="checkbox"]),
+.po-dense td select,
+.po-dense td button[aria-haspopup] { border-color: transparent; background-color: transparent; box-shadow: none; }
+.po-dense td input:not([type="checkbox"]):hover,
+.po-dense td select:hover,
+.po-dense td button[aria-haspopup]:hover { border-color: var(--color-grey-100); }
+.po-dense td input:not([type="checkbox"]):focus,
+.po-dense td select:focus-visible,
+.po-dense td button[aria-haspopup]:focus-visible,
+.po-dense td button[aria-haspopup][aria-expanded="true"] { border-color: var(--color-primary); background-color: var(--color-card); }
+
+/* The Action cell stays at the right edge while the cabinet table scrolls sideways. */
+.po-dense .cab-table > .cell:last-child { position: sticky; right: 0; z-index: 2; background-color: var(--color-card); box-shadow: -6px 0 6px -6px rgba(0, 0, 0, 0.18); }
+.po-dense .cab-head > .cell:last-child { background-color: #DACCCC; }
