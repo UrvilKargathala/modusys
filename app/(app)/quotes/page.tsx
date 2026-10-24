@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
-import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, Printer, ArrowUpDown, ArrowUp, ArrowDown, Upload, FileArchive, ListOrdered, LayoutList, LayoutGrid, Layers, ShoppingCart } from "lucide-react";
+import { Fragment, useMemo, useRef, useState } from "react";
+import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, Printer, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Upload, FileArchive, ListOrdered, LayoutList, LayoutGrid, Layers, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { useQuotes, quotesStore } from "@/lib/store/quotes-store";
+import { useQuotes, quotesStore, parseQuoteNumber } from "@/lib/store/quotes-store";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
@@ -27,17 +27,6 @@ import { getCurrentUser } from "@/lib/session";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
-
-function ExcelIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-      <path d="M14 2v6h6" />
-      <path d="m9 15 6-6" />
-      <path d="m9 9 6 6" />
-    </svg>
-  );
-}
 
 function PdfIcon({ className }: { className?: string }) {
   return (
@@ -131,7 +120,7 @@ export default function QuotesPage() {
       createdAt: now,
       updatedAt: now,
     };
-    const saved = quotesStore.saveQuote(copy);
+    const saved = quotesStore.saveQuote(quotesStore.assignSubQuoteNumber(copy));
     toastStore.show(`Duplicated as ${saved.quoteNumber}`, "success");
   };
 
@@ -142,21 +131,6 @@ export default function QuotesPage() {
       unitTypes, cabinetTypes, furnitureItems, hardwareItems,
       brands, hardwareCategories, unitOfMeasures, rawMaterialTypes, internalColours, externalColours, furnitureComponents,
     });
-  };
-
-  const exportExcel = (q: Quote) => {
-    downloadCsv(`${q.quoteNumber}.csv`, [
-      ["Quote No.", "Customer", "Date", "Product Type", "Final Amount", "Status", "Revision"],
-      [
-        q.quoteNumber,
-        customerName(q.customerId),
-        formatDate(q.date),
-        productTypeName(q.productTypeId),
-        finalAmount(q),
-        statusConfig[q.status as StatusKey]?.label ?? q.status,
-        q.revision,
-      ],
-    ]);
   };
 
   const openPdf = (q: Quote, mode: "download" | "print" | "unit-wise" | "unit-details" | "space-pricing" | "space-details") => {
@@ -247,7 +221,30 @@ export default function QuotesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quotes, customers, search, statusFilter, sort, productTypes, furnitureItems, hardwareItems]);
 
-  const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(filtered);
+  // One entry per plain quote, one per customer's sub-quote group (same base number), in list order.
+  const entries = useMemo(() => {
+    const out: { key: string; base?: string; quotes: Quote[] }[] = [];
+    const groups = new Map<string, (typeof out)[number]>();
+    for (const q of filtered) {
+      const parsed = parseQuoteNumber(q.quoteNumber);
+      if (!parsed?.letter) {
+        out.push({ key: q.id, quotes: [q] });
+        continue;
+      }
+      const key = `${q.customerId}|${parsed.base}`;
+      let g = groups.get(key);
+      if (!g) {
+        g = { key, base: parsed.base, quotes: [] };
+        groups.set(key, g);
+        out.push(g);
+      }
+      g.quotes.push(q);
+    }
+    for (const g of groups.values()) g.quotes.sort((a, b) => parseQuoteNumber(a.quoteNumber)!.letter.localeCompare(parseQuoteNumber(b.quoteNumber)!.letter));
+    return out;
+  }, [filtered]);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(entries);
 
   const SortHeader = ({ label, k, align = "left" }: { label: string; k: SortKey; align?: "left" | "right" }) => {
     const active = sort?.key === k;
@@ -270,113 +267,11 @@ export default function QuotesPage() {
     );
   };
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="font-heading text-2xl font-semibold text-grey-900">Quotes</h1>
-          <p className="text-sm font-body text-grey-400">Every priced quotation across your customers</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {quotes.length > 0 && (
-            <div className="relative w-full max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by quote no. or customer"
-                className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-700 outline-none placeholder:text-grey-300 focus:border-primary"
-              />
-            </div>
-          )}
-          <Button type="button" variant="outline" onClick={exportAllExcel}>
-            <Download className="h-4 w-4" />
-            Export
-          </Button>
-          <Button type="button" variant="outline" onClick={() => importRef.current?.click()}>
-            <Upload className="h-4 w-4" />
-            Import
-          </Button>
-          <input
-            ref={importRef}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onImportFile(f);
-              e.target.value = "";
-            }}
-          />
-          <Link href="/quotes/new">
-            <Button type="button">
-              <Plus className="h-4 w-4" />
-              Create New Quote
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-      {quotes.length === 0 ? (
-        <EmptyState icon={FileStack} message='No quotes yet. Click "Create New Quote" to price your first quote.' />
-      ) : (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setStatusFilter("all")}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs font-body font-medium transition-colors",
-                statusFilter === "all"
-                  ? "border-primary bg-primary-transparent text-primary"
-                  : "border-grey-100 text-grey-500 hover:bg-light-600"
-              )}
-            >
-              All
-            </button>
-            {(Object.keys(statusConfig) as StatusKey[]).map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setStatusFilter(key)}
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs font-body font-medium transition-colors",
-                  statusFilter === key
-                    ? cn(statusConfig[key].bg, statusConfig[key].color, "border-current")
-                    : "border-grey-100 text-grey-500 hover:bg-light-600"
-                )}
-              >
-                {statusConfig[key].label}
-              </button>
-            ))}
-          </div>
-          <div className="overflow-x-auto rounded-lg border border-grey-100 bg-card">
-            <table className="w-full text-[13px] font-body">
-              <thead>
-                <tr className="border-b border-grey-100 bg-[#DACCCC] text-left text-sm font-medium text-grey-900">
-                  <SortHeader label="Quote No." k="quoteNumber" />
-                  <SortHeader label="Customer" k="customer" />
-                  <SortHeader label="Date" k="date" />
-                  <SortHeader label="Product Type" k="productType" />
-                  <SortHeader label="Final Amount" k="finalAmount" />
-                  <SortHeader label="Revision" k="revision" />
-                  <SortHeader label="Status" k="status" />
-                  <th className="whitespace-nowrap px-2 py-1 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-grey-400">
-                      No quotes match your filters.
-                    </td>
-                  </tr>
-                ) : (
-                  paged.map((quote) => {
-                    const status = quote.status as StatusKey;
-                    return (
-                      <tr key={quote.id} className="border-b border-grey-100 last:border-0 hover:bg-light-600/60">
-                        <td className="whitespace-nowrap px-2 py-1 font-number font-medium text-grey-800">{quote.quoteNumber}</td>
+  const renderRow = (quote: Quote, sub = false) => {
+    const status = quote.status as StatusKey;
+    return (
+      <tr key={quote.id} className={cn("border-b border-grey-100 last:border-0 hover:bg-light-600/60", sub && "bg-light-600/40")}>
+                        <td className={cn("whitespace-nowrap px-2 py-1 font-number font-medium text-grey-800", sub && "pl-8")}>{quote.quoteNumber}</td>
                         <td className="whitespace-nowrap px-2 py-1 text-grey-700">{customerName(quote.customerId)}</td>
                         <td className="whitespace-nowrap px-2 py-1 font-number text-grey-500">{formatDate(quote.date)}</td>
                         <td className="px-2 py-1 text-grey-700">{productTypeLabel(quote)}</td>
@@ -444,16 +339,6 @@ export default function QuotesPage() {
                                 <Copy className="h-4 w-4" />
                               </TooltipTrigger>
                               <TooltipContent>Duplicate</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                              <TooltipTrigger
-                                aria-label="Export Excel"
-                                onClick={() => exportExcel(quote)}
-                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
-                              >
-                                <ExcelIcon className="h-4 w-4" />
-                              </TooltipTrigger>
-                              <TooltipContent>Export Excel (CSV)</TooltipContent>
                             </Tooltip>
                             <DropdownMenu>
                               <DropdownMenuTrigger
@@ -530,11 +415,144 @@ export default function QuotesPage() {
                           </div>
                         </td>
                       </tr>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="font-heading text-2xl font-semibold text-grey-900">Quotes</h1>
+          <p className="text-sm font-body text-grey-400">Every priced quotation across your customers</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" onClick={exportAllExcel}>
+            <Download className="h-4 w-4" />
+            Export
+          </Button>
+          <Button type="button" variant="outline" onClick={() => importRef.current?.click()}>
+            <Upload className="h-4 w-4" />
+            Import
+          </Button>
+          <input
+            ref={importRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onImportFile(f);
+              e.target.value = "";
+            }}
+          />
+          <Link href="/quotes/new">
+            <Button type="button">
+              <Plus className="h-4 w-4" />
+              Create New Quote
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {quotes.length === 0 ? (
+        <EmptyState icon={FileStack} message='No quotes yet. Click "Create New Quote" to price your first quote.' />
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div className="overflow-hidden rounded-xl border border-grey-100 bg-card">
+          <div className="flex flex-col gap-3 border-b border-grey-100 p-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative w-full lg:max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by quote no. or customer"
+                className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-700 outline-none placeholder:text-grey-300 focus:border-primary"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setStatusFilter("all")}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-body font-medium transition-colors",
+                statusFilter === "all"
+                  ? "border-primary bg-primary-transparent text-primary"
+                  : "border-grey-100 text-grey-500 hover:bg-light-600"
+              )}
+            >
+              All
+            </button>
+            {(Object.keys(statusConfig) as StatusKey[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setStatusFilter(key)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-body font-medium transition-colors",
+                  statusFilter === key
+                    ? cn(statusConfig[key].bg, statusConfig[key].color, "border-current")
+                    : "border-grey-100 text-grey-500 hover:bg-light-600"
+                )}
+              >
+                {statusConfig[key].label}
+              </button>
+            ))}
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[13px] font-body">
+              <thead>
+                <tr className="border-b border-grey-100 bg-[#DACCCC] text-left text-sm font-medium text-grey-900">
+                  <SortHeader label="Quote No." k="quoteNumber" />
+                  <SortHeader label="Customer" k="customer" />
+                  <SortHeader label="Date" k="date" />
+                  <SortHeader label="Product Type" k="productType" />
+                  <SortHeader label="Final Amount" k="finalAmount" />
+                  <SortHeader label="Revision" k="revision" />
+                  <SortHeader label="Status" k="status" />
+                  <th className="whitespace-nowrap px-2 py-1 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-8 text-center text-grey-400">
+                      No quotes match your filters.
+                    </td>
+                  </tr>
+                ) : (
+                  paged.map((entry) => {
+                    // A customer's sub-quotes (03(A), 03(B)...) sit under one main row; click it to open them.
+                    if (!entry.base || entry.quotes.length < 2) return renderRow(entry.quotes[0]);
+                    const isOpen = openGroups.has(entry.key);
+                    const latest = [...entry.quotes].sort((a, b) => b.date.localeCompare(a.date))[0];
+                    const last = entry.quotes[entry.quotes.length - 1]; // sorted A → C, so the last letter
+                    return (
+                      <Fragment key={entry.key}>
+                        <tr
+                          onClick={() => setOpenGroups((s) => { const n = new Set(s); if (n.has(entry.key)) n.delete(entry.key); else n.add(entry.key); return n; })}
+                          className="cursor-pointer border-b border-grey-100 bg-primary-transparent hover:bg-light-600/60"
+                        >
+                          <td className="whitespace-nowrap px-2 py-1 font-number font-semibold text-grey-900">
+                            <span className="inline-flex items-center gap-1.5">
+                              {isOpen ? <ChevronDown className="h-4 w-4 text-grey-500" /> : <ChevronRight className="h-4 w-4 text-grey-500" />}
+                              {entry.base}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-2 py-1 text-grey-700">{customerName(latest.customerId)}</td>
+                          <td className="whitespace-nowrap px-2 py-1 font-number text-grey-500">{formatDate(latest.date)}</td>
+                          <td className="px-2 py-1 text-grey-700">{productTypeLabel(last)}</td>
+                          <td className="whitespace-nowrap px-2 py-1 font-number font-medium text-grey-800">{formatInr(finalAmount(last))}</td>
+                          <td colSpan={3} />
+                        </tr>
+                        {isOpen && entry.quotes.map((q) => renderRow(q, true))}
+                      </Fragment>
                     );
                   })
                 )}
               </tbody>
             </table>
+          </div>
           </div>
 
           <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />

@@ -3,6 +3,7 @@ import type { DateRange, TrendGranularity } from "@/lib/types";
 import type { Quote } from "@/lib/mock/quote";
 import type { FurniturePriceItem, HardwarePriceItem } from "@/lib/mock/pricing-list";
 import { quoteRawTotal, quoteWaterfall } from "@/lib/quote-pricing";
+import { supersededSubQuoteIds } from "@/lib/quote-number";
 
 export type { DateRange, TrendGranularity };
 
@@ -35,14 +36,21 @@ function quoteRevenue(q: Quote, furnitureItems: FurniturePriceItem[], hardwareIt
   ).finalOffer;
 }
 
+// Revenue of one quote, counting a customer's sub-quotes (03(A), 03(B), 03(C)) once: only the last one carries revenue.
+function revenueCounter(quotes: Quote[], furnitureItems: FurniturePriceItem[], hardwareItems: HardwarePriceItem[]) {
+  const superseded = supersededSubQuoteIds(quotes);
+  return (q: Quote) => (superseded.has(q.id) ? 0 : quoteRevenue(q, furnitureItems, hardwareItems));
+}
+
 export function getDashboardKpis(
   quotes: Quote[],
   furnitureItems: FurniturePriceItem[],
   hardwareItems: HardwarePriceItem[],
   range: DateRange
 ): DashboardKpis {
+  const rev = revenueCounter(quotes, furnitureItems, hardwareItems);
   const filtered = quotes.filter((q) => inRange(q.date, range));
-  const totalRevenue = filtered.reduce((sum, q) => sum + quoteRevenue(q, furnitureItems, hardwareItems), 0);
+  const totalRevenue = filtered.reduce((sum, q) => sum + rev(q), 0);
   const activeQuotes = filtered.filter((q) => ACTIVE_STATUSES.includes(q.status as StatusKey)).length;
   const completedQuotes = filtered.filter((q) => q.status === "completed").length;
 
@@ -56,7 +64,7 @@ export function getDashboardKpis(
   };
   const prevRevenue = quotes
     .filter((q) => inRange(q.date, prevRange))
-    .reduce((sum, q) => sum + quoteRevenue(q, furnitureItems, hardwareItems), 0);
+    .reduce((sum, q) => sum + rev(q), 0);
   const totalRevenueDeltaPct = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
 
   return {
@@ -97,7 +105,9 @@ export function getConversionKpis(
   const completedCustomers = customers.filter((c) => c.stage === "site-completed").length;
   const conversionRatePct = (completedCustomers / totalCustomers) * 100;
 
-  const completedQuotes = quotes.filter((q) => q.status === "completed" && inRange(q.date, range));
+  // Only a customer's last sub-quote counts as a deal.
+  const superseded = supersededSubQuoteIds(quotes);
+  const completedQuotes = quotes.filter((q) => q.status === "completed" && inRange(q.date, range) && !superseded.has(q.id));
   const avgDealSize =
     completedQuotes.length > 0
       ? completedQuotes.reduce((sum, q) => sum + quoteRevenue(q, furnitureItems, hardwareItems), 0) / completedQuotes.length
@@ -123,10 +133,11 @@ export function getTopCustomersByRevenue(
   range: DateRange,
   limit = 5
 ): TopCustomerDatum[] {
+  const rev = revenueCounter(quotes, furnitureItems, hardwareItems);
   const filtered = quotes.filter((q) => inRange(q.date, range) && q.customerId);
   const byCustomer = new Map<string, number>();
   for (const q of filtered) {
-    byCustomer.set(q.customerId!, (byCustomer.get(q.customerId!) ?? 0) + quoteRevenue(q, furnitureItems, hardwareItems));
+    byCustomer.set(q.customerId!, (byCustomer.get(q.customerId!) ?? 0) + rev(q));
   }
   const nameMap = new Map(customers.map((c) => [c.id, c.name]));
   return [...byCustomer.entries()]
@@ -144,6 +155,7 @@ export function getTeamPerformance(
   hardwareItems: HardwarePriceItem[],
   range: DateRange
 ): TeamPerformanceDatum[] {
+  const rev = revenueCounter(quotes, furnitureItems, hardwareItems);
   const filtered = quotes.filter((q) => inRange(q.date, range));
   const nameMap = new Map(users.map((u) => [u.id, u.name]));
   // salesExecutiveId on older quotes may still hold a pre-fix value (a
@@ -157,7 +169,7 @@ export function getTeamPerformance(
     const key = nameMap.has(rawId) ? rawId : UNASSIGNED;
     const existing = byUser.get(key) ?? { quotes: 0, revenue: 0 };
     existing.quotes += 1;
-    existing.revenue += quoteRevenue(q, furnitureItems, hardwareItems);
+    existing.revenue += rev(q);
     byUser.set(key, existing);
   }
   return [...byUser.entries()]
@@ -202,6 +214,7 @@ export function getRevenueByMonth(
   hardwareItems: HardwarePriceItem[],
   range: DateRange
 ): RevenueByMonthDatum[] {
+  const rev = revenueCounter(quotes, furnitureItems, hardwareItems);
   const from = new Date(range.from);
   const to = new Date(range.to);
   const filtered = quotes.filter((q) => inRange(q.date, range));
@@ -210,7 +223,7 @@ export function getRevenueByMonth(
   for (const q of filtered) {
     const d = new Date(q.date);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    buckets.set(key, (buckets.get(key) ?? 0) + quoteRevenue(q, furnitureItems, hardwareItems));
+    buckets.set(key, (buckets.get(key) ?? 0) + rev(q));
   }
 
   const points: RevenueByMonthDatum[] = [];
@@ -231,6 +244,7 @@ export function getQuoteTrends(
   range: DateRange,
   granularity: TrendGranularity
 ): TrendDatum[] {
+  const rev = revenueCounter(quotes, furnitureItems, hardwareItems);
   const from = new Date(range.from);
   const to = new Date(range.to);
   const filtered = quotes.filter((q) => inRange(q.date, range));
@@ -253,7 +267,7 @@ export function getQuoteTrends(
   for (const q of filtered) {
     const d = new Date(q.date);
     const key = bucketKey(d);
-    const revenue = quoteRevenue(q, furnitureItems, hardwareItems);
+    const revenue = rev(q);
     const existing = totals.get(key);
     if (existing) {
       existing.quotes += 1;

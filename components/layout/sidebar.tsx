@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Contact, Download, KeyRound, LogOut, UserRound, ScanLine, ShoppingCart, UserCog, type LucideIcon } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Contact, Download, KeyRound, LogOut, UserRound, ScanLine, ShoppingCart, UserCog, Wallet, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatInr } from "@/lib/format";
+import { MOCK_CREDITS_BALANCE, MOCK_CREDITS_TOTAL } from "@/lib/mock/credits";
 import { navigationItems, administrationItems, attendanceItems, canSeeNav, type NavItem } from "@/lib/nav";
 import { AttendanceHealthDot } from "@/components/attendance/health-dot";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -22,18 +24,17 @@ type Entry = { kind: "link"; item: NavItem } | { kind: "group"; label: string; i
 
 const GROUP_ICON: Record<string, LucideIcon> = { Orders: ShoppingCart, Contacts: Contact };
 const STORAGE_KEY = "sidebar-collapsed";
-const GROUPS_KEY = "sidebar-open-groups";
 
 export function Sidebar() {
   const pathname = usePathname();
   const user = useCurrentUser();
   const [collapsed, setCollapsed] = useState(false);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  // The group the user opened or closed by hand, valid for the page it was done on; otherwise only the group holding the current page is open.
+  const [choice, setChoice] = useState<{ label: string | null; path: string } | null>(null);
 
   useEffect(() => {
     try {
       setCollapsed(localStorage.getItem(STORAGE_KEY) === "1");
-      setOpenGroups(JSON.parse(localStorage.getItem(GROUPS_KEY) ?? "{}"));
     } catch {}
   }, []);
   // Ctrl/Cmd + B collapses and expands the sidebar.
@@ -68,6 +69,9 @@ export function Sidebar() {
   if (attendance.length) entries.push({ kind: "group", label: "Attendance", icon: ScanLine, items: attendance });
   const admin = administrationItems.filter((i) => canSeeNav(i, user.role));
   if (admin.length) entries.push({ kind: "group", label: "Admin", icon: UserCog, items: admin });
+
+  const activeGroup = entries.flatMap((e) => (e.kind === "group" && e.items.some((m) => isActive(m.href)) ? [e.label] : []))[0];
+  const isGroupOpen = (label: string) => (choice && choice.path === pathname ? choice.label === label : label === activeGroup);
 
   const router = useRouter();
   const { rows: notificationRows, markAllRead } = useNotificationRows();
@@ -122,17 +126,12 @@ export function Sidebar() {
         </DropdownMenu>
       );
     }
-    const open = openGroups[e.label] ?? groupActive;
+    const open = isGroupOpen(e.label);
     return (
       <div key={e.label} className="flex flex-col gap-1">
         <button type="button" onClick={() =>
-            setOpenGroups((g) => {
-              const next = { ...g, [e.label]: !open };
-              try {
-                localStorage.setItem(GROUPS_KEY, JSON.stringify(next));
-              } catch {}
-              return next;
-            })
+            // Only one group stays open: opening a group closes the others.
+            setChoice({ label: open ? null : e.label, path: pathname })
           } aria-expanded={open} className={cn(row(open), "w-full")}>
           <Icon className="h-[18px] w-[18px] shrink-0" />
           <span className="flex flex-1 items-center gap-1.5 truncate text-left">
@@ -185,6 +184,27 @@ export function Sidebar() {
       </nav>
 
       <div className="flex flex-col gap-1 p-2">
+        {/* Credits left, as a bar against the total. Red when under 20%. */}
+        {(() => {
+          const pct = Math.max(0, Math.min(100, (MOCK_CREDITS_BALANCE / MOCK_CREDITS_TOTAL) * 100));
+          const low = pct < 20;
+          return collapsed ? (
+            <div title={`Credits: ${formatInr(MOCK_CREDITS_BALANCE)} of ${formatInr(MOCK_CREDITS_TOTAL)}`} className={cn("flex justify-center py-1", low ? "text-error" : "text-grey-700")}>
+              <Wallet className="h-5 w-5" />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5 rounded-lg bg-white/60 px-3 py-2">
+              <div className="flex items-center justify-between text-xs font-body text-grey-700">
+                <span className="inline-flex items-center gap-1.5 font-semibold"><Wallet className="h-3.5 w-3.5" />Credits</span>
+                <span className="font-number font-semibold text-grey-900">{formatInr(MOCK_CREDITS_BALANCE)}</span>
+              </div>
+              <div role="progressbar" aria-valuemin={0} aria-valuemax={MOCK_CREDITS_TOTAL} aria-valuenow={MOCK_CREDITS_BALANCE} aria-label="Credits left" className="h-1.5 overflow-hidden rounded-full bg-white">
+                <div className={cn("h-full rounded-full", low ? "bg-error" : "bg-primary")} style={{ width: `${pct}%` }} />
+              </div>
+              <span className="text-[11px] font-body text-grey-600">of <span className="font-number">{formatInr(MOCK_CREDITS_TOTAL)}</span></span>
+            </div>
+          );
+        })()}
         {/* The signed-in user: name and role, with Change Password, Install App and Sign out in its menu. */}
         <DropdownMenu>
           <DropdownMenuTrigger title={collapsed ? user.name || "Account" : undefined} className={cn("flex w-full items-center gap-3 rounded-lg bg-white/60 p-2 text-left transition-colors hover:bg-white/80", collapsed && "justify-center bg-transparent p-1")}>

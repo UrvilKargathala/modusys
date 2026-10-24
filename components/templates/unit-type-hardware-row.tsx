@@ -4,7 +4,7 @@ import { SelectField } from "@/components/shared/select-field";
 import { useMemo, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Copy, X, ChevronDown, ChevronRight, Check, Plus } from "lucide-react";
+import { GripVertical, Copy, X, ChevronDown, ChevronRight, Check, Plus, RotateCcw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -18,6 +18,21 @@ import { rateAfterDiscount } from "@/lib/mock/pricing-list";
 import { cn } from "@/lib/utils";
 import type { UnitTypeHardware } from "@/lib/mock/unit-type";
 
+
+// Column widths for the table layout (Quotes' cabinet groups): drag, Article No., Category, Brand, Description, Level Type, Qty, Unit,
+// Rate, Amount, actions. The group's header row uses the same string so the columns line up.
+export const HARDWARE_TABLE_COLUMNS = "20px 104px minmax(100px,0.9fr) minmax(90px,0.8fr) minmax(140px,1.6fr) minmax(90px,0.8fr) 56px 44px 76px 84px 76px";
+export function HardwareTableHeader() {
+  const heads = ["", "Article No.", "Category", "Brand", "Description", "Level Type", "Qty", "Unit", "Rate", "Amount", ""];
+  return (
+    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[#DACCCC] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: HARDWARE_TABLE_COLUMNS }}>
+      {heads.map((h, i) => (
+        <span key={i} className={["Qty", "Unit"].includes(h) ? "text-center" : ["Rate", "Amount"].includes(h) ? "text-right" : ""}>{h}</span>
+      ))}
+    </div>
+  );
+}
+
 // Article No. is a free text field. Brand and Description each pick from
 // Hardware Price List distinct values (unfiltered by Category so the user
 // isn't gated by a category choice). Level Type is picked from Material
@@ -30,6 +45,7 @@ export function UnitTypeHardwareRow({
   onCopy,
   rateReadOnly,
   collapsible,
+  table,
 }: {
   value: UnitTypeHardware;
   onChange: (patch: Partial<UnitTypeHardware>) => void;
@@ -39,6 +55,8 @@ export function UnitTypeHardwareRow({
   // Templates' Unit Type builder only — Quotes keeps every row always
   // expanded since users are actively pricing there.
   collapsible?: boolean;
+  // Quotes' cabinet groups: one compact table line per row (columns from hardwareTableColumns) instead of the card form.
+  table?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -184,6 +202,92 @@ export function UnitTypeHardwareRow({
   const priceListRate = matched ? rateAfterDiscount(matched) : undefined;
   const effectiveRate = value.rateOverride ?? priceListRate;
   const amount = effectiveRate !== undefined && Number.isFinite(resolvedQty) ? effectiveRate * resolvedQty : undefined;
+
+  const dialogs = (
+    <>
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Remove this hardware?"
+        description="This removes the line item and its pricing from the quote."
+        onConfirm={onRemove}
+      />
+
+      <ConfirmDialog
+        open={pendingChange !== null}
+        onOpenChange={(open) => !open && setPendingChange(null)}
+        title={`Change ${pendingChange?.label ?? ""}?`}
+        description={`Are you sure you want to change the ${pendingChange?.label?.toLowerCase() ?? ""} for this hardware line? This updates its Rate and Amount.`}
+        confirmLabel="Change"
+        onConfirm={() => {
+          if (pendingChange) onChange(pendingChange.patch);
+        }}
+      />
+    </>
+  );
+
+  if (table) {
+    const iconBtn = "rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-primary";
+    return (
+      <div
+        ref={setNodeRef}
+        style={{ transform: CSS.Transform.toString(transform), transition }}
+        className={cn("unit-row border-b border-grey-100 bg-card px-2 py-0.5 last:border-b-0", isDragging && "opacity-50")}
+      >
+        <div className="grid items-center gap-x-1.5" style={{ gridTemplateColumns: HARDWARE_TABLE_COLUMNS }}>
+          <button type="button" {...attributes} {...listeners} className="cursor-grab touch-none text-grey-300 hover:text-grey-500 active:cursor-grabbing" aria-label="Drag to reorder">
+            <GripVertical className="h-4 w-4" />
+          </button>
+          <Input aria-label="Article No." placeholder="Article No." value={value.articleNo ?? ""} onChange={(e) => handleArticleNoChange(e.target.value)} className="num" />
+          <MaterialReferenceSelect category="category" wide sorted value={value.categoryId} onChange={handleCategoryChange} />
+          <SelectField aria-label="Brand" value={value.brandId ?? ""} onChange={(e) => handleBrandChange(e.target.value)} className="w-full min-w-0 rounded-lg border px-2 text-sm font-body text-grey-900 outline-none">
+            <option value="">Brand</option>
+            {brandOptions.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </SelectField>
+          <DescriptionCombobox value={value.description ?? ""} options={descriptionOptions} onChange={handleDescriptionChange} />
+          <MaterialReferenceSelect category="level-type" value={value.levelTypeId ?? ""} onChange={(id) => commit("Level Type", { levelTypeId: id })} />
+          <Input aria-label="Qty" placeholder="Qty" value={value.qtyFormula} onChange={(e) => onChange({ qtyFormula: e.target.value })} className="num px-1 text-center" />
+          <span className="text-center text-sm font-number text-grey-700">{matched ? unitName(matched.unitId) : "—"}</span>
+          <Input
+            aria-label="Rate"
+            type="number"
+            step="0.01"
+            min={0}
+            placeholder="0.00"
+            value={value.rateOverride ?? (priceListRate !== undefined ? priceListRate.toFixed(2) : "")}
+            readOnly={rateReadOnly}
+            onChange={(e) => {
+              if (rateReadOnly) return;
+              const raw = e.target.value;
+              onChange({ rateOverride: raw === "" ? undefined : Number(raw) });
+            }}
+            className={cn("num px-1 text-right", rateReadOnly && "cursor-not-allowed")}
+          />
+          <span className="num text-right text-sm font-semibold text-grey-900">{amount !== undefined ? `₹${amount.toFixed(2)}` : "—"}</span>
+          <div className="flex items-center justify-end">
+            {!rateReadOnly && value.rateOverride !== undefined && priceListRate !== undefined && value.rateOverride !== priceListRate && (
+              <button type="button" title={`Reset to the price-list rate ₹${priceListRate.toFixed(2)}`} onClick={() => onChange({ rateOverride: undefined })} className={cn(iconBtn, "text-primary")}>
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {onCopy && (
+              <button type="button" onClick={onCopy} aria-label="Copy hardware" className={iconBtn}>
+                <Copy className="h-4 w-4" />
+              </button>
+            )}
+            <button type="button" onClick={() => setDeleteOpen(true)} aria-label="Remove hardware" className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        {dialogs}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -358,24 +462,7 @@ export function UnitTypeHardwareRow({
       </div>
       )}
 
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Remove this hardware?"
-        description="This removes the line item and its pricing from the quote."
-        onConfirm={onRemove}
-      />
-
-      <ConfirmDialog
-        open={pendingChange !== null}
-        onOpenChange={(open) => !open && setPendingChange(null)}
-        title={`Change ${pendingChange?.label ?? ""}?`}
-        description={`Are you sure you want to change the ${pendingChange?.label?.toLowerCase() ?? ""} for this hardware line? This updates its Rate and Amount.`}
-        confirmLabel="Change"
-        onConfirm={() => {
-          if (pendingChange) onChange(pendingChange.patch);
-        }}
-      />
+      {dialogs}
     </div>
   );
 }

@@ -6,7 +6,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { Check, ChevronDown, ChevronRight, Copy, GripVertical, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -29,6 +28,11 @@ import type { QuoteUnit, QuoteCabinet } from "@/lib/mock/quote";
 import type { UnitType, FurnitureLineItem, UnitTypeHardware } from "@/lib/mock/unit-type";
 import { rateAfterDiscount, type FurniturePriceItem, type HardwarePriceItem } from "@/lib/mock/pricing-list";
 import { cn } from "@/lib/utils";
+
+// One grid for the unit row and the column header above the list, so the columns line up.
+// Columns: drag, expand, no., space, unit type, W, D, H, qty, sq.ft, amount, actions, remarks.
+export const UNIT_ROW_GRID = "grid grid-cols-[20px_28px_28px_112px_minmax(160px,1fr)_52px_52px_52px_44px_52px_84px_84px_150px] items-center gap-x-1.5";
+const NUM_INPUT = "num bg-card px-1 text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
 function cloneLineItem(item: FurnitureLineItem): FurnitureLineItem {
   return { ...item, id: `qli-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
@@ -119,7 +123,7 @@ function UnitTypeSelect({ value, onChange }: { value: string | null; onChange: (
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           title={selected ? `${selected.shortCode} — ${selected.name}` : "Select Unit Type"}
-          className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+          className="flex h-8 w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
         >
           {selected ? (
             <span className="min-w-0 truncate font-number">
@@ -281,85 +285,51 @@ export function QuoteUnitCard({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("flex flex-col gap-4 rounded-xl border border-primary/30 bg-white/50 p-4", isDragging && "opacity-50")}
+      className={cn("flex flex-col gap-2 border-b border-grey-100 bg-card px-3 py-0.5 last:border-b-0", isDragging && "opacity-50")}
     >
-      <div className="flex w-full flex-wrap items-center justify-end gap-3">
-        <span className="text-sm font-body text-grey-500">Total: <span className="font-number">{totalSqFt.toFixed(2)} sq.ft</span></span>
-        <span className="text-sm font-body font-semibold text-grey-900">Amount: <span className="font-number">₹{total.toFixed(2)}</span></span>
-      </div>
+      <div className={cn(UNIT_ROW_GRID, "unit-row unit-top")}>
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label="Drag to reorder unit"
+          className="flex h-8 w-5 cursor-grab touch-none items-center justify-center rounded text-grey-300 hover:text-grey-500 active:cursor-grabbing"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <div className="flex items-center gap-2 sm:contents">
-          <button
-            type="button"
-            {...attributes}
-            {...listeners}
-            aria-label="Drag to reorder unit"
-            className="flex h-9 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-grey-300 hover:text-grey-500 active:cursor-grabbing"
-          >
-            <GripVertical className="h-4 w-4" />
-          </button>
+        <button
+          type="button"
+          aria-label={unit.collapsed ? "Expand unit" : "Collapse unit"}
+          onClick={() => onChange({ collapsed: !unit.collapsed })}
+          className="flex h-7 w-7 items-center justify-center rounded-md text-grey-500 hover:bg-primary-transparent hover:text-grey-800"
+        >
+          {unit.collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
 
-          <button
-            type="button"
-            aria-label={unit.collapsed ? "Expand unit" : "Collapse unit"}
-            onClick={() => onChange({ collapsed: !unit.collapsed })}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-grey-100 bg-card text-grey-500 hover:text-grey-800"
-          >
-            {unit.collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-transparent text-sm font-number font-semibold text-primary">
-            {index + 1}
-          </div>
+        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary-transparent text-xs font-semibold text-primary num">
+          {index + 1}
         </div>
 
-        <div className="flex w-full flex-col gap-1.5 sm:w-40">
-          <Label>Space</Label>
-          <MaterialReferenceSelect
-            category="space"
-            sorted
-            value={unit.spaceId ?? ""}
-            onChange={(id) => onChange({ spaceId: id })}
-          />
-        </div>
+        <MaterialReferenceSelect
+          category="space"
+          sorted
+          triggerClassName="h-8 py-0"
+          value={unit.spaceId ?? ""}
+          onChange={(id) => onChange({ spaceId: id })}
+        />
 
-        <div className="flex w-full flex-col gap-1.5 sm:min-w-80 sm:flex-1">
-          <Label>Unit Type</Label>
-          <UnitTypeSelect value={unit.unitTypeId} onChange={handleUnitTypeChange} />
-        </div>
+        <UnitTypeSelect value={unit.unitTypeId} onChange={handleUnitTypeChange} />
 
-        <div className="flex w-full flex-col gap-1.5 sm:w-44">
-          <Label htmlFor={`remark-${unit.id}`}>Remarks</Label>
-          <Input
-            id={`remark-${unit.id}`}
-            className="bg-card"
-            placeholder="Internal note for this unit"
-            value={unit.remark ?? ""}
-            onChange={(e) => onChange({ remark: e.target.value })}
-          />
-        </div>
+        <Input aria-label="Width" className={NUM_INPUT} type="number" value={unit.width || ""} onChange={(e) => onChange({ width: Number(e.target.value) })} />
+        <Input aria-label="Depth" className={NUM_INPUT} type="number" value={unit.depth || ""} onChange={(e) => onChange({ depth: Number(e.target.value) })} />
+        <Input aria-label="Height" className={NUM_INPUT} type="number" value={unit.height || ""} onChange={(e) => onChange({ height: Number(e.target.value) })} />
+        <Input aria-label="Quantity" className={NUM_INPUT} type="number" min={1} value={unit.qty || ""} onChange={(e) => onChange({ qty: Number(e.target.value) })} />
 
-        <div className="grid grid-cols-4 gap-2 sm:contents">
-          <div className="flex flex-col gap-1.5 sm:w-16">
-            <Label htmlFor={`w-${unit.id}`}>W</Label>
-            <Input className="bg-card font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" id={`w-${unit.id}`} type="number" value={unit.width || ""} onChange={(e) => onChange({ width: Number(e.target.value) })} />
-          </div>
-          <div className="flex flex-col gap-1.5 sm:w-16">
-            <Label htmlFor={`d-${unit.id}`}>D</Label>
-            <Input className="bg-card font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" id={`d-${unit.id}`} type="number" value={unit.depth || ""} onChange={(e) => onChange({ depth: Number(e.target.value) })} />
-          </div>
-          <div className="flex flex-col gap-1.5 sm:w-16">
-            <Label htmlFor={`h-${unit.id}`}>H</Label>
-            <Input className="bg-card font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" id={`h-${unit.id}`} type="number" value={unit.height || ""} onChange={(e) => onChange({ height: Number(e.target.value) })} />
-          </div>
-          <div className="flex flex-col gap-1.5 sm:w-14">
-            <Label htmlFor={`qty-${unit.id}`}>Qty</Label>
-            <Input className="bg-card font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" id={`qty-${unit.id}`} type="number" min={1} value={unit.qty || ""} onChange={(e) => onChange({ qty: Number(e.target.value) })} />
-          </div>
-        </div>
+        <span className="num text-right text-sm text-grey-600">{totalSqFt.toFixed(2)}</span>
+        <span className="num text-right text-sm font-semibold text-grey-900">₹{total.toFixed(2)}</span>
 
-        <div className="flex h-9 items-center gap-1 self-end">
+        <div className="flex items-center justify-end">
           <button
             type="button"
             aria-label="Duplicate unit"
@@ -380,7 +350,7 @@ export function QuoteUnitCard({
           </button>
           <Button
             type="button"
-            size="icon"
+            size="icon-sm"
             aria-label="Auto Populate"
             title="Auto Populate"
             disabled={!selectedUnitType}
@@ -389,10 +359,18 @@ export function QuoteUnitCard({
             <Sparkles className="h-4 w-4" />
           </Button>
         </div>
+
+        <Input
+          aria-label="Remarks"
+          className="bg-card"
+          placeholder="Internal note"
+          value={unit.remark ?? ""}
+          onChange={(e) => onChange({ remark: e.target.value })}
+        />
       </div>
 
       {!unit.collapsed && (
-        <div className="flex flex-col gap-3 sm:pl-12">
+        <div className="quote-dense flex flex-col gap-2 pb-1">
           {unit.cabinets.map((cabinet, cabinetIndex) => (
             <QuoteCabinetGroup
               key={cabinet.id}

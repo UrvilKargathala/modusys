@@ -104,22 +104,22 @@ export function FinishOptionsTable({
         <table className="w-full text-left">
           <thead className="bg-primary">
             <tr>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-white">
+              <th className="whitespace-nowrap px-3 py-1.5 text-xs font-body font-bold uppercase tracking-wide text-white">
                 Option
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-white">
+              <th className="whitespace-nowrap px-3 py-1.5 text-xs font-body font-bold uppercase tracking-wide text-white">
                 Product Type
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-white">
+              <th className="whitespace-nowrap px-3 py-1.5 text-xs font-body font-bold uppercase tracking-wide text-white">
                 External Finish + Tandem Drawer
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-white">
+              <th className="whitespace-nowrap px-3 py-1.5 text-xs font-body font-bold uppercase tracking-wide text-white">
                 Price
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-white">
+              <th className="whitespace-nowrap px-3 py-1.5 text-xs font-body font-bold uppercase tracking-wide text-white">
                 Remarks
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-bold uppercase tracking-wide text-white">
+              <th className="whitespace-nowrap px-3 py-1.5 text-right text-xs font-body font-bold uppercase tracking-wide text-white">
                 Actions
               </th>
             </tr>
@@ -133,11 +133,11 @@ export function FinishOptionsTable({
               </tr>
             ) : (
               options.map((row, idx) => (
-                <tr key={row.id} className="border-t border-grey-100">
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-700">
+                <tr key={row.id}>
+                  <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-700">
                     {letterAt(idx)}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3">
+                  <td className="whitespace-nowrap px-3 py-1">
                     <div className="min-w-44">
                       <MaterialReferenceSelect
                         category="product-type"
@@ -145,10 +145,11 @@ export function FinishOptionsTable({
                         onChange={(id) => update(row.id, { productTypeId: id })}
                         nameOnly
                         bold
+                        triggerClassName="h-8 py-0"
                       />
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3">
+                  <td className="whitespace-nowrap px-3 py-1">
                     <div className="flex items-center gap-2">
                       <div className="min-w-40 flex-1">
                         <MaterialReferenceSelect
@@ -157,6 +158,7 @@ export function FinishOptionsTable({
                           onChange={(id) => update(row.id, { externalColourId: id })}
                           nameOnly
                           bold
+                          triggerClassName="h-8 py-0"
                         />
                       </div>
                       <span className="text-sm font-body text-grey-400">+</span>
@@ -166,17 +168,18 @@ export function FinishOptionsTable({
                           value={row.tandemDrawerTypeId}
                           onChange={(id) => update(row.id, { tandemDrawerTypeId: id })}
                           bold
+                          triggerClassName="h-8 py-0"
                         />
                       </div>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3">
+                  <td className="whitespace-nowrap px-3 py-1">
                     <div className="flex items-center gap-1.5" title={row.priceMode === "live" ? "Follows the Final Offer Amount until the External Colour or Tandem Drawer Type is changed" : row.priceMode === "locked" ? "Locked: this price no longer changes" : undefined}>
                       <PriceInput value={row.price} locked={!!row.priceMode} onChange={(price) => update(row.id, { price })} />
                       {row.priceMode && <Lock className="h-3.5 w-3.5 text-grey-400" />}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-1">
                     <Input
                       type="text"
                       placeholder="Remarks"
@@ -185,7 +188,7 @@ export function FinishOptionsTable({
                       className="min-w-40 font-body"
                     />
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3">
+                  <td className="whitespace-nowrap px-3 py-1">
                     <div className="flex items-center justify-end gap-1">
                       <Tooltip>
                         <TooltipTrigger

@@ -62,50 +62,50 @@ export function CategorySummary({ quote }: { quote: Quote }) {
         <table className="w-full text-left">
           <thead className="bg-primary">
             <tr>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-white">
+              <th className="whitespace-nowrap px-3 py-1 text-xs font-body font-bold uppercase tracking-wide text-white">
                 Category
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-bold uppercase tracking-wide text-white">
+              <th className="whitespace-nowrap px-3 py-1 text-right text-xs font-body font-bold uppercase tracking-wide text-white">
                 Sq.ft
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-bold uppercase tracking-wide text-white">
+              <th className="whitespace-nowrap px-3 py-1 text-right text-xs font-body font-bold uppercase tracking-wide text-white">
                 Amount
               </th>
             </tr>
           </thead>
           <tbody>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">Carcass Total</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-number text-grey-500">{fmtSqft(totals.carcassSqft)}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-number font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">Carcass Total</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number text-grey-500">{fmtSqft(totals.carcassSqft)}</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-800">
                 {formatInr(totals.carcassAmt)}
               </td>
             </tr>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">Shutter Total</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-number text-grey-500">{fmtSqft(totals.shutterSqft)}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-number font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">Shutter Total</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number text-grey-500">{fmtSqft(totals.shutterSqft)}</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-800">
                 {formatInr(totals.shutterAmt)}
               </td>
             </tr>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">Other Panel Total</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-number text-grey-500">{fmtSqft(totals.panelSqft)}</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-number font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">Other Panel Total</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number text-grey-500">{fmtSqft(totals.panelSqft)}</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-800">
                 {formatInr(totals.panelAmt)}
               </td>
             </tr>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">Hardware Total</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-body text-grey-500">—</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-number font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">Hardware Total</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-body text-grey-500">—</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-800">
                 {formatInr(totals.hardwareAmt)}
               </td>
             </tr>
             <tr className="border-t-2 border-grey-100 bg-light-600/40">
-              <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">Combined Total</td>
-              <td className="whitespace-nowrap px-4 py-3" />
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-number font-semibold text-grey-900">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">Combined Total</td>
+              <td className="whitespace-nowrap px-3 py-1" />
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-900">
                 {formatInr(combined)}
               </td>
             </tr>

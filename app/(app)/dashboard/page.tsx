@@ -24,7 +24,6 @@ import { ActivityTimelinePanel } from "@/components/dashboard/activity-timeline-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { StatusKey } from "@/lib/status";
 import { formatInr, formatPercent } from "@/lib/format";
-import { MOCK_CREDITS_BALANCE } from "@/lib/mock/credits";
 import { useTasks, visibleTasks } from "@/lib/store/tasks-store";
 import { useCustomers } from "@/lib/store/customers-store";
 import { TaskFormDialog } from "@/components/crm/tasks/task-form-dialog";
@@ -76,6 +75,14 @@ export default function DashboardPage() {
     () => getDashboardKpis(quotes, furnitureItems, hardwareItems, range),
     [quotes, furnitureItems, hardwareItems, range]
   );
+  // Hero numbers follow the calendar (today / this month), not the date range picked below.
+  const { today, month } = useMemo(() => {
+    const day = new Date().toLocaleDateString("en-CA");
+    return {
+      today: getDashboardKpis(quotes, furnitureItems, hardwareItems, { from: day, to: day }),
+      month: getDashboardKpis(quotes, furnitureItems, hardwareItems, { from: `${day.slice(0, 7)}-01`, to: day }),
+    };
+  }, [quotes, furnitureItems, hardwareItems]);
   const convKpis = useMemo(
     () => getConversionKpis(quotes, customers, scopedTasks, furnitureItems, hardwareItems, range),
     [quotes, customers, scopedTasks, furnitureItems, hardwareItems, range]
@@ -95,9 +102,9 @@ export default function DashboardPage() {
         name={currentUser.name}
         distribution={dist}
         stats={[
-          { label: "Active quotes", value: String(kpis.activeQuotes) },
-          { label: "Tasks due", value: String(pendingTasks.length) },
-          { label: "Credits", value: formatInr(MOCK_CREDITS_BALANCE) },
+          { label: "Quotes today", value: String(today.totalQuotes) },
+          { label: "Quotes this month", value: String(month.totalQuotes) },
+          { label: "Revenue this month", value: formatInr(month.totalRevenue) },
         ]}
       />
 

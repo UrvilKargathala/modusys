@@ -8,8 +8,8 @@ import { Check, ChevronDown, ChevronRight, Copy, Plus, Sparkles, Trash2 } from "
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { FurnitureLineItemRow } from "@/components/templates/furniture-line-item-row";
-import { UnitTypeHardwareRow } from "@/components/templates/unit-type-hardware-row";
+import { FurnitureLineItemRow, FurnitureTableHeader } from "@/components/templates/furniture-line-item-row";
+import { UnitTypeHardwareRow, HardwareTableHeader } from "@/components/templates/unit-type-hardware-row";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
@@ -98,7 +98,7 @@ export function FurnitureGroup({
   const a = groupAccent[accent];
   return (
     <div className={cn("flex flex-col gap-2 rounded-lg border-l-4 bg-light-600 p-3", a.border)}>
-      <div className={cn("-mx-3 -mt-3 flex items-center justify-between rounded-t-md px-3 py-2", a.header)}>
+      <div className={cn("-mx-3 -mt-3 flex items-center justify-between rounded-t-md px-3 py-1", a.header)}>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -128,7 +128,9 @@ export function FurnitureGroup({
       {!collapsed && items.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            <div className="flex flex-col gap-2">
+            <div className="overflow-x-auto rounded-md border border-grey-100 bg-card">
+             <div className={showLevelType ? "min-w-[1130px]" : "min-w-[1020px]"}>
+              <FurnitureTableHeader showComponentName={showComponentName} showLevelType={!!showLevelType} nameLabel={label} />
               {items.map((item) => {
                 const w = evaluateFormula(item.widthFormula, { W: unit.width, D: unit.depth, H: unit.height });
                 const h = evaluateFormula(item.heightFormula, { W: unit.width, D: unit.depth, H: unit.height });
@@ -140,6 +142,7 @@ export function FurnitureGroup({
                     label={label}
                     showComponentName={showComponentName}
                     showLevelType={showLevelType}
+                    table
                     totalSqFt={totalSqFt}
                     unitDims={{ W: unit.width, D: unit.depth, H: unit.height }}
 
@@ -149,6 +152,7 @@ export function FurnitureGroup({
                   />
                 );
               })}
+             </div>
             </div>
           </SortableContext>
         </DndContext>
@@ -188,7 +192,7 @@ function HardwareGroup({
   const a = groupAccent.info;
   return (
     <div className={cn("flex flex-col gap-2 rounded-lg border-l-4 bg-light-600 p-3", a.border)}>
-      <div className={cn("-mx-3 -mt-3 flex items-center justify-between rounded-t-md px-3 py-2", a.header)}>
+      <div className={cn("-mx-3 -mt-3 flex items-center justify-between rounded-t-md px-3 py-1", a.header)}>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -212,16 +216,20 @@ function HardwareGroup({
       {!collapsed && items.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            <div className="flex flex-col gap-2">
+            <div className="overflow-x-auto rounded-md border border-grey-100 bg-card">
+             <div className="min-w-[1000px]">
+              <HardwareTableHeader />
               {items.map((item) => (
                 <UnitTypeHardwareRow
                   key={item.id}
+                  table
                   value={item}
                   onChange={(patch) => onChange(items.map((i) => (i.id === item.id ? { ...i, ...patch } : i)))}
                   onRemove={() => onChange(items.filter((i) => i.id !== item.id))}
                   onCopy={() => onChange(duplicateAt(items, item.id, () => `qhw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`))}
                 />
               ))}
+             </div>
             </div>
           </SortableContext>
         </DndContext>
@@ -241,7 +249,7 @@ function CabinetTypeSelect({ value, onChange }: { value: string; onChange: (id: 
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="flex min-w-56 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-1.5 text-sm font-body font-semibold text-grey-800 outline-none focus:border-primary">
+      <PopoverTrigger className="flex w-full min-w-32 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-1.5 text-sm font-body font-semibold text-grey-800 outline-none focus:border-primary">
         {selected ? <span className="truncate">{selected.name}</span> : <span className="truncate text-grey-400 font-normal">Select Cabinet Type</span>}
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
       </PopoverTrigger>
@@ -309,8 +317,8 @@ export function QuoteCabinetGroup({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-grey-100 bg-card p-3">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-col gap-2 rounded-lg border border-grey-100 bg-card p-3">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           aria-label={collapsed ? "Expand cabinet" : "Collapse cabinet"}
@@ -322,10 +330,12 @@ export function QuoteCabinetGroup({
         <span className="shrink-0 text-xs font-body font-medium text-grey-400">
           <span className="font-number">{index}</span>. Type:
         </span>
-        <CabinetTypeSelect
-          value={cabinet.cabinetTypeId}
-          onChange={(cabinetTypeId) => onChange({ cabinetTypeId })}
-        />
+        <div className="min-w-32 max-w-72 flex-1">
+          <CabinetTypeSelect
+            value={cabinet.cabinetTypeId}
+            onChange={(cabinetTypeId) => onChange({ cabinetTypeId })}
+          />
+        </div>
         <div className="flex items-center gap-1.5">
           {(["W", "D", "H"] as const).map((dim) => {
             const key = dim === "W" ? "carcassWidth" : dim === "D" ? "carcassDepth" : "carcassHeight";
@@ -353,9 +363,8 @@ export function QuoteCabinetGroup({
             />
           </div>
         </div>
-        <Button type="button" size="sm" disabled={!selectedCabinetType} onClick={runAutoPopulate}>
+        <Button type="button" size="icon-sm" aria-label="Auto Populate" title="Auto Populate" disabled={!selectedCabinetType} onClick={runAutoPopulate}>
           <Sparkles className="h-3.5 w-3.5" />
-          Auto Populate
         </Button>
         {cabinet.externalFinishes.length === 0 && (
           <Button type="button" size="sm" variant="outline" onClick={() => onChange({ externalFinishes: [blankLineItem()] })}>
@@ -375,7 +384,7 @@ export function QuoteCabinetGroup({
             Hardware
           </Button>
         )}
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2">
           {onAddCabinet && (
             <Button type="button" size="sm" variant="outline" onClick={onAddCabinet}>
               <Plus className="h-3.5 w-3.5" />

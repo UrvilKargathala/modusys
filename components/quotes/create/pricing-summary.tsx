@@ -29,23 +29,23 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
         <table className="w-full text-left">
           <thead className="bg-primary">
             <tr>
-              <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-white">
+              <th className="whitespace-nowrap px-3 py-1 text-xs font-body font-bold uppercase tracking-wide text-white">
                 Description
               </th>
-              <th className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-body font-bold uppercase tracking-wide text-white">
+              <th className="whitespace-nowrap px-3 py-1 text-right text-xs font-body font-bold uppercase tracking-wide text-white">
                 Amount
               </th>
             </tr>
           </thead>
           <tbody>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">Raw Total</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-number font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">Raw Total</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-800">
                 {formatInr(rawTotal)}
               </td>
             </tr>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">
                 <span className="flex items-center gap-2">
                   Markup Multiplier
                   <span className="relative">
@@ -58,18 +58,18 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
                         const v = Number(e.target.value);
                         if (!Number.isNaN(v) && v >= 0) onChange({ markupMultiplier: v });
                       }}
-                      className="h-9 w-28 pr-6 text-left text-sm font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      className="h-6 w-24 pr-6 text-left text-sm font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                     <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-grey-400">×</span>
                   </span>
                 </span>
               </td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-number font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-800">
                 {formatInr(waterfall.total)}
               </td>
             </tr>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">
                 <span className="flex items-center gap-2">
                   Special Discount
                   <span className="relative">
@@ -79,24 +79,24 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
                       max={100}
                       value={quote.specialDiscountPct || ""}
                       onChange={(e) => onChange({ specialDiscountPct: Number(e.target.value) })}
-                      className="h-9 w-28 pr-6 text-left text-sm font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      className="h-6 w-24 pr-6 text-left text-sm font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                     <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-grey-400">%</span>
                   </span>
                 </span>
               </td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-number font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-800">
                 -{formatInr(waterfall.discount)}
               </td>
             </tr>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">Amount After Discount</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-number font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">Amount After Discount</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-800">
                 {formatInr(waterfall.afterDiscount)}
               </td>
             </tr>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -107,7 +107,7 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
                   Installation &amp; Freight Included
                 </label>
               </td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-body font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-body font-semibold text-grey-800">
                 {quote.installationFreightIncluded ? (
                   "Included"
                 ) : (
@@ -121,7 +121,7 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
                         const digits = e.target.value.replace(/[^\d]/g, "");
                         onChange({ installationFreightCost: digits ? Number(digits) : 0 });
                       }}
-                      className="h-7 w-28 pl-5 text-right text-sm font-number"
+                      className="h-6 w-24 pl-5 text-right text-sm font-number"
                     />
                     <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-grey-400">₹</span>
                   </span>
@@ -129,14 +129,14 @@ export function PricingSummary({ quote, onChange }: { quote: Quote; onChange: (p
               </td>
             </tr>
             <tr className="border-t border-grey-100">
-              <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">Round Off</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-number font-semibold text-grey-800">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">Round Off</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-800">
                 {formatInr(waterfall.roundOff)}
               </td>
             </tr>
             <tr className="border-t-2 border-grey-100 bg-light-600/40">
-              <td className="whitespace-nowrap px-4 py-3 text-sm font-body font-semibold text-grey-900">Final Offer Amount</td>
-              <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-number font-semibold text-grey-900">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-body font-semibold text-grey-900">Final Offer Amount</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-number font-semibold text-grey-900">
                 {formatInr(waterfall.finalOffer)}
               </td>
             </tr>

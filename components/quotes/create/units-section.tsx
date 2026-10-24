@@ -6,7 +6,7 @@ import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type D
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
-import { QuoteUnitCard } from "@/components/quotes/create/quote-unit-card";
+import { QuoteUnitCard, UNIT_ROW_GRID } from "@/components/quotes/create/quote-unit-card";
 import { blankQuoteUnit, type QuoteUnit } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
 
@@ -36,14 +36,19 @@ export function UnitsSection({
   shutterFinishId,
   shutterFinishOverrides,
   onChange,
+  bare = false,
 }: {
   units: QuoteUnit[];
   shutterFinishId: string;
   shutterFinishOverrides?: Record<string, string>;
   onChange: (units: QuoteUnit[]) => void;
+  // Shown inside the Units tab: no frame and no header row; the tab line carries the count and the Expand / Collapse / Add Unit buttons.
+  bare?: boolean;
 }) {
   const setAllCollapsed = (collapsed: boolean) => onChange(units.map((u) => ({ ...u, collapsed })));
-  const [sectionCollapsed, setSectionCollapsed] = useState(true);
+  const [collapsedState, setSectionCollapsed] = useState(true);
+  const sectionCollapsed = !bare && collapsedState;
+  const addUnit = () => onChange([...units, blankQuoteUnit()]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const onDragEnd = (event: DragEndEvent) => {
@@ -56,30 +61,32 @@ export function UnitsSection({
   };
 
   return (
-    <section className={cn("flex flex-col gap-4 quote-form rounded-xl border border-blush bg-blush", sectionCollapsed ? "p-4" : "p-6")}>
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setSectionCollapsed((c) => !c)}
-          className="flex items-center gap-2 text-left"
-          aria-label={sectionCollapsed ? "Expand Units" : "Collapse Units"}
-        >
-          {sectionCollapsed ? <ChevronRight className="h-4 w-4 text-grey-400" /> : <ChevronDown className="h-4 w-4 text-grey-400" />}
-          <h2 className="font-heading text-lg font-semibold text-grey-900">Units</h2>
-        </button>
-        {!sectionCollapsed && units.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => setAllCollapsed(false)}>
-              <ChevronsDown className="h-3.5 w-3.5" />
-              Expand All
-            </Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => setAllCollapsed(true)}>
-              <ChevronsUp className="h-3.5 w-3.5" />
-              Collapse All
-            </Button>
-          </div>
-        )}
-      </div>
+    <section className={cn("flex flex-col gap-4 quote-form", !bare && "rounded-xl border border-blush bg-blush", !bare && (sectionCollapsed ? "p-4" : "p-6"))}>
+      {!bare && (
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setSectionCollapsed((c) => !c)}
+            className="flex items-center gap-2 text-left"
+            aria-label={sectionCollapsed ? "Expand Units" : "Collapse Units"}
+          >
+            {sectionCollapsed ? <ChevronRight className="h-4 w-4 text-grey-400" /> : <ChevronDown className="h-4 w-4 text-grey-400" />}
+            <h2 className="font-heading text-lg font-semibold text-grey-900">Units</h2>
+          </button>
+          {!sectionCollapsed && units.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => setAllCollapsed(false)}>
+                <ChevronsDown className="h-3.5 w-3.5" />
+                Expand All
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => setAllCollapsed(true)}>
+                <ChevronsUp className="h-3.5 w-3.5" />
+                Collapse All
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={cn("flex flex-col gap-4", sectionCollapsed && "hidden")}>
         {units.length === 0 ? (
@@ -87,7 +94,21 @@ export function UnitsSection({
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={units.map((u) => u.id)} strategy={verticalListSortingStrategy}>
-              <div className="flex flex-col gap-4">
+              <div className="overflow-x-auto rounded-lg border border-grey-100 bg-card">
+               <div className="min-w-[1020px]">
+                <div className={cn(UNIT_ROW_GRID, "unit-top unit-head border-b border-grey-100 bg-[#DACCCC] px-3 py-2 text-sm font-body font-medium text-grey-900")}>
+                  <span className="col-span-3" />
+                  <span>Space</span>
+                  <span>Unit Type</span>
+                  <span className="text-center">W</span>
+                  <span className="text-center">D</span>
+                  <span className="text-center">H</span>
+                  <span className="text-center">Qty</span>
+                  <span className="text-right">Sq.Ft</span>
+                  <span className="text-right">Amount</span>
+                  <span />
+                  <span>Remarks</span>
+                </div>
                 {units.map((unit, index) => (
                   <QuoteUnitCard
                     key={unit.id}
@@ -105,15 +126,18 @@ export function UnitsSection({
                     }}
                   />
                 ))}
+               </div>
               </div>
             </SortableContext>
           </DndContext>
         )}
 
-        <Button type="button" variant="outline" className="w-fit" onClick={() => onChange([...units, blankQuoteUnit()])}>
-          <Plus className="h-4 w-4" />
-          Add Unit
-        </Button>
+        {!bare && (
+          <Button type="button" variant="outline" className="w-fit" onClick={addUnit}>
+            <Plus className="h-4 w-4" />
+            Add Unit
+          </Button>
+        )}
       </div>
     </section>
   );

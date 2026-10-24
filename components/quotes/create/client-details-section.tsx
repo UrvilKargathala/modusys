@@ -9,6 +9,7 @@ import { ArchitectPicker, ArchitectReadOnlyDetails } from "@/components/quotes/c
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { UserPicker } from "@/components/crm/tasks/user-picker";
 import { StatusPicker } from "@/components/quotes/create/status-picker";
+import { SpecTable, L, V } from "@/components/quotes/create/spec-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { remarkWithStatusNote, type StatusKey } from "@/lib/status";
 import type { Quote } from "@/lib/mock/quote";
@@ -44,6 +45,7 @@ export function ClientDetailsSection({
   onChange,
   confirmChanges = false,
   procurementNumber,
+  bare = false,
 }: {
   quote: Quote;
   onChange: (patch: Partial<Quote>) => void;
@@ -52,8 +54,11 @@ export function ClientDetailsSection({
   // immediately with no popup.
   confirmChanges?: boolean;
   procurementNumber?: string;
+  // Shown inside a tab: no frame, no collapse header (the tab name is the title).
+  bare?: boolean;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsedState, setCollapsed] = useState(false);
+  const collapsed = !bare && collapsedState;
   const [pending, setPending] = useState<{ label: string; patch: Partial<Quote> } | null>(null);
 
   const confirmChange = useCallback(
@@ -68,17 +73,20 @@ export function ClientDetailsSection({
   );
 
   return (
-    <section className={cn("flex flex-col gap-6 quote-form rounded-xl border border-blush bg-blush", collapsed ? "p-4" : "p-6")}>
-      <button
-        type="button"
-        onClick={() => setCollapsed((c) => !c)}
-        className="flex items-center gap-2 text-left"
-        aria-label={collapsed ? "Expand Client Details" : "Collapse Client Details"}
-      >
-        {collapsed ? <ChevronRight className="h-4 w-4 text-grey-400" /> : <ChevronDown className="h-4 w-4 text-grey-400" />}
-        <h2 className="font-heading text-lg font-semibold text-grey-900">Client Details</h2>
-      </button>
+    <section className={cn("flex flex-col gap-6 quote-form", !bare && "rounded-xl border border-blush bg-blush", !bare && (collapsed ? "p-4" : "p-6"))}>
+      {!bare && (
+        <button
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          className="flex items-center gap-2 text-left"
+          aria-label={collapsed ? "Expand Client Details" : "Collapse Client Details"}
+        >
+          {collapsed ? <ChevronRight className="h-4 w-4 text-grey-400" /> : <ChevronDown className="h-4 w-4 text-grey-400" />}
+          <h2 className="font-heading text-lg font-semibold text-grey-900">Client Details</h2>
+        </button>
+      )}
 
+      {!bare && (
       <div className={cn("flex flex-col gap-4", collapsed && "hidden")}>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Field label="Customer Name" required>
@@ -165,6 +173,65 @@ export function ClientDetailsSection({
           </Field>
         </div>
       </div>
+      )}
+
+      {bare && (
+        <SpecTable>
+          <tr>
+            <L required>Customer Name</L>
+            <V>
+              <CustomerPicker value={quote.customerId ?? ""} onChange={(id) => confirmChange("Customer", { customerId: id || null })} />
+              {quote.customerId && <div className="mt-1"><CustomerReadOnlyDetails customerId={quote.customerId} /></div>}
+            </V>
+            <L required>Architect Name</L>
+            <V>
+              <ArchitectPicker value={quote.architectId ?? ""} onChange={(id) => confirmChange("Architect", { architectId: id || null })} />
+              {quote.architectId && <div className="mt-1"><ArchitectReadOnlyDetails architectId={quote.architectId} /></div>}
+            </V>
+          </tr>
+          <tr>
+            <L required>Property Type</L>
+            <V>
+              <MaterialReferenceSelect category="property-type" sorted value={quote.propertyTypeId} onChange={(id) => confirmChange("Property Type", { propertyTypeId: id })} />
+            </V>
+            <L required>Sales Executive</L>
+            <V>
+              <UserPicker value={quote.salesExecutiveId} onChange={(id) => confirmChange("Sales Executive", { salesExecutiveId: id })} />
+            </V>
+          </tr>
+          <tr>
+            <L required>Designer</L>
+            <V>
+              <MaterialReferenceSelect category="designer" sorted value={quote.designerId} onChange={(id) => confirmChange("Designer", { designerId: id })} />
+            </V>
+            <L required>Site Engineer</L>
+            <V>
+              <MaterialReferenceSelect category="site-engineer" sorted value={quote.siteEngineerId} onChange={(id) => confirmChange("Site Engineer", { siteEngineerId: id })} />
+            </V>
+          </tr>
+          <tr>
+            <L>Quote Number</L>
+            <V>
+              <div className="flex h-8 items-center rounded-lg border border-grey-100 bg-white px-3 text-sm font-number font-medium text-grey-700">{quote.quoteNumber}</div>
+            </V>
+            <L>Date</L>
+            <V>
+              <Input id="q-date" type="date" className="font-number" value={quote.date} onChange={(e) => confirmChange("Date", { date: e.target.value })} />
+            </V>
+          </tr>
+          <tr>
+            <L>Revision</L>
+            <V>
+              <div className="flex h-8 items-center rounded-lg border border-grey-100 bg-white px-3 text-sm font-number font-medium text-grey-700">{quote.revision}</div>
+            </V>
+            <L>Status</L>
+            <V>
+              <StatusPicker value={quote.status as StatusKey} onChange={(status, note) => confirmChange("Status", { status, ...(note ? { remark: remarkWithStatusNote(quote.remark, status, note) } : {}) })} />
+            </V>
+          </tr>
+        </SpecTable>
+      )}
+
 
       <ConfirmDialog
         open={pending !== null}

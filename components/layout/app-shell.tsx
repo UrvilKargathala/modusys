@@ -1,6 +1,5 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopNavbar } from "@/components/layout/top-navbar";
-import { Footer } from "@/components/layout/footer";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { TaskPanel } from "@/components/crm/tasks/task-panel";
 import { AssignmentGreeter } from "@/components/crm/tasks/assignment-greeter";
@@ -16,7 +15,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col lg:bg-grey-transparent">
           <TopNavbar />
           <main className="flex-1 overflow-auto p-4 pb-20 lg:p-6 lg:pb-6">{children}</main>
-          <Footer />
         </div>
         <MobileBottomNav />
         <TaskPanel />

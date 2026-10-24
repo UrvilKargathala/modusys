@@ -39,8 +39,9 @@ export function generateQuoteNumber(existing: Quote[], date = new Date()): strin
   const mm = pad(date.getMonth() + 1, 2);
   const yy = pad(date.getFullYear() % 100, 2);
   const prefix = `QT-${dd}${mm}${yy}-`;
-  const sameDay = existing.filter((q) => q.quoteNumber.startsWith(prefix));
-  return `${prefix}${pad(sameDay.length + 1, 2)}`;
+  // Sub-quotes (03(A), 03(B)) share their base number, so they count once.
+  const sameDay = new Set(existing.filter((q) => q.quoteNumber.startsWith(prefix)).map((q) => parseQuoteNumber(q.quoteNumber)?.base ?? q.quoteNumber));
+  return `${prefix}${pad(sameDay.size + 1, 2)}`;
 }
 
 // generateQuoteNumber counts unsaved quotes by their in-memory position, not
@@ -65,6 +66,23 @@ function uniqueQuoteNumber(desired: string, existing: Quote[], excludeId: string
   return candidate;
 }
 
+
+import { parseQuoteNumber } from "@/lib/quote-number";
+export { parseQuoteNumber };
+
+// `siblingNumbers`: the customer's other quotes' numbers, oldest first. Returns the number the new quote gets and, when
+// the oldest quote has no letter yet, the lettered number it is renamed to (A). Null: nothing to do (no siblings,
+// unrecognised format, or past Z).
+export function subQuoteNumbers(siblingNumbers: string[]): { number: string; renameOldestTo?: string } | null {
+  const oldest = parseQuoteNumber(siblingNumbers[0] ?? "");
+  if (!oldest) return null;
+  const letters = siblingNumbers.map(parseQuoteNumber).filter((p) => p && p.base === oldest.base && p.letter).map((p) => p!.letter);
+  if (!oldest.letter) letters.push("A");
+  const next = String.fromCharCode(Math.max(...letters.map((c) => c.charCodeAt(0))) + 1);
+  if (next > "Z") return null; // ponytail: 26 sub-quotes per customer, then the plain number is kept
+  return { number: `${oldest.base}(${next})`, renameOldestTo: oldest.letter ? undefined : `${oldest.base}(A)` };
+}
+
 export const quotesStore = {
   subscribe(listener: () => void) {
     listeners.add(listener);
@@ -80,6 +98,19 @@ export const quotesStore = {
   nextQuoteNumber() {
     ensureHydrated();
     return generateQuoteNumber(quotes);
+  },
+  // A new quote for a customer who already has quotes becomes a sub-quote (A, B, C...) of their oldest one.
+  // The oldest is renamed to A the first time. Call before saveQuote on create / duplicate only.
+  assignSubQuoteNumber(quote: Quote): Quote {
+    ensureHydrated();
+    if (!quote.customerId) return quote;
+    const siblings = quotes
+      .filter((q) => q.customerId === quote.customerId && q.id !== quote.id)
+      .sort((a, b) => (a.createdAt || a.date).localeCompare(b.createdAt || b.date));
+    const result = subQuoteNumbers(siblings.map((q) => q.quoteNumber));
+    if (!result) return quote;
+    if (result.renameOldestTo) quotesStore.saveQuote({ ...siblings[0], quoteNumber: result.renameOldestTo });
+    return { ...quote, quoteNumber: result.number };
   },
   saveQuote(quote: Quote) {
     ensureHydrated();

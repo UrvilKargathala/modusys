@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { SpecTable, L, V, SectionRow } from "@/components/quotes/create/spec-table";
 import { VariantIdSelect } from "@/components/quotes/create/variant-id-select";
 import { useFurniturePriceItems } from "@/lib/store/pricing-list-store";
 import type { FurniturePriceItem } from "@/lib/mock/pricing-list";
@@ -20,10 +21,14 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
+
+const PICK = "h-8 py-0";
+
 export function MaterialSpecificationSection({
   quote,
   onChange,
   confirmChanges = false,
+  bare = false,
 }: {
   quote: Quote;
   onChange: (patch: Partial<Quote>) => void;
@@ -31,8 +36,11 @@ export function MaterialSpecificationSection({
   // a brand-new quote has nothing to lose, so Create mode applies changes
   // immediately with no popup.
   confirmChanges?: boolean;
+  // Shown inside a tab: no frame, no collapse header (the tab name is the title).
+  bare?: boolean;
 }) {
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsedState, setCollapsed] = useState(true);
+  const collapsed = !bare && collapsedState;
   const [pending, setPending] = useState<{ label: string; patch: Partial<Quote> } | null>(null);
   const furnitureItems = useFurniturePriceItems();
 
@@ -72,17 +80,20 @@ export function MaterialSpecificationSection({
     });
 
   return (
-    <section className={cn("flex flex-col gap-6 quote-form rounded-xl border border-blush bg-blush", collapsed ? "p-4" : "p-6")}>
-      <button
-        type="button"
-        onClick={() => setCollapsed((c) => !c)}
-        className="flex items-center gap-2 text-left"
-        aria-label={collapsed ? "Expand Material Specification" : "Collapse Material Specification"}
-      >
-        {collapsed ? <ChevronRight className="h-4 w-4 text-grey-400" /> : <ChevronDown className="h-4 w-4 text-grey-400" />}
-        <h2 className="font-heading text-lg font-semibold text-grey-900">Material Specification</h2>
-      </button>
+    <section className={cn("flex flex-col gap-6 quote-form", !bare && "rounded-xl border border-blush bg-blush", !bare && (collapsed ? "p-4" : "p-6"))}>
+      {!bare && (
+        <button
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          className="flex items-center gap-2 text-left"
+          aria-label={collapsed ? "Expand Material Specification" : "Collapse Material Specification"}
+        >
+          {collapsed ? <ChevronRight className="h-4 w-4 text-grey-400" /> : <ChevronDown className="h-4 w-4 text-grey-400" />}
+          <h2 className="font-heading text-lg font-semibold text-grey-900">Material Specification</h2>
+        </button>
+      )}
 
+      {!bare && (
       <div className={cn("grid grid-cols-1 gap-4 lg:grid-cols-2", collapsed && "hidden")}>
         <Field label="Product Type" required>
           <MaterialReferenceSelect
@@ -174,6 +185,75 @@ export function MaterialSpecificationSection({
           />
         </Field>
       </div>
+      )}
+
+      {bare && (
+        <SpecTable>
+              <tr>
+                <L required>Product Type</L>
+                <V>
+                  <MaterialReferenceSelect category="product-type" triggerClassName={PICK} value={quote.productTypeId} onChange={(id) => confirmChange("Product Type", { productTypeId: id })} />
+                </V>
+                <L required>Material Description</L>
+                <V>
+                  <MaterialReferenceSelect category="raw-material-description" triggerClassName={PICK} value={quote.materialDescriptionId} onChange={(id) => confirmChange("Material Description", { materialDescriptionId: id })} />
+                </V>
+              </tr>
+              <tr>
+                <SectionRow>Shutter Finish Details</SectionRow>
+              </tr>
+              <tr>
+                <L required>Variant ID</L>
+                <V span={3}>
+                  <VariantIdSelect selectedId={matchedVariant?.id} onSelect={applyVariant} />
+                  {shutterComplete && !matchedVariant && (
+                    <p className="mt-1 text-xs font-body text-grey-500">Custom combination — no Variant ID matches these materials.</p>
+                  )}
+                </V>
+              </tr>
+              <tr>
+                <L>Thickness</L>
+                <V>
+                  <MaterialReferenceSelect category="thickness" sorted triggerClassName={PICK} value={quote.shutterFinishThicknessId} onChange={(id) => confirmChange("Shutter Finish Thickness", { shutterFinishThicknessId: id })} />
+                </V>
+                <L>Internal Colour</L>
+                <V>
+                  <MaterialReferenceSelect category="internal-colour" wide sorted triggerClassName={PICK} value={quote.shutterFinishInternalColourId} onChange={(id) => confirmChange("Shutter Finish Internal Colour", { shutterFinishInternalColourId: id })} />
+                </V>
+              </tr>
+              <tr>
+                <L>Raw Material</L>
+                <V>
+                  <MaterialReferenceSelect category="raw-material-type" wide sorted triggerClassName={PICK} value={quote.shutterFinishRawMaterialId} onChange={(id) => confirmChange("Shutter Finish Raw Material", { shutterFinishRawMaterialId: id })} />
+                </V>
+                <L>External Colour</L>
+                <V>
+                  <MaterialReferenceSelect category="external-colour" wide sorted triggerClassName={PICK} value={quote.shutterFinishExternalColourId} onChange={(id) => confirmChange("Shutter Finish External Colour", { shutterFinishExternalColourId: id })} />
+                </V>
+              </tr>
+              <tr>
+                <SectionRow>Hardware</SectionRow>
+              </tr>
+              <tr>
+                <L required>Handle</L>
+                <V>
+                  <MaterialReferenceSelect category="handle-type" triggerClassName={PICK} value={quote.handleTypeId} onChange={(id) => confirmChange("Handle", { handleTypeId: id })} />
+                </V>
+                <L required>Hinges</L>
+                <V>
+                  <MaterialReferenceSelect category="hinges-type" triggerClassName={PICK} value={quote.hingesTypeId} onChange={(id) => confirmChange("Hinges", { hingesTypeId: id })} />
+                </V>
+              </tr>
+              <tr>
+                <L required>Tandem Drawer Type</L>
+                <V>
+                  <MaterialReferenceSelect category="tandem-drawer-type" triggerClassName={PICK} value={quote.tandemDrawerTypeId} onChange={(id) => confirmChange("Tandem Drawer Type", { tandemDrawerTypeId: id })} />
+                </V>
+                <td colSpan={2} />
+              </tr>
+        </SpecTable>
+      )}
+
 
       <ConfirmDialog
         open={pending !== null}

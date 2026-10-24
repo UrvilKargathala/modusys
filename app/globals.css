@@ -583,3 +583,88 @@
   animation-timing-function: linear;
   animation-fill-mode: forwards;
 }
+
+/* Expanded quote units: tighter cards, labels and gaps so more of a unit fits on screen. */
+.quote-dense .p-3 { padding: 8px; }
+.quote-dense .-mx-3 { margin-inline: -8px; }
+.quote-dense .-mt-3 { margin-top: -8px; }
+.quote-dense .mb-3 { margin-bottom: 6px; }
+.quote-dense [data-slot="label"] { font-size: 12px; line-height: 1.1; }
+.quote-dense .grid.gap-y-3 { column-gap: 8px; row-gap: 6px; }
+.quote-dense .grid.gap-y-3 > div { gap: 3px; }
+
+/* Expanded quote units: the number fields (Width, Height, Qty, Thickness, Total sq.ft, Amount, Rate) are small boxes sized to what they hold;
+   the name / material pickers keep a fixed medium width, and everything flows left to right instead of six equal columns. */
+.quote-dense .grid.gap-y-3 { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 8px; }
+.quote-dense .grid.gap-y-3 > div { flex: none; width: 200px; }
+.quote-dense .grid.gap-y-3 > [data-narrow] { width: auto; }
+.quote-dense .grid.gap-y-3 > [data-narrow] input { width: auto; min-width: 44px; field-sizing: content; }
+.quote-dense .grid.gap-y-3 > [data-narrow] .h-9,
+.quote-dense .grid.gap-y-3 > [data-narrow] button[aria-haspopup] { min-width: 56px; }
+.quote-dense .grid.gap-y-3 input,
+.quote-dense .grid.gap-y-3 button[aria-haspopup],
+.quote-dense .grid.gap-y-3 .h-9 { height: 32px; padding-block: 0; }
+
+/* Customer Details / Material Specification tables: every picker, box and date field is 32px tall. */
+.spec-table button[aria-haspopup],
+.spec-table input { height: 32px; padding-block: 0; }
+
+/* Unit rows in the Units table: no rectangle round the fields; a border appears on hover and focus. */
+.unit-row input,
+.unit-row button[aria-haspopup] { border-color: transparent; background-color: transparent; }
+.unit-row input:hover,
+.unit-row button[aria-haspopup]:hover { border-color: var(--color-grey-100); }
+.unit-row input:focus,
+.unit-row button[aria-haspopup]:focus-visible,
+.unit-row button[aria-haspopup][aria-expanded="true"] { border-color: var(--color-primary); background-color: var(--color-card); }
+.unit-row input,
+.unit-row button[aria-haspopup] { height: 28px; padding-block: 0; }
+
+/* Native selects (the Brand pick in a hardware table line) follow the same rule as the other fields in a table line. */
+.unit-row select { border-color: transparent; background-color: transparent; height: 28px; padding-block: 0; }
+.unit-row select:hover { border-color: var(--color-grey-100); }
+.unit-row select:focus { border-color: var(--color-primary); background-color: var(--color-card); }
+
+/* No up / down arrows on number boxes in a table line (Qty, Rate, W, D, H). */
+.unit-row input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+.unit-row input[type="number"]::-webkit-inner-spin-button,
+.unit-row input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Component / hardware table lines in an expanded unit: text in Outfit Light, numbers in Manrope. */
+.quote-dense .table-head,
+.quote-dense .unit-row button[aria-haspopup],
+.quote-dense .unit-row select,
+.quote-dense .unit-row input { font-family: var(--font-number), system-ui, sans-serif; }
+.quote-dense .unit-row .num { font-family: var(--font-manrope), system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+/* Component / hardware table lines and their headers: 11px text, tight rows. */
+.quote-dense .table-head,
+.quote-dense .table-head *,
+.quote-dense .unit-row,
+.quote-dense .unit-row input,
+.quote-dense .unit-row select,
+.quote-dense .unit-row button,
+.quote-dense .unit-row span { font-size: 11px; line-height: 1.3; }
+
+.quote-dense .unit-row { padding-block: 0; }
+.quote-dense .unit-row input,
+.quote-dense .unit-row select,
+.quote-dense .unit-row button[aria-haspopup] { height: 24px; }
+
+/* The Units table (one line per unit): 12px, text in Outfit Light, numbers in Manrope. */
+.unit-top,
+.unit-top input,
+.unit-top select,
+.unit-top button,
+.unit-top span { font-size: 12px; line-height: 1.3; }
+.unit-top,
+.unit-top input,
+.unit-top select,
+.unit-top button[aria-haspopup] { font-family: var(--font-number), system-ui, sans-serif; }
+.unit-top .num { font-family: var(--font-manrope), system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+/* Units table lines: Space, Unit Type, Remarks, Sq.Ft and Amount use the same text colour as W, D, H and Qty (the inherited one). */
+.unit-top:not(.unit-head) button[aria-haspopup],
+.unit-top:not(.unit-head) button[aria-haspopup] span,
+.unit-top:not(.unit-head) select,
+.unit-top:not(.unit-head) .num:not(.text-primary) { color: inherit; }

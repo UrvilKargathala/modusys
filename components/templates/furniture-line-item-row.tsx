@@ -27,6 +27,32 @@ const materialFieldLabel: Record<string, string> = {
   externalColourId: "External Colour",
 };
 
+
+// Column widths for the table layout (Quotes' cabinet groups): drag, [name], W, H, Qty, Thickness, sq.ft, Raw, External, Internal,
+// Amount, Rate, [Level Type], actions. The group's header row uses the same string so the columns line up.
+export function furnitureTableColumns(showComponentName: boolean, showLevelType: boolean) {
+  return [
+    "20px",
+    showComponentName && "minmax(110px,1.1fr)",
+    "56px", "56px", "40px", "72px", "52px",
+    "minmax(100px,1fr)", "minmax(100px,1fr)", "minmax(100px,1fr)",
+    "84px", "76px",
+    showLevelType && "100px",
+    "76px",
+  ].filter(Boolean).join(" ");
+}
+
+export function FurnitureTableHeader({ showComponentName, showLevelType, nameLabel }: { showComponentName: boolean; showLevelType: boolean; nameLabel: string }) {
+  const heads = ["", showComponentName && nameLabel, "Width", "Height", "Qty", "Thk", "Sq.ft", "Raw Material", "External Colour", "Internal Colour", "Amount", "Rate", showLevelType && "Level Type", ""].filter((h) => h !== false);
+  return (
+    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[#DACCCC] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: furnitureTableColumns(showComponentName, showLevelType) }}>
+      {heads.map((h, i) => (
+        <span key={i} className={["Width", "Height", "Qty", "Sq.ft"].includes(h as string) ? "text-center" : ["Amount", "Rate"].includes(h as string) ? "text-right" : ""}>{h}</span>
+      ))}
+    </div>
+  );
+}
+
 // Shared by Unit Type's Components and External Finish tabs (and could
 // replace Cabinet Type's near-identical row too) — same four-way material
 // combination drives the same Furniture Price List lookup either way.
@@ -46,6 +72,7 @@ export function FurnitureLineItemRow({
   rateReadOnly,
   collapsible,
   unitDims,
+  table,
 }: {
   value: FurnitureLineItem;
   onChange: (patch: Partial<FurnitureLineItem>) => void;
@@ -73,6 +100,8 @@ export function FurnitureLineItemRow({
   // Templates' Unit Type builder only — Quotes keeps every row always
   // expanded since users are actively pricing there.
   collapsible?: boolean;
+  // Quotes' cabinet groups: one compact table line per row (columns from furnitureTableColumns) instead of the card form.
+  table?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   const [addPriceOpen, setAddPriceOpen] = useState(false);
@@ -140,6 +169,124 @@ export function FurnitureLineItemRow({
   useEffect(() => {
     if (useListRate && value.rateOverride !== match!.rate) onChange({ rateOverride: match!.rate });
   }, [useListRate, match, value.rateOverride, onChange]);
+
+  const dialogs = (
+    <>
+      <FurniturePriceFormDialog
+        open={addPriceOpen}
+        onOpenChange={setAddPriceOpen}
+        initialValues={{
+          thicknessId: value.thicknessId,
+          rawMaterialTypeId: value.rawMaterialTypeId,
+          internalColourId: value.internalColourId,
+          externalColourId: value.externalColourId,
+        }}
+        onSubmit={(values) => pricingListStore.createFurnitureItem(values)}
+        onEditExisting={() => setAddPriceOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Remove this ${label.toLowerCase()}?`}
+        description="This removes the line item and its pricing from the quote."
+        onConfirm={onRemove}
+      />
+
+      <ConfirmDialog
+        open={pendingMaterialChange !== null}
+        onOpenChange={(open) => !open && setPendingMaterialChange(null)}
+        title={`Change ${pendingMaterialChange ? materialFieldLabel[pendingMaterialChange.field] : ""}?`}
+        description="This changes the price-list match for this line item, which updates its Rate and Amount."
+        confirmLabel="Change"
+        onConfirm={() => {
+          if (pendingMaterialChange) handleFieldChange({ [pendingMaterialChange.field]: pendingMaterialChange.id });
+        }}
+      />
+    </>
+  );
+
+  if (table) {
+    const priceWarning = combinationComplete && !match && (
+      <div className="mt-0.5 flex flex-wrap items-center gap-2 rounded-md bg-warning-transparent px-2 py-1 text-xs font-body text-warning">
+        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+        No price found for this combination.
+        <Button size="sm" variant="outline" className="ml-auto" onClick={() => setAddPriceOpen(true)}>
+          <Plus className="h-3.5 w-3.5" />
+          Add this combination to Furniture Price List
+        </Button>
+      </div>
+    );
+    const iconBtn = "rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-primary";
+    return (
+      <div
+        ref={setNodeRef}
+        style={{ transform: CSS.Transform.toString(transform), transition }}
+        className={cn("unit-row border-b border-grey-100 bg-card px-2 py-0.5 last:border-b-0", isDragging && "opacity-50")}
+      >
+        <div className="grid items-center gap-x-1.5" style={{ gridTemplateColumns: furnitureTableColumns(!!showComponentName, !!showLevelType) }}>
+          <button type="button" {...attributes} {...listeners} className="cursor-grab touch-none text-grey-300 hover:text-grey-500 active:cursor-grabbing" aria-label="Drag to reorder">
+            <GripVertical className="h-4 w-4" />
+          </button>
+          {showComponentName && (
+            <MaterialReferenceSelect category="furniture-component" wide sorted value={value.componentTypeId ?? ""} onChange={(id) => requestMaterialChange("componentTypeId", id)} />
+          )}
+          <Input aria-label="Width" placeholder="W" value={value.widthFormula} onChange={(e) => handleFieldChange({ widthFormula: e.target.value })} onBlur={() => resolveOnBlur("widthFormula")} className="num px-1 text-center" />
+          <Input aria-label="Height" placeholder="H" value={value.heightFormula} onChange={(e) => handleFieldChange({ heightFormula: e.target.value })} onBlur={() => resolveOnBlur("heightFormula")} className="num px-1 text-center" />
+          <Input aria-label="Qty" type="number" min={1} value={value.qty || ""} onChange={(e) => handleFieldChange({ qty: Number(e.target.value) })} className="num px-1 text-center" />
+          <MaterialReferenceSelect category="thickness" value={value.thicknessId} onChange={(id) => requestMaterialChange("thicknessId", id)} triggerClassName="gap-1 px-1.5 font-number" />
+          <span className="num text-center text-sm text-grey-700">{totalSqFt !== undefined ? totalSqFt.toFixed(2) : "—"}</span>
+          <MaterialReferenceSelect category="raw-material-type" wide sorted value={value.rawMaterialTypeId} onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)} />
+          <MaterialReferenceSelect category="external-colour" wide sorted value={value.externalColourId} onChange={(id) => requestMaterialChange("externalColourId", id)} />
+          <MaterialReferenceSelect category="internal-colour" wide sorted value={value.internalColourId} onChange={(id) => requestMaterialChange("internalColourId", id)} />
+          <span className="num text-right text-sm font-semibold text-grey-900">
+            {totalSqFt !== undefined ? `₹${(effectiveRate !== undefined ? effectiveRate * totalSqFt : 0).toFixed(2)}` : "—"}
+          </span>
+          <Input
+            aria-label="Rate per sq.ft"
+            type="number"
+            step="0.01"
+            min={0}
+            placeholder="0.00"
+            value={useListRate ? match!.rate.toFixed(2) : (value.rateOverride ?? (match ? match.rate.toFixed(2) : ""))}
+            readOnly={rateReadOnly}
+            onChange={(e) => {
+              if (rateReadOnly) return;
+              setTypedRate(true);
+              const raw = e.target.value;
+              handleFieldChange({ rateOverride: raw === "" ? undefined : Number(raw) });
+            }}
+            className={cn("num px-1 text-right", rateReadOnly && "cursor-not-allowed")}
+          />
+          {showLevelType && (
+            <MaterialReferenceSelect category="level-type" value={value.levelTypeId ?? ""} onChange={(id) => handleFieldChange({ levelTypeId: id })} />
+          )}
+          <div className="flex items-center justify-end">
+            {canReset && (
+              <button type="button" title={`Reset to the price-list rate ₹${match!.rate.toFixed(2)}`} onClick={() => handleFieldChange({ rateOverride: undefined })} className={cn(iconBtn, "text-primary")}>
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {onCopy && (
+              <button type="button" onClick={onCopy} aria-label={`Copy ${label.toLowerCase()}`} className={iconBtn}>
+                <Copy className="h-4 w-4" />
+              </button>
+            )}
+            {onCopy && onCopyBlank && (
+              <button type="button" onClick={onCopyBlank} aria-label={`Copy ${label.toLowerCase()} without material and colours`} title="Copy without Thickness, Raw Material and colours" className={iconBtn}>
+                <CopyPlus className="h-4 w-4" />
+              </button>
+            )}
+            <button type="button" onClick={() => setDeleteOpen(true)} aria-label={`Remove ${label.toLowerCase()}`} className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        {priceWarning}
+        {dialogs}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -234,7 +381,7 @@ export function FurnitureLineItemRow({
             />
           </div>
         )}
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5" data-narrow="md">
           <Label htmlFor={`w-${value.id}`}>Width</Label>
           <Input
             id={`w-${value.id}`}
@@ -245,7 +392,7 @@ export function FurnitureLineItemRow({
             className="font-number bg-[#F0E4E4]"
           />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5" data-narrow="md">
           <Label htmlFor={`h-${value.id}`}>Height</Label>
           <Input
             id={`h-${value.id}`}
@@ -256,7 +403,7 @@ export function FurnitureLineItemRow({
             className="font-number bg-[#F0E4E4]"
           />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5" data-narrow="xs">
           <Label htmlFor={`qty-${value.id}`}>Qty</Label>
           <Input
             id={`qty-${value.id}`}
@@ -267,7 +414,7 @@ export function FurnitureLineItemRow({
             onChange={(e) => handleFieldChange({ qty: Number(e.target.value) })}
           />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5" data-narrow="sm">
           <Label>Thickness</Label>
           <MaterialReferenceSelect
             category="thickness"
@@ -277,7 +424,7 @@ export function FurnitureLineItemRow({
           />
         </div>
         {totalSqFt !== undefined && (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5" data-narrow="sm">
             <Label>Total sq.ft</Label>
             <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 text-sm font-number font-semibold text-grey-700">
               {totalSqFt.toFixed(2)}
@@ -317,7 +464,7 @@ export function FurnitureLineItemRow({
             triggerClassName="bg-[#F0E4E4]"
           />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5" data-narrow="md">
           <Label>Amount</Label>
           <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-[#F0E4E4] px-3 text-sm font-number font-semibold text-grey-900">
             {totalSqFt !== undefined
@@ -325,7 +472,7 @@ export function FurnitureLineItemRow({
               : "—"}
           </div>
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5" data-narrow="rate">
           <Label>Rate</Label>
           <div className="flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
@@ -385,37 +532,7 @@ export function FurnitureLineItemRow({
       )}
       </>)}
 
-      <FurniturePriceFormDialog
-        open={addPriceOpen}
-        onOpenChange={setAddPriceOpen}
-        initialValues={{
-          thicknessId: value.thicknessId,
-          rawMaterialTypeId: value.rawMaterialTypeId,
-          internalColourId: value.internalColourId,
-          externalColourId: value.externalColourId,
-        }}
-        onSubmit={(values) => pricingListStore.createFurnitureItem(values)}
-        onEditExisting={() => setAddPriceOpen(false)}
-      />
-
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title={`Remove this ${label.toLowerCase()}?`}
-        description="This removes the line item and its pricing from the quote."
-        onConfirm={onRemove}
-      />
-
-      <ConfirmDialog
-        open={pendingMaterialChange !== null}
-        onOpenChange={(open) => !open && setPendingMaterialChange(null)}
-        title={`Change ${pendingMaterialChange ? materialFieldLabel[pendingMaterialChange.field] : ""}?`}
-        description="This changes the price-list match for this line item, which updates its Rate and Amount."
-        confirmLabel="Change"
-        onConfirm={() => {
-          if (pendingMaterialChange) handleFieldChange({ [pendingMaterialChange.field]: pendingMaterialChange.id });
-        }}
-      />
+      {dialogs}
     </div>
   );
 }
