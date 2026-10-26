@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { useQuotes, quotesStore, parseQuoteNumber } from "@/lib/store/quotes-store";
+import { useQuotes, quotesStore } from "@/lib/store/quotes-store";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
@@ -221,27 +221,30 @@ export default function QuotesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quotes, customers, search, statusFilter, sort, productTypes, furnitureItems, hardwareItems]);
 
-  // One entry per plain quote, one per customer's sub-quote group (same base number), in list order.
+  // One entry per customer: all quotes under the same customer name merge into one row (latest quote first); a customer with one quote is a plain row.
   const entries = useMemo(() => {
-    const out: { key: string; base?: string; quotes: Quote[] }[] = [];
+    const out: { key: string; quotes: Quote[] }[] = [];
     const groups = new Map<string, (typeof out)[number]>();
     for (const q of filtered) {
-      const parsed = parseQuoteNumber(q.quoteNumber);
-      if (!parsed?.letter) {
+      const name = customerName(q.customerId).trim().toLowerCase();
+      if (!q.customerId || name === "—") {
         out.push({ key: q.id, quotes: [q] });
         continue;
       }
-      const key = `${q.customerId}|${parsed.base}`;
-      let g = groups.get(key);
+      let g = groups.get(name);
       if (!g) {
-        g = { key, base: parsed.base, quotes: [] };
-        groups.set(key, g);
+        g = { key: name, quotes: [] };
+        groups.set(name, g);
         out.push(g);
       }
       g.quotes.push(q);
     }
-    for (const g of groups.values()) g.quotes.sort((a, b) => parseQuoteNumber(a.quoteNumber)!.letter.localeCompare(parseQuoteNumber(b.quoteNumber)!.letter));
+    // Latest = newest date, then newest created, then highest quote number.
+    const latestFirst = (a: Quote, b: Quote) =>
+      b.date.localeCompare(a.date) || (b.createdAt ?? "").localeCompare(a.createdAt ?? "") || b.quoteNumber.localeCompare(a.quoteNumber, undefined, { numeric: true });
+    for (const g of groups.values()) g.quotes.sort(latestFirst);
     return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered]);
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(entries);
@@ -522,11 +525,10 @@ export default function QuotesPage() {
                   </tr>
                 ) : (
                   paged.map((entry) => {
-                    // A customer's sub-quotes (03(A), 03(B)...) sit under one main row; click it to open them.
-                    if (!entry.base || entry.quotes.length < 2) return renderRow(entry.quotes[0]);
+                    // A customer's quotes sit under one main row showing their latest quote; click it to open all of them.
+                    if (entry.quotes.length < 2) return renderRow(entry.quotes[0]);
                     const isOpen = openGroups.has(entry.key);
-                    const latest = [...entry.quotes].sort((a, b) => b.date.localeCompare(a.date))[0];
-                    const last = entry.quotes[entry.quotes.length - 1]; // sorted A → C, so the last letter
+                    const latest = entry.quotes[0];
                     return (
                       <Fragment key={entry.key}>
                         <tr
@@ -536,13 +538,14 @@ export default function QuotesPage() {
                           <td className="whitespace-nowrap px-2 py-1 font-number font-semibold text-grey-900">
                             <span className="inline-flex items-center gap-1.5">
                               {isOpen ? <ChevronDown className="h-4 w-4 text-grey-500" /> : <ChevronRight className="h-4 w-4 text-grey-500" />}
-                              {entry.base}
+                              {latest.quoteNumber}
+                              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{entry.quotes.length} quotes</span>
                             </span>
                           </td>
                           <td className="whitespace-nowrap px-2 py-1 text-grey-700">{customerName(latest.customerId)}</td>
                           <td className="whitespace-nowrap px-2 py-1 font-number text-grey-500">{formatDate(latest.date)}</td>
-                          <td className="px-2 py-1 text-grey-700">{productTypeLabel(last)}</td>
-                          <td className="whitespace-nowrap px-2 py-1 font-number font-medium text-grey-800">{formatInr(finalAmount(last))}</td>
+                          <td className="px-2 py-1 text-grey-700">{productTypeLabel(latest)}</td>
+                          <td className="whitespace-nowrap px-2 py-1 font-number font-medium text-grey-800">{formatInr(finalAmount(latest))}</td>
                           <td colSpan={3} />
                         </tr>
                         {isOpen && entry.quotes.map((q) => renderRow(q, true))}

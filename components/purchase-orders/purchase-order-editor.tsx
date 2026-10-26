@@ -1439,8 +1439,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className={`grid gap-4 ${isProforma ? "lg:grid-cols-[1.1fr_1.3fr_1fr]" : "lg:grid-cols-3"}`}>
-        <div className={`${cardTight} ${isProforma ? "" : "lg:col-span-2"}`}>
+      <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr_1fr]">
+        <div className={cardTight}>
           <h2 className="font-heading text-sm font-semibold text-grey-900">Remarks</h2>
           <textarea
             value={draft.remarks}
@@ -1450,9 +1450,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             className="h-0 min-h-24 flex-1 resize-none rounded-lg border border-grey-100 bg-card p-3 text-xs font-body text-grey-900 outline-none focus:border-primary"
           />
         </div>
-        {isProforma && (
           <div className={cardTight}>
-            <h2 className="font-heading text-sm font-semibold text-grey-900">Summary</h2>
+            <h2 className="font-heading text-sm font-semibold text-grey-900">Productwise Summary</h2>
             <div className="flex-1 overflow-x-auto rounded-lg border border-grey-100 bg-white">
               <table className="h-full w-full text-xs">
                 <thead className="bg-[var(--table-head)]">
@@ -1484,9 +1483,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               </table>
             </div>
           </div>
-        )}
         <div className={cardTight}>
-          <h2 className="font-heading text-sm font-semibold text-grey-900">Totals</h2>
+          <h2 className="font-heading text-sm font-semibold text-grey-900">Pricing Summary</h2>
           <div className="flex-1 overflow-x-auto rounded-lg border border-grey-100 bg-white">
             <table className="h-full w-full text-xs">
               <thead className="bg-[var(--table-head)]">
@@ -1514,7 +1512,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                       />
                       <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs font-number text-grey-500">%</span>
                     </div>
-                    <span className="w-28 text-right text-xs font-number text-grey-900" title="Discount amount">{formatInr(totals.amount - totals.taxable)}</span>
+                    <span className="w-24 text-right text-xs font-number text-grey-900" title="Discount amount">{formatInr(totals.amount - totals.taxable)}</span>
                     </div>
                   </td>
                 </tr>
@@ -1523,16 +1521,13 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                   <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(totals.taxable)}</td>
                 </tr>
                 <tr className="border-t border-grey-100">
-                  <td className="px-3 py-1 font-body text-grey-900">
-                    <div className="flex items-center gap-2">
-                      <span>GST</span>
-                      <SelectField value={draft.gstMode} onChange={(e) => set({ gstMode: e.target.value as GstMode })} className={`${field} h-6! w-44 text-xs!`}>
-                        <option value="intra">State + Central (9% + 9%)</option>
-                        <option value="inter">Integrated (18%)</option>
-                      </SelectField>
-                    </div>
+                  <td className="px-3 py-1 font-body text-grey-900">GST</td>
+                  <td className="px-3 py-1">
+                    <SelectField value={draft.gstMode} onChange={(e) => set({ gstMode: e.target.value as GstMode })} className={`${field} ml-auto h-6! w-44 text-xs!`}>
+                      <option value="intra">State + Central (9% + 9%)</option>
+                      <option value="inter">Integrated (18%)</option>
+                    </SelectField>
                   </td>
-                  <td />
                 </tr>
                 {draft.gstMode === "intra" ? (
                   <>

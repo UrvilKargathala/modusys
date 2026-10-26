@@ -2,12 +2,13 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, FileText, Layers, Plus, Printer, Ruler, RotateCcw, Save, Store, Tag, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, FileText, Layers, Plus, Printer, Ruler, RotateCcw, Save, Scissors, Store, Tag, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SpecTable, L, V } from "@/components/quotes/create/spec-table";
 import { PoWhereSelect } from "@/components/purchase-orders/po-where-select";
+import { ProformaCutList, type CutRow } from "@/components/purchase-orders/proforma-cutlist";
 import { SelectField } from "@/components/shared/select-field";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { Input } from "@/components/ui/input";
@@ -130,7 +131,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
   // Show all rows, only the pieces still to pack, or only those already packed.
   const [filter, setFilter] = useState<"all" | "pending" | "completed">("all");
   // Dealer, Proforma and Material details are tabs like the invoice editor; the work list sits under them, always shown.
-  const [tab, setTab] = useState<"dealer" | "details" | "material" | "edge">("dealer");
+  const [tab, setTab] = useState<"dealer" | "details" | "material" | "edge" | "cutlist">("dealer");
   // Production only: the edge band and sides of each thickness + internal + external colour combination of the components, saved on the invoice with the produced ticks.
   const [edgeCombos, setEdgeCombos] = useState<NonNullable<PoMaterial["edgeBandCombos"]>>({});
   const editCombo = (key: string, patch: Partial<{ band: string; where: string }>) => { setEdgeCombos((m) => ({ ...m, [key]: { ...(m[key] ?? { band: "", where: "" }), ...patch } })); setDirty(true); };
@@ -238,6 +239,24 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
     }
     return [...m.entries()];
   }, [headers, rows]);
+
+  // The components for the Cut List tab: size, qty, material and colours of each row, with the sides that get edge band right now (ticks and codes as in the Components table).
+  const cutRows = useMemo<CutRow[]>(() => {
+    const at = (cells: (string | number)[], h: string) => String(cells[headers.indexOf(h)] ?? "").trim();
+    return rows.map(({ key, cells }) => {
+      const combo = edgeCombos[`${at(cells, "Thk")}|${at(cells, "Internal Brand & Colour")}|${at(cells, "External Brand & Colour")}`];
+      const where = whereOf(combo?.where ?? "");
+      const side = (s: "top" | "bottom" | "lh" | "rh", label: string) => {
+        const on = edgeSides[key]?.[s] ?? (!!combo && where.includes(label));
+        return { on, code: on ? (edgeCodes[key]?.[s] ?? combo?.band ?? "").trim() : "" };
+      };
+      return {
+        id: key, sr: at(cells, "Sr"), name: at(cells, "Description"), info: [at(cells, "Cabinet Type"), at(cells, "Cabinet Name"), at(cells, "Design")].filter((x) => x && x !== "-").join(" · "), w: Number(at(cells, "Width")) || 0, h: Number(at(cells, "Height")) || 0, qty: Number(at(cells, "Qty")) || 0,
+        thk: at(cells, "Thk"), material: at(cells, "Material"), internal: at(cells, "Internal Brand & Colour"), external: at(cells, "External Brand & Colour"),
+        sides: { top: side("top", "Width-1"), bottom: side("bottom", "Width-2"), lh: side("lh", "Height-1"), rh: side("rh", "Height-2") },
+      };
+    });
+  }, [rows, headers, edgeCombos, edgeSides, edgeCodes]);
 
   // Edge band length of a combination, in mm (shown in metres): for every component of it with an edge band code, each ticked side counts once its length
   // (Top / Bottom: width, LH / RH: height), times the component's Qty. All four sides = (width x 2) + (height x 2).
@@ -450,7 +469,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
             ["dealer", "Dealer Details", Store],
             ["details", "Proforma Details", FileText],
             ["material", "Material Details", Layers],
-            ...(isProd ? ([["edge", "Edge Band", Ruler]] as const) : []),
+            ...(isProd ? ([["edge", "Edge Band", Ruler], ["cutlist", "Cut List", Scissors]] as const) : []),
           ] as const).map(([key, label, Icon]) => (
             <button
               key={key}
@@ -475,6 +494,9 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
           <div role="tabpanel" className={tab === "material" ? "block" : "hidden"}>
             {po && <MaterialDetailsLocked po={po} />}
           </div>
+          {isProd && tab === "cutlist" && (
+            <div role="tabpanel"><ProformaCutList rows={cutRows} /></div>
+          )}
           {isProd && (
             <div role="tabpanel" className={tab === "edge" ? "grid items-start gap-x-6 gap-y-4 xl:grid-cols-2" : "hidden"}>
               <div className="po-dense finish-table flex flex-col gap-2 xl:col-span-2">
