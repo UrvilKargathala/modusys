@@ -160,6 +160,8 @@ export type PoMaterial = {
   // Order Tracker columns: the Purchase Order Type (name picked from the Purchase Material Library) and the vendor's proforma invoice.
   orderType?: string;
   vendorPiNo?: string;
+  // Proforma Invoice: a reference code typed by hand.
+  refCode?: string;
   vendorPiDate?: string;
   vendorPiAmount?: number;
   // Purchase Material Library > Purchase Product Type picked on the PO (its id); its Code goes into the PO number.
@@ -197,11 +199,20 @@ export type PoMaterial = {
   // Proforma Production page: per cut-list row, one entry per piece (Qty) ticked as produced, with its own note (same shape as packing, no boxes).
   production?: Record<string, { pieces: { done: boolean; note: string }[] }>;
   // Proforma Production page, Edge Band tab: one entry per thickness + internal + external colour combination found on the components (key "thk|internal|external"), with its edge band and the sides it is used on (Top, Bottom, LH, RH; "A,B").
-  edgeBandCombos?: Record<string, { band: string; where: string }>;
+  // bandW / bandH: the edge band thickness (mm) taken off a piece's Width / Height for every banded width / height side.
+  edgeBandCombos?: Record<string, { band: string; where: string; bandW?: string; bandH?: string }>;
   // Same tab, Primary Color Selection: the internal / external colour (text labels, as on the rows) for each side (Top, Bottom, LH, RH).
   // Same page, Components table: per cut-list row, the sides (top / bottom / LH / RH) ticked or un-ticked by hand; a side not listed follows the row's Edge Band Detail combination.
   // Same page: the edge band code typed beside a ticked side of a row; a side not listed shows its Edge Band Detail combination's code.
   edgeBandCodes?: Record<string, Partial<{ top: string; bottom: string; lh: string; rh: string }>>;
+  // Grain set on one component row (Production page): h / v, or n = none (overrides the combination's Grain).
+  edgeBandGrain?: Record<string, "h" | "v" | "n">;
+  // Used Edge Band list (Production page): the Edge Band Width and Thickness (mm) and the Wastage % (default 20) typed for each line, keyed by code|panel thickness.
+  usedEdgeBand?: Record<string, { width?: string; thickness?: string; wastage?: string }>;
+  // Cut List edits (Production page), by component row: cut size, description, remarks, grain and the edge band code on each side ("" = no band).
+  // They change only the Cut List, never the Components rows. cutListHistory keeps every saved change.
+  cutListEdits?: Record<string, Partial<{ w: number; h: number; name: string; remarks: string; grain: "h" | "v" | "n"; top: string; bottom: string; lh: string; rh: string; fields: Record<string, string> }>>;
+  cutListHistory?: { at: string; by: string; id: string; sr: string; piece: string; field: string; from: string; to: string }[];
   edgeBandSides?: Record<string, Partial<{ top: boolean; bottom: boolean; lh: boolean; rh: boolean }>>;
   edgeBandColours?: { id: string; where: string; internal: string; external: string }[];
   // Proforma Packing page, Transport Details: one entry per transport (name from the Proforma Library list), its LR number and box count.

@@ -273,14 +273,14 @@ export default function QuotesPage() {
   const renderRow = (quote: Quote, sub = false) => {
     const status = quote.status as StatusKey;
     return (
-      <tr key={quote.id} className={cn("border-b border-grey-100 last:border-0 hover:bg-light-600/60", sub && "bg-light-600/40")}>
-                        <td className={cn("whitespace-nowrap px-2 py-1 font-number font-medium text-grey-800", sub && "pl-8")}>{quote.quoteNumber}</td>
-                        <td className="whitespace-nowrap px-2 py-1 text-grey-700">{customerName(quote.customerId)}</td>
-                        <td className="whitespace-nowrap px-2 py-1 font-number text-grey-500">{formatDate(quote.date)}</td>
-                        <td className="px-2 py-1 text-grey-700">{productTypeLabel(quote)}</td>
-                        <td className="whitespace-nowrap px-2 py-1 font-number font-medium text-grey-800">{formatInr(finalAmount(quote))}</td>
-                        <td className="whitespace-nowrap px-2 py-1 font-number text-grey-500">{quote.revision}</td>
-                        <td className="whitespace-nowrap px-2 py-1">
+      <tr key={quote.id} className={cn("hover:bg-light-600/60", sub && "bg-light-600/40")}>
+                        <td className={cn("whitespace-nowrap px-2 py-0.5 font-number font-medium text-grey-800", sub && "pl-8")}>{quote.quoteNumber}</td>
+                        <td className="whitespace-nowrap px-2 py-0.5 text-grey-700">{customerName(quote.customerId)}</td>
+                        <td className="whitespace-nowrap px-2 py-0.5 font-number text-grey-500">{formatDate(quote.date)}</td>
+                        <td className="px-2 py-0.5 text-grey-700">{productTypeLabel(quote)}</td>
+                        <td className="whitespace-nowrap px-2 py-0.5 font-number font-medium text-grey-800">{formatInr(finalAmount(quote))}</td>
+                        <td className="whitespace-nowrap px-2 py-0.5 font-number text-grey-500">{quote.revision}</td>
+                        <td className="whitespace-nowrap px-2 py-0.5">
                           <StatusPicker
                             value={status}
                             onChange={(next, note) => {
@@ -290,7 +290,7 @@ export default function QuotesPage() {
                             className="h-7 w-auto px-2 py-0 text-xs"
                           />
                         </td>
-                        <td className="whitespace-nowrap px-2 py-1">
+                        <td className="whitespace-nowrap px-2 py-0.5">
                           <div className="flex items-center justify-end gap-1">
                             <Tooltip>
                               <TooltipTrigger
@@ -461,8 +461,9 @@ export default function QuotesPage() {
         <EmptyState icon={FileStack} message='No quotes yet. Click "Create New Quote" to price your first quote.' />
       ) : (
         <div className="flex flex-col gap-3">
-          <div className="overflow-hidden rounded-xl border border-grey-100 bg-card">
-          <div className="flex flex-col gap-3 border-b border-grey-100 p-2 lg:flex-row lg:items-center lg:justify-between">
+          {/* No frame, and full width: the page's side padding is cancelled (-mx) so the table runs edge to edge. */}
+          <div className="-mx-2 overflow-hidden lg:-mx-4">
+          <div className="flex flex-col gap-3 px-2 py-1 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-xs">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
               <input
@@ -503,9 +504,9 @@ export default function QuotesPage() {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-[13px] font-body">
+            <table className="w-full text-xs font-body">
               <thead>
-                <tr className="border-b border-grey-100 bg-[var(--table-head)] text-left text-sm font-medium text-grey-900">
+                <tr className="bg-[var(--table-head)] text-left text-xs font-medium text-grey-900">
                   <SortHeader label="Quote No." k="quoteNumber" />
                   <SortHeader label="Customer" k="customer" />
                   <SortHeader label="Date" k="date" />
@@ -513,7 +514,7 @@ export default function QuotesPage() {
                   <SortHeader label="Final Amount" k="finalAmount" />
                   <SortHeader label="Revision" k="revision" />
                   <SortHeader label="Status" k="status" />
-                  <th className="whitespace-nowrap px-2 py-1 text-right">Actions</th>
+                  <th className="whitespace-nowrap px-2 py-0.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -533,19 +534,19 @@ export default function QuotesPage() {
                       <Fragment key={entry.key}>
                         <tr
                           onClick={() => setOpenGroups((s) => { const n = new Set(s); if (n.has(entry.key)) n.delete(entry.key); else n.add(entry.key); return n; })}
-                          className="cursor-pointer border-b border-grey-100 bg-primary-transparent hover:bg-light-600/60"
+                          className="cursor-pointer bg-primary-transparent hover:bg-light-600/60"
                         >
-                          <td className="whitespace-nowrap px-2 py-1 font-number font-semibold text-grey-900">
+                          <td className="whitespace-nowrap px-2 py-0.5 font-number font-semibold text-grey-900">
                             <span className="inline-flex items-center gap-1.5">
                               {isOpen ? <ChevronDown className="h-4 w-4 text-grey-500" /> : <ChevronRight className="h-4 w-4 text-grey-500" />}
                               {latest.quoteNumber}
                               <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{entry.quotes.length} quotes</span>
                             </span>
                           </td>
-                          <td className="whitespace-nowrap px-2 py-1 text-grey-700">{customerName(latest.customerId)}</td>
-                          <td className="whitespace-nowrap px-2 py-1 font-number text-grey-500">{formatDate(latest.date)}</td>
-                          <td className="px-2 py-1 text-grey-700">{productTypeLabel(latest)}</td>
-                          <td className="whitespace-nowrap px-2 py-1 font-number font-medium text-grey-800">{formatInr(finalAmount(latest))}</td>
+                          <td className="whitespace-nowrap px-2 py-0.5 text-grey-700">{customerName(latest.customerId)}</td>
+                          <td className="whitespace-nowrap px-2 py-0.5 font-number text-grey-500">{formatDate(latest.date)}</td>
+                          <td className="px-2 py-0.5 text-grey-700">{productTypeLabel(latest)}</td>
+                          <td className="whitespace-nowrap px-2 py-0.5 font-number font-medium text-grey-800">{formatInr(finalAmount(latest))}</td>
                           <td colSpan={3} />
                         </tr>
                         {isOpen && entry.quotes.map((q) => renderRow(q, true))}

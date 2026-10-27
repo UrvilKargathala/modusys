@@ -37,9 +37,9 @@ function initialQuote() {
 const UNDO_LIMIT = 20;
 
 const TABS = [
-  { key: "items", label: "Units", icon: FileText },
   { key: "client", label: "Customer Details", icon: User },
   { key: "material", label: "Material Specification", icon: Layers },
+  { key: "items", label: "Units", icon: FileText },
   { key: "summary", label: "Quote Summary", icon: Calculator },
   { key: "finishes", label: "Finish Options", icon: Palette },
 ] as const;

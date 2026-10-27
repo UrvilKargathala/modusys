@@ -4,8 +4,10 @@
 export type SideKey = "top" | "bottom" | "lh" | "rh";
 export type PartSides = Record<SideKey, { on: boolean; code: string }>;
 // w runs along the sheet's length (x), h along its width (y), as typed on the component (Width x Height).
+// fw / fh: the finished Width / Height (before edge band thickness is taken off); edge band length follows these.
+// grain: the grain runs along the piece's Width ("h") or Height ("v"); the sheet's grain runs along its length, so a "v" piece is always turned and an "h" piece never is.
 // label = Sr no, name = the component (Top Panel ...), info = cabinet details for a tooltip.
-export type Part = { id: string; label: string; name?: string; info?: string; w: number; h: number; sides: PartSides };
+export type Part = { id: string; label: string; name?: string; info?: string; w: number; h: number; fw?: number; fh?: number; grain?: "h" | "v"; extra?: Record<string, string>; sides: PartSides };
 export type Placed = { part: Part; x: number; y: number; w: number; h: number; rot: boolean };
 export type Sheet = { placed: Placed[] };
 type Rect = { x: number; y: number; w: number; h: number };
@@ -21,7 +23,7 @@ export function packSheets(parts: Part[], sheetL: number, sheetW: number, kerf: 
       let best: { i: number; rot: boolean; score: number } | null = null;
       const free = sheet ? sheet.free : [{ x: 0, y: 0, w: sheetL, h: sheetW }];
       for (let i = 0; i < free.length; i++) {
-        for (const rot of rotate ? [false, true] : [false]) {
+        for (const rot of part.grain ? [part.grain === "v"] : rotate ? [false, true] : [false]) {
           const pw = rot ? part.h : part.w;
           const ph = rot ? part.w : part.h;
           if (pw > free[i].w || ph > free[i].h) continue;

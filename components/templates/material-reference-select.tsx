@@ -18,6 +18,7 @@ export function MaterialReferenceSelect({
   value,
   onChange,
   nameOnly = false,
+  hoverFull = false,
   bold = false,
   triggerClassName,
   disabled = false,
@@ -31,6 +32,8 @@ export function MaterialReferenceSelect({
   value: string;
   onChange: (id: string) => void;
   nameOnly?: boolean;
+  // HoverFull: the box shows only the name; the full "name — description" appears on hover (the list still shows both).
+  hoverFull?: boolean;
   bold?: boolean;
   triggerClassName?: string;
   disabled?: boolean;
@@ -79,7 +82,7 @@ export function MaterialReferenceSelect({
               className={cn("min-w-0 truncate font-number", bold && "font-semibold")}
             >
               {parts(selected).main}
-              {!nameOnly && parts(selected).sub && <span className="text-grey-400"> — {parts(selected).sub}</span>}
+              {!nameOnly && !hoverFull && parts(selected).sub && <span className="text-grey-400"> — {parts(selected).sub}</span>}
             </span>
           ) : (
             <span className={cn("min-w-0 truncate", fallbackText ? "font-number" : "text-grey-400")}>{fallbackText || `Select ${meta.label.toLowerCase()}`}</span>

@@ -143,8 +143,9 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           </button>
         </div>
       )}
-      <div className="overflow-hidden rounded-xl border border-grey-100 bg-card">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-grey-100 p-2">
+      {/* Plain table: no frame or lines, full width with a small side gap. */}
+      <div className="-mx-2 overflow-hidden lg:-mx-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1">
         <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Purchase order status">
           {/* Proforma: Packing has its own tab on the page, so no Packing pill here (its invoices still show under All Invoices). */}
           {(proforma ? ["all", ...statuses.filter((st) => st.toLowerCase() !== "packing" && st !== "in-production")] : statuses).map((st) => (
@@ -208,7 +209,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                 {[proforma ? "PI No" : "PO No", proforma ? "PI Date" : "Date", "Required", proforma ? "Dealer" : "Vendor", "Customer", "Quote", "Amount", "Status", "Actions"].map((h) => (
                   <th
                     key={h}
-                    className={`whitespace-nowrap px-2 py-1 text-sm font-body font-medium text-grey-900 ${h === "Amount" ? "text-right" : h === "Actions" ? "text-right" : ""}`}
+                    className={`whitespace-nowrap px-2 py-1 text-xs font-body font-medium text-grey-900 ${h === "Amount" ? "text-right" : h === "Actions" ? "text-right" : ""}`}
                   >
                     {h}
                   </th>
@@ -217,17 +218,17 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
             </thead>
             <tbody>
               {paged.map(({ po, customer, quote, total }) => (
-                <tr key={po.id} className="border-t border-grey-100 hover:bg-light-600/60">
-                  <td className="px-2 py-1 font-number text-sm text-grey-900">
+                <tr key={po.id} className="hover:bg-light-600/60">
+                  <td className="px-2 py-0.5 font-number text-xs text-grey-900">
                     <Link href={`${base}/${po.id}`} className="text-primary hover:underline">{po.poNumber || <span className="text-grey-400">Not set</span>}</Link>
                   </td>
-                  <td className="px-2 py-1 font-number text-sm text-grey-700">{formatPoDate(po.poDate)}</td>
-                  <td className="px-2 py-1 font-number text-sm text-grey-700">{formatPoDate(po.requiredDate)}</td>
-                  <td className="px-2 py-1 text-sm font-body text-grey-900">{po.vendorName || <span className="text-grey-400">No vendor yet</span>}</td>
-                  <td className="px-2 py-1 text-sm font-body text-grey-700">{customer || "—"}</td>
-                  <td className="px-2 py-1 font-number text-sm text-grey-700">{quote || "—"}</td>
-                  <td className="px-2 py-1 text-right font-number text-sm text-grey-900">{formatInr(total)}</td>
-                  <td className="px-2 py-1">
+                  <td className="px-2 py-0.5 font-number text-xs text-grey-700">{formatPoDate(po.poDate)}</td>
+                  <td className="px-2 py-0.5 font-number text-xs text-grey-700">{formatPoDate(po.requiredDate)}</td>
+                  <td className="px-2 py-0.5 text-xs font-body text-grey-900">{po.vendorName || <span className="text-grey-400">No vendor yet</span>}</td>
+                  <td className="px-2 py-0.5 text-xs font-body text-grey-700">{customer || "—"}</td>
+                  <td className="px-2 py-0.5 font-number text-xs text-grey-700">{quote || "—"}</td>
+                  <td className="px-2 py-0.5 text-right font-number text-xs text-grey-900">{formatInr(total)}</td>
+                  <td className="px-2 py-0.5">
                     {/* Changeable here like the Quotes status. Completing needs the PO's required fields filled in. */}
                     <StatusMenu
                       label={`Status of ${po.poNumber || "this PO"}`}
@@ -237,7 +238,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                       onAdd={(name) => addStatus(po, name)}
                     />
                   </td>
-                  <td className="px-2 py-1">
+                  <td className="px-2 py-0.5">
                     <PoRowActions po={po} proforma={proforma} base={base} showPacking />
                   </td>
                 </tr>

@@ -268,7 +268,7 @@ export function UnitTypeHardwareRow({
             step="0.01"
             min={0}
             placeholder="0.00"
-            value={value.rateOverride ?? (priceListRate !== undefined ? priceListRate.toFixed(2) : "")}
+            value={value.rateOverride !== undefined ? Math.round(value.rateOverride * 100) / 100 : (priceListRate !== undefined ? priceListRate.toFixed(2) : "")}
             readOnly={rateReadOnly}
             onChange={(e) => {
               if (rateReadOnly) return;
@@ -442,7 +442,7 @@ export function UnitTypeHardwareRow({
               step="0.01"
               min={0}
               placeholder="0.00"
-              value={value.rateOverride ?? (priceListRate !== undefined ? priceListRate.toFixed(2) : "")}
+              value={value.rateOverride !== undefined ? Math.round(value.rateOverride * 100) / 100 : (priceListRate !== undefined ? priceListRate.toFixed(2) : "")}
               readOnly={rateReadOnly}
               onChange={(e) => {
                 if (rateReadOnly) return;

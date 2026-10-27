@@ -35,6 +35,8 @@ const PRICE_HEADERS = new Set(["Rate", "MRP", "Discount %", "Amount"]);
 const noPrice = (h: string[]) => h.filter((x) => !PRICE_HEADERS.has(x));
 // Production Work Order: no prices, and the four edge band columns (Width-1, Width-2, Height-1, Height-2) after the last column: a box (ticked when that side
 // gets edge band) and its code, as on the Production page.
+// Production Work Order: a Grain column goes right after the Internal Colour column.
+const withGrain = (h: string[]) => h.flatMap((x) => (x === "Internal Brand & Colour" || x === "Internal Colour" ? [x, "Grain"] : [x]));
 const EDGE_HEADERS: string[] = EDGE_SIDES.map(([, label]) => label);
 function EdgeCells({ band }: { band?: EdgeBand }) {
   return (
@@ -131,8 +133,9 @@ const WIDE = new Set(["Remarks"]);
 const NARROW = new Set(["Depth", "Depth/Thk"]);
 // Fixed column widths (% of the table) shared by the proforma Carcass, Shutter and Other Panel tables so Material to Amount line up in all three.
 const FIXED_W: Record<string, string> = {
-  Sr: "w-[3%]", Width: "w-[5%]", Depth: "w-[5%]", "Depth/Thk": "w-[5%]", Height: "w-[5%]", Qty: "w-[3.5%]", Design: "w-[7%]", Remarks: "w-[10%]",
-  Material: "w-[7%]", "External Colour": "w-[10%]", "Internal Colour": "w-[10%]", "Sq.Ft": "w-[5%]", Rate: "w-[5%]", Amount: "w-[6%]",
+  // Cabinet Type / Cabinet Name need room of their own (the cabinet table has up to 19 columns with the Production Work Order's Grain and edge band ones).
+  Sr: "w-[3%]", "Cabinet Type": "w-[11%]", "Cabinet Name": "w-[10%]", Width: "w-[5%]", Depth: "w-[5%]", "Depth/Thk": "w-[5%]", Height: "w-[5%]", Qty: "w-[3.5%]", Design: "w-[6%]", Remarks: "w-[8%]",
+  Material: "w-[6%]", "External Colour": "w-[11%]", "Internal Colour": "w-[11%]", Grain: "w-[6%]", "Sq.Ft": "w-[5%]", Rate: "w-[5%]", Amount: "w-[6%]",
   "Width-1": "w-[5%]", "Width-2": "w-[5%]", "Height-1": "w-[5%]", "Height-2": "w-[5%]",
 };
 // Purchase Order / Direct PO tables: a narrow Description and wide colour columns, so each row fits on one line.
@@ -190,23 +193,25 @@ function CarcassHeadingRow({ po, c, group, priced = !!po.material.proforma, slip
       <td className={`${t} text-right po-num`}>{num(h.depth)}</td>
       <td className={`${t} text-right po-num`}>{num(h.height)}</td>
       <td className={`${t} text-right po-num`}>{num(h.qty)}</td>
-      {!priced && <td className={`${t} text-right po-num`}>{h.sqft.toFixed(2)}</td>}
+      {!priced && <td className={`${t} text-right po-num`}>{h.sqft.toFixed(workOrder ? 3 : 2)}</td>}
       <td className={t}><Nums>{h.material}</Nums></td>
       {po.material.proforma ? (
         <>
       <td className={t}><Nums>{h.internal}</Nums></td>
+      {workOrder && <td className={t} />}
       <td className={t} style={highlightFor(po, { group, externalColour: h.external }) ? { backgroundColor: highlightFor(po, { group, externalColour: h.external }), color: "#000" } : undefined}><Nums>{h.external}</Nums></td>
         </>
       ) : (
         <>
       <td className={t} style={highlightFor(po, { group, externalColour: h.external }) ? { backgroundColor: highlightFor(po, { group, externalColour: h.external }), color: "#000" } : undefined}><Nums>{h.external}</Nums></td>
       <td className={t}><Nums>{h.internal}</Nums></td>
+      {workOrder && <td className={t} />}
         </>
       )}
       <td className={`${t} ${h.remark ? "!bg-error-200 !text-error" : ""}`}>{h.remark}</td>
       {priced && (
         <>
-          <td className={`${t} text-right po-num`}>{h.sqft.toFixed(2)}</td>
+          <td className={`${t} text-right po-num`}>{h.sqft.toFixed(workOrder ? 3 : 2)}</td>
           {!workOrder && (
             <>
               <td className={t} />
@@ -252,7 +257,7 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
     <section className="break-inside-auto">
       <Band group={group} title={title} count={shown.length} />
       <table className={`w-full border-collapse text-[10px] ${fixedCols ? "table-fixed" : ""}`}>
-        <thead><Header group={group} fixed={fixedCols} po={!po.material.proforma} headers={workOrder ? [...noPrice(reo ? PANEL_HEADERS_PRICED_REORDERED : PANEL_HEADERS_PRICED), ...EDGE_HEADERS] : reo ? PANEL_HEADERS_PRICED_REORDERED : money ? PANEL_HEADERS_PRICED : !po.material.proforma ? noPrice(PANEL_HEADERS_PO) : slip ? [...noPrice(PANEL_HEADERS), "Packing Box"] : noPrice(PANEL_HEADERS)} /></thead>
+        <thead><Header group={group} fixed={fixedCols} po={!po.material.proforma} headers={workOrder ? [...withGrain(noPrice(reo ? PANEL_HEADERS_PRICED_REORDERED : PANEL_HEADERS_PRICED)), ...EDGE_HEADERS] : reo ? PANEL_HEADERS_PRICED_REORDERED : money ? PANEL_HEADERS_PRICED : !po.material.proforma ? noPrice(PANEL_HEADERS_PO) : slip ? [...noPrice(PANEL_HEADERS), "Packing Box"] : noPrice(PANEL_HEADERS)} /></thead>
         <tbody>
           {sections.map((c) => (
             <Fragment key={c.srNo}>
@@ -272,6 +277,7 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
                       <td className={cell}><Nums>{l.material}</Nums></td>
                       <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#000" } : undefined}><Nums>{l.externalColour}</Nums></td>
                       <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#000" } : undefined}><Nums>{l.internalColour}</Nums></td>
+                      {workOrder && <td className={`${cell} whitespace-nowrap`}>{edge.get(l.id)?.grain === "h" ? "Horizontal" : edge.get(l.id)?.grain === "v" ? "Vertical" : ""}</td>}
                     </>
                   ) : (
                     <>
@@ -280,17 +286,19 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
                     <td className={`${cell} text-right po-num`}>{l.depth ? `${l.depth}` : ""}</td>
                     <td className={`${cell} text-right po-num`}>{num(l.height)}</td>
                     <td className={`${cell} text-right po-num`}>{num(l.qty)}</td>
-                    {!money && <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(2)}</td>}
+                    {!money && <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(workOrder ? 3 : 2)}</td>}
                     <td className={cell}><Nums>{l.material}</Nums></td>
                     {po.material.proforma ? (
                       <>
                     <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#000" } : undefined}><Nums>{l.internalColour}</Nums></td>
+                    {workOrder && <td className={`${cell} whitespace-nowrap`}>{edge.get(l.id)?.grain === "h" ? "Horizontal" : edge.get(l.id)?.grain === "v" ? "Vertical" : ""}</td>}
                     <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#000" } : undefined}><Nums>{l.externalColour}</Nums></td>
                       </>
                     ) : (
                       <>
                     <td className={cell} style={highlightFor(po, l) ? { backgroundColor: highlightFor(po, l), color: "#000" } : undefined}><Nums>{l.externalColour}</Nums></td>
                     <td className={cell} style={highlightInternal(po, l) ? { backgroundColor: highlightInternal(po, l), color: "#000" } : undefined}><Nums>{l.internalColour}</Nums></td>
+                    {workOrder && <td className={`${cell} whitespace-nowrap`}>{edge.get(l.id)?.grain === "h" ? "Horizontal" : edge.get(l.id)?.grain === "v" ? "Vertical" : ""}</td>}
                       </>
                     )}
                     <td className={`${cell} ${l.remarks ? "bg-error-200 text-error" : ""}`}><Nums>{l.remarks}</Nums></td>
@@ -299,7 +307,7 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
                   {slip && <td className={`${cell} whitespace-nowrap`}><PackingMarks po={po} sr={srOf?.get(l.id) ?? sr} l={l} mode={slipMode} tr={slipTr} /></td>}
                   {money && (
                     <>
-                      <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(2)}</td>
+                      <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(workOrder ? 3 : 2)}</td>
                       {!workOrder && (
                         <>
                           <td className={`${cell} text-right po-num`}>{l.rate ? l.rate.toFixed(2) : ""}</td>
@@ -316,12 +324,12 @@ function PanelTable({ group, title, lines, po, plain = false, hideRows, slip = f
           <tr className={`font-semibold ${THEME[group].head}`}>
             <td className={`${cell} text-right`} colSpan={reo ? 5 : 6}>TOTAL</td>
             <td className={`${cell} text-right po-num`}>{num(qty)}</td>
-            {!money && <td className={`${cell} text-right po-num`}>{sqft.toFixed(2)}</td>}
-            <td className={cell} colSpan={reo ? 5 : 4} />
+            {!money && <td className={`${cell} text-right po-num`}>{sqft.toFixed(workOrder ? 3 : 2)}</td>}
+            <td className={cell} colSpan={(reo ? 5 : 4) + (workOrder ? 1 : 0)} />
             {slip && <td className={cell} />}
             {money && (
               <>
-                <td className={`${cell} text-right po-num`}>{sqft.toFixed(2)}</td>
+                <td className={`${cell} text-right po-num`}>{sqft.toFixed(workOrder ? 3 : 2)}</td>
                 {!workOrder && (
                   <>
                     <td className={cell} />
@@ -520,8 +528,8 @@ function DirectCabinetsTable({ po, title, vendor, vendors, edge }: { po: Purchas
   return (
     <section className="break-inside-auto">
       <Band group="carcass" title={title} count={nos.length} unit="cabinets" />
-      <table className="w-full table-fixed border-collapse text-[10px]">
-        <thead><Header group="carcass" headers={edge ? [...noPrice(DIRECT_CABINET_HEADERS_PRICED), ...EDGE_HEADERS] : po.material.proforma ? DIRECT_CABINET_HEADERS_PRICED : DIRECT_CABINET_HEADERS} fixed po={!po.material.proforma} /></thead>
+      <table className="w-full table-fixed border-collapse text-[10px] po-mid">
+        <thead><Header group="carcass" headers={edge ? [...withGrain(noPrice(DIRECT_CABINET_HEADERS_PRICED)), ...EDGE_HEADERS] : po.material.proforma ? DIRECT_CABINET_HEADERS_PRICED : DIRECT_CABINET_HEADERS} fixed po={!po.material.proforma} /></thead>
         <tbody>
           {nos.map((no, i) => {
             const c = po.material.cabinets![String(no)];
@@ -532,7 +540,7 @@ function DirectCabinetsTable({ po, title, vendor, vendors, edge }: { po: Purchas
             const showComponents = !!po.material.proforma && c.componentsVisible !== false && rows.length > 0;
             return (
               <Fragment key={no}>
-              <tr className={i % 2 ? "bg-light-600" : ""}>
+              <tr className={`po-row-bold ${i % 2 ? "bg-light-600" : ""}`}>
                 <td className={`${cell} po-num`}>{no}</td>
                 <td className={cell}><Nums>{c.label || c.designType || ""}</Nums></td>
                 <td className={cell}><Nums>{c.cabinetName ?? ""}</Nums></td>
@@ -551,9 +559,10 @@ function DirectCabinetsTable({ po, title, vendor, vendors, edge }: { po: Purchas
                   <Nums>{common("externalColour")}</Nums>
                 </td>
                 <td className={cell} style={highlightInternal(po, { group: "carcass", internalColour: common("internalColour") }) ? { backgroundColor: highlightInternal(po, { group: "carcass", internalColour: common("internalColour") }), color: "#000" } : undefined}><Nums>{common("internalColour")}</Nums></td>
+                {edge && <td className={cell} />}
                 {po.material.proforma && (
                   <>
-                    <td className={`${cell} text-right po-num`}>{rows.reduce((t, l) => t + l.sqft, 0).toFixed(2)}</td>
+                    <td className={`${cell} text-right po-num`}>{rows.reduce((t, l) => t + l.sqft, 0).toFixed(edge ? 3 : 2)}</td>
                     {!edge && (
                       <>
                         <td className={cell} />
@@ -579,7 +588,8 @@ function DirectCabinetsTable({ po, title, vendor, vendors, edge }: { po: Purchas
                     <td className={cell}><Nums>{l.material}</Nums></td>
                     <td className={cell}><Nums>{l.externalColour}</Nums></td>
                     <td className={cell}><Nums>{l.internalColour}</Nums></td>
-                    <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(2)}</td>
+                    {edge && <td className={`${cell} whitespace-nowrap`}>{edge.get(l.id)?.grain === "h" ? "Horizontal" : edge.get(l.id)?.grain === "v" ? "Vertical" : ""}</td>}
+                    <td className={`${cell} text-right po-num`}>{l.sqft.toFixed(edge ? 3 : 2)}</td>
                     {!edge && (
                       <>
                         <td className={`${cell} text-right po-num`}>{l.rate ? l.rate.toFixed(2) : ""}</td>
@@ -594,8 +604,8 @@ function DirectCabinetsTable({ po, title, vendor, vendors, edge }: { po: Purchas
           })}
           {po.material.proforma && (
             <tr className={`font-semibold ${THEME.carcass.head}`}>
-              <td className={`${cell} text-right`} colSpan={DIRECT_CABINET_HEADERS_PRICED.length - 3}>TOTAL</td>
-              <td className={`${cell} text-right po-num`}>{po.lines.filter((l) => l.group === "carcass").reduce((t, l) => t + l.sqft, 0).toFixed(2)}</td>
+              <td className={`${cell} text-right`} colSpan={DIRECT_CABINET_HEADERS_PRICED.length - 3 + (edge ? 1 : 0)}>TOTAL</td>
+              <td className={`${cell} text-right po-num`}>{po.lines.filter((l) => l.group === "carcass").reduce((t, l) => t + l.sqft, 0).toFixed(edge ? 3 : 2)}</td>
               {edge ? (
                 <td className={cell} colSpan={4} />
               ) : (
@@ -759,12 +769,17 @@ export function PurchaseOrderSheet({ po: poIn, vendor, vendors, customer, quoteN
             <img src={branding.logoDataUrl || "/the-furn-logo.png"} alt="" className="h-16 w-auto mix-blend-lighten" />
           </div>
         </div>
-        <div className="flex items-center gap-3 whitespace-nowrap rounded-xl bg-primary px-5 py-2 text-white">
+        <div className={`flex items-center gap-3 whitespace-nowrap rounded-xl px-5 py-2 ${workOrder ? "" : "bg-primary text-white"}`} style={workOrder ? { color: "#9E7676" } : undefined}>
           <span className="po-title-bold text-base font-bold uppercase tracking-wider">
             {part === "ledger" ? "Hardware Product Ledger" : workOrder ? "Production Work Order" : po.material.proforma && (part === "components" || slipMode) ? "Packing Slip" : part === "components" || part === "hardware" ? "Material Slip" : po.material.proforma ? "Proforma Invoice" : "Purchase Order"}
           </span>
           {part !== "cabinets" && part !== "ledger" && !(po.material.proforma && part === "components") && <span className="po-title-bold text-[13px] font-bold">· {part === "packing-transport" ? psLabel(po.poNumber, transportIndex) : PART_LABEL[part]}</span>}
-          <span className="po-title-bold text-[13px] font-bold">· <Nums>{po.poNumber || "Number not set"}</Nums></span>
+          {workOrder ? (
+            // Production Work Order: the number is as big as the title, in Manrope like the other numbers in the PDFs.
+            <span className="po-title-bold po-num text-base font-bold uppercase tracking-wider">: {po.poNumber || "Number not set"}</span>
+          ) : (
+            <span className="po-title-bold text-[13px] font-bold">· <Nums>{po.poNumber || "Number not set"}</Nums></span>
+          )}
         </div>
       </div>
 
@@ -845,6 +860,29 @@ export function PurchaseOrderSheet({ po: poIn, vendor, vendors, customer, quoteN
               <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-grey-500">Additional Remarks</p>
               <p className="whitespace-pre-wrap">{po.remarks || "—"}</p>
             </div>
+            {workOrder && (
+              // Production Work Order: no prices, so the summary is the Sq.Ft of each group and its total.
+              <table className="w-80 shrink-0 border-collapse text-[11px]">
+                <thead>
+                  <tr>
+                    <th className="border border-grey-200 bg-light-600 px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider text-grey-700">Summary</th>
+                    <th className="border border-grey-200 bg-light-600 px-2 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wider text-grey-700">Sq.Ft</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {PO_GROUPS.filter((g) => g.key !== "hardware").map((g) => (
+                    <tr key={g.key}>
+                      <td className="border border-grey-200 px-2 py-1">{g.code}. {g.label}</td>
+                      <td className="border border-grey-200 px-2 py-1 text-right po-num">{po.lines.filter((l) => l.group === g.key).reduce((n, l) => n + l.sqft, 0).toFixed(3)}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-light-600 font-bold">
+                    <td className="border border-grey-200 px-2 py-1">Total Sq.Ft</td>
+                    <td className="border border-grey-200 px-2 py-1 text-right po-num">{po.lines.reduce((n, l) => n + (l.group === "hardware" ? 0 : l.sqft), 0).toFixed(3)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
             {!workOrder && (
             <div className="flex shrink-0 items-start gap-4">
             <table className="w-96 border-collapse text-[11px]">

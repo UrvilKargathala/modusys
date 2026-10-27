@@ -69,7 +69,7 @@ function poDetailSectionsBase(po: PurchaseOrder, { vendor, customer, quoteNumber
         ["Quote", quoteNumber ?? ""],
       ],
     },
-    { title: "Purchase Order Details", rows: [["PO No", po.poNumber], ["PO Date", fmtDate(po.poDate)], ["Required Date", fmtDate(po.requiredDate)], ["Status", poStatusLabel(po.status)]] },
+    { title: "Purchase Order Details", rows: [["PO No", po.poNumber], ["PO Date", fmtDate(po.poDate)], ["Required Date", fmtDate(po.requiredDate)], ...(po.material.proforma ? [["Ref Code", po.material.refCode ?? ""] as [string, string]] : []), ["Status", poStatusLabel(po.status)]] },
     {
       title: "Shutter Details",
       rows: [["Shutter Raw Material", po.material.shutterRawMaterial], ["Internal Brand & Colour", distinctFinish(po, ["shutter"], "internalColour")], ["External Brand & Colour", distinctFinish(po, ["shutter"], "externalColour")]],
@@ -269,7 +269,7 @@ export const cutListRows = (po: PurchaseOrder): (string | number)[][] => cutList
 // A side follows its thickness + colours combination (Edge Band tab) until it is ticked / un-ticked or its code typed by hand; the keys are the
 // Production page's: Sr|Description|WxH, with #n on identical rows in cut list order. Used by the Production Work Order PDF.
 export const EDGE_SIDES = [["top", "Width-1"], ["bottom", "Width-2"], ["lh", "Height-1"], ["rh", "Height-2"]] as const;
-export type EdgeBand = Record<(typeof EDGE_SIDES)[number][0], { on: boolean; code: string }>;
+export type EdgeBand = Record<(typeof EDGE_SIDES)[number][0], { on: boolean; code: string }> & { grain?: "h" | "v" };
 export function edgeBandByLine(po: PurchaseOrder): Map<string, EdgeBand> {
   const m = po.material;
   const h = cutListHeaders(po);
@@ -285,10 +285,11 @@ export function edgeBandByLine(po: PurchaseOrder): Map<string, EdgeBand> {
     const key = n ? `${base}#${n}` : base;
     const combo = m.edgeBandCombos?.[[ti, ii, ei].map((i) => String(cells[i] ?? "").trim()).join("|")];
     const where = (combo?.where ?? "").split(",").map((x) => x.trim()).filter(Boolean).map((x) => legacy[x] ?? x);
-    out.set(l.id, Object.fromEntries(EDGE_SIDES.map(([side, label]) => {
+    const g = m.edgeBandGrain?.[key];
+    out.set(l.id, { ...Object.fromEntries(EDGE_SIDES.map(([side, label]) => {
       const on = m.edgeBandSides?.[key]?.[side] ?? (!!combo && where.includes(label));
       return [side, { on, code: on ? m.edgeBandCodes?.[key]?.[side] ?? combo?.band ?? "" : "" }];
-    })) as EdgeBand);
+    })), ...(g === "h" || g === "v" ? { grain: g } : {}) } as EdgeBand);
   }
   return out;
 }

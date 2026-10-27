@@ -259,9 +259,10 @@ export function PoLinesTable({
     );
     if (copied) toastStore.show(`Rate applied to ${copied} more row${copied === 1 ? "" : "s"} with the same finish, thickness, material and vendor`, "success");
   };
-  // Copy a row: same values, new id, placed right under the original.
+  // Copy a row: same values, new id, placed right under the original (a Shutter or Other Panel row goes to the end of its table).
   const copyRow = (l: PurchaseOrderLine) => {
-    const at = lines.findIndex((x) => x.id === l.id);
+    const end = group === "shutter" || group === "other-panel" ? mineAll[mineAll.length - 1]?.id : undefined;
+    const at = lines.findIndex((x) => x.id === (end ?? l.id));
     const clone = { ...l, id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
     onChange([...lines.slice(0, at + 1), clone, ...lines.slice(at + 1)].map((x, i) => ({ ...x, position: i })));
   };

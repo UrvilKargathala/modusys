@@ -502,6 +502,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Cabinet table in the PDFs: text centred up and down in each row. */
+.po-sheet .po-mid td { vertical-align: middle; overflow-wrap: anywhere; }
+
+/* A bold row in the PDFs (the cabinet rows): same thickening as the title bar, a little lighter. */
+.po-sheet .po-row-bold td,
+.po-sheet .po-row-bold td * {
+  font-weight: 700;
+  -webkit-text-stroke: 0.2px currentColor;
+}
+
 /* The app fonts have no bold file, so the PDF title bar is thickened with a thin outline of its own colour. */
 .po-sheet .po-title-bold,
 .po-sheet .po-title-bold * {

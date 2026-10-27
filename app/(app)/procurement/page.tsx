@@ -55,7 +55,7 @@ export default function ProcurementPage() {
       {list.length === 0 ? (
         <EmptyState icon={ClipboardList} message={procurementStore.isLoaded() ? "Nothing in procurement yet. Set a quote's status to In Procurement to copy it here." : "Loading…"} />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-grey-100">
+        <div className="-mx-2 overflow-x-auto lg:-mx-4">
           <table className="w-full text-left">
             <thead className="bg-[var(--table-head)]">
               <tr>
@@ -66,15 +66,15 @@ export default function ProcurementPage() {
             </thead>
             <tbody>
               {paged.map(({ r, quote, customer }) => (
-                <tr key={r.id} className="border-t border-grey-100">
-                  <td className="px-4 py-1.5 font-number text-sm">
+                <tr key={r.id}>
+                  <td className="px-2 py-0.5 font-number text-xs">
                     <Link href={`/procurement/${r.id}`} className="text-primary hover:underline">{r.number}</Link>
                   </td>
-                  <td className="px-4 py-1.5 font-number text-sm text-grey-700">{r.data.quoteNumber}</td>
-                  <td className="px-4 py-1.5 text-sm font-body text-grey-900">{customer || "—"}</td>
-                  <td className="px-4 py-1.5">
+                  <td className="px-2 py-0.5 font-number text-xs text-grey-700">{r.data.quoteNumber}</td>
+                  <td className="px-2 py-0.5 text-xs font-body text-grey-900">{customer || "—"}</td>
+                  <td className="px-2 py-0.5">
                     {!quote ? (
-                      <span className="text-sm text-grey-400">Quote deleted</span>
+                      <span className="text-xs text-grey-400">Quote deleted</span>
                     ) : quote.status === "in-procurement" || quote.status === "in-production" ? (
                       // Moving to In Purchase here works the same as on the quote: the Pending PO is created from this copy.
                       <StatusMenu
@@ -91,9 +91,9 @@ export default function ProcurementPage() {
                       <StatusBadge status={quote.status as StatusKey} />
                     )}
                   </td>
-                  <td className="px-4 py-1.5 font-number text-sm text-grey-700">{fmt(r.createdAt)}</td>
-                  <td className="px-4 py-1.5 font-number text-sm text-grey-700">{fmt(r.updatedAt)}</td>
-                  <td className="px-4 py-1.5 text-right">
+                  <td className="px-2 py-0.5 font-number text-xs text-grey-700">{fmt(r.createdAt)}</td>
+                  <td className="px-2 py-0.5 font-number text-xs text-grey-700">{fmt(r.updatedAt)}</td>
+                  <td className="px-2 py-0.5 text-right">
                     <Link href={`/procurement/${r.id}`} aria-label="Open" className="inline-flex rounded-md p-1.5 text-grey-400 hover:bg-light-600 hover:text-primary">
                       <Eye className="h-4 w-4" />
                     </Link>

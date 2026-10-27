@@ -30,14 +30,14 @@ const materialFieldLabel: Record<string, string> = {
 
 
 // Column widths for the table layout (Quotes' cabinet groups): drag, [name], W, H, Qty, Thickness, sq.ft, Raw, External, Internal,
-// Amount, Rate, [Level Type], actions. The group's header row uses the same string so the columns line up.
+// Rate, Amount, [Level Type], actions. The group's header row uses the same string so the columns line up.
 export function furnitureTableColumns(showComponentName: boolean, showLevelType: boolean, withNo = false) {
   return [
     withNo ? "44px" : "20px",
     showComponentName && "minmax(110px,1.1fr)",
     "56px", "56px", "40px", "72px", "52px",
     "minmax(100px,1fr)", "minmax(100px,1fr)", "minmax(100px,1fr)",
-    "84px", "76px",
+    "76px", "84px",
     showLevelType && "100px",
     "76px",
   ].filter(Boolean).join(" ");
@@ -46,7 +46,7 @@ export function furnitureTableColumns(showComponentName: boolean, showLevelType:
 export function FurnitureTableHeader({ showComponentName, showLevelType, nameLabel, withNo = false, sort, onSort }: { showComponentName: boolean; showLevelType: boolean; nameLabel: string; withNo?: boolean; sort?: LineSort; onSort?: (key: string) => void }) {
   const heads: [string, string?][] = [[withNo ? "No." : "", "no"]];
   if (showComponentName) heads.push([nameLabel, "name"]);
-  heads.push(["Width", "width"], ["Height", "height"], ["Qty", "qty"], ["Thk", "thk"], ["Sq.ft", "sqft"], ["Raw Material", "raw"], ["External Colour", "external"], ["Internal Colour", "internal"], ["Amount", "amount"], ["Rate", "rate"]);
+  heads.push(["Width", "width"], ["Height", "height"], ["Qty", "qty"], ["Thk", "thk"], ["Sq.ft", "sqft"], ["Raw Material", "raw"], ["External Colour", "external"], ["Internal Colour", "internal"], ["Rate", "rate"], ["Amount", "amount"]);
   if (showLevelType) heads.push(["Level Type", "level"]);
   heads.push(["", undefined]);
   return (
@@ -253,16 +253,13 @@ export function FurnitureLineItemRow({
           <MaterialReferenceSelect category="raw-material-type" wide sorted value={value.rawMaterialTypeId} onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)} />
           <MaterialReferenceSelect category="external-colour" wide sorted value={value.externalColourId} onChange={(id) => requestMaterialChange("externalColourId", id)} />
           <MaterialReferenceSelect category="internal-colour" wide sorted value={value.internalColourId} onChange={(id) => requestMaterialChange("internalColourId", id)} />
-          <span className="num text-right text-sm font-semibold text-grey-900">
-            {totalSqFt !== undefined ? `₹${(effectiveRate !== undefined ? effectiveRate * totalSqFt : 0).toFixed(2)}` : "—"}
-          </span>
           <Input
             aria-label="Rate per sq.ft"
             type="number"
             step="0.01"
             min={0}
             placeholder="0.00"
-            value={useListRate ? match!.rate.toFixed(2) : (value.rateOverride ?? (match ? match.rate.toFixed(2) : ""))}
+            value={useListRate ? match!.rate.toFixed(2) : (value.rateOverride !== undefined ? Math.round(value.rateOverride * 100) / 100 : (match ? match.rate.toFixed(2) : ""))}
             readOnly={rateReadOnly}
             onChange={(e) => {
               if (rateReadOnly) return;
@@ -272,6 +269,9 @@ export function FurnitureLineItemRow({
             }}
             className={cn("num px-1 text-right", rateReadOnly && "cursor-not-allowed")}
           />
+          <span className="num text-right text-sm font-semibold text-grey-900">
+            {totalSqFt !== undefined ? `₹${(effectiveRate !== undefined ? effectiveRate * totalSqFt : 0).toFixed(2)}` : "—"}
+          </span>
           {showLevelType && (
             <MaterialReferenceSelect category="level-type" value={value.levelTypeId ?? ""} onChange={(id) => handleFieldChange({ levelTypeId: id })} />
           )}
@@ -495,7 +495,7 @@ export function FurnitureLineItemRow({
               step="0.01"
               min={0}
               placeholder="0.00"
-              value={useListRate ? match!.rate.toFixed(2) : (value.rateOverride ?? (match ? match.rate.toFixed(2) : ""))}
+              value={useListRate ? match!.rate.toFixed(2) : (value.rateOverride !== undefined ? Math.round(value.rateOverride * 100) / 100 : (match ? match.rate.toFixed(2) : ""))}
               readOnly={rateReadOnly}
               onChange={(e) => {
                 if (rateReadOnly) return;

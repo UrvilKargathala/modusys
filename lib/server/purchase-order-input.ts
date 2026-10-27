@@ -74,6 +74,7 @@ export function cleanMaterial(m: unknown) {
     highlightColor: typeof o.highlightColor === "string" && /^#[0-9a-fA-F]{6}$/.test(o.highlightColor) ? o.highlightColor : undefined,
     orderType: str(o.orderType) || undefined,
     vendorPiNo: str(o.vendorPiNo) || undefined,
+    refCode: str(o.refCode) || undefined,
     vendorPiDate: str(o.vendorPiDate) || undefined,
     vendorPiAmount: o.vendorPiAmount === undefined || o.vendorPiAmount === null || o.vendorPiAmount === "" ? undefined : num(o.vendorPiAmount),
     brandVendors: Object.fromEntries(
@@ -145,7 +146,7 @@ export function cleanMaterial(m: unknown) {
       Object.entries((o.edgeBandCombos ?? {}) as Record<string, Record<string, unknown>>)
         .filter(([k]) => k)
         .slice(0, 500)
-        .map(([k, v]) => [str(k).slice(0, 300), { band: str(v?.band).slice(0, 100), where: str(v?.where).slice(0, 60) }] as const)
+        .map(([k, v]) => [str(k).slice(0, 300), { band: str(v?.band).slice(0, 100), where: str(v?.where).slice(0, 60), ...(str(v?.bandW) ? { bandW: str(v?.bandW).slice(0, 12) } : {}), ...(str(v?.bandH) ? { bandH: str(v?.bandH).slice(0, 12) } : {}) }] as const)
     ),
     edgeBandSides: Object.fromEntries(
       Object.entries((o.edgeBandSides ?? {}) as Record<string, Record<string, unknown>>)
@@ -155,6 +156,35 @@ export function cleanMaterial(m: unknown) {
           str(k).slice(0, 200),
           Object.fromEntries((["top", "bottom", "lh", "rh"] as const).filter((side) => typeof v?.[side] === "boolean").map((side) => [side, v[side] === true] as const)),
         ] as const)
+    ),
+    cutListEdits: Object.fromEntries(
+      Object.entries((o.cutListEdits ?? {}) as Record<string, Record<string, unknown>>)
+        .filter(([k]) => k)
+        .slice(0, 2000)
+        .map(([k, v]) => [str(k).slice(0, 300), {
+          ...(typeof v?.w === "number" && v.w > 0 ? { w: v.w } : {}),
+          ...(typeof v?.h === "number" && v.h > 0 ? { h: v.h } : {}),
+          ...(typeof v?.name === "string" ? { name: str(v.name).slice(0, 200) } : {}),
+          ...(typeof v?.remarks === "string" ? { remarks: str(v.remarks).slice(0, 500) } : {}),
+          ...(v?.fields && typeof v.fields === "object" ? { fields: Object.fromEntries(Object.entries(v.fields as Record<string, unknown>).filter(([k, x]) => ["Cabinet Type", "Cabinet Name", "Design", "Thk", "Qty", "Material", "Internal Brand & Colour", "External Brand & Colour"].includes(k) && typeof x === "string").map(([k, x]) => [k, str(x).slice(0, 200)])) } : {}),
+          ...(v?.grain === "h" || v?.grain === "v" || v?.grain === "n" ? { grain: v.grain } : {}),
+          ...(["top", "bottom", "lh", "rh"] as const).reduce((a, s) => (typeof v?.[s] === "string" ? { ...a, [s]: str(v[s]).slice(0, 100) } : a), {}),
+        }] as const)
+    ),
+    cutListHistory: (Array.isArray(o.cutListHistory) ? (o.cutListHistory as Record<string, unknown>[]) : [])
+      .slice(-2000)
+      .map((h) => ({ at: str(h?.at).slice(0, 40), by: str(h?.by).slice(0, 120), id: str(h?.id).slice(0, 300), sr: str(h?.sr).slice(0, 40), piece: str(h?.piece).slice(0, 200), field: str(h?.field).slice(0, 40), from: str(h?.from).slice(0, 500), to: str(h?.to).slice(0, 500) })),
+    usedEdgeBand: Object.fromEntries(
+      Object.entries((o.usedEdgeBand ?? {}) as Record<string, Record<string, unknown>>)
+        .filter(([k]) => k)
+        .slice(0, 500)
+        .map(([k, v]) => [str(k).slice(0, 300), { ...(str(v?.width).trim() ? { width: str(v?.width).slice(0, 20) } : {}), ...(str(v?.thickness).trim() ? { thickness: str(v?.thickness).slice(0, 20) } : {}), ...(str(v?.wastage).trim() ? { wastage: str(v?.wastage).slice(0, 20) } : {}) }] as const)
+    ),
+    edgeBandGrain: Object.fromEntries(
+      Object.entries((o.edgeBandGrain ?? {}) as Record<string, unknown>)
+        .filter(([k, v]) => k && (v === "h" || v === "v" || v === "n"))
+        .slice(0, 2000)
+        .map(([k, v]) => [str(k).slice(0, 300), v as "h" | "v" | "n"] as const)
     ),
     edgeBandCodes: Object.fromEntries(
       Object.entries((o.edgeBandCodes ?? {}) as Record<string, Record<string, unknown>>)

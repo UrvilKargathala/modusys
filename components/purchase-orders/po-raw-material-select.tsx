@@ -23,6 +23,7 @@ export function PoRawMaterialSelect({ value, onChange, compact = false, category
     <MaterialReferenceSelect
       category={category}
       nameOnly={category === "furniture-component"}
+      hoverFull={category !== "furniture-component"}
       value={match?.id ?? ""}
       triggerClassName={compact ? "h-8 py-1 text-[13px]" : undefined}
       onChange={(id) => onChange(materialSpecStore.getSnapshot().find((m) => m.id === id)?.name ?? "")}

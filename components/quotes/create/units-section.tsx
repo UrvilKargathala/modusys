@@ -7,8 +7,8 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-ki
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { QuoteUnitCard, UNIT_ROW_GRID } from "@/components/quotes/create/quote-unit-card";
-import { FurnitureLineItemRow, FurnitureTableHeader } from "@/components/templates/furniture-line-item-row";
-import { UnitTypeHardwareRow, HardwareTableHeader } from "@/components/templates/unit-type-hardware-row";
+import { FurnitureLineItemRow, FurnitureTableHeader, furnitureTableColumns } from "@/components/templates/furniture-line-item-row";
+import { UnitTypeHardwareRow, HardwareTableHeader, HARDWARE_TABLE_COLUMNS } from "@/components/templates/unit-type-hardware-row";
 import { effectiveFurnitureRate, effectiveHardwareRate, evaluateFormula, SQMM_PER_SQFT, unitSqFt, unitTotal } from "@/lib/quote-pricing";
 import { useUnitTypes } from "@/lib/store/unit-type-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
@@ -367,6 +367,26 @@ export function UnitsSection({
                       ))}
                     </SortableContext>
                   </DndContext>
+                  {/* Hardware: the amount total of the lines listed above, under the Amount column. */}
+                  {view === "hardware" && shownHardware.length > 0 && (
+                    <div className="grid items-center gap-x-1.5 border-t border-grey-100 bg-[var(--table-head)] px-2 py-1.5 text-sm font-semibold text-grey-900" style={{ gridTemplateColumns: HARDWARE_TABLE_COLUMNS.replace("20px", "44px") }}>
+                      <span style={{ gridColumn: "1 / 10" }}>Total ({shownHardware.length} lines)</span>
+                      <span className="num text-right">₹{shownHardware.reduce((n, r) => n + hardwareValues(r.item, r.no, undefined, r.u).amount, 0).toFixed(2)}</span>
+                      <span />
+                    </div>
+                  )}
+                  {/* Shutter: the totals of the lines listed above, under their own columns (Qty, Sq.ft and Amount). */}
+                  {view === "shutter" && shownShutter.length > 0 && (
+                    <div className="grid items-center gap-x-1.5 border-t border-grey-100 bg-[var(--table-head)] px-2 py-1.5 text-sm font-semibold text-grey-900" style={{ gridTemplateColumns: furnitureTableColumns(true, false, true) }}>
+                      <span style={{ gridColumn: "1 / 5" }}>Total</span>
+                      <span className="num text-center">{shownShutter.reduce((n, r) => n + r.item.qty, 0)}</span>
+                      <span />
+                      <span className="num text-center">{shownShutter.reduce((n, r) => n + shutterValues(r.item, r.u, r.no).sqft, 0).toFixed(2)}</span>
+                      <span style={{ gridColumn: "8 / 12" }} />
+                      <span className="num text-right">₹{shownShutter.reduce((n, r) => n + shutterValues(r.item, r.u, r.no).amount, 0).toFixed(2)}</span>
+                      <span />
+                    </div>
+                  )}
                 </div>
               </div>
             );

@@ -5,7 +5,7 @@ import { Check, ChevronDown } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { nextStatuses, statusConfig, type StatusKey, type StatusNote } from "@/lib/status";
+import { nextStatuses, statusConfig, statusPickerClass, type StatusKey, type StatusNote } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 // Native <select><option> can't reliably show a background color across
@@ -39,8 +39,7 @@ export function StatusPicker({
       <PopoverTrigger
         className={cn(
           "flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-grey-100 px-3 text-sm font-body font-medium outline-none focus:border-primary",
-          cfg.bg,
-          cfg.color,
+          statusPickerClass[(value in statusConfig ? value : "draft") as StatusKey],
           className
         )}
       >
@@ -68,7 +67,7 @@ export function StatusPicker({
                 className={cn(
                   "flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-sm font-body font-medium transition-colors",
                   // Steps not reachable yet: plain grey (readable), not a faded colour.
-                  allowed.has(s) ? [optionCfg.bg, optionCfg.color, "hover:brightness-95"] : "cursor-not-allowed bg-light-600 text-grey-500"
+                  allowed.has(s) ? [statusPickerClass[s], "hover:brightness-95"] : "cursor-not-allowed bg-light-600 text-grey-500"
                 )}
               >
                 {optionCfg.label}

@@ -45,6 +45,17 @@ export const statusConfig: Record<
   },
 };
 
+// The status picker's look: the status colour (what its text used to be) as the background, in a tint light enough for black text, text always black.
+export const statusPickerClass: Record<StatusKey, string> = {
+  draft: "bg-grey-200 text-black",
+  approved: "bg-success-400 text-black",
+  "in-procurement": "bg-indigo-300 text-black",
+  "in-production": "bg-warning-400 text-black",
+  installation: "bg-cyan-300 text-black",
+  completed: "bg-teal-300 text-black",
+  cancelled: "bg-error-300 text-black",
+};
+
 // The flow a quote moves through. Forward is one step at a time; going back to any earlier step is allowed.
 // Cancelled can be picked from any step (with a reason), and a cancelled quote can be reopened at any step.
 export const STATUS_FLOW: StatusKey[] = ["draft", "approved", "in-procurement", "in-production", "installation", "completed"];

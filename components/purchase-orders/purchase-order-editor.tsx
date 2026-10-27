@@ -6,7 +6,7 @@ import { SelectField } from "@/components/shared/select-field";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Boxes, Calendar, CheckCircle2, ChevronDown, ChevronRight, Download, FileText, Hash, IndianRupee, Layers, Plus, RotateCcw, Save, Search, Store, Trash2, Upload, User, X } from "lucide-react";
+import { ArrowLeft, Calendar, CheckCircle2, ChevronDown, ChevronRight, Download, FileText, Hash, IndianRupee, Layers, Plus, RotateCcw, Save, Search, Store, Trash2, Upload, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -187,7 +187,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const [partyOpen, setPartyOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   // The page is split into tabs; the tab line sticks just under the sticky page header, whose height is measured into --po-header-h.
-  const [tab, setTab] = useState<"vendor" | "details" | "material" | "lines">("vendor");
+  const [tab, setTab] = useState<"vendor" | "details" | "material" | "summary">("vendor");
   // A copy made from the list (?copy=1) only stays in the list once it has been saved; Cancel before that deletes it again.
   const isFreshCopy = useSearchParams().get("copy") === "1";
   const savedOnce = useRef(false);
@@ -412,7 +412,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     return { ...d, material, lines };
   };
   // Three tables like a sheet: Raw Material Detail, Primary Color Selection, Secondary Color Selection. Every row is one place of use
-  // ("Where To Use") and is saved with its own tick. Row ids start r- / p- / s- (older entries with both raw material and colours show in
+  // ("Use For") and is saved with its own tick. Row ids start r- / p- / s- (older entries with both raw material and colours show in
   // Raw Material and Primary). Secondary colours are extra picks: their external colours go to Additional External on the PDFs.
   type Part = "raw" | "primary" | "secondary";
   const inPart = (e: FinishEntry, part: Part) =>
@@ -502,11 +502,11 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           )}
         </div>
         {rows.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
-        <table className="w-full text-left">
+        <div className={`overflow-x-auto rounded-lg border border-grey-100 bg-white ${colour ? "" : "w-fit max-w-full self-start"}`}>
+        <table className={`text-left ${colour ? "w-full" : "w-auto"}`}>
           <thead className="bg-[var(--table-head)]">
             <tr>
-              {(colour ? ["Where To Use", "Internal Colour", "External Colour"] : ["Raw Material", "Where To Use"]).map((h) => (
+              {(colour ? ["Use For", "Internal Colour", "External Colour"] : ["Raw Material", "Use For"]).map((h) => (
                 <th key={h} className="px-4 py-2 text-left font-body font-semibold text-grey-900">{h}</th>
               ))}
               <th className="w-[72px] px-2 py-2 text-center font-body font-semibold text-grey-900">Action</th>
@@ -542,8 +542,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 </>
               ) : (
                 <>
-                  <td className="px-1 py-1"><PoRawMaterialSelect value={e.rawMaterial} onChange={(v) => editFinishEntry(saved.id, { rawMaterial: v }, part)} /></td>
-                  <td className="px-1 py-1">{whereSel}</td>
+                  <td className="min-w-[10.5rem] px-1 py-1"><PoRawMaterialSelect value={e.rawMaterial} onChange={(v) => editFinishEntry(saved.id, { rawMaterial: v }, part)} /></td>
+                  <td className="min-w-[10.5rem] px-1 py-1">{whereSel}</td>
                 </>
               )}
               <td className="px-1 py-1">
@@ -864,7 +864,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             ["vendor", isProforma ? "Dealer Details" : "Vendor Details", Store],
             ["details", isProforma ? "Proforma Details" : "Purchase Order Details", FileText],
             ["material", "Material Details", Layers],
-            ["lines", "Item Details", Boxes],
+            ["summary", "Pricing Summary", IndianRupee],
           ] as const).map(([key, label, Icon]) => (
             <button
               key={key}
@@ -998,6 +998,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 ),
               },
               { label: "Required Date", node: <Input id="e-req" type="date" value={draft.requiredDate} onChange={(e) => set({ requiredDate: e.target.value })} className="bg-white font-number" /> },
+              ...(isProforma ? [{ label: "Ref Code", node: <Input id="e-refcode" value={draft.material.refCode ?? ""} onChange={(e) => setMaterial({ refCode: e.target.value || undefined })} placeholder="Type the reference code" className="bg-white font-number" /> }] : []),
               { label: "Approx Delivery Date", node: <Input id="e-approx" type="date" value={draft.material.approxDeliveryDate ?? ""} onChange={(e) => setMaterial({ approxDeliveryDate: e.target.value || undefined })} className="bg-white font-number" /> },
               {
                 label: isProforma ? "Proforma Type" : "Purchase Order Type",
@@ -1050,15 +1051,16 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           </div>
           <div role="tabpanel" className={tab === "material" ? "block" : "hidden"}>
         <section className="po-card flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-4 shadow-sm">
-          {/* Two columns on wide screens: Raw Material | Primary on top, Secondary under. */}
-          <div className="grid items-start gap-x-6 gap-y-4 xl:grid-cols-2">
+          {/* Wide screens: a compact Raw Material table, then Primary and Secondary side by side, the same in Direct PO, Purchase Order and Proforma. */}
+          <div className={`grid items-start gap-x-6 gap-y-4 xl:grid-cols-[max-content_minmax(0,1fr)_minmax(0,1fr)]`}>
             {finishTable("Raw Material Detail", "raw")}
             {finishTable("Primary Color Selection", "primary")}
             {finishTable("Secondary Color Selection", "secondary")}
           </div>
         </section>
           </div>
-          <div role="tabpanel" className={tab === "lines" ? "block" : "hidden"}>
+          {/* Item Details sits under the Material Details tables (it has no tab of its own). */}
+          <div role="tabpanel" className={tab === "material" ? "mt-4 block" : "hidden"}>
       <div className={`${card} po-dense`}>
         <div className="flex items-center justify-between gap-3">
           {shownView === "cabinet" && (
@@ -1436,127 +1438,128 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         )}
       </div>
           </div>
-        </div>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr_1fr]">
-        <div className={cardTight}>
-          <h2 className="font-heading text-sm font-semibold text-grey-900">Remarks</h2>
-          <textarea
-            value={draft.remarks}
-            onChange={(e) => set({ remarks: e.target.value })}
-            rows={3}
-            placeholder="Additional remarks"
-            className="h-0 min-h-24 flex-1 resize-none rounded-lg border border-grey-100 bg-card p-3 text-xs font-body text-grey-900 outline-none focus:border-primary"
-          />
-        </div>
-          <div className={cardTight}>
-            <h2 className="font-heading text-sm font-semibold text-grey-900">Productwise Summary</h2>
-            <div className="flex-1 overflow-x-auto rounded-lg border border-grey-100 bg-white">
-              <table className="h-full w-full text-xs">
-                <thead className="bg-[var(--table-head)]">
-                  <tr>
-                    <th className="px-3 py-1 text-left font-body font-semibold text-grey-900">Category</th>
-                    <th className="px-3 py-1 text-center font-body font-semibold text-grey-900">Total Sq.Ft</th>
-                    <th className="px-3 py-1 text-right font-body font-semibold text-grey-900">Total Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {PO_GROUPS.map((g) => {
-                    const rows = draft.lines.filter((l) => l.group === g.key);
-                    return (
-                      <tr key={g.key} className="border-t border-grey-100">
-                        <td className="px-3 py-1 font-body text-grey-900">{g.key === "carcass" ? "Cabinet" : g.label}</td>
-                        <td className="px-3 py-1 text-center font-number text-grey-700">{g.key === "hardware" ? "—" : rows.reduce((t, l) => t + l.sqft, 0).toFixed(3)}</td>
-                        <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(rows.reduce((t, l) => t + lineAmount(l), 0))}</td>
+          <div role="tabpanel" className={tab === "summary" ? "block" : "hidden"}>
+          <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1.2fr]">
+            <div className={cardTight}>
+              <h2 className="font-heading text-sm font-semibold text-grey-900">Remarks</h2>
+              <textarea
+                value={draft.remarks}
+                onChange={(e) => set({ remarks: e.target.value })}
+                rows={3}
+                placeholder="Additional remarks"
+                className="h-0 min-h-24 flex-1 resize-none rounded-lg border border-grey-100 bg-card p-3 text-xs font-body text-grey-900 outline-none focus:border-primary"
+              />
+            </div>
+              <div className={cardTight}>
+                <h2 className="font-heading text-sm font-semibold text-grey-900">Productwise Summary</h2>
+                <div className="flex-1 overflow-x-auto rounded-lg border border-grey-100 bg-white">
+                  <table className="h-full w-full text-xs">
+                    <thead className="bg-[var(--table-head)]">
+                      <tr>
+                        <th className="px-3 py-1 text-left font-body font-semibold text-grey-900">Category</th>
+                        <th className="px-3 py-1 text-center font-body font-semibold text-grey-900">Total Sq.Ft</th>
+                        <th className="px-3 py-1 text-right font-body font-semibold text-grey-900">Total Amount</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot className="border-t border-grey-100 bg-[color-mix(in_srgb,var(--table-head)_40%,transparent)]">
-                  <tr>
-                    <td className="px-3 py-1 font-body font-semibold text-grey-900">Total</td>
-                    <td className="px-3 py-1 text-center font-number font-semibold text-grey-900">{draft.lines.filter((l) => l.group !== "hardware").reduce((t, l) => t + l.sqft, 0).toFixed(3)}</td>
-                    <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(draft.lines.reduce((t, l) => t + lineAmount(l), 0))}</td>
-                  </tr>
-                </tfoot>
-              </table>
+                    </thead>
+                    <tbody>
+                      {PO_GROUPS.map((g) => {
+                        const rows = draft.lines.filter((l) => l.group === g.key);
+                        return (
+                          <tr key={g.key} className="border-t border-grey-100">
+                            <td className="px-3 py-1 font-body text-grey-900">{g.key === "carcass" ? "Cabinet" : g.label}</td>
+                            <td className="px-3 py-1 text-center font-number text-grey-700">{g.key === "hardware" ? "—" : rows.reduce((t, l) => t + l.sqft, 0).toFixed(3)}</td>
+                            <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(rows.reduce((t, l) => t + lineAmount(l), 0))}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="border-t border-grey-100 bg-[color-mix(in_srgb,var(--table-head)_40%,transparent)]">
+                      <tr>
+                        <td className="px-3 py-1 font-body font-semibold text-grey-900">Total</td>
+                        <td className="px-3 py-1 text-center font-number font-semibold text-grey-900">{draft.lines.filter((l) => l.group !== "hardware").reduce((t, l) => t + l.sqft, 0).toFixed(3)}</td>
+                        <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(draft.lines.reduce((t, l) => t + lineAmount(l), 0))}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            <div className={cardTight}>
+              <h2 className="font-heading text-sm font-semibold text-grey-900">Pricing Summary</h2>
+              <div className="flex-1 overflow-x-auto rounded-lg border border-grey-100 bg-white">
+                <table className="h-full w-full text-xs">
+                  <thead className="bg-[var(--table-head)]">
+                    <tr>
+                      <th className="px-3 py-1 text-left font-body font-semibold text-grey-900">Particulars</th>
+                      <th className="px-3 py-1 text-right font-body font-semibold text-grey-900">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t border-grey-100">
+                      <td className="px-3 py-1 font-body text-grey-900">Total Amount</td>
+                      <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(totals.amount)}</td>
+                    </tr>
+                    <tr className="border-t border-grey-100">
+                      <td className="px-3 py-1 font-body text-grey-900">Special Discount %</td>
+                      <td className="px-3 py-1 text-right">
+                        <div className="ml-auto flex items-center justify-end gap-2">
+                        <div className="relative w-20">
+                          <input
+                            type="number" min={0} max={100} step="any"
+                            value={draft.discountPct === 0 ? "" : draft.discountPct}
+                            placeholder="0"
+                            onChange={(e) => set({ discountPct: e.target.value === "" ? 0 : Math.min(100, Math.max(0, Number(e.target.value))) })}
+                            className={`${field} h-6! w-full pr-6! text-xs! text-right font-number`}
+                          />
+                          <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs font-number text-grey-500">%</span>
+                        </div>
+                        <span className="w-24 text-right text-xs font-number text-grey-900" title="Discount amount">{formatInr(totals.amount - totals.taxable)}</span>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr className="border-t border-grey-100">
+                      <td className="px-3 py-1 font-body text-grey-900">Total After Discount</td>
+                      <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(totals.taxable)}</td>
+                    </tr>
+                    <tr className="border-t border-grey-100">
+                      <td className="px-3 py-1 font-body text-grey-900">GST</td>
+                      <td className="px-3 py-1">
+                        <SelectField value={draft.gstMode} onChange={(e) => set({ gstMode: e.target.value as GstMode })} className={`${field} ml-auto h-6! w-44 text-xs!`}>
+                          <option value="intra">State + Central (9% + 9%)</option>
+                          <option value="inter">Integrated (18%)</option>
+                        </SelectField>
+                      </td>
+                    </tr>
+                    {draft.gstMode === "intra" ? (
+                      <>
+                        <tr className="border-t border-grey-100"><td className="px-3 py-1 font-body text-grey-700">State GST 9%</td><td className="px-3 py-1 text-right font-number text-grey-900">{formatInr(totals.stateGst)}</td></tr>
+                        <tr className="border-t border-grey-100"><td className="px-3 py-1 font-body text-grey-700">Central GST 9%</td><td className="px-3 py-1 text-right font-number text-grey-900">{formatInr(totals.centralGst)}</td></tr>
+                      </>
+                    ) : (
+                      <tr className="border-t border-grey-100"><td className="px-3 py-1 font-body text-grey-700">Integrated GST 18%</td><td className="px-3 py-1 text-right font-number text-grey-900">{formatInr(totals.igst)}</td></tr>
+                    )}
+                    <tr className="border-t border-grey-100">
+                      <td className="px-3 py-1 font-body text-grey-900">Round Off</td>
+                      <td className="px-3 py-1 text-right">
+                        <input
+                          type="number" step="any"
+                          value={draft.roundOff === 0 ? "" : draft.roundOff}
+                          placeholder="0"
+                          onChange={(e) => set({ roundOff: e.target.value === "" ? 0 : Number(e.target.value) })}
+                          className={`${field} h-6! w-36 text-xs! text-right font-number`}
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot className="border-t border-grey-100 bg-[color-mix(in_srgb,var(--table-head)_40%,transparent)]">
+                    <tr>
+                      <td className="px-3 py-1 font-body font-semibold text-grey-900">Final Amount</td>
+                      <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(totals.final)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
           </div>
-        <div className={cardTight}>
-          <h2 className="font-heading text-sm font-semibold text-grey-900">Pricing Summary</h2>
-          <div className="flex-1 overflow-x-auto rounded-lg border border-grey-100 bg-white">
-            <table className="h-full w-full text-xs">
-              <thead className="bg-[var(--table-head)]">
-                <tr>
-                  <th className="px-3 py-1 text-left font-body font-semibold text-grey-900">Particulars</th>
-                  <th className="px-3 py-1 text-right font-body font-semibold text-grey-900">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-t border-grey-100">
-                  <td className="px-3 py-1 font-body text-grey-900">Total Amount</td>
-                  <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(totals.amount)}</td>
-                </tr>
-                <tr className="border-t border-grey-100">
-                  <td className="px-3 py-1 font-body text-grey-900">Special Discount %</td>
-                  <td className="px-3 py-1 text-right">
-                    <div className="ml-auto flex items-center justify-end gap-2">
-                    <div className="relative w-20">
-                      <input
-                        type="number" min={0} max={100} step="any"
-                        value={draft.discountPct === 0 ? "" : draft.discountPct}
-                        placeholder="0"
-                        onChange={(e) => set({ discountPct: e.target.value === "" ? 0 : Math.min(100, Math.max(0, Number(e.target.value))) })}
-                        className={`${field} h-6! w-full pr-6! text-xs! text-right font-number`}
-                      />
-                      <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs font-number text-grey-500">%</span>
-                    </div>
-                    <span className="w-24 text-right text-xs font-number text-grey-900" title="Discount amount">{formatInr(totals.amount - totals.taxable)}</span>
-                    </div>
-                  </td>
-                </tr>
-                <tr className="border-t border-grey-100">
-                  <td className="px-3 py-1 font-body text-grey-900">Total After Discount</td>
-                  <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(totals.taxable)}</td>
-                </tr>
-                <tr className="border-t border-grey-100">
-                  <td className="px-3 py-1 font-body text-grey-900">GST</td>
-                  <td className="px-3 py-1">
-                    <SelectField value={draft.gstMode} onChange={(e) => set({ gstMode: e.target.value as GstMode })} className={`${field} ml-auto h-6! w-44 text-xs!`}>
-                      <option value="intra">State + Central (9% + 9%)</option>
-                      <option value="inter">Integrated (18%)</option>
-                    </SelectField>
-                  </td>
-                </tr>
-                {draft.gstMode === "intra" ? (
-                  <>
-                    <tr className="border-t border-grey-100"><td className="px-3 py-1 font-body text-grey-700">State GST 9%</td><td className="px-3 py-1 text-right font-number text-grey-900">{formatInr(totals.stateGst)}</td></tr>
-                    <tr className="border-t border-grey-100"><td className="px-3 py-1 font-body text-grey-700">Central GST 9%</td><td className="px-3 py-1 text-right font-number text-grey-900">{formatInr(totals.centralGst)}</td></tr>
-                  </>
-                ) : (
-                  <tr className="border-t border-grey-100"><td className="px-3 py-1 font-body text-grey-700">Integrated GST 18%</td><td className="px-3 py-1 text-right font-number text-grey-900">{formatInr(totals.igst)}</td></tr>
-                )}
-                <tr className="border-t border-grey-100">
-                  <td className="px-3 py-1 font-body text-grey-900">Round Off</td>
-                  <td className="px-3 py-1 text-right">
-                    <input
-                      type="number" step="any"
-                      value={draft.roundOff === 0 ? "" : draft.roundOff}
-                      placeholder="0"
-                      onChange={(e) => set({ roundOff: e.target.value === "" ? 0 : Number(e.target.value) })}
-                      className={`${field} h-6! w-36 text-xs! text-right font-number`}
-                    />
-                  </td>
-                </tr>
-              </tbody>
-              <tfoot className="border-t border-grey-100 bg-[color-mix(in_srgb,var(--table-head)_40%,transparent)]">
-                <tr>
-                  <td className="px-3 py-1 font-body font-semibold text-grey-900">Final Amount</td>
-                  <td className="px-3 py-1 text-right font-number font-semibold text-grey-900">{formatInr(totals.final)}</td>
-                </tr>
-              </tfoot>
-            </table>
           </div>
         </div>
       </div>
