@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useMemo, useRef, useState } from "react";
-import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, Printer, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Upload, FileArchive, ListOrdered, LayoutList, LayoutGrid, Layers, ShoppingCart } from "lucide-react";
+import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, FileDown, Printer, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Upload, FileArchive, ListOrdered, LayoutList, LayoutGrid, Layers, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -19,7 +19,10 @@ import { quoteRawTotal, quoteWaterfall } from "@/lib/quote-pricing";
 import { downloadQuoteExportZip } from "@/lib/quote-export-zip";
 import { formatInr } from "@/lib/format";
 import { toastStore } from "@/lib/store/toast-store";
-import { remarkWithStatusNote, statusConfig, type StatusKey } from "@/lib/status";
+import { remarkWithStatusNote, statusConfig, statusRemarkOf, type StatusKey } from "@/lib/status";
+import { printQuotesReport } from "@/lib/quotes-report";
+import { useArchitects } from "@/lib/store/architects-store";
+import { fullName } from "@/lib/mock/architects";
 import { StatusPicker } from "@/components/quotes/create/status-picker";
 import { CreatePoDialog } from "@/components/purchase-orders/create-po-dialog";
 import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
@@ -60,6 +63,7 @@ export default function QuotesPage() {
   const router = useRouter();
   const quotes = useQuotes();
   const customers = useCustomers();
+  const architects = useArchitects();
   const productTypes = useMaterialItems("product-type");
   const furnitureItems = useFurniturePriceItems();
   const hardwareItems = useHardwarePriceItems();
@@ -99,6 +103,23 @@ export default function QuotesPage() {
     const shutter = externalColours.find((c) => c.id === q.shutterFinishId)?.name;
     const parts = [tandem, shutter].filter(Boolean);
     return parts.length > 0 ? `${base} (${parts.join(" + ")})` : base;
+  };
+  // PDF report of the quotes now listed (the search and status filter apply): Quote No, Date, Customer, Architect, Product Type, Final Amount, Status and its remark.
+  const pdfReport = () => {
+    const statusName = statusFilter === "all" ? "All statuses" : statusConfig[statusFilter as StatusKey]?.label ?? String(statusFilter);
+    printQuotesReport(
+      filtered.map((q) => ({
+        quoteNo: q.quoteNumber,
+        date: formatDate(q.date),
+        customer: customerName(q.customerId),
+        architect: q.architectId ? (() => { const a = architects.find((x) => x.id === q.architectId); return a ? fullName(a) : "—"; })() : "—",
+        productType: productTypeLabel(q),
+        amount: finalAmount(q),
+        status: statusConfig[q.status as StatusKey]?.label ?? q.status,
+        statusRemark: statusRemarkOf(q.remark, q.status as StatusKey),
+      })),
+      search.trim() ? `${statusName} · search "${search.trim()}"` : statusName
+    );
   };
   const finalAmount = (q: Quote) =>
     quoteWaterfall(
@@ -422,18 +443,22 @@ export default function QuotesPage() {
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-4">
+    <div className="-mx-2 flex flex-col gap-2 lg:-mx-4">
+      <div className="flex items-center justify-between gap-4 px-2">
         <div className="flex flex-col gap-1">
           <h1 className="font-heading text-2xl font-semibold text-grey-900">Quotes</h1>
           <p className="text-sm font-body text-grey-400">Every priced quotation across your customers</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" onClick={exportAllExcel}>
+          <Button type="button" size="sm" variant="outline" onClick={pdfReport} disabled={filtered.length === 0} className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3">
+            <FileDown className="h-4 w-4" />
+            Quote Report
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={exportAllExcel} className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3">
             <Download className="h-4 w-4" />
             Export
           </Button>
-          <Button type="button" variant="outline" onClick={() => importRef.current?.click()}>
+          <Button type="button" size="sm" variant="outline" onClick={() => importRef.current?.click()} className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3">
             <Upload className="h-4 w-4" />
             Import
           </Button>
@@ -449,8 +474,8 @@ export default function QuotesPage() {
             }}
           />
           <Link href="/quotes/new">
-            <Button type="button">
-              <Plus className="h-4 w-4" />
+            <Button type="button" size="sm" className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3">
+              <Plus className="h-3 w-3" />
               Create New Quote
             </Button>
           </Link>
@@ -462,8 +487,8 @@ export default function QuotesPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {/* No frame, and full width: the page's side padding is cancelled (-mx) so the table runs edge to edge. */}
-          <div className="-mx-2 overflow-hidden lg:-mx-4">
-          <div className="flex flex-col gap-2 px-2 py-1 lg:flex-row lg:items-center lg:justify-between lg:px-4">
+          <div className="overflow-hidden">
+          <div className="flex flex-col gap-2 py-1 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative w-full lg:max-w-xs">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
               <input
@@ -503,7 +528,7 @@ export default function QuotesPage() {
             ))}
             </div>
           </div>
-          <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 lg:[&_tr>*:first-child]:pl-4 lg:[&_tr>*:last-child]:pr-4">
+          <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 [&_tbody_tr]:h-8 [&_td]:align-middle">
             <table className="w-full text-xs font-body">
               <thead>
                 <tr className="bg-[var(--table-head)] text-left text-xs font-medium text-grey-900">

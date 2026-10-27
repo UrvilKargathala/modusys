@@ -85,3 +85,14 @@ export const remarkWithStatusNote = (remark: string | undefined, status: StatusK
   const line = `${statusConfig[status].label} on ${d}/${m}/${y}${note.remark ? `: ${note.remark}` : ""}`;
   return [line, remark ?? ""].filter(Boolean).join("\n");
 };
+
+// The note written when a quote moved to its current status ("Approved on 09/10/2026: confirmed on call"): returns "09/10/2026 · confirmed on call",
+// or "" when the quote has none (the newest note for that status sits first in the Remark).
+export function statusRemarkOf(remark: string | undefined, status: StatusKey): string {
+  const label = statusConfig[status]?.label;
+  if (!label || !remark) return "";
+  const line = remark.split("\n").find((l) => l.startsWith(`${label} on `));
+  if (!line) return "";
+  const m = /^.+? on (\d{2}\/\d{2}\/\d{4})(?:: (.*))?$/.exec(line);
+  return m ? [m[1], m[2]].filter(Boolean).join(" · ") : "";
+}

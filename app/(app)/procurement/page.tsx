@@ -36,12 +36,12 @@ export default function ProcurementPage() {
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(list);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
+    <div className="-mx-2 flex flex-col gap-2 lg:-mx-4">
+      <div className="px-2">
         <h1 className="font-heading text-2xl font-semibold text-grey-900">Procurement</h1>
         <p className="text-sm font-body text-grey-500">Editable copies of quotes, made when a quote is set to In Procurement. Edits here don&apos;t change the quote; the purchase order is built from this copy.</p>
       </div>
-      <div className="flex justify-end">
+      <div className="flex justify-end px-2">
         <div className="relative w-64">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
           <input
@@ -55,7 +55,7 @@ export default function ProcurementPage() {
       {list.length === 0 ? (
         <EmptyState icon={ClipboardList} message={procurementStore.isLoaded() ? "Nothing in procurement yet. Set a quote's status to In Procurement to copy it here." : "Loading…"} />
       ) : (
-        <div className="-mx-2 overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 lg:[&_tr>*:first-child]:pl-4 lg:[&_tr>*:last-child]:pr-4 lg:-mx-4">
+        <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 [&_tbody_tr]:h-8 [&_td]:align-middle">
           <table className="w-full text-left">
             <thead className="bg-[var(--table-head)]">
               <tr>

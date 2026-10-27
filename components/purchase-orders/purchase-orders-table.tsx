@@ -149,8 +149,8 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
         </div>
       )}
       {/* Plain table: no frame or lines, full width with a small side gap. */}
-      <div className="-mx-2 overflow-hidden lg:-mx-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1 lg:px-4">
+      <div className="overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 py-1">
         <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Purchase order status">
           {/* Proforma: Packing has its own tab on the page, so no Packing pill here (its invoices still show under All Invoices). */}
           {(proforma ? ["all", ...statuses.filter((st) => st.toLowerCase() !== "packing" && st !== "in-production")] : statuses).map((st) => (
@@ -161,7 +161,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
               aria-selected={status === st}
               onClick={() => setStatus(st)}
               className={cn(
-                "rounded-full border px-3 py-1 text-xs font-body font-medium transition-colors",
+                "rounded-full border px-3 py-0.5 text-xs font-body font-medium transition-colors",
                 status === st ? "border-primary bg-primary-transparent text-primary" : "border-grey-100 bg-card text-grey-600 hover:bg-light-600"
               )}
             >
@@ -170,11 +170,11 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           ))}
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => downloadOrderTracker(orders, customers, `order-tracker${proforma ? "-proforma" : mode === "direct" ? "-direct" : ""}.xlsx`, trackerOptions())}>
+          <Button size="sm" variant="outline" className="h-7 gap-1 rounded-md px-2.5 text-xs [&_svg]:h-3.5 [&_svg]:w-3.5" onClick={() => downloadOrderTracker(orders, customers, `order-tracker${proforma ? "-proforma" : mode === "direct" ? "-direct" : ""}.xlsx`, trackerOptions())}>
             <Download className="h-4 w-4" />
             Order Tracker (Excel)
           </Button>
-          <Button size="sm" variant="outline" onClick={() => printOrderTracker(orders, customers, trackerOptions())}>
+          <Button size="sm" variant="outline" className="h-7 gap-1 rounded-md px-2.5 text-xs [&_svg]:h-3.5 [&_svg]:w-3.5" onClick={() => printOrderTracker(orders, customers, trackerOptions())}>
             <Download className="h-4 w-4" />
             Order Tracker (PDF)
           </Button>
@@ -184,12 +184,12 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search PO no, vendor, customer, quote..."
-              className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
+              className="w-full rounded-lg border border-grey-100 bg-card py-1 pl-8 pr-3 text-xs font-body text-grey-900 outline-none focus:border-primary"
             />
           </div>
           {onNew && (
-            <Button size="sm" onClick={onNew}>
-              <Plus className="h-4 w-4" />
+            <Button size="sm" className="h-7 gap-1 rounded-md px-2.5 text-xs [&_svg]:h-3.5 [&_svg]:w-3.5" onClick={onNew}>
+              <Plus className="h-3.5 w-3.5" />
               {proforma ? "Create Proforma Invoice" : all ? "Create" : direct ? "Create Direct Purchase Order" : "Create Purchase Order"}
             </Button>
           )}
@@ -207,7 +207,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           cta={status === "pending" && onNew ? { label: proforma ? "Create Proforma Invoice" : all ? "Create" : direct ? "Create Direct Purchase Order" : "Create Purchase Order", onClick: onNew } : undefined}
         />
       ) : (
-        <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 lg:[&_tr>*:first-child]:pl-4 lg:[&_tr>*:last-child]:pr-4">
+        <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 [&_tbody_tr]:h-8 [&_td]:align-middle">
           <table className="w-full text-left">
             <thead className="bg-[var(--table-head)]">
               <tr>
@@ -229,7 +229,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                   </td>
                   {all && (
                     <td className="px-2 py-0.5">
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${po.material.direct ? "bg-info-transparent text-info" : "bg-primary-transparent text-primary"}`}>{po.material.direct ? "Direct" : "PO"}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${po.material.direct ? "bg-info-transparent text-info" : "bg-primary-transparent text-primary"}`}>{po.material.direct ? "Direct" : "PO"}</span>
                     </td>
                   )}
                   <td className="px-2 py-0.5 font-number text-xs text-grey-700">{formatPoDate(po.poDate)}</td>
@@ -249,7 +249,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                     />
                   </td>
                   <td className="px-2 py-0.5">
-                    <PoRowActions po={po} proforma={proforma} base={baseOf(po)} showPacking />
+                    <PoRowActions po={po} proforma={proforma} base={baseOf(po)} />
                   </td>
                 </tr>
               ))}

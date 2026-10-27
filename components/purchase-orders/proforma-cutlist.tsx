@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download } from "lucide-react";
+import { Download, Tag } from "lucide-react";
+import { printStickers } from "@/lib/cut-stickers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { packSheets, placedEdges, type Part } from "@/lib/cutlist";
@@ -31,7 +32,25 @@ const groupLetter = (i: number): string => (i >= 26 ? groupLetter(Math.floor(i /
 
 // Prints a copy of a Cut List element from a hidden frame of its own (so the pages are numbered and split properly): the browser's print dialog opens in it,
 // choose "Save as PDF". Elements marked no-print are left out; each group starts on a new page.
-function printCopy(el: HTMLElement, docTitle: string) {
+export type CutListBranding = { companyName: string; logoDataUrl?: string };
+const escHtml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+// The letterhead of the Cut List PDFs: company name on the left, logo on the right, and "Cut List Sheet Detail" on the second line.
+function letterhead(branding: CutListBranding | undefined, docNo: string | undefined) {
+  if (!branding) return "";
+  // As on the Quotation PDF: the logo uploaded in Quote Template > Branding, shown as it is (not recoloured), 48px high, to the right.
+  // With no uploaded logo, the brand mark drawn in the brand colour stands in.
+  const mark = `<svg viewBox="125 435 1035 390" style="height:44px;width:auto" aria-hidden="true"><g fill="var(--pdf-logo,#9E7676)"><rect x="125" y="443" width="240" height="45"/><rect x="232" y="443" width="45" height="375"/><rect x="232" y="565" width="628" height="45"/><rect x="895" y="565" width="35" height="45"/><rect x="960" y="565" width="35" height="45"/><rect x="1020" y="565" width="45" height="255"/><rect x="1020" y="565" width="140" height="45"/><path d="M1020 565 C1020 480 1060 460 1100 450 L1155 438 L1148 480 L1110 490 C1085 496 1065 508 1065 545 L1065 565 Z"/></g></svg>`;
+  const logo = branding.logoDataUrl ? `<img src="${escHtml(branding.logoDataUrl)}" alt="" style="height:48px;width:96px;object-fit:contain">` : mark;
+  return `<div style="margin-bottom:8px;font-family:var(--font-heading),system-ui,sans-serif">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:2px solid var(--pdf-logo,#9E7676);padding-bottom:6px">
+<div style="font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#9E7676;-webkit-text-stroke:.4px #9E7676">${escHtml(branding.companyName)}</div>
+${logo}
+</div>
+<div style="margin-top:6px;font-size:14px;font-weight:700;color:#182634">Cut List Sheet Detail${docNo ? ` : ${escHtml(docNo)}` : ""}</div>
+</div>`;
+}
+
+function printCopy(el: HTMLElement, docTitle: string, header?: string) {
   const copy = el.cloneNode(true) as HTMLElement;
   copy.querySelectorAll(".no-print").forEach((n) => n.remove());
   copy.classList.remove("cutlist-print");
@@ -43,7 +62,7 @@ function printCopy(el: HTMLElement, docTitle: string) {
   if (!doc || !win) { frame.remove(); return; }
   const head = [...document.querySelectorAll('link[rel="stylesheet"], style')].map((n) => n.outerHTML).join("");
   doc.open();
-  doc.write(`<!doctype html><html class="${document.documentElement.className}"><head><meta charset="utf-8"><title>${docTitle}</title>${head}<style>
+  doc.write(`<!doctype html><html class="${document.documentElement.className}" style="${escHtml(document.documentElement.getAttribute("style") ?? "")}"><head><meta charset="utf-8"><title>${docTitle}</title>${head}<style>
 @page { size: A4 landscape; margin: 0; }
 html, body { background: #fff !important; }
 body { padding: 8mm; margin: 0; box-sizing: border-box; }
@@ -56,7 +75,7 @@ body { padding: 8mm; margin: 0; box-sizing: border-box; }
 .cutlist-group + .cutlist-group { break-before: page; }
 .cutlist-group figure, .cutlist-group tr { break-inside: avoid; }
 .cutlist-group .grid { display: block !important; }
-</style></head><body class="${document.body.className}">${copy.outerHTML}</body></html>`);
+</style></head><body class="${document.body.className}">${header ?? ""}${copy.outerHTML}</body></html>`);
   doc.close();
   win.addEventListener("afterprint", () => window.setTimeout(() => frame.remove(), 500));
   // Give the copied stylesheets a moment to load before printing.
@@ -66,7 +85,7 @@ body { padding: 8mm; margin: 0; box-sizing: border-box; }
 // One material group of the Cut List: its own sheet size, margins and display options (each group is cut from its own stock), the piece list and the sheet drawings.
 type GroupStat = { title: string; sheets: number; pieces: number; unfit: number; usedPct: number; used: number; total: number };
 
-function CutGroup({ gi, title, rows, colourOf, onStat }: { gi: number; title: string; rows: CutRow[]; colourOf: (code: string) => readonly [string, string]; onStat: (gi: number, stat: GroupStat) => void }) {
+function CutGroup({ gi, title, rows, colourOf, onStat, branding, docNo }: { gi: number; title: string; rows: CutRow[]; colourOf: (code: string) => readonly [string, string]; onStat: (gi: number, stat: GroupStat) => void; branding?: CutListBranding; docNo?: string }) {
   const [sheetL, setSheetL] = useState(2440);
   const [sheetW, setSheetW] = useState(1220);
   const [kerf, setKerf] = useState(3);
@@ -111,8 +130,43 @@ function CutGroup({ gi, title, rows, colourOf, onStat }: { gi: number; title: st
         <h3 className="font-heading text-lg font-semibold text-orange"><span className="mr-2 font-number text-primary">[{groupLetter(gi)}]</span>{g.title}<span className="ml-3 font-number text-base font-semibold text-primary">[{String(g.sheets.length).padStart(2, "0")}-Sheets &amp; {String(g.parts.length - g.unfit.length).padStart(2, "0")}-Pcs]</span></h3>
         <p className="flex items-center gap-3 font-body text-sm text-grey-600">
           {/* This group alone as its own PDF (its sheet size and margins as set below). */}
-          <button type="button" onClick={() => sectionRef.current && printCopy(sectionRef.current, `Cut List ${groupLetter(gi)}`)} aria-label={`Download group ${groupLetter(gi)} as PDF`} title="Download this group as PDF" className="no-print flex items-center gap-1 rounded-md border border-grey-100 bg-white px-2 py-0.5 text-xs font-medium text-grey-700 hover:border-primary hover:text-primary">
+          <button type="button" onClick={() => sectionRef.current && printCopy(sectionRef.current, `Cut List ${groupLetter(gi)}`, letterhead(branding, docNo))} aria-label={`Download group ${groupLetter(gi)} as PDF`} title="Download this group as PDF" className="no-print flex items-center gap-1 rounded-md border border-grey-100 bg-white px-2 py-0.5 text-xs font-medium text-grey-700 hover:border-primary hover:text-primary">
             <Download className="h-3.5 w-3.5" /> PDF
+          </button>
+          {/* One sticker per piece of this group: Sr, cabinet, description, size, material, colours, grain and remarks. */}
+          <button
+            type="button"
+            onClick={() =>
+              printStickers(
+                groupLetter(gi),
+                g.sheets.flatMap((sh, si) =>
+                  sh.placed.map((p) => {
+                    const x = p.part.extra ?? {};
+                    return {
+                      sheet: si + 1,
+                      sr: p.part.label,
+                      cabinetType: x.cabinetType ?? "",
+                      cabinetName: x.cabinetName ?? "",
+                      description: p.part.name ?? "",
+                      width: p.part.w,
+                      height: p.part.h,
+                      rotated: p.rot,
+                      thk: x.thk ?? "",
+                      material: x.material ?? "",
+                      internal: x.internal ?? "",
+                      external: x.external ?? "",
+                      grain: p.part.grain === "h" ? "Horizontal" : p.part.grain === "v" ? "Vertical" : "",
+                      remarks: x.remarks ?? "",
+                    };
+                  })
+                )
+              )
+            }
+            aria-label={`Download stickers of group ${groupLetter(gi)} as PDF`}
+            title="Download a sticker for every piece of this group"
+            className="no-print flex items-center gap-1 rounded-md border border-grey-100 bg-white px-2 py-0.5 text-xs font-medium text-grey-700 hover:border-primary hover:text-primary"
+          >
+            <Tag className="h-3.5 w-3.5" /> Sticker PDF
           </button>
           <span>used <span className="font-number">{total ? Math.round((used / total) * 100) : 0}%</span> · waste <span className="font-number">{total ? Math.round((1 - used / total) * 100) : 0}%</span></span>
         </p>
@@ -231,7 +285,7 @@ function CutGroup({ gi, title, rows, colourOf, onStat }: { gi: number; title: st
 }
 
 // Cut List tab of the Production page: the components laid on stock sheets, one block per material + thickness + colours, with the edge banded sides marked.
-export function ProformaCutList({ rows, title }: { rows: CutRow[]; title?: string }) {
+export function ProformaCutList({ rows, title, branding }: { rows: CutRow[]; title?: string; branding?: CutListBranding }) {
   // PDF: the Cut List is copied into a hidden frame of its own (so the pages are numbered and split properly) and the browser's print dialog opens in it:
   // choose "Save as PDF". One group per page, each with the sheet size and margins set above.
   const rootRef = useRef<HTMLDivElement>(null);
@@ -239,11 +293,11 @@ export function ProformaCutList({ rows, title }: { rows: CutRow[]; title?: strin
   useEffect(() => {
     const run = () => {
       const root = rootRef.current;
-      if (root) printCopy(root, `Cut List${title ? ` ${title}` : ""}`);
+      if (root) printCopy(root, `Cut List${title ? ` ${title}` : ""}`, letterhead(branding, title));
     };
     window.addEventListener("cutlist-pdf", run);
     return () => window.removeEventListener("cutlist-pdf", run);
-  }, [title]);
+  }, [title, branding]);
 
   const colourOf = useMemo(() => {
     const codes = [...new Set(rows.flatMap((r) => Object.values(r.sides).filter((s) => s.on).map((s) => s.code || "—")))];
@@ -267,9 +321,8 @@ export function ProformaCutList({ rows, title }: { rows: CutRow[]; title?: strin
 
   return (
     <div ref={rootRef} className="cutlist-print flex flex-col gap-4">
-      {title && <h2 className="hidden font-heading text-lg font-semibold print:block">Cut List · {title}</h2>}
       {groups.length === 0 && <p className="py-6 text-center text-sm font-body text-grey-400">No components with a width, height and quantity.</p>}
-      {groups.map(([key, g], gi) => <CutGroup key={key} gi={gi} title={g.title} rows={g.rows} colourOf={colourOf} onStat={onStat} />)}
+      {groups.map(([key, g], gi) => <CutGroup key={key} gi={gi} title={g.title} rows={g.rows} colourOf={colourOf} onStat={onStat} branding={branding} docNo={title} />)}
       {groups.length > 0 && (
         <section className="cutlist-group flex flex-col gap-3 rounded-lg border border-grey-100 bg-white p-4">
           <h3 className="font-heading text-base font-semibold text-grey-900">Summary</h3>

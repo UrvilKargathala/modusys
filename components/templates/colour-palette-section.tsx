@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ColorPicker } from "@/components/ui/color-picker";
 import { DEFAULT_PALETTE, loadPalette, resetPalette, savePalette, TOKENS, paletteVars, type Palette, type SectionKey, type Token } from "@/lib/palette";
 
 type Slot = { key: "primary" | "tableHead" | "sidebar" | "page"; title: string; used: string[]; preview: React.ReactNode };
@@ -147,13 +148,7 @@ export function ColourPaletteSection() {
             <div className="flex items-center justify-between gap-3">
               <h3 className="font-heading text-base font-semibold text-grey-900">{slot.title}</h3>
               <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  aria-label={`${slot.title} colour`}
-                  value={palette[slot.key]}
-                  onChange={(e) => { setText((t) => ({ ...t, [slot.key]: e.target.value })); set(slot.key, e.target.value); }}
-                  className="h-8 w-10 cursor-pointer rounded-md border border-grey-100 bg-transparent p-0.5"
-                />
+                <ColorPicker ariaLabel={`${slot.title} colour`} value={palette[slot.key]} onChange={(v) => { setText((t) => ({ ...t, [slot.key]: v })); set(slot.key, v); }} />
                 <input
                   value={text[slot.key] ?? palette[slot.key]}
                   onChange={(e) => { const v = e.target.value; setText((t) => ({ ...t, [slot.key]: v })); if (isHex(v)) set(slot.key, v); }}
@@ -192,13 +187,7 @@ export function ColourPaletteSection() {
                   return (
                     <div key={part} className="flex items-center gap-1.5">
                       <span className="text-xs font-body text-grey-500">{part === "bg" ? "Bar" : "Edge"}</span>
-                      <input
-                        type="color"
-                        aria-label={`${label} colour`}
-                        value={palette.sections[key][part]}
-                        onChange={(e) => { setText((t) => ({ ...t, [id]: e.target.value })); setSection(key, part, e.target.value); }}
-                        className="h-8 w-10 cursor-pointer rounded-md border border-grey-100 bg-transparent p-0.5"
-                      />
+                      <ColorPicker ariaLabel={`${label} colour`} value={palette.sections[key][part]} onChange={(v) => { setText((t) => ({ ...t, [id]: v })); setSection(key, part, v); }} />
                       <input
                         value={text[id] ?? palette.sections[key][part]}
                         onChange={(e) => { const v = e.target.value; setText((t) => ({ ...t, [id]: v })); if (isHex(v)) setSection(key, part, v); }}
@@ -234,13 +223,7 @@ export function ColourPaletteSection() {
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-grey-900">{t.label}</span>
                     <div className="flex items-center gap-1.5">
-                      <input
-                        type="color"
-                        aria-label={`${t.label} colour`}
-                        value={palette.tokens[t.key]}
-                        onChange={(e) => { setText((x) => ({ ...x, [id]: e.target.value })); setToken(t.key, e.target.value); }}
-                        className="h-8 w-10 cursor-pointer rounded-md border border-grey-100 bg-transparent p-0.5"
-                      />
+                      <ColorPicker ariaLabel={`${t.label} colour`} value={palette.tokens[t.key]} onChange={(v) => { setText((x) => ({ ...x, [id]: v })); setToken(t.key, v); }} />
                       <input
                         value={text[id] ?? palette.tokens[t.key]}
                         onChange={(e) => { const v = e.target.value; setText((x) => ({ ...x, [id]: v })); if (isHex(v)) setToken(t.key, v); }}

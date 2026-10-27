@@ -668,7 +668,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
             {po && <MaterialDetailsLocked po={po} />}
           </div>
           {isProd && tab === "cutlist" && (
-            <div role="tabpanel"><ProformaCutList rows={cutRows} title={po.poNumber} /></div>
+            <div role="tabpanel"><ProformaCutList rows={cutRows} title={po.poNumber} branding={{ companyName: settings.branding.companyName, logoDataUrl: settings.branding.logoDataUrl ?? undefined }} /></div>
           )}
           {isProd && (
             <div role="tabpanel" className={tab === "edge" ? "grid items-start gap-x-6 gap-y-4 xl:grid-cols-2" : "hidden"}>
@@ -770,50 +770,49 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
       </div>
       {/* Transport Details: several transports can be added; the name comes from Proforma Library > Transport Details. */}
       {!isProd && (
-      <section className="rounded-xl border border-grey-100 bg-[#2391FF]/20 p-4 shadow-sm">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-heading text-lg font-semibold text-grey-900">Packing and Transport Details</h2>
-        </div>
+      <section className="flex flex-col gap-2">
+        <h2 className="px-2 font-heading text-base font-semibold text-grey-900">Packing and Transport Details</h2>
         {transport.length === 0 ? (
-          <p className="text-sm font-body text-grey-400">Transport rows are added automatically when you press Finish box.</p>
+          <p className="px-2 text-xs font-body text-grey-400">Transport rows are added automatically when you press Finish box.</p>
         ) : (
-          <div className="flex flex-col gap-2">
-            {transport.map((t, i) => (
-              <div key={i} className="grid items-end gap-3 md:grid-cols-[2.25rem_max-content_minmax(0,1.3fr)_minmax(0,1fr)_10.5rem_7rem_max-content]">
-                <span className="pb-2 font-number text-sm text-grey-500">{String(i + 1).padStart(3, "0")}</span>
-                <span className="whitespace-nowrap pb-2 font-number text-sm font-semibold text-grey-700">{psLabel(po.poNumber, i)}</span>
-                <label className="flex flex-col gap-1 text-xs font-semibold text-grey-700">
-                  {i === 0 && "Transport Name"}
-                  <SelectField aria-label="Transport Name" value={t.name} onChange={(e) => { setTransport((r) => r.map((x, j) => (j === i ? { ...x, name: e.target.value } : x))); setDirty(true); }} className="h-9 rounded-lg border border-black bg-white px-3 text-sm font-body text-grey-900 outline-none focus:border-primary">
-                    <option value="">Select transport…</option>
-                    {transportNames.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
-                  </SelectField>
-                </label>
-                <label className="flex flex-col gap-1 text-xs font-semibold text-grey-700">
-                  {i === 0 && "LR Number"}
-                  <Input aria-label="LR Number" value={t.lr} onChange={(e) => { setTransport((r) => r.map((x, j) => (j === i ? { ...x, lr: e.target.value } : x))); setDirty(true); }} className="h-9 border-black bg-white font-number" />
-                </label>
-                <label className="flex flex-col gap-1 text-xs font-semibold text-grey-700">
-                  {i === 0 && "Date"}
-                  <Input aria-label="Transport date" type="date" value={t.date ?? ""} onChange={(e) => { setTransport((r) => r.map((x, j) => (j === i ? { ...x, date: e.target.value } : x))); setDirty(true); }} className="h-9 border-black bg-white font-number" />
-                </label>
-                <label className="flex flex-col gap-1 text-xs font-semibold text-grey-700">
-                  {i === 0 && "Number of Boxes"}
-                  <Input aria-label="Number of Boxes" type="number" min={0} value={t.boxes || ""} onChange={(e) => { setTransport((r) => r.map((x, j) => (j === i ? { ...x, boxes: Math.max(0, Math.round(Number(e.target.value) || 0)) } : x))); setDirty(true); }} className="h-9 border-black bg-white font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
-                </label>
-                <div className="mb-1 flex items-center gap-1">
-                  <button type="button" aria-label="Delete this transport" onClick={() => setDeleteTransport(i)} className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-grey-500 hover:bg-light-600 hover:text-error">
-                    <Trash2 className="h-4 w-4" /> Delete
-                  </button>
-                  <button type="button" aria-label="Print this packing slip" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?part=packing-transport&tr=${i}`, "_blank")} className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-grey-500 hover:bg-light-600 hover:text-primary">
-                    <Printer className="h-4 w-4" /> Print
-                  </button>
-                  <button type="button" aria-label="Print box stickers" onClick={() => window.open(`/purchase-orders/${po.id}/stickers?tr=${i}`, "_blank")} className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-grey-500 hover:bg-light-600 hover:text-primary">
-                    <Tag className="h-4 w-4" /> Sticker
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="overflow-x-auto text-xs font-body [&_tbody_tr]:h-8 [&_td]:align-middle [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2">
+            <table className="w-full text-left">
+              <thead className="bg-[var(--table-head)] text-grey-900">
+                <tr>
+                  {["No", "Packing Slip No", "Transport Name", "LR Number", "Date", "Number of Boxes", "Actions"].map((h) => (
+                    <th key={h} className={`whitespace-nowrap px-2 py-1 font-semibold ${h === "Actions" ? "text-right" : ""}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {transport.map((t, i) => {
+                  const field = "h-7 w-full min-w-0 rounded-md border border-transparent bg-transparent px-1.5 font-number text-xs text-grey-900 outline-none hover:border-grey-100 focus:border-primary focus:bg-card";
+                  const patch = (p: Partial<(typeof transport)[number]>) => { setTransport((r) => r.map((x, j) => (j === i ? { ...x, ...p } : x))); setDirty(true); };
+                  return (
+                    <tr key={i} className="hover:bg-light-600/60">
+                      <td className="px-2 py-0.5 font-number text-grey-500">{String(i + 1).padStart(3, "0")}</td>
+                      <td className="whitespace-nowrap px-2 py-0.5 font-number font-semibold text-grey-700">{psLabel(po.poNumber, i)}</td>
+                      <td className="w-[26%] px-2 py-0.5">
+                        <SelectField aria-label="Transport Name" value={t.name} onChange={(e) => patch({ name: e.target.value })} className={field.replace("font-number", "font-body")}>
+                          <option value="">Select transport…</option>
+                          {transportNames.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
+                        </SelectField>
+                      </td>
+                      <td className="w-[18%] px-2 py-0.5"><input aria-label="LR Number" value={t.lr} onChange={(e) => patch({ lr: e.target.value })} placeholder="LR number" className={field} /></td>
+                      <td className="w-[14%] px-2 py-0.5"><input aria-label="Transport date" type="date" value={t.date ?? ""} onChange={(e) => patch({ date: e.target.value })} className={field} /></td>
+                      <td className="w-[10%] px-2 py-0.5"><input aria-label="Number of Boxes" type="number" min={0} value={t.boxes || ""} onChange={(e) => patch({ boxes: Math.max(0, Math.round(Number(e.target.value) || 0)) })} className={`${field} [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`} /></td>
+                      <td className="px-2 py-0.5">
+                        <div className="flex items-center justify-end gap-0.5">
+                          <button type="button" aria-label="Print this packing slip" title="Print packing slip" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?part=packing-transport&tr=${i}`, "_blank")} className="rounded-md p-1 text-grey-500 hover:bg-light-600 hover:text-primary"><Printer className="h-4 w-4" /></button>
+                          <button type="button" aria-label="Print box stickers" title="Print box stickers" onClick={() => window.open(`/purchase-orders/${po.id}/stickers?tr=${i}`, "_blank")} className="rounded-md p-1 text-grey-500 hover:bg-light-600 hover:text-primary"><Tag className="h-4 w-4" /></button>
+                          <button type="button" aria-label="Delete this transport" title="Delete" onClick={() => setDeleteTransport(i)} className="rounded-md p-1 text-grey-500 hover:bg-light-600 hover:text-error"><Trash2 className="h-4 w-4" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

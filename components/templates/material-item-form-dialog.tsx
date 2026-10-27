@@ -1,5 +1,6 @@
 "use client";
 
+import { ColorPicker } from "@/components/ui/color-picker";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -200,13 +201,7 @@ export function MaterialItemFormDialog({
           {category.statusColour && (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="mi-colour">Colour</Label>
-              <input
-                id="mi-colour"
-                type="color"
-                value={watch("description") || "#fde68a"}
-                onChange={(e) => setValue("description", e.target.value, { shouldDirty: true })}
-                className="h-9 w-16 cursor-pointer rounded border border-grey-100 bg-transparent p-1"
-              />
+              <ColorPicker ariaLabel="Colour" value={watch("description") || "#fde68a"} onChange={(v) => setValue("description", v, { shouldDirty: true })} className="h-9 w-16" />
             </div>
           )}
 

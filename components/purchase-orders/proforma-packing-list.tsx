@@ -47,26 +47,26 @@ export function ProformaPackingList({ mode = "packing" }: { mode?: "packing" | "
       {rows.length === 0 ? (
         <EmptyState icon={PackageCheck} message={isProd ? "No proforma invoices in Production. Change an invoice's status to In Production and it appears here." : "No proforma invoices in Packing. Change an invoice's status to Packing and it appears here."} />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-grey-100 bg-card">
-          <table className="w-full text-left text-sm font-body">
-            <thead className="bg-light-600 text-grey-700">
+        <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 [&_tbody_tr]:h-8 [&_td]:align-middle">
+          <table className="w-full text-left text-xs font-body">
+            <thead className="bg-[var(--table-head)] text-grey-900">
               <tr>
-                <th className="px-4 py-2 font-medium">PI No</th>
-                <th className="px-4 py-2 font-medium">PI Date</th>
-                <th className="px-4 py-2 font-medium">Dealer</th>
-                <th className="px-4 py-2 font-medium">Status</th>
-                <th className="w-[35%] px-4 py-2 font-medium">{isProd ? "Produced" : "Packed"}</th>
-                <th className="px-4 py-2 text-right font-medium">Actions</th>
+                <th className="px-2 py-0.5 font-medium">PI No</th>
+                <th className="px-2 py-0.5 font-medium">PI Date</th>
+                <th className="px-2 py-0.5 font-medium">Dealer</th>
+                <th className="px-2 py-0.5 font-medium">Status</th>
+                <th className="w-[35%] px-2 py-0.5 font-medium">{isProd ? "Produced" : "Packed"}</th>
+                <th className="px-2 py-0.5 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {rows.map(({ po, total, packed }) => (
-                <tr key={po.id} className="border-t border-grey-100 text-grey-800">
-                  <td className="px-4 py-2 font-number text-primary">{po.poNumber}</td>
-                  <td className="px-4 py-2 font-number">{formatPoDate(po.poDate)}</td>
-                  <td className="px-4 py-2">{po.vendorName || "—"}</td>
-                  <td className="px-4 py-2"><ProformaStatusCell po={po} /></td>
-                  <td className="px-4 py-2">
+                <tr key={po.id} className="text-grey-800 hover:bg-light-600/60">
+                  <td className="px-2 py-0.5 font-number text-primary">{po.poNumber}</td>
+                  <td className="px-2 py-0.5 font-number">{formatPoDate(po.poDate)}</td>
+                  <td className="px-2 py-0.5">{po.vendorName || "—"}</td>
+                  <td className="px-2 py-0.5"><ProformaStatusCell po={po} /></td>
+                  <td className="px-2 py-0.5">
                     <div className="flex items-center gap-2">
                       <div className="h-2 flex-1 overflow-hidden rounded-full bg-grey-100">
                         <div className="h-full rounded-full bg-success" style={{ width: `${total ? Math.round((packed / total) * 100) : 0}%` }} />
@@ -74,7 +74,7 @@ export function ProformaPackingList({ mode = "packing" }: { mode?: "packing" | "
                       <span className="font-number text-xs text-grey-700">{packed} / {total}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="px-2 py-0.5">
                     <PoRowActions po={po} proforma base="/proforma-invoices" packingSlips={!isProd} workOrder={isProd} viewHref={`/proforma-invoices/${mode}/${po.id}`} />
                   </td>
                 </tr>

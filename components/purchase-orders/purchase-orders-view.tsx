@@ -56,8 +56,8 @@ function View() {
   const onNew = () => setCreate(tab === "direct" ? "direct" : tab === "po" ? "po" : "choose");
 
   return (
-    <div className="flex flex-col gap-2">
-      <div>
+    <div className="-mx-2 flex flex-col gap-2 lg:-mx-4">
+      <div className="px-2">
         <h1 className="font-heading text-2xl font-semibold text-grey-900">Purchase Orders</h1>
         <p className="text-sm font-body text-grey-500">Orders sent to vendors for manufacturing and supply, including direct purchase orders.</p>
       </div>
