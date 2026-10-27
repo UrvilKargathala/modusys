@@ -139,6 +139,7 @@ function CutGroup({ gi, title, rows, colourOf, onStat, branding, docNo }: { gi: 
             onClick={() =>
               printStickers(
                 groupLetter(gi),
+                docNo ?? "",
                 g.sheets.flatMap((sh, si) =>
                   sh.placed.map((p) => {
                     const x = p.part.extra ?? {};
