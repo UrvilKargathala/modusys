@@ -285,7 +285,7 @@ export function QuoteUnitCard({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("flex flex-col gap-2 border-b border-grey-100 bg-card px-3 py-0.5 last:border-b-0", isDragging && "opacity-50")}
+      className={cn("flex flex-col gap-2 px-2 py-0.5 hover:bg-light-600/60", isDragging && "opacity-50")}
     >
       <div className={cn(UNIT_ROW_GRID, "unit-row unit-top")}>
         <button

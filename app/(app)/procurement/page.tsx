@@ -55,7 +55,7 @@ export default function ProcurementPage() {
       {list.length === 0 ? (
         <EmptyState icon={ClipboardList} message={procurementStore.isLoaded() ? "Nothing in procurement yet. Set a quote's status to In Procurement to copy it here." : "Loading…"} />
       ) : (
-        <div className="-mx-2 overflow-x-auto lg:-mx-4">
+        <div className="-mx-2 overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 lg:[&_tr>*:first-child]:pl-4 lg:[&_tr>*:last-child]:pr-4 lg:-mx-4">
           <table className="w-full text-left">
             <thead className="bg-[var(--table-head)]">
               <tr>

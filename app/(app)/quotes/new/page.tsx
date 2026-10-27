@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Calculator, ChevronsDown, ChevronsUp, FileText, Layers, Palette, Plus, User } from "lucide-react";
+import { Calculator, ChevronsDown, ChevronsUp, FileText, Layers, Plus, User } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -41,7 +41,6 @@ const TABS = [
   { key: "material", label: "Material Specification", icon: Layers },
   { key: "items", label: "Units", icon: FileText },
   { key: "summary", label: "Quote Summary", icon: Calculator },
-  { key: "finishes", label: "Finish Options", icon: Palette },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 const CLIENT_REQUIRED = ["Customer Name", "Architect Name", "Property Type", "Sales Executive", "Designer", "Site Engineer"];
@@ -183,8 +182,8 @@ function CreateQuotePage() {
 
   return (
     <FollowPriceListContext.Provider value={!editId}>
-    <div ref={rootRef} className="flex flex-col gap-5">
-      <div ref={headerRef} className="sticky -top-4 z-20 -mx-4 flex flex-col gap-3 border-b border-grey-100 bg-light px-4 py-4 lg:-top-6 lg:-mx-6 lg:px-6">
+    <div ref={rootRef} className="-mx-2 -mt-4 flex flex-col gap-2 lg:-mx-4 lg:-mt-6">
+      <div ref={headerRef} className="sticky -top-4 z-20 -mx-2 flex flex-col gap-3 border-b border-grey-100 bg-light px-2 pb-3 pt-2 lg:-top-6 lg:-mx-2">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -288,7 +287,7 @@ function CreateQuotePage() {
             Every panel stays mounted (just hidden) so nothing loses its state when switching tabs. */}
         <div
           className={cn(
-            "p-4 lg:p-6",
+            "px-2 py-2",
             readonly && "pointer-events-none [&_button[aria-label^='Collapse'],&_button[aria-label^='Expand']]:pointer-events-auto"
           )}
         >
@@ -314,10 +313,8 @@ function CreateQuotePage() {
           <div role="tabpanel" className={panelCls("material")}>
             <MaterialSpecificationSection bare quote={quote} onChange={patchQuote} confirmChanges={!!editId} />
           </div>
-          <div role="tabpanel" className={panelCls("summary")}>
+          <div role="tabpanel" className={cn("flex-col gap-2", tab === "summary" ? "flex" : "hidden")}>
             <QuoteSummarySection bare quote={quote} onChange={patchQuote} onSaveRemark={handleSaveRemark} />
-          </div>
-          <div role="tabpanel" className={panelCls("finishes")}>
             <RemarkAndFinishesSection bare quote={quote} onChange={patchQuote} />
           </div>
         </div>

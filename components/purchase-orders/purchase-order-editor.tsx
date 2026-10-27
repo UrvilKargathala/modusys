@@ -785,9 +785,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
         set: (key, value) => setDraft((d) => (d ? { ...d, material: { ...d.material, dimNotes: { ...d.material.dimNotes, [key]: value } } } : d)),
       }}
     >
-    <div ref={rootRef} className={`flex flex-col gap-6${isDirect ? " no-spin" : ""}${isProforma ? " po-proforma" : ""}`}>
+    <div ref={rootRef} className={`-mx-2 flex flex-col gap-2 lg:-mx-4${isDirect ? " no-spin" : ""}${isProforma ? " po-proforma" : ""}`}>
       {/* Stays at the top while the page scrolls. */}
-      <div ref={headerRef} className="sticky -top-4 z-30 -mx-4 -mt-4 flex flex-wrap items-center justify-between gap-3 bg-background px-4 pb-2 pt-4 lg:-top-6 lg:-mx-6 lg:-mt-6 lg:bg-grey-transparent lg:px-6 lg:pt-6">
+      <div ref={headerRef} className="sticky -top-4 z-30 -mx-2 -mt-4 flex flex-wrap items-center justify-between gap-3 bg-background px-2 pb-2 pt-2 lg:-top-6 lg:-mt-6 lg:bg-grey-transparent">
         <div className="flex items-center gap-3">
           <Link href={base} aria-label="Back" className="rounded-md p-1.5 text-grey-500 hover:bg-light-600">
             <ArrowLeft className="h-5 w-5" />
@@ -880,7 +880,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             </button>
           ))}
         </div>
-        <div className="p-4 lg:p-6">
+        <div className="px-2 py-2">
           <div role="tabpanel" className={tab === "vendor" ? "block" : "hidden"}>
           <SpecTable>
             {pairRows([

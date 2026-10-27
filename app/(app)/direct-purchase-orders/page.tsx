@@ -1,5 +1,6 @@
-import { DirectPurchaseOrdersView } from "@/components/purchase-orders/direct-purchase-orders-view";
+import { redirect } from "next/navigation";
 
+// Direct Purchase Orders now live inside Purchase Orders (the Direct PO tab).
 export default function DirectPurchaseOrdersPage() {
-  return <DirectPurchaseOrdersView />;
+  redirect("/purchase-orders?tab=direct");
 }

@@ -422,7 +422,7 @@ export default function QuotesPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="font-heading text-2xl font-semibold text-grey-900">Quotes</h1>
@@ -460,10 +460,10 @@ export default function QuotesPage() {
       {quotes.length === 0 ? (
         <EmptyState icon={FileStack} message='No quotes yet. Click "Create New Quote" to price your first quote.' />
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {/* No frame, and full width: the page's side padding is cancelled (-mx) so the table runs edge to edge. */}
           <div className="-mx-2 overflow-hidden lg:-mx-4">
-          <div className="flex flex-col gap-3 px-2 py-1 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-2 px-2 py-1 lg:flex-row lg:items-center lg:justify-between lg:px-4">
             <div className="relative w-full lg:max-w-xs">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
               <input
@@ -503,7 +503,7 @@ export default function QuotesPage() {
             ))}
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 lg:[&_tr>*:first-child]:pl-4 lg:[&_tr>*:last-child]:pr-4">
             <table className="w-full text-xs font-body">
               <thead>
                 <tr className="bg-[var(--table-head)] text-left text-xs font-medium text-grey-900">

@@ -557,8 +557,8 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
   const shown = headers.map((h, i) => ({ h, i }));
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="-mx-2 flex flex-col gap-2 lg:-mx-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-2">
         <div className="flex items-center gap-3">
           <Link href={base} className="rounded-md p-1.5 text-grey-500 hover:bg-light-600 hover:text-primary" aria-label={isProd ? "Back to Production" : "Back to Packing"}>
             <ArrowLeft className="h-5 w-5" />
@@ -657,7 +657,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
             </button>
           )}
         </div>
-        <div className="p-4 lg:p-6">
+        <div className="px-2 py-2">
           <div role="tabpanel" className={tab === "dealer" ? "block" : "hidden"}>
             <LockedFields rows={sections.find((sec) => sec.title === "Dealer Details")?.rows.filter(([k]) => k !== "GST No" && k !== "Contact" && k !== "Status") ?? []} />
           </div>

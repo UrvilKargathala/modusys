@@ -19,7 +19,7 @@ function View() {
   const [newOpen, setNewOpen] = useState(false);
   return (
     <ProformaStatusProvider>
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2">
       <div>
         <h1 className="font-heading text-2xl font-semibold text-grey-900">Proforma Invoices</h1>
         <p className="text-sm font-body text-grey-500">Proforma invoices made directly, without a quote.</p>
@@ -31,16 +31,16 @@ function View() {
           <TabsTrigger value="production">Production</TabsTrigger>
           <TabsTrigger value="packing">Packing</TabsTrigger>
         </TabsList>
-        <TabsContent value="invoices" className="pt-6">
+        <TabsContent value="invoices" className="pt-0">
           <PurchaseOrdersTable direct proforma onNew={() => setNewOpen(true)} />
         </TabsContent>
-        <TabsContent value="production" className="pt-6">
+        <TabsContent value="production" className="pt-0">
           <ProformaPackingList mode="production" />
         </TabsContent>
-        <TabsContent value="packing" className="pt-6">
+        <TabsContent value="packing" className="pt-0">
           <ProformaPackingList />
         </TabsContent>
-        <TabsContent value="dealers" className="pt-6">
+        <TabsContent value="dealers" className="pt-0">
           <VendorsTable dealers />
         </TabsContent>
       </Tabs>

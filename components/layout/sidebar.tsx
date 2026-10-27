@@ -7,7 +7,7 @@ import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Contact, Download, K
 import { cn } from "@/lib/utils";
 import { formatInr } from "@/lib/format";
 import { MOCK_CREDITS_BALANCE, MOCK_CREDITS_TOTAL } from "@/lib/mock/credits";
-import { navigationItems, administrationItems, attendanceItems, canSeeNav, type NavItem } from "@/lib/nav";
+import { navigationItems, administrationItems, attendanceItems, canSeeNav, navActive, type NavItem } from "@/lib/nav";
 import { AttendanceHealthDot } from "@/components/attendance/health-dot";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -56,7 +56,7 @@ export function Sidebar() {
       return !c;
     });
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) => navActive(pathname, navigationItems.find((i) => i.href === href) ?? { href });
   const visible = navigationItems.filter((i) => canSeeNav(i, user.role));
   const entries: Entry[] = [];
   for (const item of visible) {

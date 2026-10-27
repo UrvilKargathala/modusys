@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mobileTabItems, mobileMoreItems, administrationItems, canSeeNav } from "@/lib/nav";
+import { mobileTabItems, mobileMoreItems, administrationItems, canSeeNav, navActive } from "@/lib/nav";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useCurrentUser } from "@/lib/session";
 
@@ -17,14 +17,14 @@ export function MobileBottomNav() {
   const visibleMoreItems = mobileMoreItems.filter((item) => canSeeNav(item, currentUser.role));
 
   const isMoreActive = [...mobileMoreItems, ...administrationItems].some(
-    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
+    (item) => navActive(pathname, item)
   );
 
   return (
     <>
       <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-stretch border-t border-grey-100 bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
         {mobileTabItems.filter((item) => canSeeNav(item, currentUser.role)).map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = navActive(pathname, item);
           const Icon = item.icon;
 
           return (
@@ -61,7 +61,7 @@ export function MobileBottomNav() {
         <SheetContent side="bottom" className="pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <div className="flex flex-col gap-1 p-2">
             {visibleMoreItems.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const active = navActive(pathname, item);
               const Icon = item.icon;
               return (
                 <Link
@@ -84,7 +84,7 @@ export function MobileBottomNav() {
               Admin
             </span>
             {visibleAdminItems.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const active = navActive(pathname, item);
               const Icon = item.icon;
               return (
                 <Link

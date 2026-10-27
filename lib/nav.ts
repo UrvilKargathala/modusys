@@ -29,6 +29,8 @@ export type NavItem = {
   roles?: string[];
   // Desktop top bar: items with the same group share one dropdown (shown where the first one sits).
   group?: string;
+  // Other paths that also light this item up (Direct Purchase Orders now live inside Purchase Orders).
+  alsoActive?: string[];
 };
 
 const ADMIN_UP = ["admin", "super-admin"];
@@ -43,8 +45,7 @@ export const navigationItems: NavItem[] = [
   { label: "CRM", href: "/crm", icon: Users },
   { label: "Quotes", href: "/quotes", icon: FileText, roles: ADMIN_UP },
   { label: "Procurement Orders (From QT)", href: "/procurement", icon: ClipboardList, roles: ADMIN_UP, group: "Orders" },
-  { label: "Purchase Orders (From PR)", href: "/purchase-orders", icon: ShoppingCart, roles: ADMIN_UP, group: "Orders" },
-  { label: "Direct Purchase Orders", href: "/direct-purchase-orders", icon: ShoppingCart, roles: ADMIN_UP, group: "Orders" },
+  { label: "Purchase Orders", href: "/purchase-orders", icon: ShoppingCart, roles: ADMIN_UP, group: "Orders", alsoActive: ["/direct-purchase-orders"] },
   { label: "Proforma Invoices", href: "/proforma-invoices", icon: FileText, roles: ADMIN_UP, group: "Orders" },
   { label: "Customers", href: "/customers", icon: Contact, group: "Contacts" },
   { label: "Architects", href: "/architects", icon: Building2, group: "Contacts" },
@@ -81,3 +82,8 @@ export const mobileTabItems: NavItem[] = [
 ];
 
 export const mobileMoreItems: NavItem[] = [...navigationItems.slice(3), ...attendanceItems];
+
+// True when the path is the item's page, one of its sub-pages, or one of its alsoActive paths.
+export function navActive(pathname: string, item: Pick<NavItem, "href" | "alsoActive">): boolean {
+  return [item.href, ...(item.alsoActive ?? [])].some((h) => pathname === h || pathname.startsWith(`${h}/`));
+}

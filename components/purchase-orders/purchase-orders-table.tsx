@@ -30,12 +30,17 @@ import { asPoStatus, poStatusLabel, poStatusList, poTotals, type PoStatus, type 
 const PO_TO_QUOTE_TONE: Record<string, StatusKey> = { pending: "in-production", confirmed: "in-procurement", "in-production": "in-production", delivered: "completed" };
 const statusClass = (st: string) => (st === "pending" ? "bg-error-transparent text-error-700" : PO_TO_QUOTE_TONE[st] ? `${statusConfig[PO_TO_QUOTE_TONE[st]].bg} ${statusConfig[PO_TO_QUOTE_TONE[st]].color}` : "bg-grey-transparent text-grey-700");
 
-export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = false, proforma = false }: { onNew?: () => void; quoteId?: string | null; onClearQuote?: () => void; direct?: boolean; proforma?: boolean }) {
+// mode: "all" lists Purchase Orders and Direct Purchase Orders together (with a Type column), "po" only the quote / PR based ones,
+// "direct" only the direct ones. `direct` is the same as mode "direct".
+export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = false, proforma = false, mode: modeProp }: { onNew?: () => void; quoteId?: string | null; onClearQuote?: () => void; direct?: boolean; proforma?: boolean; mode?: "all" | "po" | "direct" }) {
+  const mode = modeProp ?? (direct ? "direct" : "po");
+  direct = mode === "direct";
+  const all = mode === "all" && !proforma;
   const router = useRouter();
   // Direct Purchase Orders have their own list and pages; both lists use this table.
-  const base = proforma ? "/proforma-invoices" : direct ? "/direct-purchase-orders" : "/purchase-orders";
+  const baseOf = (o: PurchaseOrder) => (proforma ? "/proforma-invoices" : o.material.direct ? "/direct-purchase-orders" : "/purchase-orders");
   const allOrders = usePurchaseOrders();
-  const orders = useMemo(() => allOrders.filter((o) => (proforma ? !!o.material.proforma : !!o.material.direct === direct && !o.material.proforma)), [allOrders, direct, proforma]);
+  const orders = useMemo(() => allOrders.filter((o) => (proforma ? !!o.material.proforma : !o.material.proforma && (mode === "all" || !!o.material.direct === (mode === "direct")))), [allOrders, mode, proforma]);
   // The four built-in statuses, the ones added in Purchase Material Library > Purchase Order Status, and any other name still in use.
   const template = usePurchaseTemplateSettings();
   const materials = useMaterialItems(proforma ? "proforma-order-status" : "purchase-order-status");
@@ -58,7 +63,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   const quotes = useQuotes();
   const [search, setSearch] = useState("");
   // The status tab you last opened comes back when you return from a PO (Cancel / Back / Save). Kept for this browser tab only.
-  const tabKey = `po-status-tab-${proforma ? "proforma" : direct ? "direct" : "po"}`;
+  const tabKey = `po-status-tab-${proforma ? "proforma" : mode}`;
   const [statusPick, setStatusState] = useState<PoStatus>("pending");
   // Proforma Invoices also have an "All Invoices" tab (value "all") listing every invoice.
   const status = (proforma && statusPick === "all") || statuses.includes(statusPick) ? statusPick : "pending";
@@ -98,7 +103,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   // Proforma Invoices ask for a date and notes first (one shared popup, see proforma-status-change); the other lists change at once.
   const askProforma = useProformaStatusChange();
   const changeStatus = async (po: PurchaseOrder, status: PoStatus) => {
-    if (status === "delivered" && !direct) {
+    if (status === "delivered" && !po.material.direct) {
       const missing = [
         [!po.vendorId, "Vendor"],
         [!po.customerId, "Customer"],
@@ -132,7 +137,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   const askChange = (po: PurchaseOrder, status: PoStatus) => (proforma ? askProforma(po, status) : void changeStatus(po, status));
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       {quoteId && (
         <div className="flex items-center gap-2 text-sm font-body text-grey-700">
           <span>
@@ -145,7 +150,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
       )}
       {/* Plain table: no frame or lines, full width with a small side gap. */}
       <div className="-mx-2 overflow-hidden lg:-mx-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-2 py-1 lg:px-4">
         <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Purchase order status">
           {/* Proforma: Packing has its own tab on the page, so no Packing pill here (its invoices still show under All Invoices). */}
           {(proforma ? ["all", ...statuses.filter((st) => st.toLowerCase() !== "packing" && st !== "in-production")] : statuses).map((st) => (
@@ -164,8 +169,8 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => downloadOrderTracker(orders, customers, `order-tracker${proforma ? "-proforma" : direct ? "-direct" : ""}.xlsx`, trackerOptions())}>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => downloadOrderTracker(orders, customers, `order-tracker${proforma ? "-proforma" : mode === "direct" ? "-direct" : ""}.xlsx`, trackerOptions())}>
             <Download className="h-4 w-4" />
             Order Tracker (Excel)
           </Button>
@@ -185,7 +190,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           {onNew && (
             <Button size="sm" onClick={onNew}>
               <Plus className="h-4 w-4" />
-              {proforma ? "Create Proforma Invoice" : direct ? "Create Direct Purchase Order" : "Create Purchase Order"}
+              {proforma ? "Create Proforma Invoice" : all ? "Create" : direct ? "Create Direct Purchase Order" : "Create Purchase Order"}
             </Button>
           )}
         </div>
@@ -196,17 +201,17 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           icon={ShoppingCart}
           message={
             status === "pending"
-              ? proforma ? "No pending proforma invoices." : direct ? "No pending direct purchase orders." : "No pending purchase orders. One appears here when a quote is set to In Purchase, or you can create one by hand."
+              ? proforma ? "No pending proforma invoices." : all ? "No pending purchase orders." : direct ? "No pending direct purchase orders." : "No pending purchase orders. One appears here when a quote is set to In Purchase, or you can create one by hand."
               : `No ${poStatusLabel(status).toLowerCase()} purchase orders yet.`
           }
-          cta={status === "pending" && onNew ? { label: proforma ? "Create Proforma Invoice" : direct ? "Create Direct Purchase Order" : "Create Purchase Order", onClick: onNew } : undefined}
+          cta={status === "pending" && onNew ? { label: proforma ? "Create Proforma Invoice" : all ? "Create" : direct ? "Create Direct Purchase Order" : "Create Purchase Order", onClick: onNew } : undefined}
         />
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 lg:[&_tr>*:first-child]:pl-4 lg:[&_tr>*:last-child]:pr-4">
           <table className="w-full text-left">
             <thead className="bg-[var(--table-head)]">
               <tr>
-                {[proforma ? "PI No" : "PO No", proforma ? "PI Date" : "Date", "Required", proforma ? "Dealer" : "Vendor", "Customer", "Quote", "Amount", "Status", "Actions"].map((h) => (
+                {[proforma ? "PI No" : "PO No", ...(all ? ["PO Type"] : []), proforma ? "PI Date" : "Date", "Required", proforma ? "Dealer" : "Vendor", "Customer", "Quote", "Amount", "Status", "Actions"].map((h) => (
                   <th
                     key={h}
                     className={`whitespace-nowrap px-2 py-1 text-xs font-body font-medium text-grey-900 ${h === "Amount" ? "text-right" : h === "Actions" ? "text-right" : ""}`}
@@ -220,8 +225,13 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
               {paged.map(({ po, customer, quote, total }) => (
                 <tr key={po.id} className="hover:bg-light-600/60">
                   <td className="px-2 py-0.5 font-number text-xs text-grey-900">
-                    <Link href={`${base}/${po.id}`} className="text-primary hover:underline">{po.poNumber || <span className="text-grey-400">Not set</span>}</Link>
+                    <Link href={`${baseOf(po)}/${po.id}`} className="text-primary hover:underline">{po.poNumber || <span className="text-grey-400">Not set</span>}</Link>
                   </td>
+                  {all && (
+                    <td className="px-2 py-0.5">
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${po.material.direct ? "bg-info-transparent text-info" : "bg-primary-transparent text-primary"}`}>{po.material.direct ? "Direct" : "PO"}</span>
+                    </td>
+                  )}
                   <td className="px-2 py-0.5 font-number text-xs text-grey-700">{formatPoDate(po.poDate)}</td>
                   <td className="px-2 py-0.5 font-number text-xs text-grey-700">{formatPoDate(po.requiredDate)}</td>
                   <td className="px-2 py-0.5 text-xs font-body text-grey-900">{po.vendorName || <span className="text-grey-400">No vendor yet</span>}</td>
@@ -239,7 +249,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
                     />
                   </td>
                   <td className="px-2 py-0.5">
-                    <PoRowActions po={po} proforma={proforma} base={base} showPacking />
+                    <PoRowActions po={po} proforma={proforma} base={baseOf(po)} showPacking />
                   </td>
                 </tr>
               ))}

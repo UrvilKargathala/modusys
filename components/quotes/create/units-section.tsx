@@ -206,7 +206,7 @@ export function UnitsSection({
   };
 
   return (
-    <section className={cn("flex flex-col gap-4 quote-form", !bare && "rounded-xl border border-blush bg-blush", !bare && (sectionCollapsed ? "p-4" : "p-6"))}>
+    <section className={cn("flex flex-col gap-2 quote-form", !bare && "rounded-xl border border-blush bg-blush", !bare && (sectionCollapsed ? "p-4" : "p-6"))}>
       {!bare && (
         <div className="flex items-center justify-between gap-2">
           <button
@@ -269,7 +269,7 @@ export function UnitsSection({
           <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">{merged.length === 0 ? "No hardware lines to merge yet." : "No lines match your search."}</p>
         ) : (
           <div className="quote-dense">
-            <div className="overflow-x-auto rounded-md border border-grey-100 bg-card">
+            <div className="-mx-2 overflow-x-auto">
               <div className="min-w-[1060px]">
                 <HardwareTableHeader withNo sort={sort} onSort={onSort} />
                 <DndContext sensors={sensors} collisionDetection={closestCenter}>
@@ -321,7 +321,7 @@ export function UnitsSection({
             }
             const newId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             return (
-              <div className="overflow-x-auto rounded-md border border-grey-100 bg-card">
+              <div className="-mx-2 overflow-x-auto">
                 <div className="min-w-[1060px]">
                   {view === "shutter" ? <FurnitureTableHeader showComponentName showLevelType={false} nameLabel="External Finish" withNo sort={sort} onSort={onSort} /> : <HardwareTableHeader withNo sort={sort} onSort={onSort} />}
                   {/* Dragging is off here (the number takes the handle's place); rows are reordered inside their unit. */}
@@ -393,15 +393,15 @@ export function UnitsSection({
           })()}
         </div>
       ) : (
-      <div className={cn("flex flex-col gap-4", sectionCollapsed && "hidden")}>
+      <div className={cn("flex flex-col gap-2", sectionCollapsed && "hidden")}>
         {units.length === 0 ? (
           <EmptyState icon={Boxes} message='No units added yet. Click "Add Unit" to start pricing this quote.' />
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={shownUnits.map(({ unit }) => unit.id)} strategy={verticalListSortingStrategy}>
-              <div className="overflow-x-auto rounded-lg border border-grey-100 bg-card">
+              <div className="-mx-2 overflow-x-auto">
                <div className="min-w-[1020px]">
-                <div className={cn(UNIT_ROW_GRID, "unit-top unit-head border-b border-grey-100 bg-[var(--table-head)] px-3 py-2 text-sm font-body font-medium text-grey-900")}>
+                <div className={cn(UNIT_ROW_GRID, "unit-top unit-head bg-[var(--table-head)] px-2 py-1 text-xs font-body font-medium text-grey-900")}>
                   <span className="col-span-3" />
                   <SortLabel label="Space" k="space" sort={sort} onSort={onSort} />
                   <SortLabel label="Unit Type" k="unitType" sort={sort} onSort={onSort} />
