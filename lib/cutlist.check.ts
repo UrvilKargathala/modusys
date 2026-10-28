@@ -30,4 +30,17 @@ assert.equal(packSheets([part("big", 3000, 100)], 2440, 1220, 3, true).unfit.len
 // Rotated pieces move their banded sides: the old left edge ends up on top.
 const e = placedEdges({ part: { ...part("x", 1, 1), sides: { ...off, lh: { on: true, code: "E1" } } }, x: 0, y: 0, w: 1, h: 1, rot: true });
 assert.equal(e.top.code, "E1");
+// Cuts: one 2200 x 580 panel on a 2440 x 1220 sheet (kerf 3) is cut across the full width at y=580, then the strip at x=2200; two offcuts are left.
+const one = packSheets([part("a", 2200, 580)], 2440, 1220, 3, false).sheets[0];
+assert.deepEqual(one.cuts.map(({ dir, at, len }) => ({ dir, at, len })), [{ dir: "y", at: 580, len: 2440 }, { dir: "x", at: 2200, len: 580 }]);
+assert.equal(one.cuts[1].label, "a");
+assert.deepEqual(one.offcuts, [{ x: 2203, y: 0, w: 237, h: 580 }, { x: 0, y: 583, w: 2440, h: 637 }]);
+// A piece that fills the sheet needs no cut.
+assert.equal(packSheets([part("full", 2440, 1220)], 2440, 1220, 3, false).sheets[0].cuts.length, 0);
+// Every piece but the last-fitting one costs a cut; no cut is longer than the sheet or lies outside it; each cut that frees a piece names it.
+for (const s of r.sheets) {
+  assert.ok(s.cuts.length >= s.placed.length - 1);
+  for (const c of s.cuts) assert.ok(c.len > 0 && c.len <= 2440 && c.at > 0 && c.at < (c.dir === "x" ? 2440 : 1220));
+  assert.equal(s.cuts.filter((c) => c.label).length, s.placed.filter((p) => p.w < 2440 || p.h < 1220).length);
+}
 console.log("cutlist ok");

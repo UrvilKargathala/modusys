@@ -168,7 +168,7 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                     <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">External</th>
                   </>
                 )}
-                {!pair && !category.longDescription && !category.noDescription && (
+                {!pair && !category.noDescription && (
                   <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
                     <button
                       type="button"
@@ -193,14 +193,11 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                     <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number text-grey-500">{String(page * pageSize + idx + 1).padStart(3, "0")}</td>
                   )}
                   {pair && <td className="px-4 py-3 text-[13px] font-body text-grey-900"><Nums>{i.description || "—"}</Nums></td>}
-                  <td className="px-4 py-3 text-[13px] font-body text-grey-900">
+                  <td className={`px-4 py-3 text-[13px] font-body text-grey-900${category.longDescription ? " whitespace-nowrap" : ""}`}>
                     {category.statusColour ? (
                       <span className="rounded-full border px-2.5 py-0.5 text-xs font-medium" style={statusColourStyle(i.description || "#fde68a")}>{i.name}</span>
                     ) : (
                       <Nums>{i.name}</Nums>
-                    )}
-                    {category.longDescription && i.description && (
-                      <p className="mt-0.5 text-xs font-body text-grey-400"><Nums>{i.description}</Nums></p>
                     )}
                   </td>
                   {category.finishRule && (
@@ -210,7 +207,7 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                       <td className="px-4 py-3 text-[13px] font-number text-grey-900">{parseFinishRule(i.description).external || "—"}</td>
                     </>
                   )}
-                  {!pair && !category.longDescription && !category.noDescription && (
+                  {!pair && !category.noDescription && (
                     <td className="px-4 py-3 text-[13px] font-body text-grey-500"><Nums>{i.description || "—"}</Nums></td>
                   )}
                   <td className="px-4 py-3">

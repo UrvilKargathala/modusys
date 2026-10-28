@@ -41,7 +41,7 @@ function TemplatesPageContent() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="templates-dense flex flex-col gap-6">
       <div>
         <h1 className="font-heading text-2xl font-semibold text-grey-900">Templates</h1>
         <p className="text-sm font-body text-grey-400">Configure the building blocks quotes are built from</p>

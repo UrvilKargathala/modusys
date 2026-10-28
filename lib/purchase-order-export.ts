@@ -237,8 +237,9 @@ export function downloadPoExcel(po: PurchaseOrder, part: PoExportPart, ctx: PoEx
 export const CUT_LIST_HEADERS = ["Sr", "Cabinet Type", "Cabinet Name", "Description", "Width", "Height", "Thk", "Qty", "Sq.Ft", "Material", "Internal Brand & Colour", "External Brand & Colour", "Remarks"];
 // Same rows for the Excel and the on-screen preview, numbered cabinet.row (1.1, 1.2, 2.1 ...) as in Full Details.
 // A Proforma Invoice's cut list also has a Design column after Cabinet Name; Design and Remarks are the component's own.
-export const cutListHeaders = (po: PurchaseOrder) => (po.material.proforma ? [...CUT_LIST_HEADERS.slice(0, 3), "Design", ...CUT_LIST_HEADERS.slice(3)] : CUT_LIST_HEADERS);
-function cutListEntries(po: PurchaseOrder): { l: PurchaseOrder["lines"][number]; cells: (string | number)[] }[] {
+// asProforma: the Proforma layout (with the Design column) for any order; the Production and Packing pages of Purchase Orders read the columns by position.
+export const cutListHeaders = (po: PurchaseOrder, asProforma = !!po.material.proforma) => (asProforma ? [...CUT_LIST_HEADERS.slice(0, 3), "Design", ...CUT_LIST_HEADERS.slice(3)] : CUT_LIST_HEADERS);
+function cutListEntries(po: PurchaseOrder, asProforma = !!po.material.proforma): { l: PurchaseOrder["lines"][number]; cells: (string | number)[] }[] {
   const rows: { l: PurchaseOrder["lines"][number]; cells: (string | number)[] }[] = [];
   for (const g of PO_GROUPS.filter((x) => x.key !== "hardware"))
     for (const c of byCabinet(po, g.key))
@@ -249,12 +250,12 @@ function cutListEntries(po: PurchaseOrder): { l: PurchaseOrder["lines"][number];
         const typeName = cab?.designType || cab?.label || "";
         const cabName = [cab?.cabinetName, size].filter(Boolean).join(" ");
         // A proforma cut list shows a dash where a row has no cabinet type or cabinet name (rows added straight in Shutter / Other Panel).
-        const head = po.material.proforma ? [sr, typeName || "-", cabName.trim() ? cabName : "-"] : [sr, typeName, cabName];
+        const head = asProforma ? [sr, typeName || "-", cabName.trim() ? cabName : "-"] : [sr, typeName, cabName];
         const rest = [l.description, l.width, l.height, l.depth, l.qty, Number(l.sqft.toFixed(2)), l.material, l.internalColour, l.externalColour];
-        rows.push({ l, cells: po.material.proforma ? [...head, l.designType, ...rest, l.remarks] : [...head, ...rest, l.remarks] });
+        rows.push({ l, cells: asProforma ? [...head, l.designType, ...rest, l.remarks] : [...head, ...rest, l.remarks] });
       }
   // A Proforma Invoice's cut list is sorted by material, then thickness, then external colour, then internal colour.
-  if (po.material.proforma) {
+  if (asProforma) {
     const cmp = (x: string, y: string) => x.localeCompare(y, undefined, { sensitivity: "base", numeric: true });
     return rows
       .map((r, i) => ({ r, i }))
@@ -263,7 +264,7 @@ function cutListEntries(po: PurchaseOrder): { l: PurchaseOrder["lines"][number];
   }
   return rows;
 }
-export const cutListRows = (po: PurchaseOrder): (string | number)[][] => cutListEntries(po).map((e) => e.cells);
+export const cutListRows = (po: PurchaseOrder, asProforma = !!po.material.proforma): (string | number)[][] => cutListEntries(po, asProforma).map((e) => e.cells);
 
 // Edge band of every component row, as the Production page shows it (Width-1 / Width-2 / Height-1 / Height-2: a tick and its code).
 // A side follows its thickness + colours combination (Edge Band tab) until it is ticked / un-ticked or its code typed by hand; the keys are the

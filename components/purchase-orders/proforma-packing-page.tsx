@@ -126,7 +126,6 @@ type Packing = NonNullable<PoMaterial["packing"]>;
 // mode "production" is the same page for the Production tab: produced ticks and notes only (no transport, boxes or numbers).
 export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode?: "packing" | "production" }) {
   const isProd = mode === "production";
-  const base = `/proforma-invoices/${mode}`;
   const router = useRouter();
   const po = usePurchaseOrders().find((o) => o.id === id);
   const vendors = useAllVendors();
@@ -226,12 +225,12 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
     }
   }, [po, seeded, isProd]);
 
-  const headers = useMemo(() => (po ? cutListHeaders(po) : []), [po]);
+  const headers = useMemo(() => (po ? cutListHeaders(po, true) : []), [po]);
   // Row key: Sr no + description + size; identical rows get a running number so each keeps its own packing state.
   const rows = useMemo(() => {
     if (!po) return [];
     const seen = new Map<string, number>();
-    const list = cutListRows(po).map((r) => {
+    const list = cutListRows(po, true).map((r) => {
       const base = `${r[0]}|${r[4]}|${r[5]}x${r[6]}`;
       const n = seen.get(base) ?? 0;
       seen.set(base, n + 1);
@@ -240,7 +239,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
       const ed = isProd ? po.material.cutListEdits?.[key] : undefined;
       if (!ed) return { key, cells: r };
       const cells = [...r];
-      const put = (h: string, v: string | number | undefined) => { const i = h ? cutListHeaders(po).indexOf(h) : -1; if (i >= 0 && v !== undefined) cells[i] = v; };
+      const put = (h: string, v: string | number | undefined) => { const i = h ? cutListHeaders(po, true).indexOf(h) : -1; if (i >= 0 && v !== undefined) cells[i] = v; };
       put("Description", ed.name);
       put("Remarks", ed.remarks);
       put("Width", ed.w);
@@ -289,10 +288,6 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
     const dh = (Number(combo?.bandH) || 0) * (on("lh", "Height-1") + on("rh", "Height-2"));
     return { w: w - dw > 0 ? w - dw : w, h: h - dh > 0 ? h - dh : h, dw, dh, tooBig: w - dw <= 0 || h - dh <= 0 };
   };
-  const comboTooBig = (comboKey: string) => rows.some((r) => {
-    const at = (h: string) => String(r.cells[headers.indexOf(h)] ?? "").trim();
-    return `${at("Thk")}|${at("Internal Brand & Colour")}|${at("External Brand & Colour")}` === comboKey && cutSize(r.key, r.cells).tooBig;
-  });
 
   // The components for the Cut List tab: size, qty, material and colours of each row, with the sides that get edge band right now (ticks and codes as in the Components table).
   const cutRows = useMemo<CutRow[]>(() => {
@@ -398,8 +393,12 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
     return [...out.entries()];
   }
 
-  if (!po) return <p className="p-6 text-sm font-body text-grey-500">{purchaseOrdersStore.isLoaded() ? "Proforma invoice not found." : "Loading…"}</p>;
-  if (!po.material.proforma) return <p className="p-6 text-sm font-body text-grey-500">This page is only for Proforma Invoices.</p>;
+  if (!po) return <p className="p-6 text-sm font-body text-grey-500">{purchaseOrdersStore.isLoaded() ? "Not found." : "Loading…"}</p>;
+  // A Proforma Invoice's pages live under /proforma-invoices; a Purchase Order's and a Direct PO's under /purchase-orders (its Production and Packing tabs).
+  const isProforma = !!po.material.proforma;
+  const base = isProforma ? `/proforma-invoices/${mode}` : `/purchase-orders?tab=${mode}`;
+  const dealerTitle = isProforma ? "Dealer Details" : "Vendor Details";
+  const detailsTitle = isProforma ? "Proforma Details" : "Purchase Order Details";
 
   const vendor = vendors.find((v) => v.id === po.vendorId);
   const customer = customers.find((c) => c.id === po.customerId);
@@ -633,8 +632,8 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
       <div className="rounded-xl border border-grey-100 bg-card">
         <div role="tablist" className="flex gap-1 overflow-x-auto rounded-t-xl border-b border-grey-100 bg-card px-3">
           {([
-            ["dealer", "Dealer Details", Store],
-            ["details", "Proforma Details", FileText],
+            ["dealer", dealerTitle, Store],
+            ["details", detailsTitle, FileText],
             ["material", "Material Details", Layers],
             ...(isProd ? ([["edge", "Edge Band", Ruler], ["cutlist", "Cut List", Scissors]] as const) : []),
           ] as const).map(([key, label, Icon]) => (
@@ -659,10 +658,10 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
         </div>
         <div className="px-2 py-2">
           <div role="tabpanel" className={tab === "dealer" ? "block" : "hidden"}>
-            <LockedFields rows={sections.find((sec) => sec.title === "Dealer Details")?.rows.filter(([k]) => k !== "GST No" && k !== "Contact" && k !== "Status") ?? []} />
+            <LockedFields rows={sections.find((sec) => sec.title === dealerTitle)?.rows.filter(([k]) => k !== "GST No" && k !== "Contact" && k !== "Status") ?? []} />
           </div>
           <div role="tabpanel" className={tab === "details" ? "block" : "hidden"}>
-            <LockedFields rows={sections.find((sec) => sec.title === "Proforma Details")?.rows.filter(([k]) => k !== "GST No" && k !== "Contact" && k !== "Status") ?? []} refCode={{ value: refCodeEdit ?? po.material.refCode ?? "", onChange: (v) => { setRefCodeEdit(v); setDirty(true); } }} />
+            <LockedFields rows={sections.find((sec) => sec.title === detailsTitle)?.rows.filter(([k]) => k !== "GST No" && k !== "Contact" && k !== "Status") ?? []} refCode={{ value: refCodeEdit ?? po.material.refCode ?? "", onChange: (v) => { setRefCodeEdit(v); setDirty(true); } }} />
           </div>
           <div role="tabpanel" className={tab === "material" ? "block" : "hidden"}>
             {po && <MaterialDetailsLocked po={po} />}
@@ -678,7 +677,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
                   <table className="w-full text-left">
                     <thead>
                       <tr>
-                        {["Thickness", "Internal Colour", "External Colour", "Edge Band", "Where To Use", "Edge Band Width (mm)", "Edge Band Height (mm)", "Qty (Mtr)"].map((h) => <th key={h} className="px-4 py-2 text-center font-body font-semibold">{h}</th>)}
+                        {["Thickness", "Internal Colour", "External Colour", "Edge Band", "Where To Use", "Qty (Mtr)"].map((h) => <th key={h} className="px-4 py-2 text-center font-body font-semibold">{h}</th>)}
                       </tr>
                     </thead>
                     <tbody>
@@ -692,12 +691,6 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
                               <td className="px-4 py-2 text-center font-body text-grey-900">{g.external || "—"}</td>
                               <td className="px-1 py-1"><input value={c.band} onChange={(e) => editCombo(key, { band: e.target.value })} placeholder="Edge band" className="w-full rounded-md border border-transparent bg-transparent px-3 text-center text-xs outline-none hover:border-grey-100 focus:border-primary" /></td>
                               <td className="px-1 py-1"><PoWhereSelect value={whereOf(c.where)} options={WHERE_OPTIONS} onChange={(next) => editCombo(key, { where: next.join(",") })} /></td>
-                              {(["bandW", "bandH"] as const).map((f) => (
-                                <td key={f} className="px-1 py-1">
-                                  <input type="number" min={0} step="any" value={c[f] ?? ""} onChange={(e) => editCombo(key, { [f]: e.target.value })} placeholder="0" title={comboTooBig(key) ? "Too big: a piece would end up with no size, so it is not applied" : undefined}
-                                    className={`w-full rounded-md border bg-transparent px-3 text-center text-xs outline-none focus:border-primary ${comboTooBig(key) ? "border-error" : "border-transparent hover:border-grey-100"}`} />
-                                </td>
-                              ))}
                               <td className="px-4 py-2 text-center font-number text-grey-900">{edgeQty(key, c.band) ? (edgeQty(key, c.band) / 1000).toFixed(2) : "—"}</td>
                             </tr>
                             {edgeExtras(key, c.band).map(([code, x]) => (
@@ -707,7 +700,6 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
                                 <td className="px-4 py-2 text-center font-body text-grey-900">{g.external || "—"}</td>
                                 <td className="px-4 py-2 text-center font-number text-xs font-semibold text-grey-900">{code}</td>
                                 <td className="px-4 py-2 text-center font-body text-xs text-grey-900">{["Width-1", "Width-2", "Height-1", "Height-2"].filter((l) => x.sides.has(l)).join(", ")}</td>
-                                <td /><td />
                                 <td className="px-4 py-2 text-center font-number text-grey-900">{(x.len / 1000).toFixed(2)}</td>
                               </tr>
                             ))}
@@ -715,7 +707,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
                         );
                       })}
                       {edgeGroups.length === 0 && (
-                        <tr><td colSpan={8} className="px-4 py-6 text-center text-grey-400">No components on this invoice.</td></tr>
+                        <tr><td colSpan={6} className="px-4 py-6 text-center text-grey-400">No components on this invoice.</td></tr>
                       )}
                     </tbody>
                   </table>

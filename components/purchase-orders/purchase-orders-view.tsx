@@ -13,6 +13,8 @@ import { CreateFromProcurementDialog } from "@/components/purchase-orders/create
 import { CreatePoDialog } from "@/components/purchase-orders/create-po-dialog";
 import type { Quote } from "@/lib/mock/quote";
 import { VendorsTable } from "@/components/purchase-orders/vendors-table";
+import { ProformaPackingList } from "@/components/purchase-orders/proforma-packing-list";
+import { ProformaStatusProvider } from "@/components/purchase-orders/proforma-status-change";
 import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { useVendors } from "@/lib/store/vendors-store";
 import { formatInr } from "@/lib/format";
@@ -23,6 +25,8 @@ const tabs = [
   { value: "all", label: "All" },
   { value: "po", label: "Purchase Orders" },
   { value: "direct", label: "Direct PO" },
+  { value: "production", label: "Production" },
+  { value: "packing", label: "Packing" },
   { value: "vendors", label: "Vendors" },
 ] as const;
 type TabValue = (typeof tabs)[number]["value"];
@@ -56,6 +60,7 @@ function View() {
   const onNew = () => setCreate(tab === "direct" ? "direct" : tab === "po" ? "po" : "choose");
 
   return (
+    <ProformaStatusProvider>
     <div className="-mx-2 flex flex-col gap-2 lg:-mx-4">
       <div className="px-2">
         <h1 className="font-heading text-2xl font-semibold text-grey-900">Purchase Orders</h1>
@@ -82,6 +87,12 @@ function View() {
             <PurchaseOrdersTable mode={m} onNew={onNew} quoteId={quoteFilter} onClearQuote={() => router.replace(`${pathname}?tab=${m}`, { scroll: false })} />
           </TabsContent>
         ))}
+        <TabsContent value="production" className="pt-0">
+          <ProformaPackingList mode="production" proforma={false} />
+        </TabsContent>
+        <TabsContent value="packing" className="pt-0">
+          <ProformaPackingList proforma={false} />
+        </TabsContent>
         <TabsContent value="vendors" className="pt-0">
           <VendorsTable />
         </TabsContent>
@@ -113,6 +124,7 @@ function View() {
       <CreateFromProcurementDialog open={create === "po"} onOpenChange={(o) => !o && setCreate(null)} onPick={(q) => { setCreate(null); setPoQuote(q); }} />
       <CreatePoDialog quote={poQuote} onOpenChange={(o) => !o && setPoQuote(null)} />
     </div>
+    </ProformaStatusProvider>
   );
 }
 

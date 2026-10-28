@@ -559,6 +559,26 @@
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background-color: var(--color-grey-300);
 }
+/* Horizontal scrollbar that takes its own strip under the content (only when it overflows) instead of the Mac overlay bar floating over the last row. */
+.scrollbar-below::-webkit-scrollbar {
+  height: 10px;
+}
+.scrollbar-below::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-below::-webkit-scrollbar-thumb {
+  background-color: var(--color-grey-200);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.scrollbar-below::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-grey-300);
+}
+/* Templates page: tables with tighter rows (cells were py-3 and icon buttons p-1.5, heads py-2.5). */
+.templates-dense thead th { padding-block: 6px; }
+.templates-dense tbody td { padding-block: 3px; }
+.templates-dense tbody td button[aria-label] { padding-block: 3px; }
 /* iOS Safari zooms into any focused input whose computed font-size is
    < 16px. Enforcing a 16px floor on the touch breakpoint kills the
    zoom-on-focus without shrinking the text on desktop, where we still

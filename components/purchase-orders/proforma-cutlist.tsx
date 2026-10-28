@@ -83,7 +83,9 @@ body { padding: 8mm; margin: 0; box-sizing: border-box; }
 }
 
 // One material group of the Cut List: its own sheet size, margins and display options (each group is cut from its own stock), the piece list and the sheet drawings.
-type GroupStat = { title: string; sheets: number; pieces: number; unfit: number; usedPct: number; used: number; total: number };
+type GroupStat = { title: string; sheets: number; pieces: number; unfit: number; usedPct: number; used: number; total: number; cuts: number; cutLen: number };
+// Blade travel in metres, one decimal.
+const metres = (mm: number) => `${(mm / 1000).toFixed(1)} m`;
 
 function CutGroup({ gi, title, rows, colourOf, onStat, branding, docNo }: { gi: number; title: string; rows: CutRow[]; colourOf: (code: string) => readonly [string, string]; onStat: (gi: number, stat: GroupStat) => void; branding?: CutListBranding; docNo?: string }) {
   const [sheetL, setSheetL] = useState(2440);
@@ -103,6 +105,8 @@ function CutGroup({ gi, title, rows, colourOf, onStat, branding, docNo }: { gi: 
   // Like Cutting Optimization: show each piece's size along its edges (Width on top, Height down the side) and its label.
   const [showSize, setShowSize] = useState(true);
   const [showLabel, setShowLabel] = useState(true);
+  // The numbered saw cuts of every sheet, listed under its drawing (on screen only).
+  const [showCuts, setShowCuts] = useState(false);
 
   const bandColour = (code: string) => colourOf(code)[0];
   const sectionRef = useRef<HTMLElement>(null);
@@ -120,15 +124,21 @@ function CutGroup({ gi, title, rows, colourOf, onStat, branding, docNo }: { gi: 
     const used = g.sheets.reduce((n, s) => n + s.placed.reduce((a, p) => a + p.w * p.h, 0), 0);
     const total = g.sheets.length * innerL * innerW;
   const usedPct = total ? Math.round((used / total) * 100) : 0;
+  const cuts = g.sheets.reduce((n, s) => n + s.cuts.length, 0);
+  const cutLen = g.sheets.reduce((n, s) => n + s.cuts.reduce((a, c) => a + c.len, 0), 0);
+  // The pieces that did not fit, one line per label and size.
+  const unfitRows = [...g.unfit.reduce((m, p) => { const k = `${p.label}|${p.w}|${p.h}`; const e = m.get(k); if (e) e.qty++; else m.set(k, { part: p, qty: 1 }); return m; }, new Map<string, { part: Part; qty: number }>()).values()];
   // The Summary at the bottom of the tab lists every group.
   useEffect(() => {
-    onStat(gi, { title, sheets: g.sheets.length, pieces: g.parts.length - g.unfit.length, unfit: g.unfit.length, usedPct, used, total });
-  }, [gi, title, g.sheets.length, g.parts.length, g.unfit.length, usedPct, used, total]); // eslint-disable-line react-hooks/exhaustive-deps
+    onStat(gi, { title, sheets: g.sheets.length, pieces: g.parts.length - g.unfit.length, unfit: g.unfit.length, usedPct, used, total, cuts, cutLen });
+  }, [gi, title, g.sheets.length, g.parts.length, g.unfit.length, usedPct, used, total, cuts, cutLen]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <section ref={sectionRef} className="cutlist-group flex flex-col gap-3 rounded-lg border border-grey-100 bg-white p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-heading text-lg font-semibold text-orange"><span className="mr-2 font-number text-primary">[{groupLetter(gi)}]</span>{g.title}<span className="ml-3 font-number text-base font-semibold text-primary">[{String(g.sheets.length).padStart(2, "0")}-Sheets &amp; {String(g.parts.length - g.unfit.length).padStart(2, "0")}-Pcs]</span></h3>
-        <p className="flex items-center gap-3 font-body text-sm text-grey-600">
+        {/* Top right corner, two rows: the PDF buttons, then the numbers. */}
+        <div className="ml-auto flex flex-col items-end gap-1.5 font-body text-sm text-grey-600">
+          <div className="flex items-center gap-3">
           {/* This group alone as its own PDF (its sheet size and margins as set below). */}
           <button type="button" onClick={() => sectionRef.current && printCopy(sectionRef.current, `Cut List ${groupLetter(gi)}`, letterhead(branding, docNo))} aria-label={`Download group ${groupLetter(gi)} as PDF`} title="Download this group as PDF" className="no-print flex items-center gap-1 rounded-md border border-grey-100 bg-white px-2 py-0.5 text-xs font-medium text-grey-700 hover:border-primary hover:text-primary">
             <Download className="h-3.5 w-3.5" /> PDF
@@ -169,8 +179,9 @@ function CutGroup({ gi, title, rows, colourOf, onStat, branding, docNo }: { gi: 
           >
             <Tag className="h-3.5 w-3.5" /> Sticker PDF
           </button>
-          <span>used <span className="font-number">{total ? Math.round((used / total) * 100) : 0}%</span> · waste <span className="font-number">{total ? Math.round((1 - used / total) * 100) : 0}%</span></span>
-        </p>
+          </div>
+          <span>used <span className="font-number">{total ? Math.round((used / total) * 100) : 0}%</span> · waste <span className="font-number">{total ? Math.round((1 - used / total) * 100) : 0}%</span> · <span className="font-number">{cuts}</span> cuts · <span className="font-number">{metres(cutLen)}</span> of cutting</span>
+        </div>
       </div>
       <div className="no-print flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-4">
@@ -189,6 +200,10 @@ function CutGroup({ gi, title, rows, colourOf, onStat, branding, docNo }: { gi: 
             <input type="checkbox" checked={showLabel} onChange={(e) => setShowLabel(e.target.checked)} className="h-4 w-4 accent-primary" />
             Piece&apos;s label
           </label>
+          <label className="flex items-center gap-2 text-xs font-semibold text-grey-700">
+            <input type="checkbox" checked={showCuts} onChange={(e) => setShowCuts(e.target.checked)} className="h-4 w-4 accent-primary" />
+            Cut sequence
+          </label>
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <NumberField label="Margin left" value={mL} onChange={setML} />
@@ -197,7 +212,15 @@ function CutGroup({ gi, title, rows, colourOf, onStat, branding, docNo }: { gi: 
           <NumberField label="Margin bottom" value={mB} onChange={setMB} />
         </div>
       </div>
-      {g.unfit.length > 0 && <p className="rounded-md bg-error-transparent px-3 py-2 font-body text-xs text-error">Does not fit the sheet: {[...new Set(g.unfit.map((p) => `${p.label} (${p.w} x ${p.h})`))].join(", ")}</p>}
+      {g.unfit.length > 0 && (
+        <div className="overflow-x-auto rounded-md bg-error-transparent px-3 py-2 font-body text-xs text-error">
+          <p className="mb-1 font-semibold">Does not fit the sheet ({g.unfit.length} {g.unfit.length === 1 ? "piece" : "pieces"})</p>
+          <table className="border-collapse text-left">
+            <thead><tr>{["Sr", "Description", "Width", "Height", "Qty"].map((h) => <th key={h} className="whitespace-nowrap pr-6 font-semibold">{h}</th>)}</tr></thead>
+            <tbody>{unfitRows.map(({ part: p, qty }) => <tr key={`${p.label}|${p.w}|${p.h}`}>{[p.label, p.name ?? "", p.w, p.h, qty].map((c, k) => <td key={k} className="whitespace-nowrap pr-6 font-number">{c === "" ? "—" : c}</td>)}</tr>)}</tbody>
+          </table>
+        </div>
+      )}
       {/* Every piece of this material on all its sheets, in one list; the sheet drawings follow. */}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-left font-body text-xs">
@@ -224,7 +247,7 @@ function CutGroup({ gi, title, rows, colourOf, onStat, branding, docNo }: { gi: 
       <div className="grid gap-4 xl:grid-cols-2">
         {g.sheets.map((s, i) => (
           <figure key={i} className="flex flex-col gap-1">
-            <figcaption className="font-body text-xs font-semibold text-grey-700">Sheet {i + 1} · {s.placed.length} pieces</figcaption>
+            <figcaption className="font-body text-xs font-semibold text-grey-700">Sheet {i + 1} · {s.placed.length} pieces · {s.cuts.length} cuts · {s.offcuts.length} offcuts · used {Math.round((s.placed.reduce((a, p) => a + p.w * p.h, 0) / (innerL * innerW)) * 100)}%</figcaption>
             <svg viewBox={`${-m} ${-m} ${sheetL + m} ${sheetW + m}`} className="w-full rounded border border-grey-200 bg-white" role="img" aria-label={`Sheet ${i + 1} of ${g.title}`}>
               <defs>
                 <pattern id={`grain-${gi}-${i}`} width={sheetL} height={sheetW / 50} patternUnits="userSpaceOnUse">
@@ -278,6 +301,25 @@ function CutGroup({ gi, title, rows, colourOf, onStat, branding, docNo }: { gi: 
               })}
               </g>
             </svg>
+            {showCuts && (
+              <div className="no-print overflow-x-auto">
+                <table className="w-full border-collapse text-left font-body text-xs">
+                  <thead className="bg-[var(--table-head)] text-grey-900">
+                    <tr>{["#", "Cut at", "Length", "Frees"].map((h) => <th key={h} className="whitespace-nowrap border border-grey-100 px-2 py-1 font-semibold">{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {s.cuts.map((c, n) => (
+                      <tr key={n} className="text-grey-800">
+                        {[n + 1, c.dir === "x" ? `x = ${c.at + mL}` : `y = ${c.at + mT}`, `${c.len} (${c.w} x ${c.h})`, c.label ?? "—"].map((v, k) => <td key={k} className="whitespace-nowrap border border-grey-100 px-2 py-1 font-number">{v}</td>)}
+                      </tr>
+                    ))}
+                    {s.cuts.length === 0 && <tr><td colSpan={4} className="border border-grey-100 px-2 py-1 text-grey-500">No cut needed.</td></tr>}
+                  </tbody>
+                </table>
+                {s.offcuts.length > 0 && <p className="mt-1 font-body text-xs text-grey-600">Offcuts: <span className="font-number">{[...s.offcuts].sort((a, b) => b.w * b.h - a.w * a.h).map((o) => `${o.w} x ${o.h}`).join(", ")}</span></p>}
+                {(mL || mR || mT || mB) > 0 && <p className="mt-1 font-body text-xs text-grey-500">Positions are from the sheet edge; the trim cuts for the margins are not listed.</p>}
+              </div>
+            )}
           </figure>
         ))}
       </div>
@@ -330,7 +372,7 @@ export function ProformaCutList({ rows, title, branding }: { rows: CutRow[]; tit
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left font-body text-xs">
               <thead className="bg-[var(--table-head)] text-grey-900">
-                <tr>{["Group", "Sheets", "Pieces", "Used", "Waste"].map((h) => <th key={h} className="whitespace-nowrap border border-grey-100 px-2 py-1 font-semibold">{h}</th>)}</tr>
+                <tr>{["Group", "Sheets", "Pieces", "Used", "Waste", "Cuts", "Cut length"].map((h) => <th key={h} className="whitespace-nowrap border border-grey-100 px-2 py-1 font-semibold">{h}</th>)}</tr>
               </thead>
               <tbody>
                 {groups.map(([key], gi) => {
@@ -342,6 +384,8 @@ export function ProformaCutList({ rows, title, branding }: { rows: CutRow[]; tit
                       <td className="border border-grey-100 px-2 py-1 font-number">{st ? st.pieces : "—"}{st && st.unfit > 0 ? <span className="ml-1 text-error">({st.unfit} do not fit)</span> : null}</td>
                       <td className="border border-grey-100 px-2 py-1 font-number">{st ? `${st.usedPct}%` : "—"}</td>
                       <td className="border border-grey-100 px-2 py-1 font-number">{st ? `${100 - st.usedPct}%` : "—"}</td>
+                      <td className="border border-grey-100 px-2 py-1 font-number">{st ? st.cuts : "—"}</td>
+                      <td className="border border-grey-100 px-2 py-1 font-number">{st ? metres(st.cutLen) : "—"}</td>
                     </tr>
                   );
                 })}
@@ -358,6 +402,8 @@ export function ProformaCutList({ rows, title, branding }: { rows: CutRow[]; tit
                       <>
                         <td className="border border-grey-100 px-2 py-1 font-number">{total ? `${pct}%` : "—"}</td>
                         <td className="border border-grey-100 px-2 py-1 font-number">{total ? `${100 - pct}%` : "—"}</td>
+                        <td className="border border-grey-100 px-2 py-1 font-number">{groups.reduce((n, _g, gi) => n + (stats[gi]?.cuts ?? 0), 0)}</td>
+                        <td className="border border-grey-100 px-2 py-1 font-number">{metres(groups.reduce((n, _g, gi) => n + (stats[gi]?.cutLen ?? 0), 0))}</td>
                       </>
                     );
                   })()}

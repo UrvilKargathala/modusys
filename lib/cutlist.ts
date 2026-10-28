@@ -9,8 +9,13 @@ export type PartSides = Record<SideKey, { on: boolean; code: string }>;
 // label = Sr no, name = the component (Top Panel ...), info = cabinet details for a tooltip.
 export type Part = { id: string; label: string; name?: string; info?: string; w: number; h: number; fw?: number; fh?: number; grain?: "h" | "v"; extra?: Record<string, string>; sides: PartSides };
 export type Placed = { part: Part; x: number; y: number; w: number; h: number; rot: boolean };
-export type Sheet = { placed: Placed[] };
-type Rect = { x: number; y: number; w: number; h: number };
+export type Rect = { x: number; y: number; w: number; h: number };
+// One saw cut across a rectangle of the sheet: dir "x" is a line at x = at (running along the sheet's width), "y" a line at y = at (running along its length).
+// len = how far the blade travels (the rectangle's extent along the line), w x h = the rectangle being cut, label = the piece this cut frees, when it frees one.
+// Positions are measured inside the usable area (margins not added); the cuts of a sheet are in a workable order (a cut comes after the one that made its rectangle).
+export type Cut = { dir: "x" | "y"; at: number; len: number; w: number; h: number; label?: string };
+// offcuts = the free rectangles left unused when the sheet is done.
+export type Sheet = { placed: Placed[]; cuts: Cut[]; offcuts: Rect[] };
 
 export function packSheets(parts: Part[], sheetL: number, sheetW: number, kerf: number, rotate: boolean) {
   const sheets: (Sheet & { free: Rect[] })[] = [];
@@ -32,7 +37,7 @@ export function packSheets(parts: Part[], sheetL: number, sheetW: number, kerf: 
         }
       }
       if (!best) continue;
-      if (!sheet) { sheet = { placed: [], free }; sheets.push(sheet); }
+      if (!sheet) { sheet = { placed: [], cuts: [], offcuts: [], free }; sheets.push(sheet); }
       const { i, rot } = best;
       const f = sheet.free[i];
       const pw = rot ? part.h : part.w;
@@ -41,14 +46,27 @@ export function packSheets(parts: Part[], sheetL: number, sheetW: number, kerf: 
       // Split what is left of the rectangle into two with edge-to-edge cuts, along the shorter leftover side.
       const right: Rect = { x: f.x + pw + kerf, y: f.y, w: f.w - pw - kerf, h: f.h };
       const below: Rect = { x: f.x, y: f.y + ph + kerf, w: f.w, h: f.h - ph - kerf };
-      if (f.w - pw < f.h - ph) right.h = ph; else below.w = pw;
+      const hasRight = f.w > pw;
+      const hasBelow = f.h > ph;
+      const label = [part.label, part.name].filter(Boolean).join(" ");
+      if (f.w - pw < f.h - ph) {
+        right.h = ph;
+        // Across the full width first, then the strip is cut to the piece's width.
+        if (hasBelow) sheet.cuts.push({ dir: "y", at: f.y + ph, len: f.w, w: f.w, h: f.h, ...(hasRight ? {} : { label }) });
+        if (hasRight) sheet.cuts.push({ dir: "x", at: f.x + pw, len: ph, w: f.w, h: ph, label });
+      } else {
+        below.w = pw;
+        // Down the full height first, then the column is cut to the piece's height.
+        if (hasRight) sheet.cuts.push({ dir: "x", at: f.x + pw, len: f.h, w: f.w, h: f.h, ...(hasBelow ? {} : { label }) });
+        if (hasBelow) sheet.cuts.push({ dir: "y", at: f.y + ph, len: pw, w: pw, h: f.h, label });
+      }
       sheet.free.splice(i, 1, ...[right, below].filter((r) => r.w > 0 && r.h > 0));
       done = true;
       break;
     }
     if (!done) unfit.push(part);
   }
-  return { sheets: sheets.map(({ placed }) => ({ placed })) as Sheet[], unfit };
+  return { sheets: sheets.map(({ placed, cuts, free }) => ({ placed, cuts, offcuts: free })) as Sheet[], unfit };
 }
 
 // A placed piece's four edges as seen on the sheet. A rotated piece (quarter turn clockwise) has its old left edge on top,

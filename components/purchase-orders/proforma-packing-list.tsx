@@ -12,20 +12,21 @@ import { formatPoDate } from "@/components/purchase-orders/po-dates";
 
 // The Packing tab: the Proforma Invoices whose status is Packing, with how much of each is packed; "Open" goes to its packing page.
 // mode "production" lists the invoices that are In Production, with their produced progress (material.production).
-export function ProformaPackingList({ mode = "packing" }: { mode?: "packing" | "production" }) {
+// proforma false: the same two tabs for Purchase Orders and Direct POs (the Purchase Orders page).
+export function ProformaPackingList({ mode = "packing", proforma = true }: { mode?: "packing" | "production"; proforma?: boolean }) {
   const isProd = mode === "production";
   const orders = usePurchaseOrders();
   const [search, setSearch] = useState("");
   const rows = useMemo(() => {
     const q = search.toLowerCase();
     return orders
-      .filter((o) => o.material.proforma && asPoStatus(o.status).toLowerCase() === (isProd ? "in-production" : "packing") && `${o.poNumber} ${o.vendorName}`.toLowerCase().includes(q))
+      .filter((o) => !!o.material.proforma === proforma && asPoStatus(o.status).toLowerCase() === (isProd ? "in-production" : "packing") && `${o.poNumber} ${o.vendorName}`.toLowerCase().includes(q))
       .map((po) => {
         const packing = (isProd ? po.material.production : po.material.packing) ?? {};
         const seen = new Map<string, number>();
         let total = 0;
         let packed = 0;
-        for (const r of cutListRows(po)) {
+        for (const r of cutListRows(po, true)) {
           // Same row key as the packing page.
           const base = `${r[0]}|${r[4]}|${r[5]}x${r[6]}`;
           const n = seen.get(base) ?? 0;
@@ -36,24 +37,24 @@ export function ProformaPackingList({ mode = "packing" }: { mode?: "packing" | "
         }
         return { po, total, packed };
       });
-  }, [orders, search, isProd]);
+  }, [orders, search, isProd, proforma]);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="relative w-72">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search PI no, dealer" className="h-9 w-full rounded-lg border border-grey-100 bg-card pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary" />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={proforma ? "Search PI no, dealer" : "Search PO no, vendor"} className="h-9 w-full rounded-lg border border-grey-100 bg-card pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary" />
       </div>
       {rows.length === 0 ? (
-        <EmptyState icon={PackageCheck} message={isProd ? "No proforma invoices in Production. Change an invoice's status to In Production and it appears here." : "No proforma invoices in Packing. Change an invoice's status to Packing and it appears here."} />
+        <EmptyState icon={PackageCheck} message={`No ${proforma ? "proforma invoices" : "purchase orders"} in ${isProd ? "Production" : "Packing"}. Change ${proforma ? "an invoice's" : "an order's"} status to ${isProd ? "In Production" : "Packing"} and it appears here.`} />
       ) : (
         <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 [&_tbody_tr]:h-8 [&_td]:align-middle">
           <table className="w-full text-left text-xs font-body">
             <thead className="bg-[var(--table-head)] text-grey-900">
               <tr>
-                <th className="px-2 py-0.5 font-medium">PI No</th>
-                <th className="px-2 py-0.5 font-medium">PI Date</th>
-                <th className="px-2 py-0.5 font-medium">Dealer</th>
+                <th className="px-2 py-0.5 font-medium">{proforma ? "PI No" : "PO No"}</th>
+                <th className="px-2 py-0.5 font-medium">{proforma ? "PI Date" : "Date"}</th>
+                <th className="px-2 py-0.5 font-medium">{proforma ? "Dealer" : "Vendor"}</th>
                 <th className="px-2 py-0.5 font-medium">Status</th>
                 <th className="w-[35%] px-2 py-0.5 font-medium">{isProd ? "Produced" : "Packed"}</th>
                 <th className="px-2 py-0.5 text-right font-medium">Actions</th>
@@ -75,7 +76,7 @@ export function ProformaPackingList({ mode = "packing" }: { mode?: "packing" | "
                     </div>
                   </td>
                   <td className="px-2 py-0.5">
-                    <PoRowActions po={po} proforma base="/proforma-invoices" packingSlips={!isProd} workOrder={isProd} viewHref={`/proforma-invoices/${mode}/${po.id}`} />
+                    <PoRowActions po={po} proforma={proforma} base={proforma ? "/proforma-invoices" : po.material.direct ? "/direct-purchase-orders" : "/purchase-orders"} packingSlips={!isProd} workOrder={isProd} viewHref={`${proforma ? "/proforma-invoices" : "/purchase-orders"}/${mode}/${po.id}`} />
                   </td>
                 </tr>
               ))}

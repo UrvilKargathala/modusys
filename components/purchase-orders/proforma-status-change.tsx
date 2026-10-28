@@ -26,7 +26,9 @@ export function ProformaStatusProvider({ children }: { children: React.ReactNode
   const [changeAdvance, setChangeAdvance] = useState("");
   const [changeRequired, setChangeRequired] = useState("");
   // In Production: more date + notes pairs can be added below the first one.
-  const showAmounts = pendingChange?.status !== "in-production";
+  // Amounts, advance and balance are only for Proforma Invoices; a Purchase Order / Direct PO asks for the date and notes only.
+  const isPi = !!pendingChange?.po.material.proforma;
+  const showAmounts = pendingChange?.status !== "in-production" && isPi;
   const [extraRows, setExtraRows] = useState<{ date: string; note: string }[]>([]);
   const editExtra = (i: number, patch: Partial<{ date: string; note: string }>) => setExtraRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const changeAmount = pendingChange ? poTotals(pendingChange.po).final : 0;
@@ -46,10 +48,11 @@ export function ProformaStatusProvider({ children }: { children: React.ReactNode
     setPendingChange(null);
     const ok = await changeStatus(po, status, status === "in-production" ? changeRequired : undefined, status === "in-production"
       ? [{ status, date: changeDate, note: changeNote.trim() }, ...extraRows.filter((r) => r.date || r.note.trim()).map((r) => ({ status, date: r.date || changeDate, note: r.note.trim() }))]
-      : [{ status, date: changeDate, note: changeNote.trim(), amount: changeAmount, advance: Number(changeAdvance) || 0, balance: changeBalance }]);
-    // An invoice moved to Packing now shows in the Packing tab.
-    if (ok && status.toLowerCase() === "packing") router.push("/proforma-invoices/packing");
-    if (ok && status === "in-production") router.push("/proforma-invoices/production");
+      : po.material.proforma ? [{ status, date: changeDate, note: changeNote.trim(), amount: changeAmount, advance: Number(changeAdvance) || 0, balance: changeBalance }] : [{ status, date: changeDate, note: changeNote.trim() }]);
+    // An invoice / order moved to Packing or In Production now shows in that tab of its page.
+    const tabUrl = (tab: string) => (po.material.proforma ? `/proforma-invoices/${tab}` : `/purchase-orders?tab=${tab}`);
+    if (ok && status.toLowerCase() === "packing") router.push(tabUrl("packing"));
+    if (ok && status === "in-production") router.push(tabUrl("production"));
   };
   const changeStatus = async (po: PurchaseOrder, status: PoStatus, requiredDate?: string, logs?: { status: string; date: string; note: string; amount?: number; advance?: number; balance?: number }[]) => {
     try {
@@ -73,7 +76,7 @@ export function ProformaStatusProvider({ children }: { children: React.ReactNode
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5 text-sm font-body text-grey-700">
-              PI Number
+              {isPi ? "PI Number" : "PO Number"}
               <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 font-number text-grey-900">{pendingChange?.po.poNumber || "—"}</div>
             </div>
             <label className="flex flex-col gap-1.5 text-sm font-body text-grey-700">

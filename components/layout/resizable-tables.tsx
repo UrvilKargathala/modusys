@@ -11,7 +11,9 @@ const HANDLE = "col-resizer";
 
 const storageKey = (path: string, ths: HTMLTableCellElement[]) => `col-widths:${path}:${ths.map((t) => (t.textContent ?? "").trim()).join("|")}`;
 
-function apply(table: HTMLTableElement, ths: HTMLTableCellElement[], widths: number[]) {
+function apply(table: HTMLTableElement, ths: HTMLTableCellElement[], rawWidths: number[]) {
+  // A column is never narrower than MIN: a 0 px column makes its text wrap one letter per line and the row grows to hundreds of px.
+  const widths = rawWidths.map((w) => Math.max(MIN, w));
   table.classList.add("col-fixed");
   table.style.tableLayout = "fixed";
   table.style.width = `${widths.reduce((a, b) => a + b, 0)}px`;
@@ -23,7 +25,8 @@ function apply(table: HTMLTableElement, ths: HTMLTableCellElement[], widths: num
   });
 }
 
-function reset(table: HTMLTableElement, ths: HTMLTableCellElement[], key: string) {
+// Back to automatic widths (the saved ones are kept).
+function clear(table: HTMLTableElement, ths: HTMLTableCellElement[]) {
   table.classList.remove("col-fixed");
   table.style.tableLayout = "";
   table.style.width = "";
@@ -33,6 +36,10 @@ function reset(table: HTMLTableElement, ths: HTMLTableCellElement[], key: string
     th.style.minWidth = "";
     th.style.maxWidth = "";
   });
+}
+
+function reset(table: HTMLTableElement, ths: HTMLTableCellElement[], key: string) {
+  clear(table, ths);
   try { window.localStorage.removeItem(key); } catch { /* ignore */ }
 }
 
@@ -44,6 +51,13 @@ function enhance(table: HTMLTableElement, path: string) {
   if (ths.length < 2 || ths.some((th) => th.colSpan > 1 || th.querySelector('[role="separator"]'))) return;
   const key = storageKey(path, ths);
   let fresh = false;
+  // React keeps the same <table> when another list is opened in its place (other headings): the widths set for the old columns must not stay on it,
+  // or the new columns that have no width of their own collapse to 0 px and their text makes the rows very tall.
+  if (table.dataset.colKey !== key) {
+    if (table.dataset.colKey) clear(table, ths);
+    table.dataset.colKey = key;
+    fresh = true;
+  }
   ths.forEach((th, i) => {
     if (th.querySelector(`:scope > .${HANDLE}`)) return;
     fresh = true;
@@ -54,7 +68,7 @@ function enhance(table: HTMLTableElement, path: string) {
     h.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const base = ths.map((c) => Math.round(c.getBoundingClientRect().width));
+      const base = ths.map((c) => Math.max(MIN, Math.round(c.getBoundingClientRect().width)));
       const startX = e.clientX;
       const startW = base[i];
       let latest = base;
@@ -79,7 +93,7 @@ function enhance(table: HTMLTableElement, path: string) {
   if (fresh && !table.classList.contains("col-fixed")) {
     try {
       const saved = JSON.parse(window.localStorage.getItem(key) ?? "null");
-      if (Array.isArray(saved) && saved.length === ths.length && saved.every((n) => typeof n === "number")) apply(table, ths, saved);
+      if (Array.isArray(saved) && saved.length === ths.length && saved.every((n) => typeof n === "number" && n >= MIN)) apply(table, ths, saved);
     } catch { /* ignore */ }
   }
 }

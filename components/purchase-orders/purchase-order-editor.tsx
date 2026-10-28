@@ -502,7 +502,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           )}
         </div>
         {rows.length > 0 && (
-        <div className={`overflow-x-auto rounded-lg border border-grey-100 bg-white ${colour ? "" : "w-fit max-w-full self-start"}`}>
+        <div className={`scrollbar-below overflow-x-auto rounded-lg border border-grey-100 bg-white ${colour ? "" : "w-fit max-w-full self-start"}`}>
         <table className={`text-left ${colour ? "w-full" : "w-auto"}`}>
           <thead className="bg-[var(--table-head)]">
             <tr>

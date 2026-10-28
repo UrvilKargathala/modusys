@@ -47,11 +47,11 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   // A status added in the library carries the colour picked there.
   const statusCategory = proforma ? "proforma-order-status" : "purchase-order-status";
   // Proforma Invoices start with a Packing status (between In Production and Delivered); more are added from the status list or the library.
+  // Purchase Orders get the same Packing status (their four built-in ones need no entries).
   useEffect(() => {
-    if (!proforma) return;
     const [a, b, c, d] = DEFAULT_PO_STATUSES;
-    void materialSpecStore.seedDefaults("proforma-order-status", [a, b, c, { name: "Packing", description: "#06AED4" }, d]);
-  }, [proforma]);
+    void materialSpecStore.seedDefaults(statusCategory, proforma ? [a, b, c, { name: "Packing", description: "#06AED4" }, d] : [{ name: "Packing", description: "#06AED4" }]);
+  }, [proforma, statusCategory]);
   const addStatus = (po: PurchaseOrder, name: string) => {
     const exists = materials.some((m) => m.name.trim().toLowerCase() === name.toLowerCase());
     if (!exists) materialSpecStore.createItem({ category: statusCategory, name, description: "#5D6772" });
@@ -59,6 +59,8 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   };
   const colours = useMemo(() => Object.fromEntries(materials.map((m) => [asPoStatus(m.name), m.description])), [materials]);
   const statuses = useMemo(() => poStatusList(orders, materials.map((m) => m.name)), [orders, materials]);
+  // Purchase Orders: In Production and Packing have their own tabs on the page, so no pill for them here (they still show under All).
+  const listed = useMemo(() => (proforma ? statuses : statuses.filter((st) => st.toLowerCase() !== "packing" && st !== "in-production")), [proforma, statuses]);
   const customers = useCustomers();
   const quotes = useQuotes();
   const [search, setSearch] = useState("");
@@ -66,7 +68,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   const tabKey = `po-status-tab-${proforma ? "proforma" : mode}`;
   const [statusPick, setStatusState] = useState<PoStatus>("pending");
   // Proforma Invoices also have an "All Invoices" tab (value "all") listing every invoice.
-  const status = (proforma && statusPick === "all") || statuses.includes(statusPick) ? statusPick : "pending";
+  const status = (proforma && statusPick === "all") || listed.includes(statusPick) ? statusPick : "pending";
   const setStatus = (st: PoStatus) => {
     setStatusState(st);
     try {
@@ -76,7 +78,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem(tabKey) as PoStatus | null;
-      if (saved && ((proforma && saved === "all") || statuses.includes(saved))) setStatusState(saved);
+      if (saved && ((proforma && saved === "all") || listed.includes(saved))) setStatusState(saved);
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabKey]);
@@ -134,7 +136,8 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
       return m ? (m.description ? `${m.name} (${m.description})` : m.name) : "";
     },
   });
-  const askChange = (po: PurchaseOrder, status: PoStatus) => (proforma ? askProforma(po, status) : void changeStatus(po, status));
+  // In Production and Packing also ask for a date and notes, then open that tab of the page.
+  const askChange = (po: PurchaseOrder, status: PoStatus) => (proforma || status === "in-production" || status.toLowerCase() === "packing" ? askProforma(po, status) : void changeStatus(po, status));
 
   return (
     <div className="flex flex-col gap-2">
@@ -153,7 +156,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
       <div className="flex flex-wrap items-center justify-between gap-2 py-1">
         <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Purchase order status">
           {/* Proforma: Packing has its own tab on the page, so no Packing pill here (its invoices still show under All Invoices). */}
-          {(proforma ? ["all", ...statuses.filter((st) => st.toLowerCase() !== "packing" && st !== "in-production")] : statuses).map((st) => (
+          {(proforma ? ["all", ...statuses.filter((st) => st.toLowerCase() !== "packing" && st !== "in-production")] : listed).map((st) => (
             <button
               key={st}
               type="button"
