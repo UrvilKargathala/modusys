@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Contact, Download, KeyRound, LogOut, UserRound, ScanLine, ShoppingCart, UserCog, Wallet, type LucideIcon } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Contact, Download, IndianRupee, KeyRound, LogOut, UserRound, ScanLine, ShoppingCart, UserCog, Wallet, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatInr } from "@/lib/format";
 import { MOCK_CREDITS_BALANCE, MOCK_CREDITS_TOTAL } from "@/lib/mock/credits";
-import { navigationItems, administrationItems, attendanceItems, canSeeNav, navActive, type NavItem } from "@/lib/nav";
+import { navigationItems, administrationItems, attendanceItems, payrollItems, canSeeNav, navActive, type NavItem } from "@/lib/nav";
 import { AttendanceHealthDot } from "@/components/attendance/health-dot";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -67,6 +67,8 @@ export function Sidebar() {
   }
   const attendance = attendanceItems.filter((i) => canSeeNav(i, user.role));
   if (attendance.length) entries.push({ kind: "group", label: "Attendance", icon: ScanLine, items: attendance });
+  const payroll = payrollItems.filter((i) => canSeeNav(i, user.role));
+  if (payroll.length) entries.push({ kind: "group", label: "Payroll", icon: IndianRupee, items: payroll });
   const admin = administrationItems.filter((i) => canSeeNav(i, user.role));
   if (admin.length) entries.push({ kind: "group", label: "Admin", icon: UserCog, items: admin });
 
@@ -81,9 +83,10 @@ export function Sidebar() {
     await signOut();
     router.push("/sign-in");
   };
-  // MAIN holds the page links and the Orders / Contacts groups; SETTINGS holds Attendance and Admin.
-  const main = entries.filter((e) => !(e.kind === "group" && (e.label === "Attendance" || e.label === "Admin")));
-  const settings = entries.filter((e) => e.kind === "group" && (e.label === "Attendance" || e.label === "Admin"));
+  // MAIN holds the page links and the Orders / Contacts groups; SETTINGS holds Attendance, Payroll and Admin.
+  const isSettings = (e: Entry) => e.kind === "group" && ["Attendance", "Payroll", "Admin"].includes(e.label);
+  const main = entries.filter((e) => !isSettings(e));
+  const settings = entries.filter(isSettings);
 
   // A light card: the active page is a soft grey pill with darker text, the rest are plain grey.
   const row = (active: boolean) =>

@@ -30,8 +30,8 @@ export function BarChart({
           </linearGradient>
         </defs>
         <CartesianGrid {...gridProps} />
-        <XAxis dataKey="label" {...axisProps} dy={6} />
-        <YAxis {...axisProps} width={56} tickFormatter={(n: number) => format(n)} />
+        <XAxis dataKey="label" {...axisProps} dy={6} interval={data.length <= 7 ? 0 : "preserveEnd"} />
+        <YAxis {...axisProps} width={56} allowDecimals={false} tickFormatter={(n: number) => format(n)} />
         <Tooltip content={tooltipContent((n) => format(n))} cursor={{ fill: "var(--color-light-600)" }} />
         <Bar dataKey="value" name={name} radius={[6, 6, 6, 6]} maxBarSize={44}>
           {data.map((d, i) => (

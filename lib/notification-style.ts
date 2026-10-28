@@ -32,6 +32,12 @@ export const notificationStyle: Record<
     bgClass: "bg-error-transparent",
     actionNeeded: false,
   },
+  "attendance-correction": {
+    icon: Clock3,
+    iconClass: "text-info",
+    bgClass: "bg-info-transparent",
+    actionNeeded: true,
+  },
 };
 
 export const virtualNotificationStyle: Record<

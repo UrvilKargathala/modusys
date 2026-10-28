@@ -61,6 +61,8 @@ export function useNotificationRows() {
           notificationsStore.markRead(n.id);
           if (n.type === "leave-requested") router.push("/admin/leaves");
           else if (n.type === "leave-approved" || n.type === "leave-rejected") router.push("/leaves");
+          // Time-fix requests keep the calendar day to open in relatedTaskId.
+          else if (n.type === "attendance-correction") router.push(n.relatedTaskId || "/attendance/calendar");
           else taskPanelStore.open(n.relatedTaskId);
         },
       };

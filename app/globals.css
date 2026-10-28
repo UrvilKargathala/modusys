@@ -66,6 +66,12 @@
   --color-indigo: #3538c0;
   --color-cyan: #06aed4;
   --color-teal: #a3d6fa;
+  /* Fixed working hours on the attendance calendar. */
+  --color-shift: #4C9EC8;
+  /* Attendance calendar day: worked 5+ min over the fixed hours / 10+ min under. */
+  --color-day-over: #B2BD7E;
+  --color-day-short: #FFD38B;
+  --color-day-very-short: #DE7272; /* 30+ min under */
 
   /* Transparent variants */
   --color-grey-transparent: #f4f4f4;

@@ -17,6 +17,9 @@ import {
   Link2,
   type LucideIcon,
   ClipboardList,
+  IdCard,
+  CalendarDays,
+  IndianRupee,
 } from "lucide-react";
 
 // `roles` is an explicit whitelist. Undefined = visible to everyone.
@@ -56,11 +59,18 @@ export const navigationItems: NavItem[] = [
 // administrationItems). Personal items are visible to everyone; admin-log
 // pages stay super-admin only.
 export const attendanceItems: NavItem[] = [
+  { label: "Dashboard", href: "/attendance/calendar", icon: CalendarDays, roles: SUPER },
   { label: "My Attendance", href: "/my-attendance", icon: MapPin },
   { label: "My Leaves", href: "/leaves", icon: CalendarOff },
-  { label: "Attendance", href: "/attendance", icon: ScanLine, roles: SUPER },
-  { label: "Reports", href: "/attendance/reports", icon: BarChart3 },
+  { label: "Team Attendance", href: "/attendance", icon: ScanLine, roles: SUPER },
   { label: "Leave Approvals", href: "/admin/leaves", icon: CheckSquare, roles: SUPER },
+  { label: "Reports", href: "/attendance/reports", icon: BarChart3 },
+];
+
+// Rendered as a "Payroll" group: salary per employee, and the schedules and rates it is worked out from.
+export const payrollItems: NavItem[] = [
+  { label: "Salary", href: "/attendance/payroll", icon: IndianRupee, roles: SUPER },
+  { label: "Employees", href: "/attendance/employees", icon: IdCard, roles: SUPER },
 ];
 
 export const administrationItems: NavItem[] = [
@@ -81,9 +91,13 @@ export const mobileTabItems: NavItem[] = [
   navigationItems[2], // Quotes
 ];
 
-export const mobileMoreItems: NavItem[] = [...navigationItems.slice(3), ...attendanceItems];
+export const mobileMoreItems: NavItem[] = [...navigationItems.slice(3), ...attendanceItems, ...payrollItems];
 
-// True when the path is the item's page, one of its sub-pages, or one of its alsoActive paths.
+// True when the path is the item's page, one of its sub-pages, or one of its alsoActive paths, unless another nav item is a closer
+// match (on /attendance/reports only Reports lights up, not Attendance too).
+const under = (pathname: string, h: string) => pathname === h || pathname.startsWith(`${h}/`);
 export function navActive(pathname: string, item: Pick<NavItem, "href" | "alsoActive">): boolean {
-  return [item.href, ...(item.alsoActive ?? [])].some((h) => pathname === h || pathname.startsWith(`${h}/`));
+  if (![item.href, ...(item.alsoActive ?? [])].some((h) => under(pathname, h))) return false;
+  const all = [...navigationItems, ...attendanceItems, ...payrollItems, ...administrationItems];
+  return !all.some((o) => o.href.startsWith(`${item.href}/`) && under(pathname, o.href));
 }

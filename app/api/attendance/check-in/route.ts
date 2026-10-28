@@ -6,6 +6,7 @@ import { rateLimit, validCoords } from "@/lib/server/rate-limit";
 import { istMidnight, computeLateMinutes } from "@/lib/attendance-config";
 import { headObject } from "@/lib/server/s3";
 import { withAttendancePhotos } from "@/lib/server/serialize";
+import { scheduledLateEarly } from "@/lib/server/payroll-data";
 
 export async function POST(req: NextRequest) {
   try {
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
     }
 
     const address = hasCoords ? await reverseGeocode(latitude!, longitude!) : null;
-    const lateByMinutes = computeLateMinutes(now);
+    const lateByMinutes = (await scheduledLateEarly(employee.id, now, null))?.lateMinutes ?? computeLateMinutes(now);
 
     const record = await prisma.attendanceRecord.create({
       data: {

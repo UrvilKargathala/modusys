@@ -11,6 +11,7 @@ import {
   istDateString,
   REPORT_HIDDEN_NAMES,
 } from "@/lib/attendance-config";
+import { loadPayroll, payrollEmployeeSelect } from "@/lib/server/payroll-data";
 import { Card } from "@/components/ui/card";
 import { Download } from "lucide-react";
 
@@ -91,19 +92,9 @@ export default async function ReportsPage({
       ).sort()
     : [];
 
-  const [records, leaves] = await Promise.all([
-    prisma.attendanceRecord.findMany({
-      where: { employeeId: { in: employeeIds }, date: { gte: fromDate, lte: toDate } },
-    }),
-    prisma.leaveRequest.findMany({
-      where: {
-        employeeId: { in: employeeIds },
-        status: "APPROVED",
-        fromDate: { lte: toDate },
-        toDate: { gte: fromDate },
-      },
-    }),
-  ]);
+  const records = await prisma.attendanceRecord.findMany({
+    where: { employeeId: { in: employeeIds }, date: { gte: fromDate, lte: toDate } },
+  });
 
   type Row = {
     id: string;
@@ -111,6 +102,7 @@ export default async function ReportsPage({
     employeeNumber: string | null;
     department: string | null;
     daysPresent: number;
+    workingDays: number;
     fullDays: number;
     halfDays: number;
     totalMinutes: number;
@@ -125,6 +117,7 @@ export default async function ReportsPage({
     employeeNumber: e.employeeNumber,
     department: e.department,
     daysPresent: 0,
+    workingDays,
     fullDays: 0,
     halfDays: 0,
     totalMinutes: 0,
@@ -145,15 +138,21 @@ export default async function ReportsPage({
     if (r.isLate) row.lateCount++;
     if (r.isEarlyExit) row.earlyExitCount++;
   }
-  for (const l of leaves) {
-    const row = byId.get(l.employeeId);
+  // Leave and absence from the payroll engine: each employee's own weekly offs and holidays, the same numbers as Payroll.
+  // Late / early counts too, once the employee has a schedule (otherwise the stored company-policy flags stay).
+  const pay = await loadPayroll(toYmd(fromDate), toYmd(toDate), await prisma.employee.findMany({ where: { id: { in: employeeIds } }, select: payrollEmployeeSelect }));
+  for (const p of pay) {
+    const row = byId.get(p.employee.id);
     if (!row) continue;
-    const start = l.fromDate > fromDate ? l.fromDate : fromDate;
-    const end = l.toDate < toDate ? l.toDate : toDate;
-    const inRange = l.isHalfDay ? 0.5 : weekdaysBetween(start, end);
-    row.leaveDays += inRange;
+    row.leaveDays = p.summary.leaveDays;
+    row.absences = p.summary.absentDays;
+    row.workingDays = p.summary.scheduledDays;
+    row.totalMinutes = p.summary.actualMinutes;
+    if (!p.summary.issues.includes("NO_SCHEDULE")) {
+      row.lateCount = p.summary.lateDays;
+      row.earlyExitCount = p.summary.earlyDays;
+    }
   }
-  for (const r of rows) r.absences = Math.max(0, workingDays - r.daysPresent - r.leaveDays);
 
   const totalMinutes = rows.reduce((s, r) => s + r.totalMinutes, 0);
   const fullDays = rows.reduce((s, r) => s + r.fullDays, 0);
@@ -162,7 +161,8 @@ export default async function ReportsPage({
   const earlyExits = rows.reduce((s, r) => s + r.earlyExitCount, 0);
   const absences = rows.reduce((s, r) => s + r.absences, 0);
   const onLeaveTotal = rows.reduce((s, r) => s + r.leaveDays, 0);
-  const avgHoursPerEmp = rows.length && workingDays ? totalMinutes / 60 / (rows.length * workingDays) : 0;
+  const scheduledTotal = rows.reduce((s, r) => s + r.workingDays, 0);
+  const avgHoursPerEmp = scheduledTotal ? totalMinutes / 60 / scheduledTotal : 0;
 
   const csvHref = `/api/attendance/reports?format=csv&from=${toYmd(fromDate)}&to=${toYmd(toDate)}${sp.employeeId ? `&employeeId=${sp.employeeId}` : ""}${sp.department ? `&department=${encodeURIComponent(sp.department)}` : ""}`;
 
@@ -172,7 +172,7 @@ export default async function ReportsPage({
         <div>
           <h1 className="font-heading text-2xl font-semibold text-grey-900">Attendance Reports</h1>
           <p className="text-sm font-body text-grey-500">
-            Attendance is captured via app GPS + selfie check-in. Standard hours 10:00 AM – 6:30 PM IST; late = check-in after 10:15 AM (informational only). Working days exclude Saturdays and Sundays.
+            Attendance is captured via app GPS + selfie check-in. Standard hours 10:00 AM – 6:30 PM IST; late = check-in after 10:15 AM (informational only). Absence follows each employee's own weekly offs and holidays (set on Employees).
           </p>
         </div>
         <a
@@ -294,7 +294,7 @@ export default async function ReportsPage({
                   <td className="px-6 py-3 text-sm font-number font-light text-grey-500">{r.employeeNumber || "-"}</td>
                   <td className="px-6 py-3 text-sm font-body text-grey-500">{r.department || "-"}</td>
                   <td className="px-6 py-3 text-sm font-number font-light text-grey-700">{r.daysPresent}</td>
-                  <td className="px-6 py-3 text-sm font-number font-light text-grey-500">{workingDays}</td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-500">{r.workingDays}</td>
                   <td className="px-6 py-3 text-sm font-number font-light text-success">{r.fullDays}</td>
                   <td
                     className={`px-6 py-3 text-sm font-number font-light ${r.halfDays > 3 ? "text-orange font-medium" : "text-grey-700"}`}

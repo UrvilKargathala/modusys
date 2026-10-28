@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/server/require-user";
 import { MyAttendanceWidget } from "@/components/attendance/my-attendance-widget";
+import { RequestFixButton } from "@/components/payroll/attendance-time-dialogs";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default async function MyAttendancePage() {
         </p>
       </div>
       <MyAttendanceWidget />
+      <RequestFixButton />
     </div>
   );
 }

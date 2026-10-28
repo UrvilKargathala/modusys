@@ -10,7 +10,8 @@ export type NotificationType =
   | "mentioned"
   | "leave-requested"
   | "leave-approved"
-  | "leave-rejected";
+  | "leave-rejected"
+  | "attendance-correction";
 
 export type AppNotification = {
   id: string;

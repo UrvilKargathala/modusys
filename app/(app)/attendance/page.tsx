@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/require-user";
 import { formatTime, getWorkingHours, formatDate } from "@/lib/attendance-utils";
-import { istMidnight } from "@/lib/attendance-config";
+import { istMidnight, workingMinutes } from "@/lib/attendance-config";
 import { SyncButtons } from "@/components/attendance/sync-buttons";
 import { AutoRefresh } from "@/components/attendance/auto-refresh";
 import { AttendanceHealthBanner } from "@/components/attendance/health-banner";
@@ -12,18 +12,17 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   ChevronLeft,
+  CalendarCheck,
+  UserCheck,
+  Clock,
+  TimerOff,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  type LucideIcon,
   ChevronRight,
   Download,
   MapPin,
-  Users,
-  UserCheck,
-  Umbrella,
-  UserX,
-  CheckCircle2,
-  Coffee,
-  Clock,
-  DoorOpen,
-  type LucideIcon,
 } from "lucide-react";
 import { withAttendancePhotos } from "@/lib/server/serialize";
 
@@ -212,6 +211,30 @@ export default async function AttendancePage({
   const halfDaysToday = allRows.filter((r) => r.dayStatus === "HALF_DAY").length;
   const lateToday = allRows.filter((r) => r.isLate).length;
 
+  // Today against the 7 days before it. Only days when someone checked in count toward the average, so weekends and
+  // holidays don't drag it down.
+  const baseFrom = new Date(date);
+  baseFrom.setUTCDate(baseFrom.getUTCDate() - 7);
+  const baseRecords = await prisma.attendanceRecord.findMany({
+    where: { employeeId: { in: managedIds }, date: { gte: baseFrom, lt: date } },
+    select: { date: true, workingMinutes: true, isLate: true, checkIn: true, checkOut: true },
+  });
+  const baseDays = Array.from(new Set(baseRecords.map((r) => r.date.toISOString().slice(0, 10))));
+  const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  const byBaseDay = (pick: (rs: typeof baseRecords) => number) => avg(baseDays.map((d) => pick(baseRecords.filter((r) => r.date.toISOString().slice(0, 10) === d))));
+  // Stored minutes when check-out wrote them, otherwise worked out from the two times.
+  const mins = (r: { workingMinutes: number | null; checkIn: Date; checkOut: Date | null }) => r.workingMinutes ?? (r.checkOut ? workingMinutes(r.checkIn, r.checkOut) : null);
+  const baseWorked = baseRecords.map(mins).filter((m): m is number => m != null);
+  const todayWorked = allRows.map(mins).filter((m): m is number => m != null);
+  const kpi = {
+    rate: totalEmployees ? (present / totalEmployees) * 100 : 0,
+    baseRate: totalEmployees ? byBaseDay((rs) => (rs.length / totalEmployees) * 100) : null,
+    basePresent: byBaseDay((rs) => rs.length),
+    hours: avg(todayWorked) == null ? null : avg(todayWorked)! / 60,
+    baseHours: avg(baseWorked) == null ? null : avg(baseWorked)! / 60,
+    baseLate: byBaseDay((rs) => rs.filter((r) => r.isLate).length),
+  };
+
   const prevDate = new Date(date);
   prevDate.setDate(prevDate.getDate() - 1);
   const nextDate = new Date(date);
@@ -267,68 +290,32 @@ export default async function AttendancePage({
         )}
       </div>
 
-      {/* Stats — single compact row (wraps on mobile). Label left, number
-          right in the stat's semantic color for at-a-glance scanning. The
-          four "log-mappable" pills (Full/Half/Late/Still In) are clickable
-          filters that narrow the attendance log below. Others are display-
-          only because they don't correspond to a subset of table rows. */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatPill icon={Users} label="Total Employees" value={totalEmployees} tone="grey" />
-        <StatPill
-          icon={UserCheck}
-          label="Present"
-          value={present}
-          total={totalEmployees}
-          tone="success"
-        />
-        <StatPill
-          icon={Umbrella}
-          label="On Leave"
-          value={onLeaveCount}
-          total={totalEmployees}
-          tone="warning"
-        />
-        <StatPill
-          icon={UserX}
-          label="Absent"
-          value={absent}
-          total={totalEmployees}
-          tone="error"
-        />
-        <StatPill
-          icon={CheckCircle2}
-          label="Full Days"
-          value={fullDaysToday}
-          tone="success"
-          filterHref={statHref(dateStr, sourceFilter, "full")}
-          active={statFilter === "full"}
-        />
-        <StatPill
-          icon={Coffee}
-          label="Half Days"
-          value={halfDaysToday}
-          tone="orange"
-          filterHref={statHref(dateStr, sourceFilter, "half")}
-          active={statFilter === "half"}
-        />
-        <StatPill
-          icon={Clock}
-          label="Late Arrivals"
-          value={lateToday}
-          tone="warning"
-          hint="informational only"
-          title="Informational only — no salary deduction"
-          filterHref={statHref(dateStr, sourceFilter, "late")}
-          active={statFilter === "late"}
-        />
-        <StatPill
-          icon={DoorOpen}
-          label="Still In Office"
-          value={stillIn}
-          tone="info"
-          filterHref={statHref(dateStr, sourceFilter, "in-office")}
-          active={statFilter === "in-office"}
-        />
+      {/* Four headline numbers, each against the previous 7 days; the chips under them filter the log. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <TrendCard icon={CalendarCheck} title="Attendance Rate" value={`${Math.round(kpi.rate)}`} unit="%" sub={`${present} of ${totalEmployees} present`}
+          change={kpi.baseRate == null ? null : kpi.rate - kpi.baseRate} points />
+        <TrendCard icon={UserCheck} title="Present Today" value={String(present)} unit={`/ ${totalEmployees}`} sub={`${onLeaveCount} on leave · ${absent} absent`}
+          change={kpi.basePresent ? ((present - kpi.basePresent) / kpi.basePresent) * 100 : null} />
+        <TrendCard icon={Clock} title="Average Working Hours" value={kpi.hours == null ? "—" : kpi.hours.toFixed(1)} unit={kpi.hours == null ? "" : "hrs"}
+          sub={kpi.hours == null ? "No check-outs yet" : "Per employee, checked out"}
+          change={kpi.hours != null && kpi.baseHours ? ((kpi.hours - kpi.baseHours) / kpi.baseHours) * 100 : null} />
+        <TrendCard icon={TimerOff} title="Late Arrivals" value={String(lateToday)} unit={present ? `of ${present}` : ""} sub="After their start time"
+          change={kpi.baseLate ? ((lateToday - kpi.baseLate) / kpi.baseLate) * 100 : kpi.baseLate === 0 && lateToday ? 100 : null} upIsBad
+          href={statHref(dateStr, sourceFilter, statFilter === "late" ? null : "late")} />
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="text-grey-500">Show in log:</span>
+        {([
+          ["full", "Full days", fullDaysToday],
+          ["half", "Half days", halfDaysToday],
+          ["late", "Late", lateToday],
+          ["in-office", "Still in office", stillIn],
+        ] as const).map(([key, label, value]) => (
+          <a key={key} href={statHref(dateStr, sourceFilter, statFilter === key ? null : key)}
+            className={`rounded-full border px-3 py-1 transition-colors ${statFilter === key ? "border-primary bg-primary text-white" : "border-grey-200 bg-card text-grey-700 hover:bg-light-600"}`}>
+            {label} <span className="font-number font-semibold">{value}</span>
+          </a>
+        ))}
       </div>
       {statFilter && (
         <div className="-mt-4 flex justify-end">
@@ -577,82 +564,37 @@ function statHref(
   return `/attendance?${params.toString()}`;
 }
 
-function StatPill({
-  icon: Icon,
-  label,
-  value,
-  total,
-  tone,
-  title,
-  hint,
-  filterHref,
-  active,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: number;
-  total?: number;
-  tone: "grey" | "success" | "warning" | "orange" | "error" | "info";
-  title?: string;
-  hint?: string;
-  filterHref?: string;
-  active?: boolean;
+// A headline number with its change against the previous 7 days: green arrow when that's good news, red when it isn't.
+function TrendCard({ icon: Icon, title, value, unit, sub, change, points, upIsBad, href }: {
+  icon: LucideIcon; title: string; value: string; unit?: string; sub: string; change: number | null; points?: boolean; upIsBad?: boolean; href?: string;
 }) {
-  const color =
-    tone === "success"
-      ? "text-success"
-      : tone === "warning"
-      ? "text-warning-900"
-      : tone === "orange"
-      ? "text-orange"
-      : tone === "error"
-      ? "text-error"
-      : tone === "info"
-      ? "text-info"
-      : "text-grey-900";
-  const iconBg =
-    tone === "success"
-      ? "bg-success-transparent"
-      : tone === "warning"
-      ? "bg-warning-transparent"
-      : tone === "orange"
-      ? "bg-orange-transparent"
-      : tone === "error"
-      ? "bg-error-transparent"
-      : tone === "info"
-      ? "bg-info-transparent"
-      : "bg-grey-transparent";
-  const pct = total && total > 0 ? Math.round((value / total) * 100) : null;
-  const inner = (
-    <div className="flex items-center gap-3">
-      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconBg}`}>
-        <Icon className={`h-4 w-4 ${color}`} />
+  const flat = change != null && Math.abs(change) < 0.05;
+  const up = (change ?? 0) >= 0;
+  const good = upIsBad ? !up : up;
+  const tone = flat ? "grey" : good ? "good" : "bad";
+  const body = (
+    <Card className="flex h-full flex-col gap-4 p-5">
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-white"><Icon className="h-5 w-5" /></span>
+        <h3 className="font-heading text-base font-medium text-grey-900">{title}</h3>
       </div>
-      <div className="flex min-w-0 flex-col">
-        <span className="text-xs font-body text-grey-500">{label}</span>
-        <div className="flex items-baseline gap-1.5">
-          <span className={`font-number text-xl font-bold ${color}`}>{value}</span>
-          {pct !== null && (
-            <span className="font-number text-[11px] text-grey-400">· {pct}%</span>
-          )}
+      <div className="flex items-end justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-number text-4xl font-semibold leading-none text-grey-900">
+            {value}{unit && <span className="ml-1.5 text-xl font-normal text-grey-400">{unit}</span>}
+          </p>
+          <p className="mt-2 truncate text-sm text-grey-500">{sub}</p>
         </div>
-        {hint && <span className="text-[10px] font-body text-grey-400">{hint}</span>}
+        {change != null && Number.isFinite(change) && (
+          <div className="flex shrink-0 items-center gap-2" title="Compared with the previous 7 days">
+            <span className={`font-number text-sm font-medium ${tone === "grey" ? "text-grey-500" : tone === "good" ? "text-success" : "text-error"}`}>{flat ? "" : up ? "+" : "−"}{Math.abs(change).toFixed(1)}{points ? " pts" : "%"}</span>
+            <span className={`flex h-9 w-9 items-center justify-center rounded-full text-white ${tone === "grey" ? "bg-grey-300" : tone === "good" ? "bg-success" : "bg-error"}`}>
+              {flat ? <Minus className="h-4 w-4" /> : up ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+            </span>
+          </div>
+        )}
       </div>
-    </div>
+    </Card>
   );
-  const activeCls = active ? "ring-2 ring-primary/40 bg-primary-transparent/40" : "ring-1 ring-foreground/10";
-  const hoverCls = filterHref ? "hover:ring-primary/30 cursor-pointer transition-shadow" : "";
-  const commonCls = `rounded-xl bg-card p-3 ${activeCls} ${hoverCls}`;
-  if (filterHref) {
-    return (
-      <a href={filterHref} title={title} className={`block ${commonCls}`}>
-        {inner}
-      </a>
-    );
-  }
-  return (
-    <div title={title} className={commonCls}>
-      {inner}
-    </div>
-  );
+  return href ? <a href={href} className="block rounded-xl transition-transform hover:-translate-y-0.5">{body}</a> : body;
 }
