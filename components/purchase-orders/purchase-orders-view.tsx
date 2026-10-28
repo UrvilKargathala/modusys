@@ -24,7 +24,6 @@ import { poTotals } from "@/lib/purchase-order";
 const tabs = [
   { value: "all", label: "All" },
   { value: "po", label: "Purchase Orders" },
-  { value: "direct", label: "Direct PO" },
   { value: "production", label: "Production" },
   { value: "packing", label: "Packing" },
   { value: "vendors", label: "Vendors" },
@@ -46,7 +45,7 @@ function View() {
   const allOrders = usePurchaseOrders().filter((o) => !o.material.proforma);
   const vendors = useVendors();
   // The cards follow the open tab (Vendors shows the totals of both kinds).
-  const orders = useMemo(() => allOrders.filter((o) => (tab === "po" ? !o.material.direct : tab === "direct" ? !!o.material.direct : true)), [allOrders, tab]);
+  const orders = useMemo(() => allOrders.filter((o) => (tab === "po" ? !o.material.direct : true)), [allOrders, tab]);
   const kpis = useMemo(() => {
     const month = new Date().toISOString().slice(0, 7);
     return {
@@ -56,8 +55,8 @@ function View() {
     };
   }, [orders]);
 
-  // Direct PO tab: Create makes a direct PO at once; Purchase Orders tab a normal one; All asks which.
-  const onNew = () => setCreate(tab === "direct" ? "direct" : tab === "po" ? "po" : "choose");
+  // Purchase Orders tab: Create makes a normal PO; All asks which kind (a direct PO is made from there).
+  const onNew = () => setCreate(tab === "po" ? "po" : "choose");
 
   return (
     <ProformaStatusProvider>
@@ -82,7 +81,7 @@ function View() {
             </TabsTrigger>
           ))}
         </TabsList>
-        {(["all", "po", "direct"] as const).map((m) => (
+        {(["all", "po"] as const).map((m) => (
           <TabsContent key={m} value={m} className="pt-0">
             <PurchaseOrdersTable mode={m} onNew={onNew} quoteId={quoteFilter} onClearQuote={() => router.replace(`${pathname}?tab=${m}`, { scroll: false })} />
           </TabsContent>
