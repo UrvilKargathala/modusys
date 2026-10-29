@@ -28,20 +28,20 @@ export function CreateFromProcurementDialog({ open, onOpenChange, onPick }: { op
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Create Purchase Order from Procurement</DialogTitle>
-          <DialogDescription>Pick the procurement copy the purchase order is made from. Its cut-list is copied and you add rates in the next screen.</DialogDescription>
+          <DialogTitle>Create Purchase Order from Requirement Order</DialogTitle>
+          <DialogDescription>Pick the requirement order the purchase order is made from. Its cut-list is copied and you add rates in the next screen.</DialogDescription>
         </DialogHeader>
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search PR no, quote no, customer…"
+            placeholder="Search RO no, quote no, customer…"
             className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
           />
         </div>
         <div className="flex max-h-80 flex-col overflow-y-auto">
-          {list.length === 0 && <p className="py-6 text-center text-sm font-body text-grey-400">{rows.length === 0 ? "Nothing in procurement yet. Set a quote to In Procurement first." : "No procurement copies match."}</p>}
+          {list.length === 0 && <p className="py-6 text-center text-sm font-body text-grey-400">{rows.length === 0 ? "No requirement orders yet. Set a confirmed quote's Status to Requirement Order first." : "No requirement orders match."}</p>}
           {list.map((r) => (
             <button
               key={r.id}

@@ -5,7 +5,8 @@ import { Check, ChevronDown } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { nextStatuses, statusConfig, statusPickerClass, type StatusKey, type StatusNote } from "@/lib/status";
+import { useOwnFactory } from "@/lib/store/quote-template-store";
+import { nextStatuses, pickableStatuses, statusConfig, statusPickerClass, type StatusKey, type StatusNote } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 // Native <select><option> can't reliably show a background color across
@@ -30,8 +31,12 @@ export function StatusPicker({
   const [reason, setReason] = useState("");
   const cfg = statusConfig[value] ?? statusConfig.draft;
   // Every status is listed; only the next step in the flow and Cancelled can be picked, the rest are greyed out.
-  const statusOptions = Object.keys(statusConfig) as StatusKey[];
-  const allowed = new Set<StatusKey>([value, ...nextStatuses(value)]);
+  // A company without its own factory has no In Production step.
+  const ownFactory = useOwnFactory();
+  const statusOptions = pickableStatuses(value, ownFactory);
+  const allowed = new Set<StatusKey>([value, ...nextStatuses(value, ownFactory)]);
+  // Requirement Order makes the quote's Requirement Order (quotesStore.saveQuote); In Purchase follows once a PO is made from it.
+  const makesRo = (s: StatusKey | null) => s === "in-procurement";
 
   return (
     <>
@@ -46,10 +51,9 @@ export function StatusPicker({
         {cfg.label}
         <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-48 p-1.5">
+      <PopoverContent align="start" className="w-56 p-1.5">
         <div className="flex flex-col gap-1">
           {statusOptions.map((s) => {
-            const optionCfg = statusConfig[s];
             return (
               <button
                 key={s}
@@ -70,7 +74,7 @@ export function StatusPicker({
                   allowed.has(s) ? [statusPickerClass[s], "hover:brightness-95"] : "cursor-not-allowed bg-light-600 text-grey-500"
                 )}
               >
-                {optionCfg.label}
+                {statusConfig[s].label}
                 {s === value && <Check className="h-3.5 w-3.5 shrink-0" />}
               </button>
             );
@@ -82,7 +86,9 @@ export function StatusPicker({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{noteFor === "cancelled" ? "Cancel this quote?" : `Move this quote to ${noteFor ? statusConfig[noteFor].label : ""}?`}</DialogTitle>
-          <DialogDescription>The date and remark are kept in the quote&apos;s Remark.</DialogDescription>
+          <DialogDescription>
+            {makesRo(noteFor) ? "Its Requirement Order is made, ready to send its lines to purchase orders. It moves to In Purchase once the first purchase order is made. " : ""}The date and remark are kept in the quote&apos;s Remark.
+          </DialogDescription>
         </DialogHeader>
         <label className="flex flex-col gap-1 text-sm font-body text-grey-700">
           {noteFor ? `${statusConfig[noteFor].label} on` : ""}

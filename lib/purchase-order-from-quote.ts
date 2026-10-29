@@ -6,7 +6,8 @@ import type { CabinetType } from "@/lib/mock/cabinet-type";
 import { carcassUnitFor, evaluateFormula } from "@/lib/quote-pricing";
 import { panelSqft, type PoCabinet, type PoGroup, type PoMaterial, type PurchaseOrderLine } from "@/lib/purchase-order";
 
-export type PoLineDraft = Omit<PurchaseOrderLine, "id">;
+// sourceId: the quote / Requirement Order line it was built from (only buildPoFromQuote sets it; it is not saved on the line).
+export type PoLineDraft = Omit<PurchaseOrderLine, "id"> & { sourceId?: string };
 
 type Ctx = { materials: MaterialItem[]; unitTypes: UnitType[]; hardwareItems: HardwarePriceItem[] };
 
@@ -39,6 +40,7 @@ export function buildPoFromQuote(quote: Quote, { materials, unitTypes, hardwareI
     const height = Math.round(evaluateFormula(item.heightFormula, vars));
     if (!width || !height) return; // an empty row has nothing to cut
     lines.push({
+      sourceId: item.id,
       group,
       srNo: c.srNo,
       position: lines.length,
@@ -70,6 +72,7 @@ export function buildPoFromQuote(quote: Quote, { materials, unitTypes, hardwareI
       const qty = Math.round(evaluateFormula(h.qtyFormula, { W: c.unit.width, D: c.unit.depth, H: c.unit.height })) * unitQty(c.unit);
       if (!qty) continue;
       lines.push({
+        sourceId: h.id,
         group: "hardware",
         srNo: c.srNo,
         position: lines.length,

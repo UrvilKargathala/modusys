@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, ChevronsDown, ChevronsUp, Boxes, ChevronDown, ChevronRight, Search } from "lucide-react";
+import { Plus, ChevronsDown, ChevronsUp, Boxes, ChevronDown, ChevronRight, Search, Send, Sparkles } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { CabinetTypeSelect, autoPopulateComponents, blankLineItem } from "@/components/quotes/create/quote-cabinet-group";
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
@@ -9,14 +11,32 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { QuoteUnitCard, UNIT_ROW_GRID } from "@/components/quotes/create/quote-unit-card";
 import { FurnitureLineItemRow, FurnitureTableHeader, furnitureTableColumns } from "@/components/templates/furniture-line-item-row";
 import { UnitTypeHardwareRow, HardwareTableHeader, HARDWARE_TABLE_COLUMNS } from "@/components/templates/unit-type-hardware-row";
-import { effectiveFurnitureRate, effectiveHardwareRate, evaluateFormula, SQMM_PER_SQFT, unitSqFt, unitTotal } from "@/lib/quote-pricing";
+import { carcassUnitFor, effectiveFurnitureRate, effectiveHardwareRate, evaluateFormula, SQMM_PER_SQFT, unitSqFt, unitTotal } from "@/lib/quote-pricing";
 import { useUnitTypes } from "@/lib/store/unit-type-store";
+import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { nextLineSort, SortLabel, type LineSort } from "@/components/templates/line-sort";
 import { formatInr } from "@/lib/format";
 import { blankQuoteUnit, type QuoteCabinet, type QuoteUnit } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
+
+// Carcass, Shutter and Other Panel tabs: one table of that group's lines across the quote, edited in place (as inside the cabinet).
+// Carcass is laid out like the Purchase Order: a row per cabinet (its type and carcass size), its components in a table under it.
+type FurnLine = QuoteCabinet["components"][number];
+const FURN = {
+  carcass: { label: "Component", level: false, pick: (c: QuoteCabinet) => c.components, put: (items: FurnLine[]): Partial<QuoteCabinet> => ({ components: items }) },
+  shutter: { label: "External Finish", level: false, pick: (c: QuoteCabinet) => c.externalFinishes, put: (items: FurnLine[]): Partial<QuoteCabinet> => ({ externalFinishes: items }) },
+  panel: { label: "Other Panel", level: true, pick: (c: QuoteCabinet) => c.panels, put: (items: FurnLine[]): Partial<QuoteCabinet> => ({ panels: items }) },
+};
+type FurnView = keyof typeof FURN;
+// Carcass tab cabinet row: toggle, Sr No, Cabinet Type, Unit, W, D, H, Qty, Sq.ft, Amount, Auto Populate.
+const CABINET_ROW = "24px 36px minmax(150px,1fr) minmax(120px,0.8fr) 52px 52px 52px 44px 56px 84px 26px";
+// The W/D/H a line's formulas use: Carcass follows its cabinet's own size (when set), the others the unit's.
+const dimsFor = (view: FurnView, u: QuoteUnit, c: QuoteCabinet) => {
+  const d = view === "carcass" ? carcassUnitFor(c, u) : u;
+  return { W: d.width, D: d.depth, H: d.height };
+};
 
 function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -45,6 +65,7 @@ export function UnitsSection({
   shutterFinishOverrides,
   onChange,
   bare = false,
+  send,
 }: {
   units: QuoteUnit[];
   shutterFinishId: string;
@@ -52,13 +73,48 @@ export function UnitsSection({
   onChange: (units: QuoteUnit[]) => void;
   // Shown inside the Units tab: no frame and no header row; the tab line carries the count and the Expand / Collapse / Add Unit buttons.
   bare?: boolean;
+  // Requirement Order only (Send to PO): the line ids that can go to a PO, those already on one (id → PO number), why sending is not
+  // possible right now (e.g. unsaved changes) and what Send to PO does with the ticked ids. Adds a tick box to every line of the line tabs.
+  send?: { sendable: Set<string>; sent: Map<string, string>; blocked?: string; onSend: (ids: string[]) => void };
 }) {
   const setAllCollapsed = (collapsed: boolean) => onChange(units.map((u) => ({ ...u, collapsed })));
   const [collapsedState, setSectionCollapsed] = useState(true);
   const sectionCollapsed = !bare && collapsedState;
   const addUnit = () => onChange([...units, blankQuoteUnit()]);
-  // Filter: All Units (the table), or every Shutter / Hardware line of the quote listed together, still editable.
-  const [view, setView] = useState<"units" | "shutter" | "hardware" | "merge">("units");
+  // Filter: All Units (the table), or every Carcass / Shutter / Other Panel / Hardware line of the quote listed together, still editable.
+  const [view, setView] = useState<"units" | FurnView | "hardware" | "merge">("units");
+  const furn = view in FURN ? FURN[view as FurnView] : null;
+  // Send to PO: the ticked lines (a line already on a PO can't be ticked; once sent it drops out by itself) and the All / Pending / Sent filter.
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [lineFilter, setLineFilter] = useState<"all" | "pending" | "sent">("all");
+  const canPick = (id: string) => !!send && send.sendable.has(id) && !send.sent.has(id);
+  const pickedLive = [...picked].filter(canPick);
+  const pick = (ids: string[], on: boolean) => setPicked((cur) => { const next = new Set(cur); for (const id of ids) if (on) next.add(id); else next.delete(id); return next; });
+  const passes = (ids: string[]) => !send || lineFilter === "all" || (lineFilter === "sent" ? ids.length > 0 && ids.every((id) => send.sent.has(id)) : ids.some((id) => !send.sent.has(id)));
+  // A tick box for one line, a cabinet or a whole table: ticks the lines of it that can still go to a PO. Ticked and greyed out when every
+  // line of it is on a PO already.
+  const tickBox = (ids: string[], label: string) => {
+    if (!send) return null;
+    if (ids.length === 0) return <span className="w-6 shrink-0" />;
+    const live = ids.filter(canPick);
+    const allSent = ids.length > 0 && ids.every((id) => send.sent.has(id));
+    return (
+      <span className="flex w-6 shrink-0 items-center justify-center self-stretch">
+        <input
+          type="checkbox"
+          aria-label={`Tick ${label}`}
+          title={allSent ? `On ${send.sent.get(ids[0])}` : live.length === 0 ? "Nothing to send: no size or qty" : undefined}
+          disabled={live.length === 0}
+          checked={allSent || (live.length > 0 && live.every((id) => picked.has(id)))}
+          onChange={(e) => pick(live, e.target.checked)}
+          className="h-3.5 w-3.5 cursor-pointer accent-primary disabled:cursor-default"
+        />
+      </span>
+    );
+  };
+  // A table row (or heading) with its tick box in front.
+  const withTick = (ids: string[], label: string, node: React.ReactNode, key?: string) =>
+    send ? <div key={key} className="flex items-stretch">{tickBox(ids, label)}<div className="min-w-0 flex-1">{node}</div></div> : node;
   const hardwarePrices = useHardwarePriceItems();
   const furniturePrices = useFurniturePriceItems();
   const categories = useMaterialItems("category");
@@ -67,13 +123,14 @@ export function UnitsSection({
   const unitNames = useMaterialItems("unit");
   const spaces = useMaterialItems("space");
   const unitTypes = useUnitTypes();
+  const cabinetTypes = useCabinetTypes();
   const components = useMaterialItems("furniture-component");
   const thicknesses = useMaterialItems("thickness");
   const rawMaterials = useMaterialItems("raw-material-type");
   const externals = useMaterialItems("external-colour");
   const internals = useMaterialItems("internal-colour");
   const nameOf = (list: { id: string; name: string }[], id?: string) => list.find((m) => m.id === id)?.name ?? "";
-  // Search box and column sorting of the Shutter / Hardware / Merge Hardware tables.
+  // Search box and column sorting of the line tables (Carcass, Shutter, Other Panel, Hardware, Merge Hardware).
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<LineSort>(null);
   const onSort = (key: string) => setSort((cur) => nextLineSort(cur, key));
@@ -85,8 +142,8 @@ export function UnitsSection({
   const compare = (a: string | number, b: string | number) =>
     typeof a === "number" && typeof b === "number" ? a - b : String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
   // Keeps the rows that contain the search text in any column, then orders them by the clicked column.
-  const arrange = <T,>(rows: T[], valuesOf: (r: T) => Record<string, string | number>): T[] => {
-    const q = query.trim().toLowerCase();
+  const arrange = <T,>(rows: T[], valuesOf: (r: T) => Record<string, string | number>, search = true): T[] => {
+    const q = search ? query.trim().toLowerCase() : "";
     let out = q ? rows.filter((r) => Object.values(valuesOf(r)).join(" ").toLowerCase().includes(q)) : rows;
     if (sort) out = [...out].sort((a, b) => compare(valuesOf(a)[sort.key] ?? "", valuesOf(b)[sort.key] ?? "") * (sort.dir === "asc" ? 1 : -1));
     return out;
@@ -122,8 +179,7 @@ export function UnitsSection({
       remarks: u.remark ?? "",
     };
   };
-  const shutterValues = (f: QuoteCabinet["externalFinishes"][number], u: QuoteUnit, no: string) => {
-    const vars = { W: u.width, D: u.depth, H: u.height };
+  const furnValues = (f: FurnLine, vars: { W: number; D: number; H: number }, no: string) => {
     const width = evaluateFormula(f.widthFormula, vars);
     const height = evaluateFormula(f.heightFormula, vars);
     const sqft = ((width * height) / SQMM_PER_SQFT) * f.qty;
@@ -141,6 +197,7 @@ export function UnitsSection({
       internal: nameOf(internals, f.internalColourId),
       amount: rate * sqft,
       rate,
+      level: nameOf(levelTypes, f.levelTypeId),
     };
   };
   // Merge Hardware: the same hardware item (same article / category / brand / description / level type / rate) repeated across the
@@ -184,16 +241,126 @@ export function UnitsSection({
       return next;
     });
   };
-  const mergedShown = arrange(merged.map((m, i) => ({ m, i })), ({ m, i }) => hardwareValues(m.item, String(i + 1), { qty: m.qty, amount: m.amount }));
+  const mergedShown = arrange(merged.map((m, i) => ({ m, i })), ({ m, i }) => hardwareValues(m.item, String(i + 1), { qty: m.qty, amount: m.amount })).filter(({ m }) => passes([...m.ids]));
   const removeMerged = (m: (typeof merged)[number]) => updateHardware((h) => (m.ids.has(h.id) ? null : h));
   const count = (pick: (c: QuoteCabinet) => number) => units.reduce((n, u) => n + u.cabinets.reduce((m, c) => m + pick(c), 0), 0);
-  const shutterCount = count((c) => c.externalFinishes.length);
+  const furnCount = (v: FurnView) => count((c) => FURN[v].pick(c).length);
   const hardwareCount = count((c) => c.hardware.length);
   const patchCabinet = (unitId: string, cabinetId: string, patch: Partial<QuoteCabinet>) =>
     onChange(units.map((u) => (u.id === unitId ? { ...u, cabinets: u.cabinets.map((c) => (c.id === cabinetId ? { ...c, ...patch } : c)) } : u)));
 
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  // Carcass tab, laid out like the Purchase Order: one row per cabinet (Sr No, Cabinet Type, its unit, carcass W/D/H/Qty, Sq.ft, Amount and Auto
+  // Populate), its components in a table under it. Cabinets are numbered through the quote (1, 2, 3 …), their components 1.1, 1.2 …
+  // Everything stays editable as inside the cabinet. The search shows a cabinet whose type or unit matches, or only its matching components.
+  const [closedCabinets, setClosedCabinets] = useState<Set<string>>(new Set());
+  const carcassByCabinet = () => {
+    const q = query.trim().toLowerCase();
+    let n = 0;
+    const cabs = units.flatMap((u) => u.cabinets.map((c) => {
+      const no = String(++n);
+      const type = cabinetTypes.find((t) => t.id === c.cabinetTypeId);
+      const unitText = [nameOf(spaces, u.spaceId ?? ""), unitTypes.find((t) => t.id === u.unitTypeId)?.shortCode].filter(Boolean).join(" · ");
+      const dims = dimsFor("carcass", u, c);
+      const all = c.components.map((item, k) => ({ u, c, item, no: `${no}.${k + 1}` }));
+      const values = (r: (typeof all)[number]) => furnValues(r.item, dims, r.no);
+      const headMatch = !q || `${type?.name ?? ""} ${unitText}`.toLowerCase().includes(q);
+      const lines = arrange(all, values, !headMatch).filter((r) => passes([r.item.id]));
+      const sum = (k: "sqft" | "amount") => all.reduce((t, r) => t + values(r)[k], 0);
+      return { u, c, no, type, unitText, dims, lines, values, show: (headMatch && lineFilter === "all") || lines.length > 0, sqft: sum("sqft"), amount: sum("amount"), qty: all.reduce((t, r) => t + r.item.qty, 0) };
+    }));
+    const shown = cabs.filter((x) => x.show);
+    const num = "h-6 w-full bg-card px-1 text-center text-xs font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+    const toggle = (id: string) => setClosedCabinets((s) => { const next = new Set(s); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+    if (shown.length === 0) return <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">{cabs.length === 0 ? "No cabinets yet. Open a unit and use its Add Cabinet button." : "No lines match your search."}</p>;
+    return (
+      <div className="quote-dense">
+        <div className="-mx-2 overflow-x-auto">
+          <div className="min-w-[1100px]">
+            {withTick(shown.flatMap((x) => x.lines.map((r) => r.item.id)), "every line shown", (
+            <div className="grid items-center gap-x-1.5 bg-[var(--table-head)] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: CABINET_ROW }}>
+              <span /><span>Sr No</span><span>Cabinet Type</span><span>Unit</span>
+              {["Width", "Depth", "Height", "Qty", "Sq.ft"].map((h) => <span key={h} className="text-center">{h}</span>)}
+              <span className="text-right">Amount</span><span />
+            </div>
+            ))}
+            {shown.map(({ u, c, no, type, unitText, dims, lines, values, sqft, amount }) => {
+              const open = !closedCabinets.has(c.id);
+              const size = carcassUnitFor(c, u);
+              return (
+                <div key={c.id} className="border-b border-grey-100">
+                  {withTick(lines.map((r) => r.item.id), `cabinet ${no}`, (
+                  <div className="grid items-center gap-x-1.5 bg-card px-2 py-0.5 text-xs" style={{ gridTemplateColumns: CABINET_ROW }}>
+                    <button type="button" onClick={() => toggle(c.id)} aria-label={open ? `Collapse cabinet ${no}` : `Expand cabinet ${no}`} className="flex h-6 w-6 items-center justify-center rounded-md border border-grey-100 bg-light-600 text-grey-500 hover:text-grey-800">
+                      {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    </button>
+                    <span className="num text-xs font-semibold text-grey-900">{no}</span>
+                    <CabinetTypeSelect compact value={c.cabinetTypeId} onChange={(cabinetTypeId) => patchCabinet(u.id, c.id, { cabinetTypeId })} />
+                    <span className="truncate text-xs font-body text-grey-700" title={unitText}>{unitText || "—"}</span>
+                    {(["carcassWidth", "carcassDepth", "carcassHeight", "carcassQty"] as const).map((k) => (
+                      <Input key={k} type="number" min={k === "carcassQty" ? 1 : 0} aria-label={`${k.replace("carcass", "")} of cabinet ${no}`} value={k === "carcassQty" ? size.qty : k === "carcassWidth" ? size.width : k === "carcassDepth" ? size.depth : size.height} onChange={(e) => patchCabinet(u.id, c.id, { [k]: Number(e.target.value) })} className={num} />
+                    ))}
+                    <span className="num text-center text-xs text-grey-700">{sqft.toFixed(2)}</span>
+                    <span className="num text-right text-xs font-semibold text-grey-900">₹{amount.toFixed(2)}</span>
+                    <Button type="button" size="icon-sm" aria-label={`Auto Populate cabinet ${no}`} title="Auto Populate" disabled={!type} onClick={() => type && patchCabinet(u.id, c.id, { components: autoPopulateComponents(type, size) })} className="h-6 w-6">
+                      <Sparkles className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  ))}
+                  {open && (
+                    <div className="mb-1.5 ml-7 mr-1 overflow-hidden rounded-md border border-grey-100">
+                      {withTick([], "", <FurnitureTableHeader showComponentName showLevelType={false} nameLabel="Component" withNo sort={sort} onSort={onSort} />)}
+                      <DndContext sensors={sensors} collisionDetection={closestCenter}>
+                        <SortableContext items={lines.map((r) => r.item.id)} strategy={verticalListSortingStrategy}>
+                          {lines.map((r) => withTick([r.item.id], `line ${r.no}`, (
+                            <FurnitureLineItemRow
+                              key={r.item.id}
+                              table
+                              rowNo={r.no}
+                              value={r.item}
+                              label="Component"
+                              showComponentName
+                              totalSqFt={values(r).sqft}
+                              unitDims={dims}
+                              onChange={(patch) => patchCabinet(u.id, c.id, { components: c.components.map((x) => (x.id === r.item.id ? { ...x, ...patch } : x)) })}
+                              onRemove={() => patchCabinet(u.id, c.id, { components: c.components.filter((x) => x.id !== r.item.id) })}
+                              onCopy={() => {
+                                const at = c.components.findIndex((x) => x.id === r.item.id);
+                                const next = [...c.components];
+                                next.splice(at + 1, 0, { ...r.item, id: newId("qli") });
+                                patchCabinet(u.id, c.id, { components: next });
+                              }}
+                            />
+                          ), r.item.id))}
+                        </SortableContext>
+                      </DndContext>
+                      {c.components.length === 0 && <p className="px-3 py-2 text-xs font-body text-grey-400">No components yet. Pick the cabinet type and press Auto Populate, or add one.</p>}
+                      <div className="border-t border-grey-100 bg-light-600 px-2 py-1">
+                        <Button type="button" size="sm" variant="outline" onClick={() => patchCabinet(u.id, c.id, { components: [...c.components, blankLineItem()] })}>
+                          <Plus className="h-3.5 w-3.5" /> Add Component
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {withTick([], "", (
+            <div className="grid items-center gap-x-1.5 bg-[var(--table-head)] px-2 py-1 text-xs font-semibold text-grey-900" style={{ gridTemplateColumns: CABINET_ROW }}>
+              <span style={{ gridColumn: "1 / 8" }}>Total ({shown.length} {shown.length === 1 ? "cabinet" : "cabinets"})</span>
+              <span className="num text-center">{shown.reduce((t, x) => t + x.qty, 0)} pcs</span>
+              <span className="num text-center">{shown.reduce((t, x) => t + x.sqft, 0).toFixed(2)}</span>
+              <span className="num text-right">₹{shown.reduce((t, x) => t + x.amount, 0).toFixed(2)}</span>
+              <span />
+            </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
   // Search and sorting of the units table; each unit keeps its own number.
   const shownUnits = arrange(units.map((unit, index) => ({ unit, index })), ({ unit, index }) => unitValues(unit, index));
   const onDragEnd = (event: DragEndEvent) => {
@@ -236,7 +403,7 @@ export function UnitsSection({
       {bare && units.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex w-fit rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Show">
-            {([["units", "All Units", units.length], ["shutter", "Shutter", shutterCount], ["hardware", "Hardware", hardwareCount], ["merge", "Merge Hardware", merged.length]] as const).map(([k, label, n]) => (
+            {([["units", "All Units", units.length], ["carcass", "Carcass", furnCount("carcass")], ["shutter", "Shutter", furnCount("shutter")], ["panel", "Other Panel", furnCount("panel")], ["hardware", "Hardware", hardwareCount], ["merge", "Merge Hardware", merged.length]] as const).map(([k, label, n]) => (
               <button
                 key={k}
                 type="button"
@@ -249,6 +416,27 @@ export function UnitsSection({
               </button>
             ))}
           </div>
+          {/* Requirement Order: All / Pending / Sent lines, and Send to PO once something is ticked. */}
+          {send && view !== "units" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Lines">
+                {(["all", "pending", "sent"] as const).map((k) => (
+                  <button key={k} type="button" role="tab" aria-selected={lineFilter === k} onClick={() => setLineFilter(k)} className={`rounded-md px-2.5 py-0.5 text-xs font-body font-medium ${lineFilter === k ? "bg-blush font-semibold text-grey-900" : "text-grey-600 hover:bg-light-600"}`}>
+                    {k === "all" ? "All" : k === "pending" ? "Pending" : "Sent"}
+                  </button>
+                ))}
+              </div>
+              {pickedLive.length > 0 && (
+                <div className="flex items-center gap-2 rounded-lg bg-primary-transparent px-2 py-1">
+                  <span className="text-xs font-body font-semibold text-grey-900"><span className="font-number">{pickedLive.length}</span> {pickedLive.length === 1 ? "line" : "lines"} ticked</span>
+                  <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => setPicked(new Set())}>Clear</Button>
+                  <Button type="button" size="sm" className="h-6 px-2 text-xs" disabled={!!send.blocked} title={send.blocked} onClick={() => send.onSend(pickedLive)}>
+                    <Send className="h-3 w-3" /> Send to PO
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
           {bare && (
             <div className="relative w-64 max-w-full">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
@@ -271,10 +459,10 @@ export function UnitsSection({
           <div className="quote-dense">
             <div className="-mx-2 overflow-x-auto">
               <div className="min-w-[1060px]">
-                <HardwareTableHeader withNo sort={sort} onSort={onSort} />
+                {withTick(mergedShown.flatMap(({ m }) => [...m.ids]), "every line shown", <HardwareTableHeader withNo sort={sort} onSort={onSort} />)}
                 <DndContext sensors={sensors} collisionDetection={closestCenter}>
                   <SortableContext items={mergedShown.map(({ m }) => m.item.id)} strategy={verticalListSortingStrategy}>
-                    {mergedShown.map(({ m, i }) => (
+                    {mergedShown.map(({ m, i }) => withTick([...m.ids], `merged line ${i + 1}`, (
                       <UnitTypeHardwareRow
                         key={m.item.id}
                         table
@@ -284,35 +472,41 @@ export function UnitsSection({
                         onChange={(patch) => editMerged(m, patch)}
                         onRemove={() => removeMerged(m)}
                       />
-                    ))}
+                    ), m.item.id))}
                   </SortableContext>
                 </DndContext>
+                {withTick([], "", (
                 <div className="flex justify-between border-t border-grey-100 bg-primary-transparent px-3 py-1.5 text-[11px] font-body font-semibold text-grey-900">
                   <span>Total ({merged.reduce((t, m) => t + m.lines, 0)} lines merged into {merged.length})</span>
                   <span className="[font-family:var(--font-manrope)]">{formatInr(merged.reduce((t, m) => t + m.amount, 0))}</span>
                 </div>
+                ))}
               </div>
             </div>
           </div>
         )
+      ) : bare && view === "carcass" && units.length > 0 ? (
+        carcassByCabinet()
       ) : bare && view !== "units" && units.length > 0 ? (
         <div className="quote-dense">
           {(() => {
-            // One table of every shutter (or hardware) line in the quote, numbered by unit: 1.1, 1.2, 1.3 ... then 2.1 ...
+            // One table of every line of the group (or hardware) in the quote, numbered by unit: 1.1, 1.2, 1.3 ... then 2.1 ...
             const numbered = <T,>(pick: (c: QuoteCabinet) => T[]) =>
               units.flatMap((u, i) => {
                 let n = 0;
                 return u.cabinets.flatMap((c) => pick(c).map((item) => ({ u, c, item, no: `${i + 1}.${++n}` })));
               });
-            const shutterRows = view === "shutter" ? numbered((c) => c.externalFinishes) : [];
+            const furnRows = furn ? numbered(furn.pick) : [];
             const hardwareRows = view === "hardware" ? numbered((c) => c.hardware) : [];
-            const rows = [...shutterRows, ...hardwareRows];
-            const shownShutter = arrange(shutterRows, (r) => shutterValues(r.item, r.u, r.no));
-            const shownHardware = arrange(hardwareRows, (r) => hardwareValues(r.item, r.no, undefined, r.u));
+            const rows = [...furnRows, ...hardwareRows];
+            const fv = (r: (typeof furnRows)[number]) => furnValues(r.item, dimsFor(view as FurnView, r.u, r.c), r.no);
+            const shownShutter = arrange(furnRows, fv).filter((r) => passes([r.item.id]));
+            const shownHardware = arrange(hardwareRows, (r) => hardwareValues(r.item, r.no, undefined, r.u)).filter((r) => passes([r.item.id]));
+            const shownIds = [...shownShutter, ...shownHardware].map((r) => r.item.id);
             if (rows.length === 0) {
               return (
                 <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">
-                  No {view === "shutter" ? "shutter" : "hardware"} lines yet. Open a unit and use its Add {view === "shutter" ? "Shutter" : "Hardware"} button.
+                  No {{ carcass: "carcass", shutter: "shutter", panel: "other panel", hardware: "hardware" }[view as string]} lines yet. Open a unit and use its {{ carcass: "Add Component", shutter: "Add Shutter", panel: "Other Panel", hardware: "Add Hardware" }[view as string]} button.
                 </p>
               );
             }
@@ -323,33 +517,37 @@ export function UnitsSection({
             return (
               <div className="-mx-2 overflow-x-auto">
                 <div className="min-w-[1060px]">
-                  {view === "shutter" ? <FurnitureTableHeader showComponentName showLevelType={false} nameLabel="External Finish" withNo sort={sort} onSort={onSort} /> : <HardwareTableHeader withNo sort={sort} onSort={onSort} />}
+                  {withTick(shownIds, "every line shown", furn ? <FurnitureTableHeader showComponentName showLevelType={furn.level} nameLabel={furn.label} withNo sort={sort} onSort={onSort} /> : <HardwareTableHeader withNo sort={sort} onSort={onSort} />)}
                   {/* Dragging is off here (the number takes the handle's place); rows are reordered inside their unit. */}
                   <DndContext sensors={sensors} collisionDetection={closestCenter}>
                     <SortableContext items={[...shownShutter, ...shownHardware].map((r) => r.item.id)} strategy={verticalListSortingStrategy}>
-                      {shownShutter.map(({ u, c, item, no }) => (
+                      {furn && shownShutter.map((r) => {
+                          const { u, c, item, no } = r;
+                          const list = furn.pick(c);
+                          const dims = dimsFor(view as FurnView, u, c);
+                          return withTick([item.id], `line ${no}`, (
                           <FurnitureLineItemRow
                             key={item.id}
                             table
                             rowNo={no}
                             value={item}
-                            label="External Finish"
+                            label={furn.label}
                             showComponentName
-                            totalSqFt={
-                              ((evaluateFormula(item.widthFormula, { W: u.width, D: u.depth, H: u.height }) * evaluateFormula(item.heightFormula, { W: u.width, D: u.depth, H: u.height })) / SQMM_PER_SQFT) * item.qty
-                            }
-                            unitDims={{ W: u.width, D: u.depth, H: u.height }}
-                            onChange={(patch) => patchCabinet(u.id, c.id, { externalFinishes: c.externalFinishes.map((x) => (x.id === item.id ? { ...x, ...patch } : x)) })}
-                            onRemove={() => patchCabinet(u.id, c.id, { externalFinishes: c.externalFinishes.filter((x) => x.id !== item.id) })}
+                            showLevelType={furn.level}
+                            totalSqFt={fv(r).sqft}
+                            unitDims={dims}
+                            onChange={(patch) => patchCabinet(u.id, c.id, furn.put(list.map((x) => (x.id === item.id ? { ...x, ...patch } : x))))}
+                            onRemove={() => patchCabinet(u.id, c.id, furn.put(list.filter((x) => x.id !== item.id)))}
                             onCopy={() => {
-                              const at = c.externalFinishes.findIndex((x) => x.id === item.id);
-                              const next = [...c.externalFinishes];
+                              const at = list.findIndex((x) => x.id === item.id);
+                              const next = [...list];
                               next.splice(at + 1, 0, { ...item, id: newId("qli") });
-                              patchCabinet(u.id, c.id, { externalFinishes: next });
+                              patchCabinet(u.id, c.id, furn.put(next));
                             }}
                           />
-                        ))}
-                      {shownHardware.map(({ u, c, item, no }) => (
+                          ), item.id);
+                        })}
+                      {shownHardware.map(({ u, c, item, no }) => withTick([item.id], `line ${no}`, (
                           <UnitTypeHardwareRow
                             key={item.id}
                             table
@@ -364,29 +562,30 @@ export function UnitsSection({
                               patchCabinet(u.id, c.id, { hardware: next });
                             }}
                           />
-                      ))}
+                      ), item.id))}
                     </SortableContext>
                   </DndContext>
                   {/* Hardware: the amount total of the lines listed above, under the Amount column. */}
-                  {view === "hardware" && shownHardware.length > 0 && (
+                  {view === "hardware" && shownHardware.length > 0 && withTick([], "", (
                     <div className="grid items-center gap-x-1.5 border-t border-grey-100 bg-[var(--table-head)] px-2 py-1.5 text-sm font-semibold text-grey-900" style={{ gridTemplateColumns: HARDWARE_TABLE_COLUMNS.replace("20px", "44px") }}>
                       <span style={{ gridColumn: "1 / 10" }}>Total ({shownHardware.length} lines)</span>
                       <span className="num text-right">₹{shownHardware.reduce((n, r) => n + hardwareValues(r.item, r.no, undefined, r.u).amount, 0).toFixed(2)}</span>
                       <span />
                     </div>
-                  )}
-                  {/* Shutter: the totals of the lines listed above, under their own columns (Qty, Sq.ft and Amount). */}
-                  {view === "shutter" && shownShutter.length > 0 && (
-                    <div className="grid items-center gap-x-1.5 border-t border-grey-100 bg-[var(--table-head)] px-2 py-1.5 text-sm font-semibold text-grey-900" style={{ gridTemplateColumns: furnitureTableColumns(true, false, true) }}>
+                  ))}
+                  {/* Carcass / Shutter / Other Panel: the totals of the lines listed above, under their own columns (Qty, Sq.ft and Amount). */}
+                  {furn && shownShutter.length > 0 && withTick([], "", (
+                    <div className="grid items-center gap-x-1.5 border-t border-grey-100 bg-[var(--table-head)] px-2 py-1.5 text-sm font-semibold text-grey-900" style={{ gridTemplateColumns: furnitureTableColumns(true, furn.level, true) }}>
                       <span style={{ gridColumn: "1 / 5" }}>Total</span>
                       <span className="num text-center">{shownShutter.reduce((n, r) => n + r.item.qty, 0)}</span>
                       <span />
-                      <span className="num text-center">{shownShutter.reduce((n, r) => n + shutterValues(r.item, r.u, r.no).sqft, 0).toFixed(2)}</span>
+                      <span className="num text-center">{shownShutter.reduce((n, r) => n + fv(r).sqft, 0).toFixed(2)}</span>
                       <span style={{ gridColumn: "8 / 12" }} />
-                      <span className="num text-right">₹{shownShutter.reduce((n, r) => n + shutterValues(r.item, r.u, r.no).amount, 0).toFixed(2)}</span>
+                      <span className="num text-right">₹{shownShutter.reduce((n, r) => n + fv(r).amount, 0).toFixed(2)}</span>
+                      {furn.level && <span />}
                       <span />
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
             );

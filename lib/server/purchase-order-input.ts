@@ -1,4 +1,5 @@
 import "server-only";
+import { MFG_STEPS } from "@/lib/purchase-order";
 
 const str = (v: unknown) => String(v ?? "");
 const num = (v: unknown, d = 0) => (typeof v === "number" && Number.isFinite(v) ? v : d);
@@ -141,6 +142,27 @@ export function cleanMaterial(m: unknown) {
           { pieces: (Array.isArray(v?.pieces) ? (v.pieces as Record<string, unknown>[]) : []).slice(0, 500).map((x) => ({ done: x?.done === true, note: str(x?.note).slice(0, 300) })) },
         ] as const)
     ),
+    // Manufacturing page: the factory steps ticked on each piece; done is worked out here (every step ticked).
+    manufacturing: Object.fromEntries(
+      Object.entries((o.manufacturing ?? {}) as Record<string, Record<string, unknown>>)
+        .filter(([k]) => k)
+        .map(([k, v]) => [
+          str(k).slice(0, 200),
+          {
+            pieces: (Array.isArray(v?.pieces) ? (v.pieces as Record<string, unknown>[]) : []).slice(0, 500).map((x) => {
+              const raw = (x?.steps ?? {}) as Record<string, unknown>;
+              const steps = Object.fromEntries(MFG_STEPS.filter(([s]) => raw[s] === true).map(([s]) => [s, true] as const));
+              return { done: MFG_STEPS.every(([s]) => steps[s]), note: str(x?.note).slice(0, 300), steps };
+            }),
+          },
+        ] as const)
+    ),
+    fromPoId: str(o.fromPoId).slice(0, 60) || undefined,
+    fromRequirement: (() => {
+      const v = o.fromRequirement as { roId?: unknown; lines?: unknown } | undefined;
+      const roId = str(v?.roId).slice(0, 60);
+      return roId ? { roId, lines: list(v?.lines).slice(0, 5000).map((x) => x.slice(0, 80)) } : undefined;
+    })(),
     // Proforma Production page, Edge Band tab.
     edgeBandCombos: Object.fromEntries(
       Object.entries((o.edgeBandCombos ?? {}) as Record<string, Record<string, unknown>>)

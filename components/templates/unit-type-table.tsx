@@ -32,9 +32,7 @@ export function UnitTypeTable() {
     return links.length > 1 ? `${primary} +${links.length - 1}` : primary;
   };
 
-  // Comp. checkbox (Actions), saved on the unit type: unticked shows 0 components and keeps its component rows out of the purchase order PDF.
-  const counted = (i: UnitType) => i.countComponents !== false;
-  const compCount = (i: UnitType) => (counted(i) ? i.components.length : 0);
+  const compCount = (i: UnitType) => i.components.length;
 
   const [search, setSearch] = useState("");
   const searched = items.filter((i) => {

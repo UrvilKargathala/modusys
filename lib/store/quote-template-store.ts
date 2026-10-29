@@ -18,6 +18,7 @@ function createTemplateStore(url: string) {
   // settings object.
   let settings: QuoteTemplateSettings = mockQuoteTemplateSettings;
   let hydrated = false;
+  let loading: Promise<unknown> = Promise.resolve();
   const listeners = new Set<() => void>();
 
   const putSettings = makeDebouncedPut(url);
@@ -32,7 +33,7 @@ function createTemplateStore(url: string) {
   function ensureHydrated() {
     if (hydrated || typeof window === "undefined") return;
     hydrated = true;
-    void fetchJson<QuoteTemplateSettings>(url).then((data) => {
+    loading = fetchJson<QuoteTemplateSettings>(url).then((data) => {
       if (data) {
         settings = data;
         emit();
@@ -51,6 +52,12 @@ function createTemplateStore(url: string) {
     },
     getServerSnapshot() {
       return mockQuoteTemplateSettings;
+    },
+    // The saved settings, once loaded (for code that runs outside React, like the job status moves).
+    async ready() {
+      ensureHydrated();
+      await loading;
+      return settings;
     },
     updateLayout(fields: Partial<QuoteTemplateSettings["layout"]>) {
       ensureHydrated();
@@ -161,4 +168,9 @@ export function useQuoteTemplateSettings() {
 
 export function usePurchaseTemplateSettings() {
   return useSyncExternalStore(purchaseTemplateStore.subscribe, purchaseTemplateStore.getSnapshot, purchaseTemplateStore.getServerSnapshot);
+}
+
+// Company setting: does this company run its own factory? (Templates page switch.)
+export function useOwnFactory() {
+  return useQuoteTemplateSettings().layout.ownFactory !== false;
 }

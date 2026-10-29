@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { PoStatus, PurchaseOrder, PurchaseOrderLine } from "@/lib/purchase-order";
+import { asPoStatus, type PoStatus, type PurchaseOrder, type PurchaseOrderLine } from "@/lib/purchase-order";
 
 // Backed by /api/purchase-orders. One fetch on first use, no polling. Writes
 // wait for the server (a PO is a snapshot — no optimistic guessing) and then
@@ -68,25 +68,18 @@ export const purchaseOrdersStore = {
       await fetch("/api/purchase-orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) })
     );
     put(po);
+    // Its quote's job status may move (a Proforma Invoice made from the job's PO). Loaded late: job-flow imports the quotes store, which imports this one.
+    void import("@/lib/job-flow").then((m) => m.advanceJobFromOrder(po, true));
     return po;
   },
-  // Auto-create for a quote that just went In Production: the server returns the existing PO instead of making a second one.
-  async createOnceForQuote(input: PurchaseOrderInput): Promise<{ po: PurchaseOrder; created: boolean }> {
-    ensureHydrated();
-    const res = await fetch("/api/purchase-orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...input, onlyIfNone: true }),
-    });
-    const po = await save(res);
-    put(po);
-    return { po, created: res.status === 201 };
-  },
   async update(id: string, fields: Partial<PurchaseOrderInput> & { status?: PoStatus }): Promise<PurchaseOrder> {
+    const before = orders.find((o) => o.id === id)?.status;
     const po = await save(
       await fetch(`/api/purchase-orders/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fields) })
     );
     put(po);
+    // A status that really changed may move its quote's job status (Dispatched).
+    if (before === undefined || asPoStatus(before) !== asPoStatus(po.status)) void import("@/lib/job-flow").then((m) => m.advanceJobFromOrder(po, false));
     return po;
   },
   async remove(id: string) {

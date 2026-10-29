@@ -2,14 +2,15 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Download, FileText, History, Pencil, Layers, Plus, Printer, Ruler, RotateCcw, Save, Scissors, Store, Tag, Trash2, X } from "lucide-react";
+import { ArrowLeft, Boxes, Check, Download, FileText, History, Pencil, Layers, Plus, Printer, Ruler, RotateCcw, Save, Scissors, Store, Tag, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SpecTable, L, V } from "@/components/quotes/create/spec-table";
 import { PoWhereSelect } from "@/components/purchase-orders/po-where-select";
-import { ProformaCutList, type CutRow } from "@/components/purchase-orders/proforma-cutlist";
+import { CUT_SHEET, ProformaCutList, cutGroups, printWithLetterhead, sheetsNeeded, type CutRow } from "@/components/purchase-orders/proforma-cutlist";
+import { hardwareKey } from "@/components/purchase-orders/po-hardware-tab";
 import { SelectField } from "@/components/shared/select-field";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
 import { useCurrentUser } from "@/lib/session";
-import { asPoStatus, mostUsed, poStatusLabel, type PoMaterial, type PurchaseOrder } from "@/lib/purchase-order";
+import { MFG_STEPS, asPoStatus, mostUsed, poStatusLabel, type MfgStep, type PoMaterial, type PurchaseOrder } from "@/lib/purchase-order";
 import { cutListHeaders, cutListRows, poDetailSections, psLabel } from "@/lib/purchase-order-export";
 
 // A colour picker listing only the colours the components use (the Edge Band tab), as the saved "Brand — Colour" text.
@@ -119,13 +120,124 @@ function MaterialDetailsLocked({ po }: { po: PurchaseOrder }) {
   );
 }
 
-type Packing = NonNullable<PoMaterial["packing"]>;
+// Work Order > Material Procurement: what to buy for this order. Boards = the Cut List's groups with the sheets they need (at the Cut List's starting
+// sheet size), edge band = the Required Edge Band List with its wastage, hardware = the order's hardware rows added up per item; rows that are not in a
+// cabinet are Misc Hardware. Nothing here is saved: it follows the order, the work order edits and the Edge Band tab.
+type BandNeed = { code: string; width: string; len: number; pct: number; total: number; bandWidth: string; bandThk: string };
+function MaterialProcurement({ po, cutRows, bands, branding }: { po: PurchaseOrder; cutRows: CutRow[]; bands: BandNeed[]; branding: { companyName: string; logoDataUrl?: string } }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const boards = useMemo(
+    () => cutGroups(cutRows).map(([key, g]) => ({
+      key,
+      first: g.rows[0],
+      pieces: g.rows.reduce((n, r) => n + r.qty, 0),
+      sqft: g.rows.reduce((n, r) => n + (r.w * r.h * r.qty) / 92903.04, 0),
+      ...sheetsNeeded(g.rows),
+    })),
+    [cutRows]
+  );
+  const hardware = useMemo(() => {
+    const sum = (loose: boolean) => {
+      const m = new Map<string, { brand: string; category: string; description: string; articleNo: string; unit: string; qty: number }>();
+      for (const l of po.lines) {
+        const inCabinet = !!po.material.cabinets[String(l.srNo)];
+        if (l.group !== "hardware" || inCabinet === loose) continue;
+        const k = hardwareKey(l);
+        const e = m.get(k) ?? { brand: l.brand, category: l.category, description: l.description, articleNo: l.articleNo, unit: l.unit, qty: 0 };
+        e.qty += l.qty;
+        m.set(k, e);
+      }
+      const cmp = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true });
+      return [...m.values()].sort((a, b) => cmp(a.brand, b.brand) || cmp(a.category, b.category) || cmp(a.description, b.description));
+    };
+    return { cabinet: sum(false), misc: sum(true) };
+  }, [po]);
+  const q = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+  const th = "whitespace-nowrap px-4 py-2 text-left font-body font-semibold";
+  const td = "px-4 py-2 font-body text-grey-900";
+  const tdn = "px-4 py-2 text-right font-number text-grey-900";
+  // The last `numCols` columns hold numbers (right-aligned).
+  const table = (title: string, heads: string[], numCols: number, body: React.ReactNode, foot?: React.ReactNode, empty = "Nothing to buy.") => (
+    <div className="po-dense finish-table flex flex-col gap-2">
+      <h3 className="font-heading text-base font-semibold text-grey-900">{title}</h3>
+      <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
+        <table className="w-full text-left">
+          <thead className="bg-[var(--table-head)]"><tr>{heads.map((h, i) => <th key={h} className={`${th} ${i >= heads.length - numCols ? "text-right" : ""}`}>{h}</th>)}</tr></thead>
+          <tbody>{body ?? <tr><td colSpan={heads.length} className="px-4 py-6 text-center text-grey-400">{empty}</td></tr>}</tbody>
+          {foot}
+        </table>
+      </div>
+    </div>
+  );
+  const hwTable = (title: string, list: typeof hardware.cabinet, empty: string) =>
+    table(title, ["Brand", "Category", "Description", "Article No", "Unit", "Qty"], 1, list.length ? list.map((h, i) => (
+      <tr key={i} className="border-t border-grey-100">
+        <td className={td}>{h.brand || "—"}</td><td className={td}>{h.category || "—"}</td><td className={td}>{h.description || "—"}</td><td className={`${td} font-number`}>{h.articleNo || "—"}</td><td className={td}>{h.unit || "—"}</td><td className={tdn}>{q(h.qty)}</td>
+      </tr>
+    )) : null, undefined, empty);
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-end">
+        <Button type="button" size="sm" variant="outline" onClick={() => ref.current && printWithLetterhead(ref.current, `Material Procurement ${po.poNumber}`, branding, po.poNumber, "Material Procurement")}>
+          <Download className="h-4 w-4" /> PDF
+        </Button>
+      </div>
+      <div ref={ref} className="flex flex-col gap-4">
+        {table(
+          "Boards",
+          ["Material", "Thickness", "Internal Colour", "External Colour", "Pieces", "Area (Sq.Ft)", `Sheets (${CUT_SHEET.l} x ${CUT_SHEET.w})`],
+          3,
+          boards.length ? boards.map((b) => (
+            <tr key={b.key} className="border-t border-grey-100">
+              <td className={td}>{b.first.material || "—"}</td><td className={`${td} font-number`}>{b.first.thk ? `${b.first.thk} mm` : "—"}</td><td className={td}>{b.first.internal || "—"}</td><td className={td}>{b.first.external || "—"}</td>
+              <td className={tdn}>{b.pieces}</td><td className={tdn}>{b.sqft.toFixed(2)}</td>
+              <td className={`${tdn} font-semibold`}>{b.sheets}{b.unfit ? <span className="ml-1 font-normal text-error" title="Pieces bigger than the sheet">+{b.unfit} too big</span> : null}</td>
+            </tr>
+          )) : null,
+          boards.length ? (
+            <tfoot><tr className="border-t border-grey-100 bg-[var(--table-head)] font-semibold">
+              <td className={td} colSpan={4}>Total</td>
+              <td className={tdn}>{boards.reduce((n, b) => n + b.pieces, 0)}</td><td className={tdn}>{boards.reduce((n, b) => n + b.sqft, 0).toFixed(2)}</td><td className={tdn}>{boards.reduce((n, b) => n + b.sheets, 0)}</td>
+            </tr></tfoot>
+          ) : undefined,
+          "No components with a width, height and quantity."
+        )}
+        {table(
+          "Edge Band",
+          ["Edge Band Code", "Panel Thickness", "Edge Band Width", "Edge Band Thickness", "Qty (Mtr)", "Wastage %", "Total Qty (Mtr)"],
+          3,
+          bands.length ? bands.map((b) => (
+            <tr key={`${b.code}|${b.width}`} className="border-t border-grey-100">
+              <td className={`${td} font-number font-semibold`}>{b.code}</td><td className={`${td} font-number`}>{b.width ? `${b.width} mm` : "—"}</td><td className={`${td} font-number`}>{b.bandWidth ? `${b.bandWidth} mm` : "—"}</td><td className={`${td} font-number`}>{b.bandThk ? `${b.bandThk} mm` : "—"}</td>
+              <td className={tdn}>{(b.len / 1000).toFixed(2)}</td><td className={tdn}>{b.pct}</td><td className={`${tdn} font-semibold`}>{b.total.toFixed(2)}</td>
+            </tr>
+          )) : null,
+          bands.length ? (
+            <tfoot><tr className="border-t border-grey-100 bg-[var(--table-head)] font-semibold">
+              <td className={td} colSpan={6}>Total</td><td className={tdn}>{bands.reduce((n, b) => n + b.total, 0).toFixed(2)}</td>
+            </tr></tfoot>
+          ) : undefined,
+          "No edge band yet. Set it on the Edge Band tab."
+        )}
+        {hwTable("Hardware", hardware.cabinet, "No cabinet hardware on this order.")}
+        {hwTable("Misc Hardware", hardware.misc, "No loose hardware on this order.")}
+      </div>
+    </div>
+  );
+}
+
+// One piece of a row: packed (Packing) or every factory step ticked (Manufacturing), its note, its box (Packing) and its ticked steps (Manufacturing).
+type Piece = { done: boolean; note: string; seq?: number; tr?: number; steps?: Partial<Record<MfgStep, boolean>> };
+type Packing = Record<string, { pieces: Piece[] }>;
 
 // The Packing page of a Proforma Invoice: everything about the invoice is shown but locked; only the Packed ticks (one per piece, Qty of them)
 // and each piece's note can be changed. Saved on the invoice (material.packing), keyed by the row.
-// mode "production" is the same page for the Production tab: produced ticks and notes only (no transport, boxes or numbers).
-export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode?: "packing" | "production" }) {
+// mode "production" is the same page for the Work Order tab: edge band, cut list and Material Procurement (no ticks, transport, boxes or numbers).
+// mode "manufacturing": every factory step (Pressing … Quality Check) ticked per piece, with a note per piece (material.manufacturing).
+export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode?: "packing" | "production" | "manufacturing" }) {
   const isProd = mode === "production";
+  const isMfg = mode === "manufacturing";
+  const isPack = mode === "packing";
   const router = useRouter();
   const po = usePurchaseOrders().find((o) => o.id === id);
   const vendors = useAllVendors();
@@ -147,18 +259,18 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
   // Show all rows, only the pieces still to pack, or only those already packed.
   const [filter, setFilter] = useState<"all" | "pending" | "completed">("all");
   // Dealer, Proforma and Material details are tabs like the invoice editor; the work list sits under them, always shown.
-  const [tab, setTab] = useState<"dealer" | "details" | "material" | "edge" | "cutlist">("dealer");
+  const [tab, setTab] = useState<"dealer" | "details" | "material" | "edge" | "cutlist" | "procurement">("dealer");
   // Production only: the edge band and sides of each thickness + internal + external colour combination of the components, saved on the invoice with the produced ticks.
   const [edgeCombos, setEdgeCombos] = useState<NonNullable<PoMaterial["edgeBandCombos"]>>({});
   const editCombo = (key: string, patch: Partial<{ band: string; where: string; bandW: string; bandH: string }>) => { setEdgeCombos((m) => ({ ...m, [key]: { ...(m[key] ?? { band: "", where: "" }), ...patch } })); setDirty(true); };
   // Production: the sides of each component that get edge band (ticks in the Components table).
   const [edgeSides, setEdgeSides] = useState<NonNullable<PoMaterial["edgeBandSides"]>>({});
-  // Components table: drag the edge of a heading to resize that column. Widths are kept in this browser (one set for Production, one for Packing).
-  const widthsKey = `components-col-widths-${isProd ? "production" : "packing"}`;
+  // Components table: drag the edge of a heading to resize that column. Widths are kept in this browser (one set per page: Work Order, Manufacturing, Packing).
+  const widthsKey = `components-col-widths-${mode}`;
   const headRef = useRef<HTMLTableRowElement>(null);
   const [colW, setColW] = useState<number[] | null>(() => {
     try {
-      const v = typeof window === "undefined" ? null : JSON.parse(window.localStorage.getItem(`components-col-widths-${isProd ? "production" : "packing"}`) ?? "null");
+      const v = typeof window === "undefined" ? null : JSON.parse(window.localStorage.getItem(`components-col-widths-${mode}`) ?? "null");
       return Array.isArray(v) && v.every((n) => typeof n === "number") ? v : null;
     } catch { return null; }
   });
@@ -212,7 +324,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
 
   useEffect(() => {
     if (po && seeded !== po.id) {
-      setPacking((isProd ? po.material.production : po.material.packing) ?? {});
+      setPacking((isProd ? po.material.production : isMfg ? po.material.manufacturing : po.material.packing) ?? {});
       setEdgeCombos(po.material.edgeBandCombos ?? {});
       setEdgeColours(po.material.edgeBandColours ?? []);
       setEdgeSides(po.material.edgeBandSides ?? {});
@@ -223,7 +335,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
       setTransport(po.material.transport?.length ? po.material.transport : [{ name: "", lr: "", date: "", boxes: 0 }]);
       setSeeded(po.id);
     }
-  }, [po, seeded, isProd]);
+  }, [po, seeded, isProd, isMfg]);
 
   const headers = useMemo(() => (po ? cutListHeaders(po, true) : []), [po]);
   // Row key: Sr no + description + size; identical rows get a running number so each keeps its own packing state.
@@ -235,8 +347,8 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
       const n = seen.get(base) ?? 0;
       seen.set(base, n + 1);
       const key = n ? `${base}#${n}` : base;
-      // Production: the edits made in the Components table (Cut List edits) replace the row's values everywhere (Edge Band tables, Cut List, totals).
-      const ed = isProd ? po.material.cutListEdits?.[key] : undefined;
+      // Work Order and Manufacturing: the edits made in the Components table (Cut List edits) replace the row's values everywhere (Edge Band tables, Cut List, totals, pieces).
+      const ed = isProd || isMfg ? po.material.cutListEdits?.[key] : undefined;
       if (!ed) return { key, cells: r };
       const cells = [...r];
       const put = (h: string, v: string | number | undefined) => { const i = h ? cutListHeaders(po, true).indexOf(h) : -1; if (i >= 0 && v !== undefined) cells[i] = v; };
@@ -397,6 +509,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
   // A Proforma Invoice's pages live under /proforma-invoices; a Purchase Order's and a Direct PO's under /purchase-orders (its Production and Packing tabs).
   const isProforma = !!po.material.proforma;
   const base = isProforma ? `/proforma-invoices/${mode}` : `/purchase-orders?tab=${mode}`;
+  const pageTitle = isProd ? "Work Order" : isMfg ? "Manufacturing" : "Packing & Dispatch";
   const dealerTitle = isProforma ? "Dealer Details" : "Vendor Details";
   const detailsTitle = isProforma ? "Proforma Details" : "Purchase Order Details";
 
@@ -408,7 +521,6 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
   const qtyOf = (cells: (string | number)[]) => Math.max(0, Number(cells[8]) || 0);
   // seq = the box number (1, 2, 3 …) of the piece within its transport (tr = that Transport row's index): pieces ticked together share one;
   // each new Transport row starts counting from 1 again.
-  type Piece = { done: boolean; note: string; seq?: number; tr?: number };
   const currentTr = Math.max(0, transport.length - 1);
   // Highest box number so far in a transport.
   const maxSeq = (all: Packing, tr: number) => Math.max(0, ...Object.values(all).flatMap((v) => v.pieces.map((x) => (x.done && (x.tr ?? 0) === tr ? x.seq ?? 0 : 0))));
@@ -423,6 +535,29 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
     });
     setDirty(true);
   };
+  // Manufacturing: tick one step of one piece; a piece is done once every step is ticked.
+  const withStep = (x: Piece, step: MfgStep, on: boolean): Piece => {
+    const steps = { ...x.steps, [step]: on };
+    return { ...x, steps, done: MFG_STEPS.every(([s]) => steps[s]) };
+  };
+  const setStep = (key: string, qty: number, k: number, step: MfgStep, on: boolean) => {
+    setPacking((p) => {
+      const cur = Array.from({ length: qty }, (_, i) => p[key]?.pieces?.[i] ?? { done: false, note: "" });
+      cur[k] = withStep(cur[k], step, on);
+      return { ...p, [key]: { pieces: cur } };
+    });
+    setDirty(true);
+  };
+  // The tick in a step's heading: that step on (or off) for every piece of the rows shown.
+  const setStepAll = (step: MfgStep, on: boolean) => {
+    setPacking((p) => {
+      const next = { ...p };
+      for (const r of visibleRows) next[r.key] = { pieces: Array.from({ length: qtyOf(r.cells) }, (_, i) => withStep(p[r.key]?.pieces?.[i] ?? { done: false, note: "" }, step, on)) };
+      return next;
+    });
+    setDirty(true);
+  };
+  const stepCount = (step: MfgStep) => rows.reduce((n, r) => n + piecesOf(r.key, qtyOf(r.cells)).filter((x) => x.steps?.[step]).length, 0);
   const totalQty = rows.reduce((n, r) => n + qtyOf(r.cells), 0);
   type PieceLike = { done: boolean; seq?: number; tr?: number };
   const matches = (x: PieceLike) =>
@@ -484,7 +619,8 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
 
   // Columns after the table's own: Grain + 4 sides, and the Action column (Edit / History) only while the Edge Band tab is open.
   const showAction = isProd && tab === "edge";
-  const extraCols = isProd ? (showAction ? 6 : 5) : 1;
+  // Manufacturing: one column per step, then the piece notes.
+  const extraCols = isProd ? (showAction ? 6 : 5) : isMfg ? MFG_STEPS.length + 1 : 1;
   // Sq.Ft follows the size shown in the table (edge band thickness and edits included): Width x Height x Qty, mm to square feet.
   const sqFt = (key: string, cells: (string | number)[]) => {
     const cs = cutSize(key, cells);
@@ -540,12 +676,13 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
   const save = async (): Promise<boolean> => {
     setBusy(true);
     try {
-      await purchaseOrdersStore.update(po.id, { material: isProd ? { ...po.material, ...(refCodeEdit !== null ? { refCode: refCodeEdit.trim() || undefined } : {}), production: packing, edgeBandCombos: edgeCombos, edgeBandColours: edgeColours, edgeBandSides: edgeSides, edgeBandCodes: edgeCodes, edgeBandGrain: edgeGrain, usedEdgeBand: bandWidths } : { ...po.material, ...(refCodeEdit !== null ? { refCode: refCodeEdit.trim() || undefined } : {}), packing, transport } });
+      const ref = refCodeEdit !== null ? { refCode: refCodeEdit.trim() || undefined } : {};
+      await purchaseOrdersStore.update(po.id, { material: isProd ? { ...po.material, ...ref, production: packing, edgeBandCombos: edgeCombos, edgeBandColours: edgeColours, edgeBandSides: edgeSides, edgeBandCodes: edgeCodes, edgeBandGrain: edgeGrain, usedEdgeBand: bandWidths } : isMfg ? { ...po.material, ...ref, manufacturing: packing } : { ...po.material, ...ref, packing, transport } });
       setDirty(false);
-      toastStore.show(isProd ? "Production saved" : "Packing saved", "success");
+      toastStore.show(isProd ? "Work order saved" : isMfg ? "Manufacturing saved" : "Packing saved", "success");
       return true;
     } catch (e) {
-      toastStore.show(e instanceof Error ? e.message : isProd ? "Could not save production" : "Could not save packing", "error");
+      toastStore.show(e instanceof Error ? e.message : isProd ? "Could not save the work order" : isMfg ? "Could not save manufacturing" : "Could not save packing", "error");
       return false;
     } finally {
       setBusy(false);
@@ -559,12 +696,12 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
     <div className="-mx-2 flex flex-col gap-2 lg:-mx-4">
       <div className="flex flex-wrap items-center justify-between gap-3 px-2">
         <div className="flex items-center gap-3">
-          <Link href={base} className="rounded-md p-1.5 text-grey-500 hover:bg-light-600 hover:text-primary" aria-label={isProd ? "Back to Production" : "Back to Packing"}>
+          <Link href={base} className="rounded-md p-1.5 text-grey-500 hover:bg-light-600 hover:text-primary" aria-label={`Back to ${pageTitle}`}>
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="font-heading text-2xl font-semibold text-grey-900">{isProd ? "Production" : "Packing"} <span className="font-number text-lg font-normal text-grey-600">({po.poNumber})</span></h1>
-            <p className="text-sm font-body text-grey-500">Status: {poStatusLabel(asPoStatus(po.status))}. {isProd ? "Only the produced ticks and notes can be changed." : "Only the packed ticks and notes can be changed."}</p>
+            <h1 className="font-heading text-2xl font-semibold text-grey-900">{pageTitle} <span className="font-number text-lg font-normal text-grey-600">({po.poNumber})</span></h1>
+            <p className="text-sm font-body text-grey-500">Status: {poStatusLabel(asPoStatus(po.status))}. {isProd ? "Edge band, cut list and the material to buy for this order." : isMfg ? "Tick each step as a piece passes it; only the ticks and notes can be changed." : "Only the packed ticks and notes can be changed."}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -608,8 +745,8 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
       <ConfirmDialog
         open={resetOpen}
         onOpenChange={setResetOpen}
-        title={isProd ? "Reset all production?" : "Reset all packing?"}
-        description={isProd ? "This unticks every box and clears all production notes. It is only saved when you press Save." : "This unticks every box and clears all packing notes and box numbers. It is only saved when you press Save."}
+        title={isMfg ? "Reset all manufacturing?" : "Reset all packing?"}
+        description={isMfg ? "This unticks every step of every piece and clears all manufacturing notes. It is only saved when you press Save." : "This unticks every box and clears all packing notes and box numbers. It is only saved when you press Save."}
         onConfirm={() => {
           setPacking(Object.fromEntries(rows.map((r) => [r.key, { pieces: Array.from({ length: qtyOf(r.cells) }, () => ({ done: false, note: "" })) }])));
           setDirty(true);
@@ -635,7 +772,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
             ["dealer", dealerTitle, Store],
             ["details", detailsTitle, FileText],
             ["material", "Material Details", Layers],
-            ...(isProd ? ([["edge", "Edge Band", Ruler], ["cutlist", "Cut List", Scissors]] as const) : []),
+            ...(isProd ? ([["edge", "Edge Band", Ruler], ["cutlist", "Cut List", Scissors], ["procurement", "Material Procurement", Boxes]] as const) : []),
           ] as const).map(([key, label, Icon]) => (
             <button
               key={key}
@@ -668,6 +805,13 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
           </div>
           {isProd && tab === "cutlist" && (
             <div role="tabpanel"><ProformaCutList rows={cutRows} title={po.poNumber} branding={{ companyName: settings.branding.companyName, logoDataUrl: settings.branding.logoDataUrl ?? undefined }} /></div>
+          )}
+          {isProd && tab === "procurement" && (
+            <div role="tabpanel"><MaterialProcurement po={po} cutRows={cutRows} branding={{ companyName: settings.branding.companyName, logoDataUrl: settings.branding.logoDataUrl ?? undefined }} bands={usedBands().map((b) => {
+              const k = `${b.code}|${b.width}`;
+              const pct = bandWidths[k]?.wastage === undefined || bandWidths[k]?.wastage === "" ? 20 : Math.max(0, Number(bandWidths[k]?.wastage) || 0);
+              return { ...b, pct, total: (b.len / 1000) * (1 + pct / 100), bandWidth: bandWidths[k]?.width ?? "", bandThk: bandWidths[k]?.thickness ?? "" };
+            })} /></div>
           )}
           {isProd && (
             <div role="tabpanel" className={tab === "edge" ? "grid items-start gap-x-6 gap-y-4 xl:grid-cols-2" : "hidden"}>
@@ -761,7 +905,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
         </div>
       </div>
       {/* Transport Details: several transports can be added; the name comes from Proforma Library > Transport Details. */}
-      {!isProd && (
+      {isPack && (
       <section className="flex flex-col gap-2">
         <h2 className="px-2 font-heading text-base font-semibold text-grey-900">Packing and Transport Details</h2>
         {transport.length === 0 ? (
@@ -809,16 +953,22 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
         )}
       </section>
       )}
-      {tab !== "cutlist" && (
+      {tab !== "cutlist" && tab !== "procurement" && (
       <>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-grey-100 bg-white px-5 py-3 shadow-sm">
         <div className="flex min-w-60 flex-1 items-center gap-3">
           <span className="font-heading text-base font-semibold text-grey-900">Components</span>
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-grey-100">
-            <div className="h-full rounded-full bg-success" style={{ width: `${totalQty ? Math.round((totalPacked / totalQty) * 100) : 0}%` }} />
-          </div>
-          <span className="font-number text-sm text-grey-700">{totalPacked} / {totalQty} {isProd ? "produced" : "packed"}</span>
+          {/* The Work Order has no ticks: its progress is on the Manufacturing page. */}
+          {!isProd && (
+            <>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-grey-100">
+                <div className="h-full rounded-full bg-success" style={{ width: `${totalQty ? Math.round((totalPacked / totalQty) * 100) : 0}%` }} />
+              </div>
+              <span className="font-number text-sm text-grey-700">{totalPacked} / {totalQty} {isMfg ? "through all steps" : "packed"}</span>
+            </>
+          )}
         </div>
+        {!isProd && (
         <div className="flex items-center gap-1">
           {([["all", "All", totalQty], ["pending", "Pending", totalQty - totalPacked], ["completed", "Completed", totalPacked]] as const).map(([k, label, n]) => (
             <button
@@ -831,7 +981,8 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
             </button>
           ))}
         </div>
-        {!isProd && (
+        )}
+        {isPack && (
           <Button type="button" size="sm" disabled={totalPacked === 0} onClick={finishBox}>
             <Check className="h-4 w-4" /> Finish box
           </Button>
@@ -841,9 +992,11 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
             <History className="h-4 w-4" /> History
           </Button>
         )}
-        <Button type="button" size="sm" variant="outline" disabled={totalPacked === 0} onClick={() => setResetOpen(true)}>
-          <RotateCcw className="h-4 w-4" /> Reset
-        </Button>
+        {!isProd && (
+          <Button type="button" size="sm" variant="outline" disabled={isMfg ? !rows.some((r) => piecesOf(r.key, qtyOf(r.cells)).some((x) => x.steps && Object.values(x.steps).some(Boolean))) : totalPacked === 0} onClick={() => setResetOpen(true)}>
+            <RotateCcw className="h-4 w-4" /> Reset
+          </Button>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-grey-100 bg-white shadow-sm">
@@ -858,7 +1011,23 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
               {isProd && <th className="relative whitespace-nowrap border border-grey-100 px-2 py-2 text-center font-semibold">Grain<span role="separator" aria-label="Resize Grain" title="Drag to resize, double-click to reset" onPointerDown={(e) => startResize(shown.length, e)} onDoubleClick={resetWidths} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40" /></th>}
               {isProd && SIDES.map(([, label], k) => <th key={label} className="relative whitespace-nowrap border border-grey-100 px-2 py-2 text-center font-semibold">{label}<span role="separator" aria-label={`Resize ${label}`} title="Drag to resize, double-click to reset" onPointerDown={(e) => startResize(shown.length + 1 + k, e)} onDoubleClick={resetWidths} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40" /></th>)}
               {showAction && <th className="whitespace-nowrap border border-grey-100 px-2 py-2 text-center font-semibold">Action</th>}
-              {isProd ? null : (
+              {/* Manufacturing: a column per step; the heading's tick does that step for every piece shown. */}
+              {isMfg && MFG_STEPS.map(([step, label]) => {
+                const n = stepCount(step);
+                return (
+                  <th key={step} className="whitespace-nowrap border border-grey-100 px-2 py-2 text-center font-semibold">
+                    <label className="flex flex-col items-center gap-1">
+                      <span>{label}</span>
+                      <span className="flex items-center gap-1 font-number text-[11px] font-normal text-grey-600">
+                        <input type="checkbox" aria-label={`${label} for every piece shown`} checked={totalQty > 0 && n === totalQty} onChange={(e) => setStepAll(step, e.target.checked)} className="h-3.5 w-3.5 accent-primary" />
+                        {n}/{totalQty}
+                      </span>
+                    </label>
+                  </th>
+                );
+              })}
+              {isMfg && <th className="border border-grey-100 px-2 py-2 font-semibold">Note</th>}
+              {!isPack ? null : (
               <th className="border border-grey-100 px-2 py-2 font-semibold">
                 <div>Packing Box</div>
                 <div className="mt-1 flex items-center gap-1 normal-case">
@@ -888,9 +1057,11 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
                 {newCab && <tr aria-hidden><td colSpan={shown.length + extraCols} className="h-4 bg-light-600 p-0" /></tr>}
                 <tr className={`align-top text-grey-800 ${full ? "bg-success-transparent" : ""}`}>
                   {shown.map(({ h, i }) => {
-                    const ed = isProd ? po.material.cutListEdits?.[key] : undefined;
-                    const f = isProd && (EDIT_F as readonly string[]).includes(h) ? (h as (typeof EDIT_F)[number]) : null;
-                    const value = f === "Description" ? ed?.name ?? cells[i] : f === "Remarks" ? ed?.remarks ?? cells[i] : f && f !== "Width" && f !== "Height" ? ed?.fields?.[f] ?? cells[i] : f === "Width" ? +cutSize(key, cells).w.toFixed(2) : f === "Height" ? +cutSize(key, cells).h.toFixed(2) : isProd && h === "Sq.Ft" ? sqFt(key, cells) : cells[i];
+                    // Work Order and Manufacturing show the work order's sizes (edits and edge band taken off).
+                    const work = isProd || isMfg;
+                    const ed = work ? po.material.cutListEdits?.[key] : undefined;
+                    const f = work && (EDIT_F as readonly string[]).includes(h) ? (h as (typeof EDIT_F)[number]) : null;
+                    const value = f === "Description" ? ed?.name ?? cells[i] : f === "Remarks" ? ed?.remarks ?? cells[i] : f && f !== "Width" && f !== "Height" ? ed?.fields?.[f] ?? cells[i] : f === "Width" ? +cutSize(key, cells).w.toFixed(2) : f === "Height" ? +cutSize(key, cells).h.toFixed(2) : work && h === "Sq.Ft" ? sqFt(key, cells) : cells[i];
                     return (
                       <td key={h} className="overflow-hidden text-ellipsis whitespace-nowrap border border-grey-100 px-2 py-1.5 font-number">
                         {f && showAction && editKey === key ? (
@@ -955,14 +1126,38 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
                       </div>
                     </td>
                   )}
-                  {!isProd && (
+                  {/* Manufacturing: piece k sits on line k of every step column and of the Note column. */}
+                  {isMfg && MFG_STEPS.map(([step, label]) => (
+                    <td key={step} className="border border-grey-100 px-2 py-1">
+                      <div className="flex flex-col items-center gap-1">
+                        {pieces.map((pc, k) => (
+                          <div key={k} className="flex h-7 items-center">
+                            <input type="checkbox" aria-label={`Piece ${k + 1} of row ${cells[0]} ${label}`} checked={!!pc.steps?.[step]} onChange={(e) => setStep(key, qty, k, step, e.target.checked)} className="h-4 w-4 accent-primary" />
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  ))}
+                  {isMfg && (
+                    <td className="border border-grey-100 px-2 py-1">
+                      <div className="flex flex-col gap-1">
+                        {pieces.map((pc, k) => (
+                          <div key={k} className="flex h-7 items-center gap-2">
+                            <span className="w-6 shrink-0 text-right font-number text-[11px] text-grey-500">{k + 1}.</span>
+                            <Input value={pc.note} onChange={(e) => setPiece(key, qty, k, { note: e.target.value })} aria-label={`Note for piece ${k + 1} of row ${cells[0]}`} placeholder="Note" className="h-7 min-w-40 text-xs" />
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  )}
+                  {isPack && (
                   <td className="border border-grey-100 px-2 py-1">
                     <div className="flex flex-col gap-1">
                       {pieces.map((pc, k) => ({ pc, k })).filter(({ pc }) => matches(pc)).map(({ pc, k }) => (
                         <div key={k} className="flex items-center gap-2">
-                          <input type="checkbox" aria-label={`Piece ${k + 1} of row ${cells[0]} ${isProd ? "produced" : "packed"}`} checked={pc.done} onChange={(e) => setPiece(key, qty, k, { done: e.target.checked })} className="h-4 w-4 accent-primary" />
-                          {!isProd && pc.done && pc.seq ? <span className="whitespace-nowrap text-center font-number text-[11px] font-semibold text-primary">{pc.seq} · {psLabel(po.poNumber, pc.tr ?? 0)}</span> : null}
-                          {pc.done && <Input value={pc.note} onFocus={() => { if (!isProd && !pc.seq) numberGroup(); }} onChange={(e) => (isProd ? setPiece(key, qty, k, { note: e.target.value }) : shareNote(pc.seq, pc.tr, e.target.value))} placeholder="Note" className="h-7 min-w-48 text-xs" />}
+                          <input type="checkbox" aria-label={`Piece ${k + 1} of row ${cells[0]} packed`} checked={pc.done} onChange={(e) => setPiece(key, qty, k, { done: e.target.checked })} className="h-4 w-4 accent-primary" />
+                          {pc.done && pc.seq ? <span className="whitespace-nowrap text-center font-number text-[11px] font-semibold text-primary">{pc.seq} · {psLabel(po.poNumber, pc.tr ?? 0)}</span> : null}
+                          {pc.done && <Input value={pc.note} onFocus={() => { if (!pc.seq) numberGroup(); }} onChange={(e) => shareNote(pc.seq, pc.tr, e.target.value)} placeholder="Note" className="h-7 min-w-48 text-xs" />}
                         </div>
                       ))}
                     </div>
@@ -973,7 +1168,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
               );
             })}
             {visibleRows.length === 0 && (
-              <tr><td colSpan={shown.length + extraCols} className="px-3 py-6 text-center text-grey-400">{rows.length === 0 ? "This invoice has no component rows yet." : filter === "pending" ? (isProd ? "Everything is produced." : "Everything is packed.") : isProd ? "Nothing is produced yet." : "Nothing is packed yet."}</td></tr>
+              <tr><td colSpan={shown.length + extraCols} className="px-3 py-6 text-center text-grey-400">{rows.length === 0 ? "This invoice has no component rows yet." : filter === "pending" ? (isMfg ? "Every piece is through all steps." : "Everything is packed.") : isMfg ? "No piece is through all steps yet." : "Nothing is packed yet."}</td></tr>
             )}
           </tbody>
           {visibleRows.length > 0 && (
@@ -981,7 +1176,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
               <tr className="bg-[var(--table-head)] font-semibold text-grey-900">
                 {shown.map(({ h, i }, k) => (
                   <td key={h} className="border border-grey-100 px-2 py-1.5 font-number">
-                    {k === 0 ? "Total" : h === "Qty" ? visibleRows.reduce((n, r) => n + (Number((isProd ? po.material.cutListEdits?.[r.key]?.fields?.Qty : undefined) ?? r.cells[i]) || 0), 0) : h === "Sq.Ft" ? visibleRows.reduce((n, r) => n + (isProd ? Number(sqFt(r.key, r.cells)) : Number(r.cells[i]) || 0), 0).toFixed(2) : ""}
+                    {k === 0 ? "Total" : h === "Qty" ? visibleRows.reduce((n, r) => n + (Number((isProd || isMfg ? po.material.cutListEdits?.[r.key]?.fields?.Qty : undefined) ?? r.cells[i]) || 0), 0) : h === "Sq.Ft" ? visibleRows.reduce((n, r) => n + (isProd || isMfg ? Number(sqFt(r.key, r.cells)) : Number(r.cells[i]) || 0), 0).toFixed(2) : ""}
                   </td>
                 ))}
                 <td colSpan={extraCols} className="border border-grey-100" />

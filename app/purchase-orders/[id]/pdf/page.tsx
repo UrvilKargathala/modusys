@@ -10,7 +10,6 @@ import { usePurchaseOrders, purchaseOrdersStore } from "@/lib/store/purchase-ord
 import { useAllVendors } from "@/lib/store/vendors-store";
 import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
-import { useUnitTypes } from "@/lib/store/unit-type-store";
 import { usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
 import { applyPdfColours } from "@/lib/palette";
 
@@ -27,22 +26,15 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
   const orders = usePurchaseOrders();
   const vendors = useAllVendors();
   const settings = usePurchaseTemplateSettings();
-  const unitTypes = useUnitTypes();
   const po = orders.find((o) => o.id === id);
   const vendor = vendors.find((v) => v.id === po?.vendorId);
   const customer = useCustomers().find((c) => c.id === po?.customerId);
   const quoteNumber = useQuotes().find((q) => q.id === po?.quoteId)?.quoteNumber;
 
-  // Unit types unticked in Templates > Unit Type: their cabinets show just the cabinet title in Carcass, with no component rows
-  // (Shutter, Other Panel and hardware stay; the PO itself and the Excel are unchanged). A cabinet is matched to its unit type by name.
-  // ponytail: two unit types sharing one name both follow the first match.
-  const hiddenNames = new Set(unitTypes.filter((u) => u.countComponents === false).map((u) => u.name));
+  // Cabinets whose own "Components visible" tick is off: just the cabinet title in Carcass, with no component rows
+  // (Shutter, Other Panel and hardware stay; the PO itself and the Excel are unchanged).
   const noComponentCabinets = new Set(
-    // A cabinet's own tick (componentsVisible) wins over its Unit Type's.
-    (po?.lines ?? []).filter((l) => {
-      const c = po?.material.cabinets?.[String(l.srNo)];
-      return l.group === "carcass" && (c?.componentsVisible !== undefined ? !c.componentsVisible : hiddenNames.has(c?.unitName ?? ""));
-    }).map((l) => l.srNo)
+    (po?.lines ?? []).filter((l) => l.group === "carcass" && po?.material.cabinets?.[String(l.srNo)]?.componentsVisible === false).map((l) => l.srNo)
   );
 
   // The PDF letterhead colour saved in Templates > Colour Palette.

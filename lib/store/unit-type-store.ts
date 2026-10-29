@@ -63,12 +63,6 @@ export const unitTypeStore = {
     persist();
     emit();
   },
-  setCountComponents(id: string, value: boolean) {
-    ensureHydrated();
-    items = items.map((i) => (i.id === id ? { ...i, countComponents: value } : i));
-    persist();
-    emit();
-  },
   deleteUnitType(id: string) {
     ensureHydrated();
     items = items.map((i) => (i.id === id ? { ...i, deleted: true } : i));

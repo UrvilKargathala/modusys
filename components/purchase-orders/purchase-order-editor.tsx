@@ -304,7 +304,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   // Any status. Delivered needs a vendor and a PO number; it saves everything on screen too.
   const setStatus = (status: PurchaseOrder["status"]) => {
     if (status === "delivered" && !isDirect && (!draft.vendorId || !draft.poNumber.trim())) {
-      toastStore.show(isProforma ? "Add a dealer and a PI number before marking it Delivered" : "Add a vendor and a PO number before marking it Delivered", "error");
+      toastStore.show(isProforma ? "Add a dealer and a PI number before marking it Dispatched" : "Add a vendor and a PO number before marking it Dispatched", "error");
       return;
     }
     const next = { ...draft, status };

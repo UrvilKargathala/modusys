@@ -18,6 +18,7 @@ export type MaterialCategoryKey =
   | "raw-material-type"
   | "internal-colour"
   | "external-colour"
+  | "finish-material"
   | "thickness"
   | "category"
   | "brand"
@@ -84,6 +85,7 @@ export const materialCategories: MaterialCategory[] = [
   { key: "raw-material-type", group: "library", label: "Raw Material Type" },
   { key: "internal-colour", group: "library", label: "Internal Colours and Description" },
   { key: "external-colour", group: "library", label: "External Colours and Description" },
+  { key: "finish-material", group: "library", label: "Finish Material", noDescription: true },
   { key: "thickness", group: "library", label: "Thickness" },
   { key: "category", group: "library", label: "Category", noDescription: true },
   { key: "brand", group: "library", label: "Brand", noDescription: true },

@@ -145,7 +145,7 @@ export function ClientDetailsSection({
 
           {/* Procurement copy only: its own PR number, as a separate field beside the quote number. */}
           {procurementNumber && (
-            <Field label="Procurement No" htmlFor="q-pr-number" helper="Auto-generated">
+            <Field label="Requirement No" htmlFor="q-pr-number" helper="Auto-generated">
               <div className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 text-sm font-number font-medium text-grey-700">
                 {procurementNumber}
               </div>

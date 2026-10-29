@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, PackageCheck, Copy, Download, FileText, FileSpreadsheet, Trash2 } from "lucide-react";
+import { Eye, PackageCheck, Copy, Download, FileText, FileSpreadsheet, ReceiptText, Trash2 } from "lucide-react";
+import { NewPoDialog } from "@/components/purchase-orders/new-po-dialog";
+import { useOwnFactory } from "@/lib/store/quote-template-store";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { PACKING_PDF_PARTS, PO_EXCEL_PARTS, PO_PDF_PARTS, partLabel } from "@/lib/purchase-order-export";
-import { purchaseOrdersStore } from "@/lib/store/purchase-orders-store";
+import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { nextCopyNumber, type PurchaseOrder } from "@/lib/purchase-order";
 
@@ -17,11 +19,17 @@ import { nextCopyNumber, type PurchaseOrder } from "@/lib/purchase-order";
 export function PoRowActions({ po, proforma, base, showPacking = false, viewHref, packingSlips = false, workOrder = false }: { po: PurchaseOrder; proforma: boolean; base: string; showPacking?: boolean; viewHref?: string; packingSlips?: boolean; workOrder?: boolean }) {
   const router = useRouter();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Purchase Order → Proforma Invoice (one chain): opens the PO's invoice when it has one, otherwise makes it.
+  const [piOpen, setPiOpen] = useState(false);
+  const pi = usePurchaseOrders().find((o) => !!o.material.proforma && o.material.fromPoId === po.id);
+  // Only a company with its own factory goes on from the PO to a Proforma Invoice.
+  const ownFactory = useOwnFactory();
   // Copy = a new Pending PO with the same vendor, material and rows; its number is the next one after the original's (editable before saving).
   const copyPo = async () => {
     const { id: _id, createdAt: _c, vendorName: _v, status: _s, lines, ...rest } = po;
     try {
-      const created = await purchaseOrdersStore.create({ ...rest, poNumber: nextCopyNumber(po.poNumber, purchaseOrdersStore.getSnapshot().map((o) => o.poNumber)), lines: lines.map(({ id: _l, ...l }) => l) });
+      // A copied invoice is not the one that follows the PO, so it drops the link.
+      const created = await purchaseOrdersStore.create({ ...rest, material: { ...rest.material, fromPoId: undefined }, poNumber: nextCopyNumber(po.poNumber, purchaseOrdersStore.getSnapshot().map((o) => o.poNumber)), lines: lines.map(({ id: _l, ...l }) => l) });
       toastStore.show("Purchase order copied", "success");
       router.push(`${base}/${created.id}?copy=1`);
     } catch (e) {
@@ -92,6 +100,18 @@ export function PoRowActions({ po, proforma, base, showPacking = false, viewHref
                         </TooltipTrigger>
                         <TooltipContent>Copy</TooltipContent>
                       </Tooltip>
+                      {!proforma && ownFactory && (
+                        <Tooltip>
+                          <TooltipTrigger
+                            aria-label={pi ? "Open Proforma Invoice" : "Make Proforma Invoice"}
+                            onClick={() => (pi ? router.push(`/proforma-invoices/${pi.id}`) : setPiOpen(true))}
+                            className={`rounded-md p-1.5 transition-colors hover:bg-light-600 hover:text-primary ${pi ? "text-primary" : "text-grey-400"}`}
+                          >
+                            <ReceiptText className="h-4 w-4" />
+                          </TooltipTrigger>
+                          <TooltipContent>{pi ? `Open Proforma Invoice ${pi.poNumber}` : "Make Proforma Invoice"}</TooltipContent>
+                        </Tooltip>
+                      )}
                       <Tooltip>
                         <TooltipTrigger
                           aria-label="Delete"
@@ -117,6 +137,7 @@ export function PoRowActions({ po, proforma, base, showPacking = false, viewHref
           setConfirmDelete(false);
         }}
       />
+      {piOpen && <NewPoDialog proforma fromPo={po} open={piOpen} onOpenChange={setPiOpen} />}
     </div>
   );
 }

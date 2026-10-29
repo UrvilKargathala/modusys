@@ -8,13 +8,15 @@ import { cn } from "@/lib/utils";
 import { mobileTabItems, mobileMoreItems, administrationItems, canSeeNav, navActive } from "@/lib/nav";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useCurrentUser } from "@/lib/session";
+import { useOwnFactory } from "@/lib/store/quote-template-store";
 
 export function MobileBottomNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const currentUser = useCurrentUser();
   const visibleAdminItems = administrationItems.filter((item) => canSeeNav(item, currentUser.role));
-  const visibleMoreItems = mobileMoreItems.filter((item) => canSeeNav(item, currentUser.role));
+  const ownFactory = useOwnFactory();
+  const visibleMoreItems = mobileMoreItems.filter((item) => canSeeNav(item, currentUser.role, ownFactory));
 
   const isMoreActive = [...mobileMoreItems, ...administrationItems].some(
     (item) => navActive(pathname, item)

@@ -3,7 +3,7 @@ import { DashboardPanel } from "@/components/dashboard/dashboard-panel";
 import type { StatusKey } from "@/lib/status";
 
 const DOTS = 20;
-const WON: StatusKey[] = ["approved", "in-procurement", "in-production", "installation", "completed"];
+const WON: StatusKey[] = ["approved", "in-procurement", "in-production", "manufacturing", "dispatched", "installation", "completed"];
 
 // Conversion rate as a row of dots (filled = share converted), then won vs still-open quotes as a split bar
 // with the open part striped and a marker where they meet.
@@ -37,7 +37,7 @@ export function ConversionPanel({ ratePct, distribution }: { ratePct: number; di
           <div className="flex items-end justify-between">
             <div>
               <p className="font-number text-2xl font-semibold text-grey-900">{won}</p>
-              <p className="text-xs font-body text-grey-500">Approved & beyond</p>
+              <p className="text-xs font-body text-grey-500">Confirmed & beyond</p>
             </div>
             <div className="text-right">
               <p className="font-number text-2xl font-semibold text-grey-900">{open}</p>

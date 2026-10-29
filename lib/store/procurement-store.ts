@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 import type { Quote } from "@/lib/mock/quote";
 
 // Procurement copies of quotes (see /api/procurement). One fetch on first use; writes wait for the server.
-// `number`: PR-DDMMYY-NN, from the day the copy was made (India time) and its order that day. Worked out here, not
+// `number`: RO-DDMMYY-NN (Requirement Order), from the day the copy was made (India time) and its order that day. Worked out here, not
 // stored: copies are never deleted, so the order (and the number) never changes.
 export type ProcurementQuote = { id: string; quoteId: string; data: Quote; createdAt: string; updatedAt: string; number?: string };
 
@@ -20,7 +20,7 @@ function withNumbers(list: ProcurementQuote[]): ProcurementQuote[] {
     const day = istDay(r.createdAt);
     const n = (seen.get(day) ?? 0) + 1;
     seen.set(day, n);
-    num.set(r.id, `PR-${day}-${String(n).padStart(2, "0")}`);
+    num.set(r.id, `RO-${day}-${String(n).padStart(2, "0")}`);
   }
   return list.map((r) => ({ ...r, number: num.get(r.id) }));
 }

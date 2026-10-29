@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calculator, ChevronsDown, ChevronsUp, FileText, Layers, Plus, Save, User } from "lucide-react";
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
@@ -15,9 +15,12 @@ import { RemarkAndFinishesSection } from "@/components/quotes/create/remark-and-
 import { blankQuoteUnit, type Quote, type QuoteUnit } from "@/lib/mock/quote";
 import { applyShutterFinishToUnits } from "@/lib/quote-pricing";
 import { procurementStore, useProcurementQuotes } from "@/lib/store/procurement-store";
-import { quotesStore } from "@/lib/store/quotes-store";
-import { createPendingPoForQuote } from "@/lib/purchase-order-auto";
 import { toastStore } from "@/lib/store/toast-store";
+import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
+import { requirementState, useBuildCtx } from "@/lib/requirement-state";
+import { REQUIREMENT_STATUS_LABEL, REQUIREMENT_STATUS_STYLE } from "@/lib/requirement-progress";
+import { SentLinesContext } from "@/components/shared/sent-lines-context";
+import { SendToPoDialog } from "@/components/purchase-orders/send-to-po-dialog";
 
 // Same tabs as the quote editor.
 const TABS = [
@@ -39,6 +42,12 @@ export default function ProcurementEditorPage({ params }: { params: Promise<{ id
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<TabKey>("client");
   const router = useRouter();
+  // Send to PO: which lines are on a PO already (from the POs), the order's status, and the ticked lines being sent.
+  const orders = usePurchaseOrders();
+  const ctx = useBuildCtx();
+  const state = useMemo(() => (row && quote ? requirementState({ id: row.id, quoteId: row.quoteId, data: quote }, orders, ctx) : null), [row, quote, orders, ctx]);
+  const sentNumbers = useMemo(() => new Map([...(state?.sent ?? new Map())].map(([id, po]) => [id, po.poNumber || "a purchase order"])), [state]);
+  const [sending, setSending] = useState<string[] | null>(null);
 
   useEffect(() => {
     if (row && !quote) setQuote(structuredClone(row.data));
@@ -62,10 +71,7 @@ export default function ProcurementEditorPage({ params }: { params: Promise<{ id
     setSaving(true);
     try {
       await procurementStore.update(id, { ...quote, updatedAt: new Date().toISOString() });
-      toastStore.show("Procurement copy saved", "success");
-      // Quote already In Purchase: bring its still-untouched PO in line with this save.
-      const q = quotesStore.getSnapshot().find((x) => x.id === row?.quoteId);
-      if (q?.status === "in-production") void createPendingPoForQuote(q);
+      toastStore.show("Requirement order saved", "success");
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not save", "error");
     } finally {
@@ -74,9 +80,11 @@ export default function ProcurementEditorPage({ params }: { params: Promise<{ id
   };
 
   if (!quote) {
-    return <p className="p-6 text-sm font-body text-grey-400">{procurementStore.isLoaded() ? "This procurement copy doesn't exist." : "Loading…"}</p>;
+    return <p className="p-6 text-sm font-body text-grey-400">{procurementStore.isLoaded() ? "This requirement order doesn't exist." : "Loading…"}</p>;
   }
-  const dirty = !!row && JSON.stringify(quote) !== JSON.stringify(row.data);
+  // Opening or folding units isn't a change (it would block Send to PO until saved).
+  const plain = (q: Quote) => JSON.stringify({ ...q, units: q.units.map(({ collapsed: _c, ...u }) => u) });
+  const dirty = !!row && plain(quote) !== plain(row.data);
   const changeUnits = (units: QuoteUnit[]) => patchQuote({ units });
   const setAllUnitsCollapsed = (collapsed: boolean) => changeUnits(quote.units.map((u) => ({ ...u, collapsed })));
   const panelCls = (key: TabKey) => (tab === key ? "block" : "hidden");
@@ -91,7 +99,7 @@ export default function ProcurementEditorPage({ params }: { params: Promise<{ id
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink href="/procurement">Procurement</BreadcrumbLink>
+              <BreadcrumbLink href="/procurement">Requirement Orders</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
@@ -101,8 +109,15 @@ export default function ProcurementEditorPage({ params }: { params: Promise<{ id
         </Breadcrumb>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-3">
-            <h1 className="font-heading text-2xl font-semibold text-grey-900">Edit Procurement</h1>
+            <h1 className="font-heading text-2xl font-semibold text-grey-900">Edit Requirement Order</h1>
             <span className="rounded-md bg-primary-transparent px-2.5 py-1 font-number text-xs font-medium text-primary">{quote.quoteNumber}</span>
+            {state && (
+              <span className="flex items-center gap-2" title={`${state.progress.sent} of ${state.progress.total} lines on a purchase order, ${state.progress.pending} pending`}>
+                <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-body font-semibold", REQUIREMENT_STATUS_STYLE[state.progress.status])}>{REQUIREMENT_STATUS_LABEL[state.progress.status]}</span>
+                <span className="h-1.5 w-20 overflow-hidden rounded-full bg-grey-100"><span className="block h-full rounded-full bg-success" style={{ width: `${state.progress.pct}%` }} /></span>
+                <span className="font-number text-xs font-semibold text-grey-700">{state.progress.pct}%</span>
+              </span>
+            )}
             <span className="text-sm font-body text-grey-500">{dirty ? "Unsaved changes" : "Copy of the quote, edits here don't change the quote"}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -167,8 +182,10 @@ export default function ProcurementEditorPage({ params }: { params: Promise<{ id
         {/* Every panel stays mounted (just hidden) so nothing loses its state when switching tabs. */}
         <div className="px-2 py-2">
           <div role="tabpanel" className={cn("flex-col gap-5", tab === "items" ? "flex" : "hidden")}>
+            <SentLinesContext.Provider value={sentNumbers}>
             <UnitsSection
               bare
+              send={state ? { sendable: new Set(state.ids), sent: sentNumbers, blocked: dirty ? "Save your changes first" : undefined, onSend: setSending } : undefined}
               units={quote.units}
               shutterFinishId={quote.shutterFinishId}
               shutterFinishOverrides={{
@@ -180,7 +197,9 @@ export default function ProcurementEditorPage({ params }: { params: Promise<{ id
               }}
               onChange={changeUnits}
             />
+            </SentLinesContext.Provider>
             <QuoteTotalsBar quote={quote} />
+            {row && <SendToPoDialog ro={row} lineIds={sending ?? []} open={sending !== null} onOpenChange={(o) => !o && setSending(null)} />}
           </div>
           <div role="tabpanel" className={panelCls("client")}>
             <ClientDetailsSection bare quote={quote} onChange={patchQuote} confirmChanges procurementNumber={row?.number} />

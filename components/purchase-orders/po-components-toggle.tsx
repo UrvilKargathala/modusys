@@ -14,24 +14,22 @@ import {
 import { useUnitTypes } from "@/lib/store/unit-type-store";
 import type { PoCabinet } from "@/lib/purchase-order";
 
-// The Unit Type's "Components visible" tick, shown on the PO's cabinet header (matched by the cabinet's unit name).
-// It is the same saved tick as Templates > Unit Type > Basic Info: unticked keeps the cabinet title only (no component rows)
-// in the PDFs, for every PO that uses that unit type. Nothing shows for a cabinet with no matching unit type.
+// A cabinet's own "Components visible" tick, on the PO's cabinet header: unticked keeps the cabinet title only (no component rows) in the
+// PDFs, for this cabinet only. Ticked until changed (Unit Types no longer have the setting). It shows on cabinets that came from a unit
+// type (matched by the cabinet's unit name) and on every Proforma Invoice cabinet.
 // Changing it shows a message first and only applies when confirmed.
-// proforma: a Proforma Invoice cabinet has no Unit Type, so it keeps only its own tick, ticked by default.
 export function PoComponentsToggle({ unitName, cabinet, onCabinetChange, proforma = false }: { unitName?: string; cabinet: PoCabinet; onCabinetChange: (cabinet: PoCabinet) => void; proforma?: boolean }) {
   const unitTypes = useUnitTypes();
   const [confirming, setConfirming] = useState(false);
   const unitType = unitName ? unitTypes.find((u) => !u.deleted && u.name === unitName) : undefined;
   if (!unitType && !proforma) return null;
   const name = unitType?.name ?? (cabinet.designType || cabinet.label || "cabinet");
-  // This cabinet's own tick; until it is set, it shows the Unit Type's tick. Changing it only changes this cabinet.
-  const on = cabinet.componentsVisible ?? (unitType ? unitType.countComponents !== false : true);
+  const on = cabinet.componentsVisible ?? true;
   return (
     <>
       <label
         className="flex h-8 cursor-pointer items-center px-1"
-        title={`Components visible: ${on ? "ticked, its components print in the PDF" : "unticked, only the cabinet title prints"}. Only this cabinet; Templates > Unit Type keeps its own tick.`}
+        title={`Components visible: ${on ? "ticked, its components print in the PDF" : "unticked, only the cabinet title prints"}. Only this cabinet.`}
       >
         <input
           type="checkbox"

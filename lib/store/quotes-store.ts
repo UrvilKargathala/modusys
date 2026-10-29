@@ -1,6 +1,6 @@
 "use client";
 
-import { createPendingPoForQuote, createProcurementCopy } from "@/lib/purchase-order-auto";
+import { createProcurementCopy } from "@/lib/purchase-order-auto";
 import { useSyncExternalStore } from "react";
 import { mockQuotes, type Quote } from "@/lib/mock/quote";
 import { fetchJson } from "@/lib/store/api-sync";
@@ -10,6 +10,7 @@ import { fetchJson } from "@/lib/store/api-sync";
 // collection.
 let quotes: Quote[] = mockQuotes;
 let hydrated = false;
+let loading: Promise<unknown> = Promise.resolve();
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -19,7 +20,7 @@ function emit() {
 function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
-  void fetchJson<Quote[]>("/api/quotes").then((data) => {
+  loading = fetchJson<Quote[]>("/api/quotes").then((data) => {
     if (data && data.length > 0) {
       quotes = data;
       emit();
@@ -92,6 +93,12 @@ export const quotesStore = {
     ensureHydrated();
     return quotes;
   },
+  // The saved quotes, once loaded (for code that runs outside React, like the job status moves).
+  async ready() {
+    ensureHydrated();
+    await loading;
+    return quotes;
+  },
   getServerSnapshot() {
     return mockQuotes;
   },
@@ -121,9 +128,10 @@ export const quotesStore = {
     const wasInProduction = prevStatus === "in-production";
     quotes = existingIndex >= 0 ? quotes.map((q, i) => (i === existingIndex ? updated : q)) : [updated, ...quotes];
     emit();
-    // An existing quote that just moved to In Production gets its Pending purchase order (see purchase-order-auto).
+    // An existing quote that just moved to In Purchase (Status → Requirement Order) gets its Requirement Order (procurement's
+    // copy, once per quote). Its lines go to Purchase Orders from there (Send to PO).
     // Duplicates, imports and undo are new ids, so they never trigger this.
-    if (existingIndex >= 0 && !wasInProduction && updated.status === "in-production") void createPendingPoForQuote(updated);
+    if (existingIndex >= 0 && !wasInProduction && updated.status === "in-production") void createProcurementCopy(updated);
     // Moving to In Procurement makes procurement's own editable copy of the quote (once per quote).
     if (existingIndex >= 0 && prevStatus !== "in-procurement" && updated.status === "in-procurement") void createProcurementCopy(updated);
     // Upsert this single quote in the shared DB.

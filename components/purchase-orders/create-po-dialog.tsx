@@ -15,6 +15,7 @@ import { pricingListStore } from "@/lib/store/pricing-list-store";
 import { toastStore } from "@/lib/store/toast-store";
 import { procurementStore } from "@/lib/store/procurement-store";
 import { buildPoFromQuote } from "@/lib/purchase-order-from-quote";
+import { sentLines } from "@/lib/requirement-progress";
 import { gstModeFor } from "@/lib/purchase-order";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
 import type { Quote } from "@/lib/mock/quote";
@@ -47,17 +48,27 @@ export function CreatePoDialog({ quote, onOpenChange }: { quote: Quote | null; o
     if (!quote || !vendor) return;
     setBusy(true);
     try {
-      // Same source as the auto-created PO: procurement's edited copy when there is one, otherwise the quote.
-      const source = (await procurementStore.forQuote(quote.id))?.data ?? quote;
-      const { material, lines } = buildPoFromQuote(source, {
+      // Built from its Requirement Order (procurement's edited copy) when there is one, otherwise the quote. With a Requirement Order it
+      // takes only the lines not on a PO yet and remembers them, the same as Send to PO, so the Requirement Order's status follows.
+      const ro = await procurementStore.forQuote(quote.id);
+      const built = buildPoFromQuote(ro?.data ?? quote, {
         materials: materialSpecStore.getSnapshot(),
         unitTypes: unitTypeStore.getSnapshot(),
         hardwareItems: pricingListStore.getHardwareSnapshot(),
       });
-      if (lines.length === 0) {
-        toastStore.show("This quote has no cut-list rows yet — Auto Populate its units first.", "error");
+      const sent = ro ? sentLines(ro.id, quote.id, purchaseOrdersStore.getSnapshot(), built.lines.map((l) => l.sourceId ?? "")) : new Map();
+      const kept = built.lines.filter((l) => !sent.has(l.sourceId ?? ""));
+      if (kept.length === 0) {
+        toastStore.show(built.lines.length ? "Every line of its requirement order is on a purchase order already." : "This quote has no cut-list rows yet — Auto Populate its units first.", "error");
         return;
       }
+      const lines = kept.map(({ sourceId: _s, ...l }, i) => ({ ...l, position: i }));
+      const used = new Set(lines.map((l) => String(l.srNo)));
+      const material = {
+        ...built.material,
+        cabinets: Object.fromEntries(Object.entries(built.material.cabinets).filter(([k]) => used.has(k))),
+        ...(ro ? { fromRequirement: { roId: ro.id, lines: kept.map((l) => l.sourceId ?? "").filter(Boolean) } } : {}),
+      };
       const po = await purchaseOrdersStore.create({
         poNumber: poNumber.trim(),
         poDate,

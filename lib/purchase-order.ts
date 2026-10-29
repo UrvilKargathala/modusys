@@ -19,6 +19,10 @@ export type Vendor = {
   createdAt: string;
 };
 
+// Manufacturing & Dispatch: the factory steps every piece goes through, in order, before Packing. Each is ticked per piece on the Manufacturing page.
+export const MFG_STEPS = [["pressing", "Pressing"], ["cutting", "Cutting"], ["edgeBand", "Edge Band"], ["drilling", "Drilling"], ["manual", "Manual Work"], ["assembly", "Assembly"], ["qc", "Quality Check"]] as const;
+export type MfgStep = (typeof MFG_STEPS)[number][0];
+
 export type PoGroup = "carcass" | "shutter" | "other-panel" | "hardware";
 
 export const PO_GROUPS: { key: PoGroup; code: string; label: string }[] = [
@@ -64,7 +68,8 @@ export type PoStatus = string;
 export const DIRECT_PO_STATUSES: PoStatus[] = ["pending", "confirmed", "in-production", "delivered"];
 // Purchase Orders and Direct Purchase Orders share one set.
 export const PO_STATUSES: PoStatus[] = DIRECT_PO_STATUSES;
-export const PO_STATUS_LABEL: Record<string, string> = { pending: "Pending", confirmed: "Confirmed", "in-production": "In Production", delivered: "Delivered" };
+// Saved value stays "delivered"; shown as Dispatched (the last step of Manufacturing & Dispatch).
+export const PO_STATUS_LABEL: Record<string, string> = { pending: "Pending", confirmed: "Confirmed", "in-production": "In Production", delivered: "Dispatched" };
 // Older POs saved as Part Completed / Completed read as In Production / Delivered; nothing stored is rewritten.
 const LEGACY_STATUS: Record<string, PoStatus> = { "part-completed": "in-production", completed: "delivered" };
 export const asPoStatus = (s: unknown): PoStatus => {
@@ -198,6 +203,12 @@ export type PoMaterial = {
   finishEntries?: { id: string; where: string; rawMaterial: string; internal: string; external: string }[];
   // Proforma Production page: per cut-list row, one entry per piece (Qty) ticked as produced, with its own note (same shape as packing, no boxes).
   production?: Record<string, { pieces: { done: boolean; note: string }[] }>;
+  // Manufacturing page: per cut-list row, one entry per piece (Qty) with the factory steps ticked; done = every step is ticked.
+  manufacturing?: Record<string, { pieces: { done: boolean; note: string; steps?: Partial<Record<MfgStep, boolean>> }[] }>;
+  // A Proforma Invoice made from a Purchase Order (one chain): that PO's id.
+  fromPoId?: string;
+  // A Purchase Order made by Send to PO: the Requirement Order (procurement copy) it came from and the ids of its lines on this PO.
+  fromRequirement?: { roId: string; lines: string[] };
   // Proforma Production page, Edge Band tab: one entry per thickness + internal + external colour combination found on the components (key "thk|internal|external"), with its edge band and the sides it is used on (Top, Bottom, LH, RH; "A,B").
   // bandW / bandH: the edge band thickness (mm) taken off a piece's Width / Height for every banded width / height side.
   edgeBandCombos?: Record<string, { band: string; where: string; bandW?: string; bandH?: string }>;

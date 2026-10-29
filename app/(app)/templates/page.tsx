@@ -12,6 +12,8 @@ import { UnitTypeSection } from "@/components/templates/unit-type-section";
 import { TemplateHub } from "@/components/templates/template-hub";
 import { CalculatorSection } from "@/components/templates/calculator-section";
 import { ColourPaletteSection } from "@/components/templates/colour-palette-section";
+import { quoteTemplateStore, useOwnFactory } from "@/lib/store/quote-template-store";
+import { toastStore } from "@/lib/store/toast-store";
 
 const topTabs = [
   { value: "material-spec", label: "Material Spec" },
@@ -24,6 +26,7 @@ const topTabs = [
 ];
 
 function TemplatesPageContent() {
+  const ownFactory = useOwnFactory();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -42,9 +45,30 @@ function TemplatesPageContent() {
 
   return (
     <div className="templates-dense flex flex-col gap-6">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold text-grey-900">Templates</h1>
-        <p className="text-sm font-body text-grey-400">Configure the building blocks quotes are built from</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold text-grey-900">Templates</h1>
+          <p className="text-sm font-body text-grey-400">Configure the building blocks quotes are built from</p>
+        </div>
+        {/* Company setting: without a factory the order stops at the Purchase Order (the vendor makes it), so Production Planning and
+            Manufacturing are hidden and a job goes In Purchase → Dispatched. */}
+        <label className="flex max-w-sm cursor-pointer items-start gap-3 rounded-xl border border-grey-100 bg-card px-4 py-3">
+          <input
+            type="checkbox"
+            checked={ownFactory}
+            onChange={(e) => {
+              quoteTemplateStore.updateLayout({ ownFactory: e.target.checked });
+              toastStore.show(e.target.checked ? "Own factory on: Production Planning and Manufacturing are shown" : "Own factory off: orders stop at the Purchase Order", "success");
+            }}
+            className="mt-0.5 h-4 w-4 accent-primary"
+          />
+          <span className="flex flex-col gap-0.5">
+            <span className="text-sm font-body font-semibold text-grey-900">We have our own factory</span>
+            <span className="text-xs font-body text-grey-500">
+              {ownFactory ? "Orders go on to Proforma Invoice, Work Order, Manufacturing and Packing." : "Orders stop at the Purchase Order; the vendor makes and dispatches them."}
+            </span>
+          </span>
+        </label>
       </div>
 
       <Tabs value={tab} onValueChange={(value) => setTab(String(value))}>

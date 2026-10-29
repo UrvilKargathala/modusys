@@ -13,6 +13,7 @@ import { FurniturePriceFormDialog } from "@/components/templates/furniture-price
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useFurniturePriceItems, pricingListStore } from "@/lib/store/pricing-list-store";
 import { cn } from "@/lib/utils";
+import { useSentPo } from "@/components/shared/sent-lines-context";
 import { SortLabel, type LineSort } from "@/components/templates/line-sort";
 import type { FurnitureLineItem } from "@/lib/mock/unit-type";
 
@@ -114,6 +115,8 @@ export function FurnitureLineItemRow({
   rowNo?: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
+  // On a Purchase Order already (Requirement Order editor): locked.
+  const sentPo = useSentPo(value.id);
   const [addPriceOpen, setAddPriceOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingMaterialChange, setPendingMaterialChange] = useState<{ field: string; id: string } | null>(null);
@@ -232,8 +235,9 @@ export function FurnitureLineItemRow({
       <div
         ref={setNodeRef}
         style={{ transform: CSS.Transform.toString(transform), transition }}
-        className={cn("unit-row border-b border-grey-100 bg-card px-2 py-0.5 last:border-b-0", isDragging && "opacity-50")}
+        className={cn("unit-row border-b border-grey-100 bg-card px-2 py-0.5 last:border-b-0", isDragging && "opacity-50", sentPo && "bg-success-transparent")}
       >
+        <fieldset disabled={!!sentPo} className="m-0 min-w-0 border-0 p-0">
         <div className="grid items-center gap-x-1.5" style={{ gridTemplateColumns: furnitureTableColumns(!!showComponentName, !!showLevelType, !!rowNo) }}>
           {rowNo ? (
             <span className="num text-xs font-semibold text-grey-700">{rowNo}</span>
@@ -296,6 +300,8 @@ export function FurnitureLineItemRow({
             </button>
           </div>
         </div>
+        </fieldset>
+        {sentPo && <p className="pb-0.5 text-[11px] font-body font-medium text-success">On {sentPo} · locked (take it off that PO to change it)</p>}
         {priceWarning}
         {dialogs}
       </div>

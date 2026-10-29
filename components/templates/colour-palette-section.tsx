@@ -64,16 +64,16 @@ const SECTION_ROWS: { key: SectionKey; title: string }[] = [
 ];
 
 const TOKEN_USES: Record<string, string> = {
-  success: "Approved status, green KPI icons, positive changes",
+  success: "Confirmed status, green KPI icons, positive changes",
   warning: "In Purchase status, Pending pills, warning notes",
   error: "Cancelled status, red KPI icons, errors and delete warnings",
   info: "Info badges, some pipeline stages, chart accents",
   orange: "Orange KPI icons and pipeline stages",
   purple: "Pipeline stage colour",
   pink: "Pipeline stage colour",
-  indigo: "In Procurement status, Confirmed pill, pipeline stage",
+  indigo: "Requirement Order status, Confirmed pill, pipeline stage",
   cyan: "Installation status, pipeline stage",
-  teal: "Completed status, Delivered pill, Vendors icon, Shutter edge",
+  teal: "Completed status, Dispatched pill, Vendors icon, Shutter edge",
   secondary: "Charts (the main blue), links and secondary accents",
   sand: "Purchase Order detail card (top row)",
   taupe: "Purchase Order detail card (top row)",

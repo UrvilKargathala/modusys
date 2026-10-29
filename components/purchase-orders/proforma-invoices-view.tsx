@@ -21,7 +21,8 @@ function View() {
   const router = useRouter();
   const pathname = usePathname();
   const dealersTab = useSearchParams().get("tab") === "dealers";
-  const tab = pathname.endsWith("/packing") ? "packing" : pathname.endsWith("/production") ? "production" : dealersTab ? "dealers" : "invoices";
+  // Work Order (/production) and Material Procurement are Production Planning; Manufacturing and Packing & Dispatch are the factory's.
+  const tab = pathname.endsWith("/packing") ? "packing" : pathname.endsWith("/production") ? "production" : pathname.endsWith("/manufacturing") ? "manufacturing" : dealersTab ? "dealers" : "invoices";
   const [newOpen, setNewOpen] = useState(false);
   const invoices = usePurchaseOrders().filter((o) => !!o.material.proforma);
   const dealers = useDealers();
@@ -47,18 +48,22 @@ function View() {
         <KpiCard compact label="Dealers" value={String(dealers.length)} icon={Store} accent="teal" />
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => router.replace(String(v) === "packing" ? "/proforma-invoices/packing" : String(v) === "production" ? "/proforma-invoices/production" : `/proforma-invoices?tab=${String(v)}`, { scroll: false })}>
+      <Tabs value={tab} onValueChange={(v) => router.replace(["packing", "production", "manufacturing"].includes(String(v)) ? `/proforma-invoices/${String(v)}` : `/proforma-invoices?tab=${String(v)}`, { scroll: false })}>
         <TabsList>
           <TabsTrigger value="dealers">Dealers</TabsTrigger>
           <TabsTrigger value="invoices">Proforma Invoices</TabsTrigger>
-          <TabsTrigger value="production">Production</TabsTrigger>
-          <TabsTrigger value="packing">Packing</TabsTrigger>
+          <TabsTrigger value="production">Work Order</TabsTrigger>
+          <TabsTrigger value="manufacturing">Manufacturing</TabsTrigger>
+          <TabsTrigger value="packing">Packing &amp; Dispatch</TabsTrigger>
         </TabsList>
         <TabsContent value="invoices" className="pt-0">
           <PurchaseOrdersTable direct proforma onNew={() => setNewOpen(true)} />
         </TabsContent>
         <TabsContent value="production" className="pt-0">
           <ProformaPackingList mode="production" />
+        </TabsContent>
+        <TabsContent value="manufacturing" className="pt-0">
+          <ProformaPackingList mode="manufacturing" />
         </TabsContent>
         <TabsContent value="packing" className="pt-0">
           <ProformaPackingList />

@@ -15,7 +15,7 @@ import { MaterialItemFormDialog } from "@/components/templates/material-item-for
 import { materialCategories } from "@/lib/mock/material-spec";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { toastStore } from "@/lib/store/toast-store";
-import { blankMaterial, buildPoNumber, customerCode, gstModeFor } from "@/lib/purchase-order";
+import { blankMaterial, buildPoNumber, customerCode, gstModeFor, type PurchaseOrder } from "@/lib/purchase-order";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
 
 const select = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
@@ -23,7 +23,9 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 // Manual purchase order, not tied to a quote: vendor, customer and product type are optional here (fill them in
 // later). The PO number is generated from them (PO-<vendor code>-<product type code>-<customer code>-NN), and the cabinets and rows are added by hand in the editor. It starts as Pending.
-export function NewPoDialog({ open, onOpenChange, direct = false, proforma = false }: { open: boolean; onOpenChange: (open: boolean) => void; direct?: boolean; proforma?: boolean }) {
+// fromPo (with proforma): the Proforma Invoice that follows a Purchase Order in the order flow. It copies the PO's customer, cabinets, rows and
+// material; the dealer and proforma product type are picked here. Its own progress (status log, work order, manufacturing, packing) starts empty.
+export function NewPoDialog({ open, onOpenChange, direct = false, proforma = false, fromPo }: { open: boolean; onOpenChange: (open: boolean) => void; direct?: boolean; proforma?: boolean; fromPo?: PurchaseOrder }) {
   const router = useRouter();
   const vendorList = useVendors();
   const dealerList = useDealers();
@@ -62,15 +64,17 @@ export function NewPoDialog({ open, onOpenChange, direct = false, proforma = fal
   useEffect(() => {
     if (!open) return;
     setVendorId("");
-    setCustomerId("");
+    setCustomerId(fromPo?.customerId ?? "");
     setProductTypeId("");
     setPoDate(today());
     setRequiredDate(addDaysIso(today(), 10));
-  }, [open]);
+  }, [open, fromPo?.customerId]);
 
   const submit = async () => {
     setBusy(true);
     try {
+      // A PI from a PO keeps no quote link (quoteId stays the PO's alone, so the quote's auto PO never finds the PI); fromPoId links them.
+      const { statusLog: _s, production: _p, packing: _k, manufacturing: _m, transport: _t, vendorPiNo: _vn, vendorPiDate: _vd, vendorPiAmount: _va, ...copied } = fromPo?.material ?? blankMaterial();
       const po = await purchaseOrdersStore.create({
         poNumber,
         poDate,
@@ -78,14 +82,14 @@ export function NewPoDialog({ open, onOpenChange, direct = false, proforma = fal
         vendorId,
         quoteId: null,
         customerId: customerId || null,
-        material: { ...blankMaterial(), productTypeId: productTypeId || undefined, ...(direct || proforma ? { direct: true } : {}), ...(proforma ? { proforma: true } : {}) },
-        discountPct: 0,
+        material: { ...copied, productTypeId: productTypeId || undefined, ...(direct || proforma ? { direct: true } : {}), ...(proforma ? { proforma: true } : {}), ...(fromPo ? { fromPoId: fromPo.id } : {}) },
+        discountPct: fromPo?.discountPct ?? 0,
         gstMode: vendor ? gstModeFor(vendor.state) : "intra",
         roundOff: 0,
-        remarks: "",
-        lines: [],
+        remarks: fromPo?.remarks ?? "",
+        lines: fromPo ? fromPo.lines.map(({ id: _id, ...l }) => l) : [],
       });
-      toastStore.show(proforma ? "Proforma invoice created — add its cabinets and rows" : "Purchase order created — add its cabinets and rows", "success");
+      toastStore.show(fromPo ? `Proforma invoice created from ${fromPo.poNumber || "the purchase order"}` : proforma ? "Proforma invoice created — add its cabinets and rows" : "Purchase order created — add its cabinets and rows", "success");
       onOpenChange(false);
       router.push(`${proforma ? "/proforma-invoices" : direct ? "/direct-purchase-orders" : "/purchase-orders"}/${po.id}`);
     } catch (e) {
@@ -99,8 +103,8 @@ export function NewPoDialog({ open, onOpenChange, direct = false, proforma = fal
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{proforma ? "Create Proforma Invoice" : "Create Purchase Order"}</DialogTitle>
-          <DialogDescription>{proforma ? "A proforma invoice made directly, without a quote. You add its cabinets and rows on the next screen." : "A purchase order made directly, without a quote. You add its cabinets and rows on the next screen."}</DialogDescription>
+          <DialogTitle>{fromPo ? `Create Proforma Invoice from ${fromPo.poNumber || "this PO"}` : proforma ? "Create Proforma Invoice" : "Create Purchase Order"}</DialogTitle>
+          <DialogDescription>{fromPo ? "The purchase order's customer, cabinets and rows are copied into the invoice. Pick the dealer and the proforma product type." : proforma ? "A proforma invoice made directly, without a quote. You add its cabinets and rows on the next screen." : "A purchase order made directly, without a quote. You add its cabinets and rows on the next screen."}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">

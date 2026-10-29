@@ -20,6 +20,11 @@ import {
   IdCard,
   CalendarDays,
   IndianRupee,
+  Ruler,
+  Hammer,
+  Truck,
+  CircleCheck,
+  CircleX,
 } from "lucide-react";
 
 // `roles` is an explicit whitelist. Undefined = visible to everyone.
@@ -34,22 +39,30 @@ export type NavItem = {
   group?: string;
   // Other paths that also light this item up (Direct Purchase Orders now live inside Purchase Orders).
   alsoActive?: string[];
+  // Only for a company with its own factory (Templates > We have our own factory).
+  factory?: boolean;
 };
 
 const ADMIN_UP = ["admin", "super-admin"];
 const SUPER = ["super-admin"];
 
-export function canSeeNav(item: NavItem, role: string): boolean {
-  return !item.roles || item.roles.includes(role);
+export function canSeeNav(item: NavItem, role: string, ownFactory = true): boolean {
+  return (!item.roles || item.roles.includes(role)) && (ownFactory || !item.factory);
 }
 
 export const navigationItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: SUPER },
   { label: "CRM", href: "/crm", icon: Users },
-  { label: "Quotes", href: "/quotes", icon: FileText, roles: ADMIN_UP },
-  { label: "Procurement Orders (From QT)", href: "/procurement", icon: ClipboardList, roles: ADMIN_UP, group: "Orders" },
-  { label: "Purchase Orders", href: "/purchase-orders", icon: ShoppingCart, roles: ADMIN_UP, group: "Orders", alsoActive: ["/direct-purchase-orders"] },
-  { label: "Proforma Invoices", href: "/proforma-invoices", icon: FileText, roles: ADMIN_UP, group: "Orders" },
+  // The order flow, one group per stage: Quotes (Sales), Purchase, Production Planning, Manufacturing & Dispatch.
+  { label: "All Quotes", href: "/quotes", icon: FileText, roles: ADMIN_UP, group: "Quotes" },
+  { label: "Confirmed Quotes", href: "/quotes/confirmed", icon: CircleCheck, roles: ADMIN_UP, group: "Quotes" },
+  { label: "Cancelled Quotes", href: "/quotes/cancelled", icon: CircleX, roles: ADMIN_UP, group: "Quotes" },
+  { label: "Requirement Orders", href: "/procurement", icon: ClipboardList, roles: ADMIN_UP, group: "Purchase" },
+  { label: "Purchase Orders", href: "/purchase-orders", icon: ShoppingCart, roles: ADMIN_UP, group: "Purchase", alsoActive: ["/direct-purchase-orders"] },
+  { label: "Proforma Invoices", href: "/proforma-invoices", icon: FileText, roles: ADMIN_UP, group: "Production Planning", factory: true },
+  { label: "Work Orders", href: "/proforma-invoices/production", icon: Ruler, roles: ADMIN_UP, group: "Production Planning", factory: true },
+  { label: "Manufacturing", href: "/proforma-invoices/manufacturing", icon: Hammer, roles: ADMIN_UP, group: "Manufacturing & Dispatch", factory: true },
+  { label: "Packing & Dispatch", href: "/proforma-invoices/packing", icon: Truck, roles: ADMIN_UP, group: "Manufacturing & Dispatch", factory: true },
   { label: "Customers", href: "/customers", icon: Contact, group: "Contacts" },
   { label: "Architects", href: "/architects", icon: Building2, group: "Contacts" },
   { label: "Templates", href: "/templates", icon: LayoutTemplate, roles: ADMIN_UP },
@@ -88,7 +101,7 @@ export const administrationItems: NavItem[] = [
 export const mobileTabItems: NavItem[] = [
   navigationItems[0], // Dashboard
   navigationItems[1], // CRM
-  navigationItems[2], // Quotes
+  { ...navigationItems[2], label: "Quotes" }, // All Quotes
 ];
 
 export const mobileMoreItems: NavItem[] = [...navigationItems.slice(3), ...attendanceItems, ...payrollItems];

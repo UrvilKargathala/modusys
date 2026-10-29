@@ -18,7 +18,7 @@ import type { QuoteCabinet } from "@/lib/mock/quote";
 import type { FurnitureLineItem, UnitTypeHardware } from "@/lib/mock/unit-type";
 import { cn } from "@/lib/utils";
 
-function blankLineItem(): FurnitureLineItem {
+export function blankLineItem(): FurnitureLineItem {
   return {
     id: `qli-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     isExtra: true,
@@ -244,7 +244,12 @@ export function HardwareGroup({
   );
 }
 
-function CabinetTypeSelect({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+// Auto Populate: a cabinet type's carcass components, sized for the cabinet's carcass (its own W/D/H/Qty, else the unit's).
+export const autoPopulateComponents = (type: { components: FurnitureLineItem[] }, carcassUnit: { width: number; depth: number; height: number; qty: number }) =>
+  type.components.map((c) => resolveLineItemDimensions({ ...c, id: `qli-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }, carcassUnit));
+
+// compact: the smaller trigger used in table rows (the Carcass tab).
+export function CabinetTypeSelect({ value, onChange, compact = false }: { value: string; onChange: (id: string) => void; compact?: boolean }) {
   const cabinetTypes = useCabinetTypes();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -255,7 +260,7 @@ function CabinetTypeSelect({ value, onChange }: { value: string; onChange: (id: 
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="flex w-full min-w-32 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-1.5 text-sm font-body font-semibold text-grey-800 outline-none focus:border-primary">
+      <PopoverTrigger className={cn("flex w-full items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card font-body font-semibold text-grey-800 outline-none focus:border-primary", compact ? "h-6 min-w-0 px-2 text-xs" : "min-w-32 px-3 py-1.5 text-sm")}>
         {selected ? <span className="truncate">{selected.name}</span> : <span className="truncate text-grey-400 font-normal">Select Cabinet Type</span>}
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
       </PopoverTrigger>
@@ -315,11 +320,7 @@ export function QuoteCabinetGroup({
 
   const runAutoPopulate = () => {
     if (!selectedCabinetType) return;
-    onChange({
-      components: selectedCabinetType.components.map((c) =>
-        resolveLineItemDimensions({ ...c, id: `qli-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` }, carcassUnit)
-      ),
-    });
+    onChange({ components: autoPopulateComponents(selectedCabinetType, carcassUnit) });
   };
 
   return (

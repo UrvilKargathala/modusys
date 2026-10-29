@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Contact, Download, IndianRupee, KeyRound, LogOut, UserRound, ScanLine, ShoppingCart, UserCog, Wallet, type LucideIcon } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Contact, Download, DraftingCompass, Factory, FileText, IndianRupee, KeyRound, LogOut, UserRound, ScanLine, ShoppingCart, UserCog, Wallet, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatInr } from "@/lib/format";
 import { MOCK_CREDITS_BALANCE, MOCK_CREDITS_TOTAL } from "@/lib/mock/credits";
@@ -14,20 +14,22 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getRole } from "@/lib/constants/roles";
 import { pwaInstallStore, usePwaInstall, isStandalone } from "@/lib/store/pwa-install-store";
 import { useCurrentUser, signOut } from "@/lib/session";
+import { useOwnFactory } from "@/lib/store/quote-template-store";
 import { GlobalSearch } from "@/components/layout/global-search";
 import { NotificationPanel } from "@/components/layout/notification-panel";
 import { useNotificationRows } from "@/components/layout/use-notification-rows";
 
-// The desktop navigation: a left sidebar that collapses to icons and expands again. Groups (Orders, Contacts, Attendance, Admin) open
+// The desktop navigation: a left sidebar that collapses to icons and expands again. Groups (the order stages, Contacts, Attendance, Admin) open
 // as a list when expanded, and as a pop-out menu beside the icon when collapsed. The mobile bottom bar is separate.
 type Entry = { kind: "link"; item: NavItem } | { kind: "group"; label: string; icon: LucideIcon; items: NavItem[] };
 
-const GROUP_ICON: Record<string, LucideIcon> = { Orders: ShoppingCart, Contacts: Contact };
+const GROUP_ICON: Record<string, LucideIcon> = { Quotes: FileText, Purchase: ShoppingCart, "Production Planning": DraftingCompass, "Manufacturing & Dispatch": Factory, Contacts: Contact };
 const STORAGE_KEY = "sidebar-collapsed";
 
 export function Sidebar() {
   const pathname = usePathname();
   const user = useCurrentUser();
+  const ownFactory = useOwnFactory();
   const [collapsed, setCollapsed] = useState(false);
   // The group the user opened or closed by hand, valid for the page it was done on; otherwise only the group holding the current page is open.
   const [choice, setChoice] = useState<{ label: string | null; path: string } | null>(null);
@@ -57,7 +59,7 @@ export function Sidebar() {
     });
 
   const isActive = (href: string) => navActive(pathname, navigationItems.find((i) => i.href === href) ?? { href });
-  const visible = navigationItems.filter((i) => canSeeNav(i, user.role));
+  const visible = navigationItems.filter((i) => canSeeNav(i, user.role, ownFactory));
   const entries: Entry[] = [];
   for (const item of visible) {
     if (item.group) {
@@ -83,7 +85,7 @@ export function Sidebar() {
     await signOut();
     router.push("/sign-in");
   };
-  // MAIN holds the page links and the Orders / Contacts groups; SETTINGS holds Attendance, Payroll and Admin.
+  // MAIN holds the page links and the order stage / Contacts groups; SETTINGS holds Attendance, Payroll and Admin.
   const isSettings = (e: Entry) => e.kind === "group" && ["Attendance", "Payroll", "Admin"].includes(e.label);
   const main = entries.filter((e) => !isSettings(e));
   const settings = entries.filter(isSettings);

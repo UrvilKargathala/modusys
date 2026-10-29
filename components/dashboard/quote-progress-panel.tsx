@@ -11,7 +11,7 @@ export function QuoteProgressPanel({ distribution }: { distribution: { status: S
   const total = n(distribution.map((d) => d.status));
   const cols = [
     { label: "Quotes made", value: total, tick: "bg-grey-300", rule: "border-grey-200" },
-    { label: "Approved", value: n(["approved", "in-procurement", "in-production", "installation", "completed"]), tick: "bg-primary", rule: "border-primary" },
+    { label: "Confirmed", value: n(["approved", "in-procurement", "in-production", "manufacturing", "dispatched", "installation", "completed"]), tick: "bg-primary", rule: "border-primary" },
     { label: "Completed", value: n(["completed"]), tick: "bg-grey-900", rule: "border-grey-900" },
   ];
   return (

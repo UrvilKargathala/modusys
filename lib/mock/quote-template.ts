@@ -10,6 +10,9 @@ export type QuoteTemplateSettings = {
     installationFreightText: string;
     quoteValidityText: string;
     chequePayableTo: string;
+    // Company setting (kept in this row, no own table): false = the company has no factory of its own and sources every order from
+    // vendors, so the Production Planning and Manufacturing stages are hidden. Unset = own factory.
+    ownFactory?: boolean;
   };
   branding: {
     logoDataUrl: string | null;

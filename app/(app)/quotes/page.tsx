@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Fragment, useMemo, useRef, useState } from "react";
 import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, FileDown, Printer, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Upload, FileArchive, ListOrdered, LayoutList, LayoutGrid, Layers, ClipboardList, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,8 @@ import { quoteRawTotal, quoteWaterfall } from "@/lib/quote-pricing";
 import { downloadQuoteExportZip } from "@/lib/quote-export-zip";
 import { formatInr } from "@/lib/format";
 import { toastStore } from "@/lib/store/toast-store";
-import { remarkWithStatusNote, statusConfig, statusRemarkOf, type StatusKey } from "@/lib/status";
+import { useOwnFactory } from "@/lib/store/quote-template-store";
+import { pickableStatuses, remarkWithStatusNote, statusConfig, statusRemarkOf, type StatusKey } from "@/lib/status";
 import { printQuotesReport } from "@/lib/quotes-report";
 import { useArchitects } from "@/lib/store/architects-store";
 import { fullName } from "@/lib/mock/architects";
@@ -59,8 +60,18 @@ function downloadCsv(filename: string, rows: (string | number)[][]) {
   URL.revokeObjectURL(url);
 }
 
+// The sidebar's Quotes group: /quotes lists every quote; /quotes/confirmed and /quotes/cancelled (this same page) list only the quotes with that status.
+const VIEWS = {
+  all: { title: "All Quotes", text: "Every priced quotation across your customers", status: null },
+  confirmed: { title: "Confirmed Quotes", text: "Quotes the customer has confirmed", status: "approved" },
+  cancelled: { title: "Cancelled Quotes", text: "Quotes that were cancelled", status: "cancelled" },
+} as const;
+
 export default function QuotesPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const ownFactory = useOwnFactory();
+  const view: keyof typeof VIEWS = pathname.endsWith("/confirmed") ? "confirmed" : pathname.endsWith("/cancelled") ? "cancelled" : "all";
   const quotes = useQuotes();
   const customers = useCustomers();
   const architects = useArchitects();
@@ -214,6 +225,7 @@ export default function QuotesPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const base = quotes
+      .filter((quote) => !VIEWS[view].status || quote.status === VIEWS[view].status)
       .filter((quote) => statusFilter === "all" || quote.status === statusFilter)
       .filter(
         (quote) =>
@@ -241,7 +253,7 @@ export default function QuotesPage() {
       return 0;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quotes, customers, search, statusFilter, sort, productTypes, furnitureItems, hardwareItems]);
+  }, [quotes, customers, search, statusFilter, sort, productTypes, furnitureItems, hardwareItems, view]);
 
   // One entry per customer: all quotes under the same customer name merge into one row (latest quote first); a customer with one quote is a plain row.
   const entries = useMemo(() => {
@@ -454,8 +466,8 @@ export default function QuotesPage() {
     <div className="-mx-2 flex flex-col gap-2 lg:-mx-4">
       <div className="flex items-center justify-between gap-4 px-2">
         <div className="flex flex-col gap-1">
-          <h1 className="font-heading text-2xl font-semibold text-grey-900">Quotes</h1>
-          <p className="text-sm font-body text-grey-400">Every priced quotation across your customers</p>
+          <h1 className="font-heading text-2xl font-semibold text-grey-900">{VIEWS[view].title}</h1>
+          <p className="text-sm font-body text-grey-400">{VIEWS[view].text}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button type="button" size="sm" variant="outline" onClick={pdfReport} disabled={filtered.length === 0} className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3">
@@ -506,6 +518,8 @@ export default function QuotesPage() {
                 className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-700 outline-none placeholder:text-grey-300 focus:border-primary"
               />
             </div>
+            {/* Status pills only on All Quotes (Confirmed and Cancelled lists hold one status). */}
+            {view === "all" && (
             <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -519,7 +533,7 @@ export default function QuotesPage() {
             >
               All
             </button>
-            {(Object.keys(statusConfig) as StatusKey[]).map((key) => (
+            {pickableStatuses(undefined, ownFactory).map((key) => (
               <button
                 key={key}
                 type="button"
@@ -535,6 +549,7 @@ export default function QuotesPage() {
               </button>
             ))}
             </div>
+            )}
           </div>
           <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 [&_tbody_tr]:h-8 [&_td]:align-middle">
             <table className="w-full text-xs font-body">
@@ -554,7 +569,7 @@ export default function QuotesPage() {
                 {filtered.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-8 text-center text-grey-400">
-                      No quotes match your filters.
+                      {view === "all" || search.trim() ? "No quotes match your filters." : `No ${view} quotes yet.`}
                     </td>
                   </tr>
                 ) : (

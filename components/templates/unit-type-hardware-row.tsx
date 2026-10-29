@@ -16,6 +16,7 @@ import { useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
 import { rateAfterDiscount } from "@/lib/mock/pricing-list";
 import { cn } from "@/lib/utils";
+import { useSentPo } from "@/components/shared/sent-lines-context";
 import { SortLabel, type LineSort } from "@/components/templates/line-sort";
 import type { UnitTypeHardware } from "@/lib/mock/unit-type";
 
@@ -65,6 +66,8 @@ export function UnitTypeHardwareRow({
   rowNo?: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
+  // On a Purchase Order already (Requirement Order editor): locked.
+  const sentPo = useSentPo(value.id);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingChange, setPendingChange] = useState<{ label: string; patch: Partial<UnitTypeHardware> } | null>(null);
   const [collapsed, setCollapsed] = useState(!!collapsible);
@@ -238,8 +241,9 @@ export function UnitTypeHardwareRow({
       <div
         ref={setNodeRef}
         style={{ transform: CSS.Transform.toString(transform), transition }}
-        className={cn("unit-row border-b border-grey-100 bg-card px-2 py-0.5 last:border-b-0", isDragging && "opacity-50")}
+        className={cn("unit-row border-b border-grey-100 bg-card px-2 py-0.5 last:border-b-0", isDragging && "opacity-50", sentPo && "bg-success-transparent")}
       >
+        <fieldset disabled={!!sentPo} className="m-0 min-w-0 border-0 p-0">
         <div className="grid items-center gap-x-1.5" style={{ gridTemplateColumns: rowNo ? HARDWARE_TABLE_COLUMNS.replace("20px", "44px") : HARDWARE_TABLE_COLUMNS }}>
           {rowNo ? (
             <span className="num text-xs font-semibold text-grey-700">{rowNo}</span>
@@ -294,6 +298,8 @@ export function UnitTypeHardwareRow({
             </button>
           </div>
         </div>
+        </fieldset>
+        {sentPo && <p className="pb-0.5 text-[11px] font-body font-medium text-success">On {sentPo} · locked (take it off that PO to change it)</p>}
         {dialogs}
       </div>
     );

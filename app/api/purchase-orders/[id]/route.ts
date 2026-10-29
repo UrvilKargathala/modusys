@@ -52,7 +52,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const current = await prisma.purchaseOrder.findFirst({ where: { id, deletedAt: null } });
     const vendorId = (data.vendorId as string | undefined) ?? current?.vendorId ?? "";
     const poNumber = (data.poNumber as string | undefined) ?? current?.poNumber ?? "";
-    if (!vendorId || !poNumber) return NextResponse.json({ error: "Add a vendor and a PO number before marking it Delivered" }, { status: 400 });
+    if (!vendorId || !poNumber) return NextResponse.json({ error: "Add a vendor and a PO number before marking it Dispatched" }, { status: 400 });
   }
 
   const po = await prisma.$transaction(async (tx) => {

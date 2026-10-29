@@ -34,8 +34,8 @@ const groupLetter = (i: number): string => (i >= 26 ? groupLetter(Math.floor(i /
 // choose "Save as PDF". Elements marked no-print are left out; each group starts on a new page.
 export type CutListBranding = { companyName: string; logoDataUrl?: string };
 const escHtml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-// The letterhead of the Cut List PDFs: company name on the left, logo on the right, and "Cut List Sheet Detail" on the second line.
-function letterhead(branding: CutListBranding | undefined, docNo: string | undefined) {
+// The letterhead of the Cut List PDFs: company name on the left, logo on the right, and the heading ("Cut List Sheet Detail") on the second line.
+function letterhead(branding: CutListBranding | undefined, docNo: string | undefined, heading = "Cut List Sheet Detail") {
   if (!branding) return "";
   // As on the Quotation PDF: the logo uploaded in Quote Template > Branding, shown as it is (not recoloured), 48px high, to the right.
   // With no uploaded logo, the brand mark drawn in the brand colour stands in.
@@ -46,9 +46,12 @@ function letterhead(branding: CutListBranding | undefined, docNo: string | undef
 <div style="font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#9E7676;-webkit-text-stroke:.4px #9E7676">${escHtml(branding.companyName)}</div>
 ${logo}
 </div>
-<div style="margin-top:6px;font-size:14px;font-weight:700;color:#182634">Cut List Sheet Detail${docNo ? ` : ${escHtml(docNo)}` : ""}</div>
+<div style="margin-top:6px;font-size:14px;font-weight:700;color:#182634">${escHtml(heading)}${docNo ? ` : ${escHtml(docNo)}` : ""}</div>
 </div>`;
 }
+
+// Another section of the Work Order (Material Procurement) printed the same way, under the same letterhead with its own heading.
+export const printWithLetterhead = (el: HTMLElement, docTitle: string, branding: CutListBranding | undefined, docNo: string | undefined, heading: string) => printCopy(el, docTitle, letterhead(branding, docNo, heading));
 
 function printCopy(el: HTMLElement, docTitle: string, header?: string) {
   const copy = el.cloneNode(true) as HTMLElement;
@@ -82,6 +85,30 @@ body { padding: 8mm; margin: 0; box-sizing: border-box; }
   window.setTimeout(() => { win.focus(); win.print(); }, 700);
 }
 
+// Every piece (Qty of each row) as a part for the sheet packer.
+const partsOf = (rows: CutRow[], applyGrain: boolean): Part[] =>
+  rows.flatMap((r) => Array.from({ length: r.qty }, (_, i) => ({ id: `${r.id}#${i}`, label: r.sr, name: r.name, info: r.info, w: r.w, h: r.h, fw: r.fw, fh: r.fh, grain: applyGrain ? r.grain : undefined, extra: r.extra, sides: r.sides })));
+
+// The Cut List's groups: one per material + thickness + internal + external colour (each is cut from its own stock).
+export function cutGroups(rows: CutRow[]) {
+  const m = new Map<string, { title: string; rows: CutRow[] }>();
+  for (const r of rows) {
+    if (!(r.w > 0 && r.h > 0 && r.qty > 0)) continue;
+    const key = [r.material, r.thk, r.internal, r.external].join("|");
+    const g = m.get(key) ?? { title: [r.material || "No material", r.thk && `${r.thk} mm`, [r.internal, r.external].filter(Boolean).join(" + ")].filter(Boolean).join(" · "), rows: [] };
+    g.rows.push(r);
+    m.set(key, g);
+  }
+  return [...m.entries()];
+}
+
+// Sheets a group needs with the Cut List's starting settings (2440 x 1220 mm, 3 mm blade, no margins, grain applied), for Material Procurement.
+export const CUT_SHEET = { l: 2440, w: 1220, kerf: 3 };
+export function sheetsNeeded(rows: CutRow[]) {
+  const { sheets, unfit } = packSheets(partsOf(rows, true), CUT_SHEET.l, CUT_SHEET.w, CUT_SHEET.kerf, true);
+  return { sheets: sheets.length, unfit: unfit.length };
+}
+
 // One material group of the Cut List: its own sheet size, margins and display options (each group is cut from its own stock), the piece list and the sheet drawings.
 type GroupStat = { title: string; sheets: number; pieces: number; unfit: number; usedPct: number; used: number; total: number; cuts: number; cutLen: number };
 // Blade travel in metres, one decimal.
@@ -112,8 +139,7 @@ function CutGroup({ gi, title, rows, colourOf, onStat, branding, docNo }: { gi: 
   const sectionRef = useRef<HTMLElement>(null);
 
   const g = useMemo(() => {
-    const parts: Part[] = [];
-    for (const r of rows) for (let i = 0; i < r.qty; i++) parts.push({ id: `${r.id}#${i}`, label: r.sr, name: r.name, info: r.info, w: r.w, h: r.h, fw: r.fw, fh: r.fh, grain: applyGrain ? r.grain : undefined, extra: r.extra, sides: r.sides });
+    const parts = partsOf(rows, applyGrain);
     return { title, parts, ...(innerL > 0 && innerW > 0 ? packSheets(parts, innerL, innerW, kerf, rotate) : { sheets: [], unfit: parts }) };
   }, [rows, title, innerL, innerW, kerf, rotate, applyGrain]);
 
@@ -350,17 +376,7 @@ export function ProformaCutList({ rows, title, branding }: { rows: CutRow[]; tit
   const [stats, setStats] = useState<Record<number, GroupStat>>({});
   const onStat = (gi: number, stat: GroupStat) => setStats((m) => (JSON.stringify(m[gi]) === JSON.stringify(stat) ? m : { ...m, [gi]: stat }));
 
-  const groups = useMemo(() => {
-    const m = new Map<string, { title: string; rows: CutRow[] }>();
-    for (const r of rows) {
-      if (!(r.w > 0 && r.h > 0 && r.qty > 0)) continue;
-      const key = [r.material, r.thk, r.internal, r.external].join("|");
-      const g = m.get(key) ?? { title: [r.material || "No material", r.thk && `${r.thk} mm`, [r.internal, r.external].filter(Boolean).join(" + ")].filter(Boolean).join(" · "), rows: [] };
-      g.rows.push(r);
-      m.set(key, g);
-    }
-    return [...m.entries()];
-  }, [rows]);
+  const groups = useMemo(() => cutGroups(rows), [rows]);
 
   return (
     <div ref={rootRef} className="cutlist-print flex flex-col gap-4">
