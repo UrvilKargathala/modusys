@@ -54,7 +54,7 @@ export function MaterialSpecSection() {
             <TabsTrigger value="purchase-library">Purchase Material Library</TabsTrigger>
             <TabsTrigger value="proforma-library">Proforma Library</TabsTrigger>
           </TabsList>
-          <CsvImportExportPanel />
+          <CsvImportExportPanel category={selected.key} />
         </div>
       </Tabs>
 

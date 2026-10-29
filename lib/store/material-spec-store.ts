@@ -94,6 +94,43 @@ export const materialSpecStore = {
     persist();
     emit();
   },
+  // CSV / Excel import into one list, saved once. Rows are matched to its entries by name (a Brand + Colour Code or Code + Name list:
+  // by both). upsert adds new rows and updates matches, insert-only only adds, update-only only updates. A row without a description
+  // column (undefined) keeps the entry's description. Blank names and repeats in the file are skipped. Null: the list never loaded.
+  async importRows(category: MaterialCategoryKey, rows: { name: string; description?: string }[], mode: "upsert" | "insert-only" | "update-only", byPair = false) {
+    ensureHydrated();
+    await loadedPromise;
+    if (!loaded) return null;
+    const key = (r: { name: string; description?: string }) => (byPair ? `${(r.description ?? "").trim().toLowerCase()}|${r.name.trim().toLowerCase()}` : r.name.trim().toLowerCase());
+    const live = new Map(items.filter((i) => i.category === category && !i.deleted).map((i) => [key(i), i]));
+    const changes = new Map<string, { name: string; description: string }>();
+    const fresh: MaterialItem[] = [];
+    const seen = new Set<string>();
+    let skipped = 0;
+    const now = Date.now();
+    for (const r of rows) {
+      const name = r.name.trim();
+      const k = key(r);
+      if (!name || seen.has(k)) { skipped++; continue; }
+      seen.add(k);
+      const hit = live.get(k);
+      if (hit) {
+        const description = r.description === undefined ? hit.description : r.description.trim();
+        if (mode === "insert-only" || (hit.name === name && hit.description === description)) { skipped++; continue; }
+        changes.set(hit.id, { name, description });
+      } else if (mode === "update-only") {
+        skipped++;
+      } else {
+        fresh.push({ id: `mat-new-${now}-${fresh.length}`, category, name, description: (r.description ?? "").trim(), createdAt: new Date(now + fresh.length).toISOString() });
+      }
+    }
+    if (changes.size || fresh.length) {
+      items = [...items.map((i) => (changes.has(i.id) ? { ...i, ...changes.get(i.id) } : i)), ...fresh];
+      persist();
+      emit();
+    }
+    return { added: fresh.length, updated: changes.size, skipped };
+  },
   isNameTaken(category: MaterialCategoryKey, name: string, excludeId?: string) {
     ensureHydrated();
     return items.some(
