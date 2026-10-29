@@ -309,6 +309,8 @@ model FurniturePriceItem {
   externalColourId  String
   rate              Float
   variantId         String   @default("")
+  // Free text typed on the price row (Furniture Price List), shown beside External Colour.
+  description       String   @default("")
   deleted           Boolean  @default(false)
   createdAt         DateTime @default(now())
 }

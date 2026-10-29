@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { pricingListStore, type NewFurniturePriceInput } from "@/lib/store/pricing-list-store";
 import { useMaterialItems } from "@/lib/store/material-spec-store";
+import { useFinishColours } from "@/components/templates/finish-colours";
 import {
   makeUniqueVariantId,
   normalizeVariantId,
@@ -27,7 +28,7 @@ import {
 import type { FurniturePriceItem } from "@/lib/mock/pricing-list";
 
 function emptyValues(): NewFurniturePriceInput {
-  return { thicknessId: "", rawMaterialTypeId: "", internalColourId: "", externalColourId: "", rate: 0, variantId: "" };
+  return { thicknessId: "", rawMaterialTypeId: "", internalColourId: "", externalColourId: "", rate: 0, variantId: "", description: "" };
 }
 
 export function FurniturePriceFormDialog({
@@ -57,12 +58,14 @@ export function FurniturePriceFormDialog({
   const rawMaterialTypes = useMaterialItems("raw-material-type");
   const internalColours = useMaterialItems("internal-colour");
   const externalColours = useMaterialItems("external-colour");
+  // Internal / External Colour are picked from Finish Material (see useFinishColours).
+  const { nameOfColour, finishIdOf, colourIdFor } = useFinishColours();
 
   useEffect(() => {
     if (!open) return;
     setValues(
       item
-        ? { thicknessId: item.thicknessId, rawMaterialTypeId: item.rawMaterialTypeId, internalColourId: item.internalColourId, externalColourId: item.externalColourId, rate: item.rate, variantId: item.variantId }
+        ? { thicknessId: item.thicknessId, rawMaterialTypeId: item.rawMaterialTypeId, internalColourId: item.internalColourId, externalColourId: item.externalColourId, rate: item.rate, variantId: item.variantId, description: item.description ?? "" }
         : { ...emptyValues(), ...initialValues }
     );
     setDuplicate(null);
@@ -109,7 +112,7 @@ export function FurniturePriceFormDialog({
           <DialogTitle>{isEdit ? "Edit Furniture Price" : "Add Furniture Price"}</DialogTitle>
           <DialogDescription>
             Every row is a specific Thickness + Raw Material Type + Internal + External Colour combination, all
-            sourced from Material Library.
+            sourced from Material Library (the colours from Finish Material).
           </DialogDescription>
         </DialogHeader>
 
@@ -131,19 +134,33 @@ export function FurniturePriceFormDialog({
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>Internal Colours and Description</Label>
+            <Label>Internal Colour</Label>
             <MaterialReferenceSelect
-              category="internal-colour"
-              value={values.internalColourId}
-              onChange={(id) => setValues((v) => ({ ...v, internalColourId: id }))}
+              category="finish-material"
+              sorted
+              value={finishIdOf("internal-colour", values.internalColourId)}
+              fallbackText={nameOfColour("internal-colour", values.internalColourId) || undefined}
+              onChange={(id) => setValues((v) => ({ ...v, internalColourId: colourIdFor("internal-colour", id) }))}
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label>External Colours and Description</Label>
+            <Label>External Colour</Label>
             <MaterialReferenceSelect
-              category="external-colour"
-              value={values.externalColourId}
-              onChange={(id) => setValues((v) => ({ ...v, externalColourId: id }))}
+              category="finish-material"
+              sorted
+              value={finishIdOf("external-colour", values.externalColourId)}
+              fallbackText={nameOfColour("external-colour", values.externalColourId) || undefined}
+              onChange={(id) => setValues((v) => ({ ...v, externalColourId: colourIdFor("external-colour", id) }))}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="fp-description">Description</Label>
+            <Input
+              id="fp-description"
+              value={values.description ?? ""}
+              maxLength={500}
+              placeholder="Optional"
+              onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))}
             />
           </div>
 

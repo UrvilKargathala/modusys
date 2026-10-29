@@ -15,7 +15,7 @@ export async function GET() {
   return NextResponse.json(items.map((i) => ({
     id: i.id, thicknessId: i.thicknessId, rawMaterialTypeId: i.rawMaterialTypeId,
     internalColourId: i.internalColourId, externalColourId: i.externalColourId,
-    rate: i.rate, variantId: i.variantId, deleted: i.deleted, createdAt: i.createdAt.toISOString(),
+    rate: i.rate, variantId: i.variantId, description: i.description, deleted: i.deleted, createdAt: i.createdAt.toISOString(),
   })));
 }
 
@@ -34,6 +34,7 @@ export async function PUT(req: Request) {
     id: String(r.id), thicknessId: String(r.thicknessId), rawMaterialTypeId: String(r.rawMaterialTypeId),
     internalColourId: String(r.internalColourId), externalColourId: String(r.externalColourId),
     rate: Number(r.rate), variantId: normalizeVariantId(String(r.variantId ?? "")),
+    description: String(r.description ?? "").trim().slice(0, 500),
     deleted: Boolean(r.deleted), createdAt: toDate(r.createdAt),
   }));
 
@@ -54,7 +55,7 @@ export async function PUT(req: Request) {
     const label = `Furniture: ${r.thicknessId} / ${r.rawMaterialTypeId}`;
     if (!old) {
       void logAudit({ action: "PRICE_LIST_ENTRY_CREATED", actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name }, target: { type: "PRICE_LIST_ENTRY", id: r.id, label }, details: { rate: r.rate }, req });
-    } else if (old.rate !== r.rate || old.deleted !== r.deleted) {
+    } else if (old.rate !== r.rate || old.deleted !== r.deleted || old.description !== r.description) {
       void logAudit({ action: "PRICE_LIST_ENTRY_UPDATED", actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name }, target: { type: "PRICE_LIST_ENTRY", id: r.id, label }, details: { field: "rate", from: old.rate, to: r.rate }, req });
     }
   }

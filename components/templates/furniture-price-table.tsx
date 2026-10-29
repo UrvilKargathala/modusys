@@ -9,6 +9,8 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { FurniturePriceFormDialog } from "@/components/templates/furniture-price-form-dialog";
+import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
+import { useFinishColours } from "@/components/templates/finish-colours";
 import { DeletePriceItemDialog, type PriceUsageRef } from "@/components/templates/delete-price-item-dialog";
 import { useFurniturePriceItems, pricingListStore } from "@/lib/store/pricing-list-store";
 import { useQuotes } from "@/lib/store/quotes-store";
@@ -84,19 +86,39 @@ export function FurniturePriceTable() {
       if (!q) return true;
       return (
         i.variantId.toLowerCase().includes(q) ||
+        (i.description ?? "").toLowerCase().includes(q) ||
         [i.thicknessId, i.rawMaterialTypeId, i.internalColourId, i.externalColourId].some((id) => materialName(id).toLowerCase().includes(q))
       );
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, filterDimension, filterValue, search]);
 
-  const { header, sortRows } = useTableSort<"variantId" | "thickness" | "rawMaterial" | "internal" | "external" | "rate">("thickness");
+  // A colour changed in the table: saved at once, unless that combination already has a price (then nothing changes). Undo puts it back.
+  const { nameOfColour, finishIdOf, colourIdFor } = useFinishColours();
+  const changeColour = (row: FurniturePriceItem, field: "internalColourId" | "externalColourId", colourId: string) => {
+    if (!colourId || colourId === row[field]) return;
+    const { id, createdAt: _c, ...before } = row;
+    const next = { ...before, [field]: colourId };
+    const clash = pricingListStore.findDuplicateFurniture(next, id);
+    if (clash) {
+      toastStore.show(`That combination already has a price (${clash.rate.toFixed(2)}/sq.ft${clash.variantId ? `, ${clash.variantId}` : ""}). Change that row instead.`, "error");
+      return;
+    }
+    pricingListStore.updateFurnitureItem(id, next);
+    toastStore.show(`${field === "internalColourId" ? "Internal" : "External"} Colour changed to ${materialName(colourId)}`, "success", {
+      durationMs: 8000,
+      action: { label: "Undo", onClick: () => pricingListStore.updateFurnitureItem(id, before) },
+    });
+  };
+
+  const { header, sortRows } = useTableSort<"variantId" | "thickness" | "rawMaterial" | "internal" | "external" | "description" | "rate">("thickness");
   const sorted = sortRows(filtered, (i, key) =>
     key === "variantId" ? i.variantId
     : key === "thickness" ? materialName(i.thicknessId)
     : key === "rawMaterial" ? materialName(i.rawMaterialTypeId)
     : key === "internal" ? materialName(i.internalColourId)
     : key === "external" ? materialName(i.externalColourId)
+    : key === "description" ? i.description ?? ""
     : i.rate
   );
 
@@ -180,8 +202,9 @@ export function FurniturePriceTable() {
                 <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("variantId", "Variant ID")}</th>
                 <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("thickness", "Thickness")}</th>
                 <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("rawMaterial", "Raw Material Type")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("internal", "Internal Colours and Description")}</th>
-                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("external", "External Colours and Description")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("internal", "Internal Colour")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("external", "External Colour")}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("description", "Description")}</th>
                 <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("rate", "Rate/sq.ft")}</th>
                 <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Actions</th>
               </tr>
@@ -193,8 +216,26 @@ export function FurniturePriceTable() {
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number font-medium text-grey-900">{i.variantId || <span className="text-grey-300">—</span>}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body font-medium text-grey-900"><Nums>{materialName(i.thicknessId)}</Nums></td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-900"><Nums>{materialName(i.rawMaterialTypeId)}</Nums></td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700"><Nums>{materialName(i.internalColourId)}</Nums></td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[13px] font-body text-grey-700"><Nums>{materialName(i.externalColourId)}</Nums></td>
+                  {/* Internal / External Colour change right here (Finish Material names), like in Edit. */}
+                  {(["internalColourId", "externalColourId"] as const).map((field) => {
+                    const list = field === "internalColourId" ? "internal-colour" : "external-colour";
+                    return (
+                      <td key={field} className="whitespace-nowrap px-2 py-1.5 text-[13px] font-body text-grey-700">
+                        {canEdit ? (
+                          <MaterialReferenceSelect
+                            category="finish-material"
+                            sorted
+                            value={finishIdOf(list, i[field])}
+                            fallbackText={nameOfColour(list, i[field]) || undefined}
+                            onChange={(id) => changeColour(i, field, colourIdFor(list, id))}
+                          />
+                        ) : (
+                          <Nums>{materialName(i[field])}</Nums>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className="max-w-64 px-4 py-3 text-[13px] font-body text-grey-700" title={i.description || undefined}>{i.description ? <span className="line-clamp-2">{i.description}</span> : <span className="text-grey-300">—</span>}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-[13px] font-number font-semibold text-grey-900">{i.rate.toFixed(2)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">

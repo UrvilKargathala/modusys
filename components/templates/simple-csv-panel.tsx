@@ -27,8 +27,9 @@ const HARDWARE_HEADER = ["Article No", "Category", "Brand", "Description", "Leve
 const HARDWARE_TEMPLATE_ROW = ["BLM-CLIP-110", "Hinges", "Blum", "Clip Top Soft-Close Hinge, 110°, full overlay", "Primary", "Pcs", "420", "15", "357.00"];
 
 // Variant ID is the last column so older 5-column files still import (a blank ID is generated from the row).
-const FURNITURE_HEADER = ["Thickness", "Raw Material Type", "Internal Colour", "External Colour", "Rate", "Variant ID"];
-const FURNITURE_TEMPLATE_ROW = ["18mm", "BWP Ply", "White", "Matte Charcoal", "145", "18MM-BWP-WHITE-MATTE-CHARCOAL"];
+// Description is last so older 6-column files still import (they keep the descriptions already on the rows).
+const FURNITURE_HEADER = ["Thickness", "Raw Material Type", "Internal Colour", "External Colour", "Rate", "Variant ID", "Description"];
+const FURNITURE_TEMPLATE_ROW = ["18mm", "BWP Ply", "White", "Matte Charcoal", "145", "18MM-BWP-WHITE-MATTE-CHARCOAL", ""];
 
 // Resolve a Material Library entry by name, creating it on the fly (same
 // escape hatch every "+ Add new" picker in this app already offers) so an
@@ -96,6 +97,7 @@ export function SimpleCsvPanel({ label, kind }: { label: string; kind: "furnitur
           nameOf(materialItems, i.externalColourId),
           String(i.rate),
           i.variantId,
+          i.description ?? "",
         ]),
       ];
       downloadCsv(`${label.toLowerCase().replace(/\s+/g, "-")}.csv`, rows);
@@ -147,7 +149,7 @@ export function SimpleCsvPanel({ label, kind }: { label: string; kind: "furnitur
     let created = 0, updated = 0, skipped = 0, errored = 0;
 
     for (const row of dataRows) {
-      const [thickness, rawMaterial, internalColour, externalColour, rateStr, variantCell] = row;
+      const [thickness, rawMaterial, internalColour, externalColour, rateStr, variantCell, descriptionCell] = row;
       const rate = Number(rateStr);
       if (!thickness?.trim() || !rawMaterial?.trim() || !internalColour?.trim() || !externalColour?.trim() || !Number.isFinite(rate)) {
         errored++;
@@ -166,6 +168,7 @@ export function SimpleCsvPanel({ label, kind }: { label: string; kind: "furnitur
         internalColourId: resolveOrCreateMaterialId("internal-colour", internalColour, materialItems, createdThisRun),
         externalColourId: resolveOrCreateMaterialId("external-colour", externalColour, materialItems, createdThisRun),
         rate,
+        ...(descriptionCell !== undefined ? { description: descriptionCell.trim() } : {}),
       };
       const match = pricingListStore.findDuplicateFurniture(input);
       if (match) {

@@ -15,6 +15,8 @@ export type FurniturePriceItem = {
   externalColourId: string;
   rate: number; // ₹ per sq ft
   variantId: string; // letters/numbers/dashes, unique among live rows
+  // Free text typed on the row (Furniture Price List only).
+  description?: string;
   deleted?: boolean;
   createdAt: string;
 };
