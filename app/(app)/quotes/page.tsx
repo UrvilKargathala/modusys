@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useMemo, useRef, useState } from "react";
-import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, FileDown, Printer, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Upload, FileArchive, ListOrdered, LayoutList, LayoutGrid, Layers, ShoppingCart } from "lucide-react";
+import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, FileDown, Printer, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Upload, FileArchive, ListOrdered, LayoutList, LayoutGrid, Layers, ClipboardList, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -154,13 +154,14 @@ export default function QuotesPage() {
     });
   };
 
-  const openPdf = (q: Quote, mode: "download" | "print" | "unit-wise" | "unit-details" | "space-pricing" | "space-details") => {
+  const openPdf = (q: Quote, mode: "download" | "print" | "unit-wise" | "unit-details" | "space-pricing" | "space-details" | "space-summary") => {
     const url =
       mode === "download" ? `/quotes/${q.id}/pdf?download=1`
       : mode === "unit-wise" ? `/quotes/${q.id}/pdf?view=unit-wise&download=1`
       : mode === "unit-details" ? `/quotes/${q.id}/pdf?view=unit-details&download=1`
       : mode === "space-pricing" ? `/quotes/${q.id}/pdf?view=space-pricing&download=1`
       : mode === "space-details" ? `/quotes/${q.id}/pdf?view=space-details&download=1`
+      : mode === "space-summary" ? `/quotes/${q.id}/pdf?view=space-summary&download=1`
       : `/quotes/${q.id}/pdf`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
@@ -413,6 +414,13 @@ export default function QuotesPage() {
                                 >
                                   <Layers className="h-4 w-4 shrink-0 text-grey-400" />
                                   Space Wise Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openPdf(quote, "space-summary")}
+                                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                                >
+                                  <ClipboardList className="h-4 w-4 shrink-0 text-grey-400" />
+                                  Space Details Summary
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>

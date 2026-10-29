@@ -110,6 +110,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   // ?view=space-pricing / space-details: the same two layouts, but units are grouped under their Space (room) with a per-space total.
   const isSpacePricing = searchParams.get("view") === "space-pricing";
   const isSpaceDetails = searchParams.get("view") === "space-details";
+  // ?view=space-summary: Space Wise Details without the Amount column; the only money shown is the Pricing Summary.
+  const isSpaceSummary = searchParams.get("view") === "space-summary";
   const [printed, setPrinted] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
@@ -121,7 +123,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   // "quote") — sanitized since it lands in a filesystem path.
   const pdfFileName = () => {
     const base = (customer?.name || quote?.quoteNumber || "quote").replace(/[\\/:*?"<>|]/g, "").trim() || "quote";
-    return isUnitWise ? `${base} - Unit Wise` : isUnitDetails ? `${base} - Unit Wise Details` : isSpacePricing ? `${base} - Space Wise Pricing` : isSpaceDetails ? `${base} - Space Wise Details` : base;
+    return isUnitWise ? `${base} - Unit Wise` : isUnitDetails ? `${base} - Unit Wise Details` : isSpacePricing ? `${base} - Space Wise Pricing` : isSpaceDetails ? `${base} - Space Wise Details` : isSpaceSummary ? `${base} - Space Details Summary` : base;
   };
 
   // Most browsers suggest document.title as the Save-as-PDF filename.
@@ -565,13 +567,13 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </table>
         </div>
           </>
-        ) : isSpaceDetails ? (
+        ) : isSpaceDetails || isSpaceSummary ? (
           <>
-        <SectionLabel>Space Wise Details</SectionLabel>
+        <SectionLabel>{isSpaceSummary ? "Space Details Summary" : "Space Wise Details"}</SectionLabel>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] table-fixed border-collapse text-[11px] print:min-w-0">
             <colgroup>
-              {[5, 11, 9, 12, 21, 7, 7, 7, 5, 5, 11].map((w, i) => (
+              {(isSpaceSummary ? [5, 11, 9, 12, 32, 7, 7, 7, 5, 5] : [5, 11, 9, 12, 21, 7, 7, 7, 5, 5, 11]).map((w, i) => (
                 <col key={i} style={{ width: `${w}%` }} />
               ))}
             </colgroup>
@@ -587,13 +589,13 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                 <th className="px-2.5 py-2 text-right font-bold">Height</th>
                 <th className="px-2.5 py-2 text-right font-bold">Qty</th>
                 <th className="px-2.5 py-2 font-bold">Unit</th>
-                <th className="px-2.5 py-2 text-right font-bold">Amount</th>
+                {!isSpaceSummary && <th className="px-2.5 py-2 text-right font-bold">Amount</th>}
               </tr>
             </thead>
             <tbody className="leading-snug">
               {spaceGroups.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="pdf-cream-dim py-3 text-center">
+                  <td colSpan={isSpaceSummary ? 10 : 11} className="pdf-cream-dim py-3 text-center">
                     No units added to this quote.
                   </td>
                 </tr>
@@ -606,7 +608,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                       <td colSpan={8} className="pdf-cream-dim px-2.5 py-2 font-normal">
                         <span className="font-number">{space.groups.length}</span> {space.groups.length === 1 ? "unit" : "units"}
                       </td>
-                      <td className="whitespace-nowrap px-2.5 py-2 text-right font-number">{formatInr(space.cost * quote.markupMultiplier)}</td>
+                      {!isSpaceSummary && <td className="whitespace-nowrap px-2.5 py-2 text-right font-number">{formatInr(space.cost * quote.markupMultiplier)}</td>}
                     </tr>
                     {space.groups.map((group, ui) => (
                       <Fragment key={group.index}>
@@ -620,7 +622,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                           <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.height}</td>
                           <td className="whitespace-nowrap px-2.5 py-1.5 text-right font-number">{group.headerRow.qty}</td>
                           <td className="whitespace-nowrap px-2.5 py-1.5">{group.headerRow.unit}</td>
-                          <td className="px-2.5 py-1.5" />
+                          {!isSpaceSummary && <td className="px-2.5 py-1.5" />}
                         </tr>
                         {group.rows.map((row, i) => (
                           <tr key={`${group.index}-${i}`} className="pdf-cream-body break-inside-avoid-page">
@@ -634,7 +636,7 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                             <td className="whitespace-nowrap px-2.5 py-1 text-right font-number">{row.height}</td>
                             <td className="whitespace-nowrap px-2.5 py-1 text-right font-number">{row.qty}</td>
                             <td className="whitespace-nowrap px-2.5 py-1">{row.unit}</td>
-                            <td className="px-2.5 py-1" />
+                            {!isSpaceSummary && <td className="px-2.5 py-1" />}
                           </tr>
                         ))}
                       </Fragment>
@@ -738,8 +740,6 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </>
         )}
 
-        {!isUnitDetails && !isSpaceDetails && (
-          <>
         <div className="pdf-border mt-2 border-t" />
         <div className="mt-3 flex flex-col items-end break-inside-avoid-page">
           <div className="w-full max-w-sm">
@@ -777,7 +777,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
           </div>
         </div>
 
-        {!isUnitWise && !isSpacePricing && quote.finishOptions.length > 0 && (
+        {/* Pricing Summary is on every view; Finish Options only on the full quote. */}
+        {!isUnitWise && !isSpacePricing && !isUnitDetails && !isSpaceDetails && !isSpaceSummary && quote.finishOptions.length > 0 && (
           <>
             <SectionLabel>Finish Options</SectionLabel>
             <table className="w-full border-collapse text-xs">
@@ -806,8 +807,6 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
                 })}
               </tbody>
             </table>
-          </>
-        )}
           </>
         )}
 
