@@ -135,14 +135,14 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
             <thead className="bg-[var(--table-head)]">
               <tr>
                 {showSrNo && (
-                  <th className="whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">SR No</th>
+                  <th className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-semibold text-grey-900">Sr No</th>
                 )}
                 {pair && (
-                  <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
+                  <th className="px-4 py-2.5 text-xs font-body font-semibold text-grey-900">
                     <button
                       type="button"
                       onClick={() => toggleSort("description")}
-                      className="flex items-center gap-1 uppercase tracking-wide hover:text-grey-700"
+                      className="flex items-center gap-1 hover:text-grey-700"
                       aria-label={brandCode ? "Sort by brand" : "Sort by code"}
                     >
                       {brandCode ? "Brand" : "Code"}
@@ -150,11 +150,11 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                     </button>
                   </th>
                 )}
-                <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
+                <th className="px-4 py-2.5 text-xs font-body font-semibold text-grey-900">
                   <button
                     type="button"
                     onClick={() => toggleSort("name")}
-                    className="flex items-center gap-1 uppercase tracking-wide hover:text-grey-700"
+                    className="flex items-center gap-1 hover:text-grey-700"
                     aria-label={brandCode ? "Sort by colour code" : "Sort by name"}
                   >
                     {brandCode ? "Colour Code" : category.longDescription ? "Value" : "Name"}
@@ -163,17 +163,17 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                 </th>
                 {category.finishRule && (
                   <>
-                    <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Where to Use</th>
-                    <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Internal</th>
-                    <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">External</th>
+                    <th className="px-4 py-2.5 text-xs font-body font-semibold text-grey-900">Where to Use</th>
+                    <th className="px-4 py-2.5 text-xs font-body font-semibold text-grey-900">Internal</th>
+                    <th className="px-4 py-2.5 text-xs font-body font-semibold text-grey-900">External</th>
                   </>
                 )}
                 {!pair && !category.noDescription && (
-                  <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
+                  <th className="px-4 py-2.5 text-xs font-body font-semibold text-grey-900">
                     <button
                       type="button"
                       onClick={() => toggleSort("description")}
-                      className="flex items-center gap-1 uppercase tracking-wide hover:text-grey-700"
+                      className="flex items-center gap-1 hover:text-grey-700"
                       aria-label="Sort by description"
                     >
                       Description
@@ -181,7 +181,7 @@ export function MaterialCategoryList({ category }: { category: MaterialCategory 
                     </button>
                   </th>
                 )}
-                <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">
+                <th className="px-4 py-2.5 text-right text-xs font-body font-semibold text-grey-900">
                   Actions
                 </th>
               </tr>

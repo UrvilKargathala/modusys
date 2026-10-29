@@ -17,7 +17,7 @@ import { getCurrentUser } from "@/lib/session";
 import type { PurchaseFurniturePriceItem } from "@/lib/mock/pricing-list";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
-const th = "whitespace-nowrap px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900";
+const th = "whitespace-nowrap px-4 py-2.5 text-xs font-body font-semibold text-grey-900";
 
 export function PurchaseFurniturePriceTable() {
   const currentUser = getCurrentUser();
@@ -115,7 +115,7 @@ export function PurchaseFurniturePriceTable() {
           <table className="w-full text-left">
             <thead className="bg-[var(--table-head)]">
               <tr>
-                <th className={th}>SR No</th>
+                <th className={th}>Sr No</th>
                 <th className={th}>{header("variantId", "Variant ID")}</th>
                 <th className={th}>Vendor Name</th>
                 <th className={th}>{header("thickness", "Thickness")}</th>
@@ -123,7 +123,7 @@ export function PurchaseFurniturePriceTable() {
                 <th className={th}>{header("internal", "Internal Brand and Colour")}</th>
                 <th className={th}>{header("external", "External Brand and Colour")}</th>
                 <th className={th}>{header("rate", "Rate/sq.ft")}</th>
-                <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Actions</th>
+                <th className="px-4 py-2.5 text-right text-xs font-body font-semibold text-grey-900">Actions</th>
               </tr>
             </thead>
             <tbody>

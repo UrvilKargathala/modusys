@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { FurniturePriceFormDialog } from "@/components/templates/furniture-price-form-dialog";
+import { useFinishColours } from "@/components/templates/finish-colours";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useFurniturePriceItems, pricingListStore } from "@/lib/store/pricing-list-store";
 import { cn } from "@/lib/utils";
@@ -117,6 +118,14 @@ export function FurnitureLineItemRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   // On a Purchase Order already (Requirement Order editor): locked.
   const sentPo = useSentPo(value.id);
+  // Internal / External Colour are picked from Finish Material, like the Furniture Price List (see useFinishColours).
+  const { nameOfColour, finishIdOf, colourIdFor } = useFinishColours();
+  const colourPick = (list: "internal-colour" | "external-colour", field: "internalColourId" | "externalColourId") => ({
+    category: "finish-material" as const,
+    value: finishIdOf(list, value[field]),
+    fallbackText: nameOfColour(list, value[field]) || undefined,
+    onChange: (id: string) => requestMaterialChange(field, colourIdFor(list, id)),
+  });
   const [addPriceOpen, setAddPriceOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingMaterialChange, setPendingMaterialChange] = useState<{ field: string; id: string } | null>(null);
@@ -255,8 +264,8 @@ export function FurnitureLineItemRow({
           <MaterialReferenceSelect category="thickness" value={value.thicknessId} onChange={(id) => requestMaterialChange("thicknessId", id)} triggerClassName="gap-1 px-1.5 font-number" />
           <span className="num text-center text-sm text-grey-700">{totalSqFt !== undefined ? totalSqFt.toFixed(2) : "—"}</span>
           <MaterialReferenceSelect category="raw-material-type" wide sorted value={value.rawMaterialTypeId} onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)} />
-          <MaterialReferenceSelect category="external-colour" wide sorted value={value.externalColourId} onChange={(id) => requestMaterialChange("externalColourId", id)} />
-          <MaterialReferenceSelect category="internal-colour" wide sorted value={value.internalColourId} onChange={(id) => requestMaterialChange("internalColourId", id)} />
+          <MaterialReferenceSelect {...colourPick("external-colour", "externalColourId")} wide sorted />
+          <MaterialReferenceSelect {...colourPick("internal-colour", "internalColourId")} wide sorted />
           <Input
             aria-label="Rate per sq.ft"
             type="number"
@@ -465,22 +474,18 @@ export function FurnitureLineItemRow({
         <div className="flex flex-col gap-1.5">
           <Label>External Colour</Label>
           <MaterialReferenceSelect
-            category="external-colour"
+            {...colourPick("external-colour", "externalColourId")}
             wide
             sorted
-            value={value.externalColourId}
-            onChange={(id) => requestMaterialChange("externalColourId", id)}
             triggerClassName="bg-[var(--input-bg,#EAF7FC)]"
           />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>Internal Colour</Label>
           <MaterialReferenceSelect
-            category="internal-colour"
+            {...colourPick("internal-colour", "internalColourId")}
             wide
             sorted
-            value={value.internalColourId}
-            onChange={(id) => requestMaterialChange("internalColourId", id)}
             triggerClassName="bg-[var(--input-bg,#EAF7FC)]"
           />
         </div>

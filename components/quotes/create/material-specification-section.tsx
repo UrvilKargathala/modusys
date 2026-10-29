@@ -7,6 +7,7 @@ import { MaterialReferenceSelect } from "@/components/templates/material-referen
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SpecTable, L, V, SectionRow } from "@/components/quotes/create/spec-table";
 import { VariantIdSelect } from "@/components/quotes/create/variant-id-select";
+import { useFinishColours } from "@/components/templates/finish-colours";
 import { useFurniturePriceItems } from "@/lib/store/pricing-list-store";
 import type { FurniturePriceItem } from "@/lib/mock/pricing-list";
 import type { Quote } from "@/lib/mock/quote";
@@ -67,6 +68,22 @@ export function MaterialSpecificationSection({
       }
     },
     [confirmChanges, onChange]
+  );
+
+  // Internal / External Colour are picked from Finish Material, like the Furniture Price List (see useFinishColours).
+  const { nameOfColour, finishIdOf, colourIdFor } = useFinishColours();
+  const colourPick = (list: "internal-colour" | "external-colour", field: "shutterFinishInternalColourId" | "shutterFinishExternalColourId", label: string) => ({
+    category: "finish-material" as const,
+    value: finishIdOf(list, quote[field]),
+    fallbackText: nameOfColour(list, quote[field]) || undefined,
+    onChange: (id: string) => confirmChange(label, { [field]: colourIdFor(list, id) }),
+  });
+
+  // Read-only: the matched Variant ID's Description from the Furniture Price List.
+  const variantDescription = (
+    <p className={cn("flex min-h-8 items-center text-sm font-body", matchedVariant?.description ? "text-grey-700" : "text-grey-400")}>
+      {matchedVariant?.description || (matchedVariant ? "No description on this Variant ID in the Furniture Price List" : "Follows the Variant ID")}
+    </p>
   );
 
   // Shutter Finish (the external colour) is no longer picked directly; it follows the Variant ID.
@@ -141,23 +158,14 @@ export function MaterialSpecificationSection({
               />
             </Field>
             <Field label="Internal Colour">
-              <MaterialReferenceSelect
-                category="internal-colour"
-                wide
-                sorted
-                value={quote.shutterFinishInternalColourId}
-                onChange={(id) => confirmChange("Shutter Finish Internal Colour", { shutterFinishInternalColourId: id })}
-              />
+              <MaterialReferenceSelect {...colourPick("internal-colour", "shutterFinishInternalColourId", "Shutter Finish Internal Colour")} wide sorted />
             </Field>
             <Field label="External Colour">
-              <MaterialReferenceSelect
-                category="external-colour"
-                wide
-                sorted
-                value={quote.shutterFinishExternalColourId}
-                onChange={(id) => confirmChange("Shutter Finish External Colour", { shutterFinishExternalColourId: id })}
-              />
+              <MaterialReferenceSelect {...colourPick("external-colour", "shutterFinishExternalColourId", "Shutter Finish External Colour")} wide sorted />
             </Field>
+            <div className="md:col-span-2">
+              <Field label="Description">{variantDescription}</Field>
+            </div>
           </div>
         </div>
 
@@ -218,7 +226,7 @@ export function MaterialSpecificationSection({
                 </V>
                 <L>Internal Colour</L>
                 <V>
-                  <MaterialReferenceSelect category="internal-colour" wide sorted triggerClassName={PICK} value={quote.shutterFinishInternalColourId} onChange={(id) => confirmChange("Shutter Finish Internal Colour", { shutterFinishInternalColourId: id })} />
+                  <MaterialReferenceSelect {...colourPick("internal-colour", "shutterFinishInternalColourId", "Shutter Finish Internal Colour")} wide sorted triggerClassName={PICK} />
                 </V>
               </tr>
               <tr>
@@ -228,8 +236,12 @@ export function MaterialSpecificationSection({
                 </V>
                 <L>External Colour</L>
                 <V>
-                  <MaterialReferenceSelect category="external-colour" wide sorted triggerClassName={PICK} value={quote.shutterFinishExternalColourId} onChange={(id) => confirmChange("Shutter Finish External Colour", { shutterFinishExternalColourId: id })} />
+                  <MaterialReferenceSelect {...colourPick("external-colour", "shutterFinishExternalColourId", "Shutter Finish External Colour")} wide sorted triggerClassName={PICK} />
                 </V>
+              </tr>
+              <tr>
+                <L>Description</L>
+                <V span={3}>{variantDescription}</V>
               </tr>
               <tr>
                 <SectionRow>Hardware</SectionRow>

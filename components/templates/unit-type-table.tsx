@@ -122,16 +122,16 @@ export function UnitTypeTable() {
           <table className="w-full text-left">
             <thead className="bg-[var(--table-head)]">
               <tr>
-                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">SR No</th>
-                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("name", "Name")}</th>
-                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("shortCode", "Short Code")}</th>
-                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("cabinet", "Cabinet Type")}</th>
-                <th className="w-px whitespace-nowrap px-2 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("components", "Comp.")}</th>
-                <th className="w-px whitespace-nowrap px-2 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("externalFinish", "Ext. Finish")}</th>
-                <th className="w-px whitespace-nowrap px-2 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("hardware", "Hardware")}</th>
-                <th className="w-px whitespace-nowrap px-2 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("otherPanel", "Panel")}</th>
-                <th className="whitespace-nowrap px-3 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">{header("status", "Status")}</th>
-                <th className="px-3 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Actions</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-semibold text-grey-900">Sr No</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-semibold text-grey-900">{header("name", "Name")}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-semibold text-grey-900">{header("shortCode", "Short Code")}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-semibold text-grey-900">{header("cabinet", "Cabinet Type")}</th>
+                <th className="w-px whitespace-nowrap px-2 py-2.5 text-xs font-body font-semibold text-grey-900">{header("components", "Comp.")}</th>
+                <th className="w-px whitespace-nowrap px-2 py-2.5 text-xs font-body font-semibold text-grey-900">{header("externalFinish", "Ext. Finish")}</th>
+                <th className="w-px whitespace-nowrap px-2 py-2.5 text-xs font-body font-semibold text-grey-900">{header("hardware", "Hardware")}</th>
+                <th className="w-px whitespace-nowrap px-2 py-2.5 text-xs font-body font-semibold text-grey-900">{header("otherPanel", "Panel")}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-xs font-body font-semibold text-grey-900">{header("status", "Status")}</th>
+                <th className="px-3 py-2.5 text-right text-xs font-body font-semibold text-grey-900">Actions</th>
               </tr>
             </thead>
             <tbody>

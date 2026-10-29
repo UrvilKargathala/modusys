@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { FurniturePriceFormDialog } from "@/components/templates/furniture-price-form-dialog";
+import { useFinishColours } from "@/components/templates/finish-colours";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useFurniturePriceItems, pricingListStore } from "@/lib/store/pricing-list-store";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,8 @@ export function CabinetTypeComponentRow({
   const [pendingMaterialChange, setPendingMaterialChange] = useState<{ field: string; id: string } | null>(null);
 
   const furnitureItems = useFurniturePriceItems();
+  // Internal / External Colour are picked from Finish Material, like the Furniture Price List (see useFinishColours).
+  const { nameOfColour, finishIdOf, colourIdFor } = useFinishColours();
   const combinationComplete =
     !!value.thicknessId && !!value.rawMaterialTypeId && !!value.internalColourId && !!value.externalColourId;
 
@@ -138,17 +141,21 @@ export function CabinetTypeComponentRow({
         <div className="flex flex-col gap-1.5">
           <Label>Internal Colour</Label>
           <MaterialReferenceSelect
-            category="internal-colour"
-            value={value.internalColourId}
-            onChange={(id) => requestMaterialChange("internalColourId", id)}
+            category="finish-material"
+            sorted
+            value={finishIdOf("internal-colour", value.internalColourId)}
+            fallbackText={nameOfColour("internal-colour", value.internalColourId) || undefined}
+            onChange={(id) => requestMaterialChange("internalColourId", colourIdFor("internal-colour", id))}
           />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>External Colour</Label>
           <MaterialReferenceSelect
-            category="external-colour"
-            value={value.externalColourId}
-            onChange={(id) => requestMaterialChange("externalColourId", id)}
+            category="finish-material"
+            sorted
+            value={finishIdOf("external-colour", value.externalColourId)}
+            fallbackText={nameOfColour("external-colour", value.externalColourId) || undefined}
+            onChange={(id) => requestMaterialChange("externalColourId", colourIdFor("external-colour", id))}
           />
         </div>
         <div className="flex flex-col gap-1.5">

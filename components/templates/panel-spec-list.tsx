@@ -85,12 +85,12 @@ export function PanelSpecList() {
           <table className="w-full text-left">
             <thead className="bg-[var(--table-head)]">
               <tr>
-                <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Brand</th>
-                <th className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Product</th>
-                <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Length</th>
-                <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Height</th>
-                <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Panels</th>
-                <th className="px-4 py-2.5 text-right text-sm font-body font-semibold uppercase tracking-wide text-grey-900">Actions</th>
+                <th className="px-4 py-2.5 text-xs font-body font-semibold text-grey-900">Brand</th>
+                <th className="px-4 py-2.5 text-xs font-body font-semibold text-grey-900">Product</th>
+                <th className="px-4 py-2.5 text-right text-xs font-body font-semibold text-grey-900">Length</th>
+                <th className="px-4 py-2.5 text-right text-xs font-body font-semibold text-grey-900">Height</th>
+                <th className="px-4 py-2.5 text-right text-xs font-body font-semibold text-grey-900">Panels</th>
+                <th className="px-4 py-2.5 text-right text-xs font-body font-semibold text-grey-900">Actions</th>
               </tr>
             </thead>
             <tbody>
