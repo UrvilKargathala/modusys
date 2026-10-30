@@ -119,7 +119,8 @@ export const quotesStore = {
     if (result.renameOldestTo) quotesStore.saveQuote({ ...siblings[0], quoteNumber: result.renameOldestTo });
     return { ...quote, quoteNumber: result.number };
   },
-  saveQuote(quote: Quote) {
+  // history: an edit saved from the quote form — the Remarks typed when saving and what changed, kept in the quote's History.
+  saveQuote(quote: Quote, history?: { remarks: string; changes: string[] }) {
     ensureHydrated();
     const existingIndex = quotes.findIndex((q) => q.id === quote.id);
     const quoteNumber = uniqueQuoteNumber(quote.quoteNumber, quotes, quote.id);
@@ -138,7 +139,7 @@ export const quotesStore = {
     fetch("/api/quotes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updated),
+      body: JSON.stringify(history ? { ...updated, history } : updated),
     }).catch(() => {
       // transient failure — the next save re-sends the full quote
     });

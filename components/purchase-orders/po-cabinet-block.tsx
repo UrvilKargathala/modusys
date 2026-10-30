@@ -3,13 +3,12 @@
 import { useContext, useState } from "react";
 import { ChevronDown, ChevronRight, Copy, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { PoComponentsToggle } from "@/components/purchase-orders/po-components-toggle";
 import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { PoLinesTable } from "@/components/purchase-orders/po-lines-table";
 import { useConfirmChange } from "@/components/purchase-orders/po-confirm-change";
-import { cabinetRowGrid, selectOnClick, PoCabinetVendorSelect } from "@/components/purchase-orders/po-cabinet-card";
+import { cabinetRowGrid, selectOnClick, PoCabinetVendorSelect, PoUnitNameCell } from "@/components/purchase-orders/po-cabinet-card";
 import { PoLibraryContext } from "@/components/purchase-orders/po-library-context";
 import { formatInr } from "@/lib/format";
 import { recalcCarcass } from "@/lib/purchase-order-from-quote";
@@ -82,7 +81,7 @@ export function PoCabinetBlock({
         // The cabinet drawn as one table line (same columns as By Unit); the group's rows open underneath.
         renderBand={({ collapsed, toggle, total, totalSqft }) => (
           <>
-            <div className={cabinetRowGrid(proforma)}>
+            <div className={cabinetRowGrid(proforma, !proforma)}>
               <div className="cell justify-center">
                 <button
                   type="button"
@@ -95,6 +94,7 @@ export function PoCabinetBlock({
                 </button>
               </div>
               <div className="cell num justify-center font-semibold text-primary">{srNo}</div>
+              {!proforma && <PoUnitNameCell cabinet={cabinet} />}
               <div className="cell">
                 <PoCabinetNameSelect field value={cab.designType ?? ""} fallback={cab.label} onChange={(v, cabinetTypeId) => ask("cabinet type", !!cab.designType && v !== cab.designType, () => onCabinetChange({ ...cab, designType: v, cabinetTypeId }))} />
               </div>
@@ -147,7 +147,6 @@ export function PoCabinetBlock({
                 <input aria-label={`Cabinet ${srNo} remark`} {...selectOnClick} placeholder="Remark" value={cab.remark ?? ""} onChange={(e) => onCabinetChange({ ...cab, remark: e.target.value })} />
               </div>
               <div className="cell justify-center gap-0.5">
-                {group === "carcass" && cabinet && <PoComponentsToggle unitName={cabinet.unitName} cabinet={cabinet} onCabinetChange={onCabinetChange} />}
                 <button type="button" className={iconBtn} aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
                   <Copy className="h-4 w-4" />
                 </button>

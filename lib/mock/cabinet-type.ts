@@ -10,7 +10,7 @@ function findMaterialId(category: MaterialCategoryKey, name: string): string {
 // type + the same four-way Thickness/Raw Material Type/Internal/External
 // Colour combination Furniture Price List keys on — Rate is never stored
 // here, it's looked up live against Furniture Price List by that
-// combination (see cabinet-type-component-row.tsx).
+// combination (see furniture-line-item-row.tsx).
 export type CabinetComponent = {
   id: string;
   componentTypeId: string; // Material Library → Furniture Component

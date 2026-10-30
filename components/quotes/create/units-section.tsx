@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, ChevronsDown, ChevronsUp, Boxes, ChevronDown, ChevronRight, Search, Send, Sparkles } from "lucide-react";
+import { useContext, useState } from "react";
+import { Plus, ChevronsDown, ChevronsUp, Boxes, ChevronDown, ChevronRight, Search, Send, Sparkles, Calculator } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CabinetTypeSelect, autoPopulateComponents, blankLineItem } from "@/components/quotes/create/quote-cabinet-group";
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { SelectField } from "@/components/shared/select-field";
+import { PanelCalculatorContext } from "@/components/shared/panel-calculator-context";
+import type { FurnitureLineItem } from "@/lib/mock/unit-type";
 import { EmptyState } from "@/components/shared/empty-state";
 import { QuoteUnitCard, UNIT_ROW_GRID } from "@/components/quotes/create/quote-unit-card";
 import { FurnitureLineItemRow, FurnitureTableHeader, furnitureTableColumns } from "@/components/templates/furniture-line-item-row";
@@ -130,6 +135,22 @@ export function UnitsSection({
   const externals = useMaterialItems("external-colour");
   const internals = useMaterialItems("internal-colour");
   const nameOf = (list: { id: string; name: string }[], id?: string) => list.find((m) => m.id === id)?.name ?? "";
+
+  // Requirement Order: the Panel Calculator on the Other Panel tab too (see PanelCalculatorContext). This tab lists every
+  // unit's lines, so its window asks which unit (and cabinet, when a unit has several) gets the panels.
+  const PanelCalculator = useContext(PanelCalculatorContext);
+  const [calcOpen, setCalcOpen] = useState(false);
+  const calcTargets = units.flatMap((u, i) =>
+    u.cabinets.map((c, j) => ({
+      key: `${u.id}|${c.id}`,
+      label: [`${i + 1}. ${nameOf(spaces, u.spaceId ?? "") || "No space"}`, unitTypes.find((t) => t.id === u.unitTypeId)?.name, u.cabinets.length > 1 ? `Cabinet ${i + 1}.${j + 1}` : ""].filter(Boolean).join(" — "),
+    }))
+  );
+  const [calcTarget, setCalcTarget] = useState("");
+  const addCalcLines = (lines: FurnitureLineItem[]) => {
+    const [unitId, cabinetId] = (calcTarget || calcTargets[0]?.key || "").split("|");
+    onChange(units.map((u) => (u.id !== unitId ? u : { ...u, cabinets: u.cabinets.map((c) => (c.id === cabinetId ? { ...c, panels: [...c.panels, ...lines] } : c)) })));
+  };
   // Search box and column sorting of the line tables (Carcass, Shutter, Other Panel, Hardware, Merge Hardware).
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<LineSort>(null);
@@ -374,6 +395,28 @@ export function UnitsSection({
 
   return (
     <section className={cn("flex flex-col gap-2 quote-form", !bare && "rounded-xl border border-blush bg-blush", !bare && (sectionCollapsed ? "p-4" : "p-6"))}>
+      {PanelCalculator && calcOpen && (
+        <Dialog open={calcOpen} onOpenChange={setCalcOpen}>
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-5xl">
+            <DialogHeader>
+              <DialogTitle>Panel Calculator</DialogTitle>
+              <DialogDescription>Calculate adds the panels to the Other Panel of the unit picked below. Close when you&apos;re done.</DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-1.5">
+              <Label>Add to</Label>
+              <SelectField
+                value={calcTarget || calcTargets[0]?.key || ""}
+                onChange={(e) => setCalcTarget(e.target.value)}
+                menuClassName="w-max min-w-72 max-w-[calc(100vw-2rem)]"
+                className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
+              >
+                {calcTargets.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+              </SelectField>
+            </div>
+            <PanelCalculator onAdd={addCalcLines} />
+          </DialogContent>
+        </Dialog>
+      )}
       {!bare && (
         <div className="flex items-center justify-between gap-2">
           <button
@@ -436,6 +479,12 @@ export function UnitsSection({
                 </div>
               )}
             </div>
+          )}
+          {PanelCalculator && view === "panel" && calcTargets.length > 0 && (
+            <Button type="button" size="sm" variant="outline" onClick={() => setCalcOpen(true)}>
+              <Calculator className="h-3.5 w-3.5" />
+              Calculator
+            </Button>
           )}
           {bare && (
             <div className="relative w-64 max-w-full">

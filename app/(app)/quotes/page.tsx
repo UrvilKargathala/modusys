@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, useMemo, useRef, useState } from "react";
-import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, FileDown, Printer, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Upload, FileArchive, ListOrdered, LayoutList, LayoutGrid, Layers, ClipboardList, ShoppingCart } from "lucide-react";
+import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, FileDown, Printer, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Upload, FileArchive, ListOrdered, LayoutList, LayoutGrid, Layers, ClipboardList, ShoppingCart, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -25,6 +25,7 @@ import { printQuotesReport } from "@/lib/quotes-report";
 import { useArchitects } from "@/lib/store/architects-store";
 import { fullName } from "@/lib/mock/architects";
 import { StatusPicker } from "@/components/quotes/create/status-picker";
+import { QuoteHistoryDialog } from "@/components/quotes/quote-history-dialog";
 import { CreatePoDialog } from "@/components/purchase-orders/create-po-dialog";
 import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { getCurrentUser } from "@/lib/session";
@@ -91,6 +92,7 @@ export default function QuotesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusKey | "all">("all");
   const [deleteTarget, setDeleteTarget] = useState<Quote | null>(null);
+  const [historyFor, setHistoryFor] = useState<Quote | null>(null);
   const [poQuote, setPoQuote] = useState<Quote | null>(null);
   const poList = usePurchaseOrders();
   const poCounts = useMemo(() => {
@@ -345,6 +347,16 @@ export default function QuotesPage() {
                                 <Pencil className="h-4 w-4" />
                               </TooltipTrigger>
                               <TooltipContent>Edit</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger
+                                aria-label="History"
+                                onClick={() => setHistoryFor(quote)}
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                              >
+                                <History className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent>History</TooltipContent>
                             </Tooltip>
                             {canCreatePo && (
                               <Tooltip>
@@ -611,6 +623,7 @@ export default function QuotesPage() {
         </div>
       )}
 
+      {historyFor && <QuoteHistoryDialog quote={historyFor} onClose={() => setHistoryFor(null)} />}
       <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}

@@ -31,10 +31,11 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
   const customer = useCustomers().find((c) => c.id === po?.customerId);
   const quoteNumber = useQuotes().find((q) => q.id === po?.quoteId)?.quoteNumber;
 
-  // Cabinets whose own "Components visible" tick is off: just the cabinet title in Carcass, with no component rows
-  // (Shutter, Other Panel and hardware stay; the PO itself and the Excel are unchanged).
+  // Proforma Invoice cabinets whose own "Components visible" tick is off: just the cabinet title in Carcass, with no component rows
+  // (Shutter, Other Panel and hardware stay; the PO itself and the Excel are unchanged). A Purchase Order has no such tick and always
+  // prints its components, even if an older one had it unticked.
   const noComponentCabinets = new Set(
-    (po?.lines ?? []).filter((l) => l.group === "carcass" && po?.material.cabinets?.[String(l.srNo)]?.componentsVisible === false).map((l) => l.srNo)
+    (po?.material.proforma ? po.lines : []).filter((l) => l.group === "carcass" && po?.material.cabinets?.[String(l.srNo)]?.componentsVisible === false).map((l) => l.srNo)
   );
 
   // The PDF letterhead colour saved in Templates > Colour Palette.

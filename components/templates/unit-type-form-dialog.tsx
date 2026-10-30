@@ -18,9 +18,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/shared/empty-state";
-import { FurnitureLineItemRow } from "@/components/templates/furniture-line-item-row";
+import { FurnitureLineItemRow, FurnitureTable } from "@/components/templates/furniture-line-item-row";
 import { UnitTypeComponentsSection } from "@/components/templates/unit-type-components-section";
-import { UnitTypeHardwareRow } from "@/components/templates/unit-type-hardware-row";
+import { UnitTypeHardwareRow, HardwareTable } from "@/components/templates/unit-type-hardware-row";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { unitTypeStore, type NewUnitTypeInput } from "@/lib/store/unit-type-store";
@@ -168,7 +168,7 @@ export function UnitTypeFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-7xl">
         <DialogHeader>
           <DialogTitle>{srNo ? <><span className="font-[family-name:var(--font-manrope)]">{String(srNo).padStart(3, "0")}</span> - </> : ""}{isEdit ? `Edit Unit Type (${values.name || item?.name || ""})` : "Add Unit Type"}</DialogTitle>
           <DialogDescription>
@@ -278,15 +278,14 @@ export function UnitTypeFormDialog({
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={externalFinishes.onDragEnd}>
                 <SortableContext items={externalFinishes.list.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-                  <div className="flex flex-col gap-3">
+                  <FurnitureTable showComponentName nameLabel="External Finish">
                     {externalFinishes.list.map((c) => (
                       <FurnitureLineItemRow
                         key={c.id}
-                        collapsible
+                        table
                         value={c}
                         label="External Finish"
                         showComponentName
-                        compact
                         rateReadOnly
                         onChange={(patch) => externalFinishes.update(c.id, patch)}
                         onRemove={() => externalFinishes.remove(c.id)}
@@ -294,7 +293,7 @@ export function UnitTypeFormDialog({
                         onCopyBlank={() => externalFinishes.copyBlank(c)}
                       />
                     ))}
-                  </div>
+                  </FurnitureTable>
                 </SortableContext>
               </DndContext>
             )}
@@ -312,23 +311,22 @@ export function UnitTypeFormDialog({
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={otherPanels.onDragEnd}>
                 <SortableContext items={otherPanels.list.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-                  <div className="flex flex-col gap-3">
+                  <FurnitureTable showComponentName showLevelType nameLabel="Other Panel">
                     {otherPanels.list.map((c) => (
                       <FurnitureLineItemRow
                         key={c.id}
-                        collapsible
+                        table
                         value={c}
                         label="Other Panel"
                         showComponentName
                         showLevelType
-                        compact
                         rateReadOnly
                         onChange={(patch) => otherPanels.update(c.id, patch)}
                         onRemove={() => otherPanels.remove(c.id)}
                         onCopy={() => otherPanels.copy(c)}
                       />
                     ))}
-                  </div>
+                  </FurnitureTable>
                 </SortableContext>
               </DndContext>
             )}
@@ -346,11 +344,11 @@ export function UnitTypeFormDialog({
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={hardwareDragEnd}>
                 <SortableContext items={hardware.map((h) => h.id)} strategy={verticalListSortingStrategy}>
-                  <div className="flex flex-col gap-3">
+                  <HardwareTable>
                     {hardware.map((h) => (
                       <UnitTypeHardwareRow
                         key={h.id}
-                        collapsible
+                        table
                         value={h}
                         rateReadOnly
                         onChange={(patch) => updateHardware(h.id, patch)}
@@ -361,7 +359,7 @@ export function UnitTypeFormDialog({
                         }}
                       />
                     ))}
-                  </div>
+                  </HardwareTable>
                 </SortableContext>
               </DndContext>
             )}

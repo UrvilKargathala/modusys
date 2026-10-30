@@ -51,6 +51,16 @@ export async function POST(req: Request) {
     where: { id: b.id }, create: { id: b.id, ...data }, update: data,
   });
 
+  // An edit saved from the quote form carries the Remarks typed when saving and the list of what changed; both are kept with
+  // the QUOTE_UPDATED audit entry and shown in the quote's History.
+  const h = b.history && typeof b.history === "object" ? b.history : null;
+  const history = h
+    ? {
+        remarks: String(h.remarks ?? "").slice(0, 2000),
+        changes: (Array.isArray(h.changes) ? h.changes : []).slice(0, 300).map((c: unknown) => String(c).slice(0, 500)),
+      }
+    : null;
+
   const actor = { id: auth.user.id, email: auth.user.email, name: auth.user.name };
   if (!existing) {
     void logAudit({
@@ -59,21 +69,25 @@ export async function POST(req: Request) {
       target: { type: "QUOTE", id: quote.id, label: quote.quoteNumber },
       req,
     });
-  } else if (existing.status !== quote.status) {
-    void logAudit({
-      action: "QUOTE_STATUS_CHANGED",
-      actor,
-      target: { type: "QUOTE", id: quote.id, label: quote.quoteNumber },
-      details: { field: "status", from: existing.status, to: quote.status },
-      req,
-    });
   } else {
-    void logAudit({
-      action: "QUOTE_UPDATED",
-      actor,
-      target: { type: "QUOTE", id: quote.id, label: quote.quoteNumber },
-      req,
-    });
+    if (existing.status !== quote.status) {
+      void logAudit({
+        action: "QUOTE_STATUS_CHANGED",
+        actor,
+        target: { type: "QUOTE", id: quote.id, label: quote.quoteNumber },
+        details: { field: "status", from: existing.status, to: quote.status },
+        req,
+      });
+    }
+    if (history || existing.status === quote.status) {
+      void logAudit({
+        action: "QUOTE_UPDATED",
+        actor,
+        target: { type: "QUOTE", id: quote.id, label: quote.quoteNumber },
+        details: history,
+        req,
+      });
+    }
   }
 
   return NextResponse.json(serialize(quote), { status: 201 });

@@ -61,13 +61,33 @@ const GRID_WITH_VENDOR =
   "cab-table grid grid-cols-[32px_48px_minmax(200px,1.6fr)_minmax(130px,1.1fr)_minmax(70px,0.8fr)_minmax(90px,1fr)_56px_56px_56px_40px_minmax(125px,1.2fr)_minmax(125px,1.2fr)_minmax(90px,1fr)_86px_minmax(110px,0.8fr)_150px] items-stretch";
 const GRID_NO_VENDOR =
   "cab-table grid grid-cols-[32px_48px_minmax(200px,1.6fr)_minmax(130px,1.1fr)_minmax(70px,0.8fr)_56px_56px_56px_40px_minmax(125px,1.2fr)_minmax(125px,1.2fr)_minmax(90px,1fr)_64px_100px_minmax(110px,0.8fr)_150px] items-stretch";
-export const cabinetRowGrid = (proforma: boolean) => (proforma ? GRID_NO_VENDOR : GRID_WITH_VENDOR);
-export function PoCabinetListHeader({ proforma = false }: { proforma?: boolean }) {
-  const heads = ["", "Sr No", "Cabinet Type", "Cabinet Name", "Design", ...(proforma ? [] : ["Vendor"]), "Width", "Depth", "Height", "Qty", "Internal Colour", "External Colour", "Material", ...(proforma ? ["Sq.Ft"] : []), "Total", "Remarks", "Action"];
+// A PO made from a Requirement Order: a Unit Name column (the RO unit's space and unit type) after Sr No.
+const GRID_WITH_UNIT =
+  "cab-table grid grid-cols-[32px_48px_minmax(220px,1.6fr)_minmax(200px,1.6fr)_minmax(130px,1.1fr)_minmax(70px,0.8fr)_minmax(90px,1fr)_56px_56px_56px_40px_minmax(125px,1.2fr)_minmax(125px,1.2fr)_minmax(90px,1fr)_86px_minmax(110px,0.8fr)_150px] items-stretch";
+export const cabinetRowGrid = (proforma: boolean, unit = false) => (proforma ? GRID_NO_VENDOR : unit ? GRID_WITH_UNIT : GRID_WITH_VENDOR);
+// "Kitchen · BUD3TD — Base Unit Divider Panels With 3 Tandem Drawers", as the cabinet was snapshotted from its RO unit.
+export function poUnitParts(cabinet: PoCabinet | undefined, unitTypes: { name: string; shortCode: string; deleted?: boolean }[]) {
+  const code = unitTypes.find((u) => !u.deleted && u.name === cabinet?.unitName)?.shortCode ?? "";
+  return { space: cabinet?.space ?? "", code, name: cabinet?.unitName ?? "" };
+}
+export function poUnitText(cabinet: PoCabinet | undefined, unitTypes: { name: string; shortCode: string; deleted?: boolean }[]) {
+  const { space, code, name } = poUnitParts(cabinet, unitTypes);
+  return [space, [code, name].filter(Boolean).join(" — ")].filter(Boolean).join(" · ");
+}
+export function PoUnitNameCell({ cabinet }: { cabinet?: PoCabinet }) {
+  const text = poUnitText(cabinet, useUnitTypes());
+  return (
+    <div className="cell" title={text}>
+      <span className="line-clamp-2 text-sm font-body leading-snug text-grey-900">{text || "—"}</span>
+    </div>
+  );
+}
+export function PoCabinetListHeader({ proforma = false, unit = false }: { proforma?: boolean; unit?: boolean }) {
+  const heads = ["", "Sr No", ...(unit ? ["Unit Name"] : []), "Cabinet Type", "Cabinet Name", "Design", ...(proforma ? [] : ["Vendor"]), "Width", "Depth", "Height", "Qty", "Internal Colour", "External Colour", "Material", ...(proforma ? ["Sq.Ft"] : []), "Total", "Remarks", "Action"];
   return (
     // The pink band runs the full width of the list; the grid inside lines up with the cabinet lines below it.
     <div className="rounded-t-md border border-grey-200 bg-[var(--table-head)] pl-[40px] pr-2">
-      <div className={`${cabinetRowGrid(proforma)} cab-head whitespace-nowrap text-sm font-body font-bold text-grey-900`}>
+      <div className={`${cabinetRowGrid(proforma, unit)} cab-head whitespace-nowrap text-sm font-body font-bold text-grey-900`}>
         {heads.map((h, i) => (
           <div key={i} className="cell justify-center text-center">{h}</div>
         ))}
@@ -181,7 +201,7 @@ export function PoCabinetCard({
     <div className="unit-row border-b border-grey-100 bg-card px-2 py-0.5">
     <div className="flex flex-col gap-1">
       {/* One table line per cabinet, the columns named by the header row above the list (PoCabinetListHeader). */}
-      <div className={cabinetRowGrid(proforma)}>
+      <div className={cabinetRowGrid(proforma, !direct)}>
         <div className="cell justify-center">
           <button
             type="button"
@@ -194,6 +214,7 @@ export function PoCabinetCard({
           </button>
         </div>
         <div className="cell num justify-center font-semibold text-primary">{srNo}</div>
+        {!direct && <PoUnitNameCell cabinet={cabinet} />}
         <div className="cell">
           <PoCabinetNameSelect field value={cab.designType ?? ""} fallback={cab.label} onChange={(v, cabinetTypeId) => ask("cabinet type", !!cab.designType && v !== cab.designType, () => onCabinetChange({ ...cab, designType: v, cabinetTypeId }))} />
         </div>
@@ -249,7 +270,8 @@ export function PoCabinetCard({
           <input aria-label={`Cabinet ${srNo} remark`} {...selectOnClick} placeholder="Remark" value={cab.remark ?? ""} onChange={(e) => onCabinetChange({ ...cab, remark: e.target.value })} />
         </div>
         <div className="cell justify-center gap-0.5">
-          {cabinet && !isManual && <PoComponentsToggle unitName={cabinet.unitName} cabinet={cabinet} onCabinetChange={onCabinetChange} proforma={proforma} />}
+          {/* "Components visible" is a Proforma Invoice setting only; a Purchase Order always lists its components. */}
+          {proforma && cabinet && !isManual && <PoComponentsToggle unitName={cabinet.unitName} cabinet={cabinet} onCabinetChange={onCabinetChange} proforma />}
           {onCopyCabinet && (
             <button type="button" className="rounded-md p-1 text-grey-400 hover:bg-primary-transparent hover:text-primary" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
               <Copy className="h-4 w-4" />

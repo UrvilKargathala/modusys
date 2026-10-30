@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Construction } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -10,7 +10,6 @@ import { PricingListSection } from "@/components/templates/pricing-list-section"
 import { CabinetTypeSection } from "@/components/templates/cabinet-type-section";
 import { UnitTypeSection } from "@/components/templates/unit-type-section";
 import { TemplateHub } from "@/components/templates/template-hub";
-import { CalculatorSection } from "@/components/templates/calculator-section";
 import { ColourPaletteSection } from "@/components/templates/colour-palette-section";
 import { quoteTemplateStore, useOwnFactory } from "@/lib/store/quote-template-store";
 import { toastStore } from "@/lib/store/toast-store";
@@ -21,7 +20,6 @@ const topTabs = [
   { value: "unit-type", label: "Unit Type" },
   { value: "cabinet-type", label: "Cabinet Type" },
   { value: "template", label: "Template" },
-  { value: "calculator", label: "Calculator" },
   { value: "palette", label: "Colour Palette" },
 ];
 
@@ -33,6 +31,12 @@ function TemplatesPageContent() {
   const rawTab = searchParams.get("tab") ?? "material-spec";
   // Old links (?tab=quote-template / purchase-template) open the Template tab.
   const tab = rawTab === "quote-template" || rawTab === "purchase-template" ? "template" : rawTab;
+  // The Calculator moved to Purchase > Calculator; old links (?tab=calculator) go there.
+  useEffect(() => {
+    if (rawTab !== "calculator") return;
+    const view = searchParams.get("view");
+    router.replace(`/calculator${view ? `?view=${view}` : ""}`);
+  }, [rawTab, router, searchParams]);
 
   const setTab = (value: string) => {
     // Sub-tab state (view/category) is per-tab, but the query keys are
@@ -92,8 +96,6 @@ function TemplatesPageContent() {
               <UnitTypeSection />
             ) : t.value === "template" ? (
               <TemplateHub />
-            ) : t.value === "calculator" ? (
-              <CalculatorSection />
             ) : t.value === "palette" ? (
               <ColourPaletteSection />
             ) : (

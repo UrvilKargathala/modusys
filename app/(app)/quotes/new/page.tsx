@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { QuoteSaveRemarksDialog } from "@/components/quotes/quote-save-remarks-dialog";
+import { quoteChanges } from "@/lib/quote-changes";
 import { QuotePoActions } from "@/components/purchase-orders/quote-po-actions";
 import { ClientDetailsSection } from "@/components/quotes/create/client-details-section";
 import { MaterialSpecificationSection } from "@/components/quotes/create/material-specification-section";
@@ -56,6 +58,8 @@ function CreateQuotePage() {
   // requested quote to hydrate from the store.
   const [quote, setQuote] = useState<Quote | null>(() => (editId ? null : initialQuote()));
   const [clearOpen, setClearOpen] = useState(false);
+  // Saving an edit: the Remarks dialog is open (leave = go back to the list after saving, as the top Save does).
+  const [remarksFor, setRemarksFor] = useState<{ leave: boolean } | null>(null);
   // Tabs sit under the page header; a new quote starts on Customer Details, a saved one on its Units.
   const [tab, setTab] = useState<TabKey>(editId ? "items" : "client");
   const loaded = useRef(false);
@@ -150,8 +154,13 @@ function CreateQuotePage() {
       toastStore.show(`Required: ${missing.join(", ")}`, "error", { durationMs: 6000 });
       return;
     }
+    // Editing a saved quote asks for Remarks first (the dialog below); they go to the quote's History with what changed.
+    if (editId) {
+      askRemarks(true);
+      return;
+    }
     // A new quote for a customer who already has quotes becomes their next sub-quote (A, B, C...).
-    const saved = quotesStore.saveQuote(editId ? quote : quotesStore.assignSubQuoteNumber(quote));
+    const saved = quotesStore.saveQuote(quotesStore.assignSubQuoteNumber(quote));
     toastStore.show(`${saved.quoteNumber} saved`);
     router.push("/quotes");
   };
@@ -160,8 +169,31 @@ function CreateQuotePage() {
   // Remark box's own inline Save action, which shouldn't navigate away.
   const handleSaveRemark = () => {
     if (!quote) return;
+    if (editId) {
+      askRemarks(false);
+      return;
+    }
     quotesStore.saveQuote(quote);
     toastStore.show("Remark saved");
+  };
+
+  // An edit with nothing changed saves nothing (and asks nothing); otherwise the Remarks dialog opens.
+  const savedQuote = editId ? quotes.find((q) => q.id === editId) : undefined;
+  const askRemarks = (leave: boolean) => {
+    if (!quote || !savedQuote) return;
+    if (quoteChanges(savedQuote, quote, () => "", () => 0).length === 0) {
+      toastStore.show("No changes to save");
+      if (leave) router.push("/quotes");
+      return;
+    }
+    setRemarksFor({ leave });
+  };
+  const saveWithRemarks = (history: { remarks: string; changes: string[] }) => {
+    if (!quote || !remarksFor) return;
+    const saved = quotesStore.saveQuote(quote, history);
+    setRemarksFor(null);
+    toastStore.show(`${saved.quoteNumber} saved`);
+    if (remarksFor.leave) router.push("/quotes");
   };
 
   const title = readonly ? "View Quote" : editId ? "Edit Quote" : "Create New Quote";
@@ -328,6 +360,9 @@ function CreateQuotePage() {
         confirmLabel="Clear Draft"
         onConfirm={() => setQuote(initialQuote())}
       />
+      {remarksFor && savedQuote && (
+        <QuoteSaveRemarksDialog before={savedQuote} after={quote} onCancel={() => setRemarksFor(null)} onSave={saveWithRemarks} />
+      )}
     </div>
     </FollowPriceListContext.Provider>
   );

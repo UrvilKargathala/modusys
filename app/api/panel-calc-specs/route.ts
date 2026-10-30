@@ -18,6 +18,7 @@ function normalizePanels(v: unknown): PanelFormula[] {
       widthFormula: String(p.widthFormula ?? ""),
       heightFormula: String(p.heightFormula ?? ""),
       thickness: Number(p.thickness ?? 0),
+      qty: Math.max(1, Math.round(Number(p.qty ?? 1)) || 1),
     }));
 }
 

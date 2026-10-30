@@ -1,7 +1,7 @@
 "use client";
 
 import { SelectField } from "@/components/shared/select-field";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Copy, X, ChevronDown, ChevronRight, Check, Plus, RotateCcw } from "lucide-react";
@@ -33,6 +33,19 @@ export function HardwareTableHeader({ withNo = false, sort, onSort }: { withNo?:
           <SortLabel label={h} k={k} sort={sort} onSort={onSort} />
         </span>
       ))}
+    </div>
+  );
+}
+
+// The table of hardware rows (the quote's layout, also Unit Type): the header plus the rows passed as children, scrolling sideways
+// when the space is narrow. Rows use UnitTypeHardwareRow with `table`.
+export function HardwareTable({ children }: { children: ReactNode }) {
+  return (
+    <div className="overflow-x-auto rounded-md border border-grey-100 bg-card">
+      <div className="min-w-[1000px]">
+        <HardwareTableHeader />
+        {children}
+      </div>
     </div>
   );
 }

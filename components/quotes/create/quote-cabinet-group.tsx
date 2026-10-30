@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
-import { Check, ChevronDown, ChevronRight, Copy, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Calculator, Check, ChevronDown, ChevronRight, Copy, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { PanelCalculatorContext } from "@/components/shared/panel-calculator-context";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { FurnitureLineItemRow, FurnitureTableHeader } from "@/components/templates/furniture-line-item-row";
-import { UnitTypeHardwareRow, HardwareTableHeader } from "@/components/templates/unit-type-hardware-row";
+import { FurnitureLineItemRow, FurnitureTable } from "@/components/templates/furniture-line-item-row";
+import { UnitTypeHardwareRow, HardwareTable } from "@/components/templates/unit-type-hardware-row";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
@@ -87,6 +89,9 @@ export function FurnitureGroup({
   const totalSqFt = groupSqFt(items, unit);
   const isViewMode = useSearchParams().get("mode") === "view";
   const [collapsed, setCollapsed] = useState(!defaultOpen);
+  // Requirement Order only: the Panel Calculator on Other Panel (see PanelCalculatorContext).
+  const PanelCalculator = useContext(PanelCalculatorContext);
+  const [calcOpen, setCalcOpen] = useState(false);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -117,6 +122,12 @@ export function FurnitureGroup({
         <div className="flex items-center gap-3">
           <span className="text-xs font-number text-grey-500">{totalSqFt.toFixed(2)} sq.ft</span>
           <span className="text-sm font-number font-semibold text-grey-700">₹{subtotal.toFixed(2)}</span>
+          {PanelCalculator && label === "Other Panel" && (
+            <Button type="button" size="sm" variant="outline" onClick={() => setCalcOpen(true)}>
+              <Calculator className="h-3.5 w-3.5" />
+              Calculator
+            </Button>
+          )}
           <Button
             type="button"
             size="sm"
@@ -129,12 +140,27 @@ export function FurnitureGroup({
         </div>
       </div>
 
+      {PanelCalculator && calcOpen && (
+        <Dialog open={calcOpen} onOpenChange={setCalcOpen}>
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-5xl">
+            <DialogHeader>
+              <DialogTitle>Panel Calculator</DialogTitle>
+              <DialogDescription>Calculate adds the panels to this {title}. Close when you&apos;re done.</DialogDescription>
+            </DialogHeader>
+            <PanelCalculator
+              onAdd={(lines) => {
+                onChange([...items, ...lines]);
+                setCollapsed(false);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
       {!collapsed && items.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            <div className="overflow-x-auto rounded-md border border-grey-100 bg-card">
-             <div className={showLevelType ? "min-w-[1130px]" : "min-w-[1020px]"}>
-              <FurnitureTableHeader showComponentName={showComponentName} showLevelType={!!showLevelType} nameLabel={label} />
+            <FurnitureTable showComponentName={showComponentName} showLevelType={!!showLevelType} nameLabel={label}>
               {items.map((item) => {
                 const w = evaluateFormula(item.widthFormula, { W: unit.width, D: unit.depth, H: unit.height });
                 const h = evaluateFormula(item.heightFormula, { W: unit.width, D: unit.depth, H: unit.height });
@@ -156,8 +182,7 @@ export function FurnitureGroup({
                   />
                 );
               })}
-             </div>
-            </div>
+            </FurnitureTable>
           </SortableContext>
         </DndContext>
       )}
@@ -222,9 +247,7 @@ export function HardwareGroup({
       {!collapsed && items.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            <div className="overflow-x-auto rounded-md border border-grey-100 bg-card">
-             <div className="min-w-[1000px]">
-              <HardwareTableHeader />
+            <HardwareTable>
               {items.map((item) => (
                 <UnitTypeHardwareRow
                   key={item.id}
@@ -235,8 +258,7 @@ export function HardwareGroup({
                   onCopy={() => onChange(duplicateAt(items, item.id, () => `qhw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`))}
                 />
               ))}
-             </div>
-            </div>
+            </HardwareTable>
           </SortableContext>
         </DndContext>
       )}

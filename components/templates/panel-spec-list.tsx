@@ -3,7 +3,7 @@ import { Nums } from "@/components/shared/nums";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Search, Plus, Pencil, Trash2, Ruler } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, Ruler, Copy } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -28,6 +28,8 @@ export function PanelSpecList() {
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<PanelCalcSpec | null>(null);
+  // Copy: Add Spec pre-filled with this spec's panels, for another product.
+  const [copyTarget, setCopyTarget] = useState<PanelCalcSpec | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PanelCalcSpec | null>(null);
 
   // Deep link from the Panel Calculator's "Edit" button — opens straight to
@@ -63,7 +65,7 @@ export function PanelSpecList() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search brand/product"
+              placeholder="Search product"
               className="w-full rounded-lg border border-grey-100 bg-card py-1.5 pl-8 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
             />
           </div>
@@ -85,31 +87,41 @@ export function PanelSpecList() {
           <table className="w-full text-left">
             <thead className="bg-[var(--table-head)]">
               <tr>
-                <th className="px-4 py-2.5 text-xs font-body font-semibold text-grey-900">Brand</th>
                 <th className="px-4 py-2.5 text-xs font-body font-semibold text-grey-900">Product</th>
-                <th className="px-4 py-2.5 text-right text-xs font-body font-semibold text-grey-900">Length</th>
-                <th className="px-4 py-2.5 text-right text-xs font-body font-semibold text-grey-900">Height</th>
-                <th className="px-4 py-2.5 text-right text-xs font-body font-semibold text-grey-900">Panels</th>
+                <th className="px-4 py-2.5 text-center text-xs font-body font-semibold text-grey-900">Panel</th>
+                <th className="px-4 py-2.5 text-center text-xs font-body font-semibold text-grey-900">Size</th>
+                <th className="px-4 py-2.5 text-center text-xs font-body font-semibold text-grey-900">Qty</th>
                 <th className="px-4 py-2.5 text-right text-xs font-body font-semibold text-grey-900">Actions</th>
               </tr>
             </thead>
             <tbody>
               {paged.map((s) => (
                 <tr key={s.id} className="border-t border-grey-100">
-                  <td className="px-4 py-3 text-[13px] font-body text-grey-900"><Nums>{s.brand}</Nums></td>
                   <td className="px-4 py-3 text-[13px] font-body text-grey-900"><Nums>{s.product}</Nums></td>
-                  <td className="px-4 py-3 text-right text-[13px] font-number text-grey-700">{s.length} mm</td>
-                  <td className="px-4 py-3 text-right text-[13px] font-number text-grey-700">{s.height} mm</td>
-                  <td className="px-4 py-3 text-right text-[13px] text-grey-900">
+                  {/* Panel / Size / Qty: one line per panel in each column, so a panel's three parts line up. */}
+                  <td className="px-4 py-3 text-center text-[13px] font-body text-grey-700">
+                    {s.panels.map((p) => <div key={p.id} className="whitespace-nowrap leading-6">{p.label}</div>)}
+                  </td>
+                  <td className="px-4 py-3 text-center text-[13px] font-number font-medium text-grey-900">
                     {s.panels.map((p) => (
-                      <div key={p.id} className="mb-1 last:mb-0">
-                        <div className="font-number font-medium">{p.widthFormula} × {p.heightFormula} · {p.thickness}mm</div>
-                        <div className="text-[11px] font-body text-grey-400">{p.label}</div>
-                      </div>
+                      <div key={p.id} className="whitespace-nowrap leading-6">{p.widthFormula} × {p.heightFormula} - {p.thickness}mm</div>
                     ))}
+                  </td>
+                  <td className="px-4 py-3 text-center text-[13px] font-number font-medium text-grey-900">
+                    {s.panels.map((p) => <div key={p.id} className="leading-6">{String(p.qty ?? 1).padStart(2, "0")}</div>)}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
+                      <Tooltip>
+                        <TooltipTrigger
+                          aria-label="Copy"
+                          onClick={() => setCopyTarget(s)}
+                          className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </TooltipTrigger>
+                        <TooltipContent>Copy to a new spec</TooltipContent>
+                      </Tooltip>
                       <Tooltip>
                         <TooltipTrigger
                           aria-label="Edit"
@@ -148,6 +160,15 @@ export function PanelSpecList() {
         onOpenChange={setAddOpen}
         onSubmit={(values) => panelCalcSpecStore.createSpec(values)}
       />
+
+      {copyTarget && (
+        <PanelSpecFormDialog
+          open={!!copyTarget}
+          onOpenChange={(open) => !open && setCopyTarget(null)}
+          copyFrom={copyTarget}
+          onSubmit={(values) => panelCalcSpecStore.createSpec(values)}
+        />
+      )}
 
       {editTarget && (
         <PanelSpecFormDialog

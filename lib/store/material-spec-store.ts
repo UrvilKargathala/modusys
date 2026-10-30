@@ -69,7 +69,8 @@ export const materialSpecStore = {
   },
   createItem(input: NewMaterialItemInput) {
     ensureHydrated();
-    const created: MaterialItem = { ...input, id: `mat-new-${Date.now()}`, createdAt: new Date().toISOString() };
+    // Random suffix: two entries made in the same millisecond (e.g. several at once) still get different ids.
+    const created: MaterialItem = { ...input, id: `mat-new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, createdAt: new Date().toISOString() };
     items = [...items, created];
     persist();
     emit();

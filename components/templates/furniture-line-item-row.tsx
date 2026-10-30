@@ -1,7 +1,7 @@
 "use client";
 
 import { evaluateFormula } from "@/lib/quote-pricing";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Copy, CopyPlus, Trash2, AlertTriangle, Plus, ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
@@ -58,6 +58,19 @@ export function FurnitureTableHeader({ showComponentName, showLevelType, nameLab
           <SortLabel label={h} k={k} sort={sort} onSort={onSort} />
         </span>
       ))}
+    </div>
+  );
+}
+
+// The table of furniture rows (the quote's layout, also Unit Type and Cabinet Type): the header plus the rows passed as children,
+// scrolling sideways when the space is narrow. Rows use FurnitureLineItemRow with `table`.
+export function FurnitureTable({ showComponentName, showLevelType = false, nameLabel, children }: { showComponentName: boolean; showLevelType?: boolean; nameLabel: string; children: ReactNode }) {
+  return (
+    <div className="overflow-x-auto rounded-md border border-grey-100 bg-card">
+      <div className={showLevelType ? "min-w-[1130px]" : "min-w-[1020px]"}>
+        <FurnitureTableHeader showComponentName={showComponentName} showLevelType={showLevelType} nameLabel={nameLabel} />
+        {children}
+      </div>
     </div>
   );
 }

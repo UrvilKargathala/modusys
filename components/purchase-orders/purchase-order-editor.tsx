@@ -10,9 +10,11 @@ import { ArrowLeft, Calendar, CheckCircle2, ChevronDown, ChevronRight, Download,
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { PoCabinetCard, PoCabinetListHeader } from "@/components/purchase-orders/po-cabinet-card";
+import { PoCabinetCard, PoCabinetListHeader, poUnitParts } from "@/components/purchase-orders/po-cabinet-card";
+import { useUnitTypes } from "@/lib/store/unit-type-store";
 import { GROUP_BAND, PoBrandVendorContext, PoDefaultVendorContext, PoDimNotesContext, PoLinesTable, PoVendorContext } from "@/components/purchase-orders/po-lines-table";
 import { applyPurchaseRates, purchaseRateFor } from "@/lib/purchase-order-rate";
+import { PoImportFromCalculator } from "@/components/purchase-orders/po-import-calculator";
 import { useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { usePurchaseFurniturePriceItems } from "@/lib/store/purchase-furniture-store";
 import { materialSpecStore } from "@/lib/store/material-spec-store";
@@ -141,6 +143,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   }, [draft, purchasePrices, hardwarePrices, materials]);
 
 
+  // Unit codes for the Import from Calculator cabinet picker's Unit Name.
+  const unitTypes = useUnitTypes();
   const dirty = useMemo(() => !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved), [draft, saved]);
   const totals = useMemo(() => (draft ? poTotals(draft) : null), [draft]);
   // Cabinets in quote order; internal/external lists are what the rows actually use.
@@ -323,6 +327,19 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const isDirect = base.startsWith("/direct") || isProforma;
   // A Direct PO shows only the cabinet list (cabinet types added with Add Cabinet Type).
   const shownView = isDirect || draft.lines.length === 0 ? "cabinet" : view;
+  // Import from Calculator: Purchase > Calculator's rows as Other Panel lines, under the cabinet picked in its window.
+  const calcImport = (
+    <PoImportFromCalculator
+      cabinets={cabinetNos.filter((no) => no > 0).map((no) => {
+        const c = cabinetFor(no);
+        const { space, code, name } = poUnitParts(c, unitTypes);
+        return { no, label: `${no}. ${c?.designType || c?.label || `Cabinet ${no}`}`, space, code, unitName: name, type: c?.designType || c?.label || "" };
+      })}
+      defaults={isDirect ? { material: draft.material.cabinetRawMaterial, internalColour: draft.material.finishes?.cabinetInternalColour ?? "", externalColour: draft.material.finishes?.cabinetExternalColour ?? "" } : undefined}
+      nextPosition={draft.lines.length}
+      onImport={(rows) => set({ lines: [...draft.lines, ...rows].map((x, i) => ({ ...x, position: i })) })}
+    />
+  );
   // Which rows the Excel Import / Export buttons work on: the open tab on a Direct PO / Proforma; on a Purchase Order the open group of
   // By Component, Rate Pending or Hardware (By Unit and Vendor have no buttons).
   const pickedGroup = PO_GROUPS.find((g) => g.key === compGroup && draft.lines.some((l) => l.group === g.key))?.key ?? PO_GROUPS.find((g) => draft.lines.some((l) => l.group === g.key))?.key;
@@ -1123,6 +1140,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 ))}
               </div>
             )}
+            {isDirect && directTab === "other-panel" && calcImport}
             {!isDirect && (<div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Group rows by">
               {(["component", "cabinet", "pending", "vendor", "hardware"] as const).map((v) => (
                 <button
@@ -1290,7 +1308,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
             // Carcass | Shutter | Other Panel | Hardware as tabs across; only the picked group's table shows below.
             const picked = present.find((g) => g.key === compGroup) ?? present[0];
             return [
-              <div key="group-tabs" className="flex w-fit rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Group">
+              <div key="group-tabs" className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex w-fit rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Group">
                 {present.map((g) => (
                   <button
                     key={g.key}
@@ -1303,6 +1322,8 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                     {g.label} <span className="font-number text-xs font-normal text-grey-500">({draft.lines.filter((l) => l.group === g.key).length})</span>
                   </button>
                 ))}
+              </div>
+              {calcImport}
               </div>,
               ...(picked ? [picked] : []).map((g) =>
             g.key === "hardware" ? (
@@ -1378,7 +1399,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 {carcassOpen && (
                   <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
 <div className="overflow-x-auto"><div className="min-w-[1540px]">
-                <PoCabinetListHeader proforma={isProforma} />
+                <PoCabinetListHeader proforma={isProforma} unit={!isDirect} />
                 {cabinetNos
                   .filter((no) => draft.lines.some((l) => l.group === g.key && l.srNo === no))
                   .map((no) => (
@@ -1407,7 +1428,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           : (
             <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
 <div className="overflow-x-auto"><div className="min-w-[1540px]">
-              <PoCabinetListHeader proforma={isProforma} />
+              <PoCabinetListHeader proforma={isProforma} unit={!isDirect} />
               {cabinetNos.map((no) => (
               <SortableCabinet key={no} no={no}>
               <PoCabinetCard

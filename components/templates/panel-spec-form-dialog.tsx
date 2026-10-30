@@ -19,7 +19,8 @@ import { Input } from "@/components/ui/input";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
 import { TextReferenceSelect } from "@/components/shared/text-reference-select";
 import { panelCalcSpecStore, usePanelCalcSpecs } from "@/lib/store/panel-calc-spec-store";
-import { useMaterialItems } from "@/lib/store/material-spec-store";
+import { materialSpecStore, useMaterialItems } from "@/lib/store/material-spec-store";
+import { toastStore } from "@/lib/store/toast-store";
 import type { PanelCalcSpec } from "@/lib/mock/panel-calc-spec";
 
 // Panel fields are formulas (e.g. "W-10", "H-24") evaluated against this
@@ -38,18 +39,24 @@ const panelSchema = z.object({
   widthFormula: z.string().min(1, "Required").regex(formulaPattern, "Use only W, L, H, numbers, and + - * / ( )"),
   heightFormula: z.string().min(1, "Required").regex(formulaPattern, "Use only W, L, H, numbers, and + - * / ( )"),
   thickness: z.number().nonnegative("Enter a valid thickness"),
+  qty: z.number().int("Qty must be a whole number").min(1, "Qty must be at least 1"),
 });
 
 const specSchema = z.object({
-  brand: z.string().min(1, "Brand is required"),
+  // Brand isn't asked for here: a new spec is saved without one (""), an older spec keeps its own.
+  brand: z.string(),
   product: z.string().min(1, "Product is required"),
-  length: z.number().int().positive("Enter a valid length"),
-  height: z.number().int().positive("Enter a valid height"),
+  // Length, Height and Description aren't asked for: a new spec is saved without them (0 / ""), an older spec keeps its own.
+  length: z.number().int().nonnegative("Enter a valid length"),
+  height: z.number().int().nonnegative("Enter a valid height"),
   description: z.string(),
   panels: z.array(panelSchema).min(1, "Add at least one panel"),
 });
 
 type SpecFormValues = z.infer<typeof specSchema>;
+
+// Panels table: No., Panel, Width formula, Height formula, Thickness, Qty, remove.
+const PANEL_COLUMNS = "28px minmax(160px,1.6fr) minmax(90px,1fr) minmax(90px,1fr) 72px 56px 28px";
 
 const newPanel = (label: string): SpecFormValues["panels"][number] => ({
   id: `panel-${Date.now()}-${Math.random()}`,
@@ -57,6 +64,7 @@ const newPanel = (label: string): SpecFormValues["panels"][number] => ({
   widthFormula: "",
   heightFormula: "",
   thickness: 0,
+  qty: 1,
 });
 
 const emptyValues: SpecFormValues = {
@@ -68,12 +76,15 @@ export function PanelSpecFormDialog({
   open,
   onOpenChange,
   spec,
+  copyFrom,
   onSubmit,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   // Absent = Add mode; present = Edit mode, pre-filled.
   spec?: PanelCalcSpec;
+  // Add mode only: start from this spec's panels (Copy in the Panel Specs table); the product is left for the user to pick.
+  copyFrom?: PanelCalcSpec;
   onSubmit: (values: SpecFormValues) => void;
 }) {
   const isEdit = !!spec;
@@ -84,7 +95,7 @@ export function PanelSpecFormDialog({
     reset,
     setError,
     setValue,
-    watch,
+    getValues,
     formState: { errors, isSubmitting, isValid },
   } = useForm<SpecFormValues>({
     resolver: zodResolver(specSchema),
@@ -96,16 +107,54 @@ export function PanelSpecFormDialog({
   const [panelsOpen, setPanelsOpen] = useState(true);
 
   const allSpecs = usePanelCalcSpecs();
-  const brandValue = watch("brand");
-  const productValue = watch("product");
-  const descriptionValue = watch("description");
-  // Brand comes from the shared Material Library "Brand" list (same
-  // searchable-popover-with-inline-add picker Hardware Price List uses) —
-  // one brand vocabulary across the app. Product has no Material Library
-  // equivalent, so it's derived from this table's own saved specs — every
-  // product ever entered, for ANY brand, not just the selected one.
-  const brandItems = useMaterialItems("brand");
-  const productOptions = useMemo(() => [...new Set(allSpecs.map((s) => s.product))].sort(), [allSpecs]);
+  // Product has its own saved list (Material Library "panel-product", not shown in Material Spec): a product added here
+  // stays listed, and can be renamed or deleted from the dropdown.
+  const productItems = useMaterialItems("panel-product");
+  const productOptions = useMemo(() => productItems.map((p) => p.name).sort((a, b) => a.localeCompare(b)), [productItems]);
+
+  // Products already on saved specs join the list (once: a name deleted from the list isn't brought back).
+  useEffect(() => {
+    if (!open) return;
+    const used = [...new Set(allSpecs.map((s) => s.product.trim()).filter(Boolean))];
+    if (used.length) void materialSpecStore.seedDefaults("panel-product", used.map((name) => ({ name, description: "" })));
+  }, [open, allSpecs]);
+
+  const pickProduct = (name: string, onChange: (name: string) => void) => {
+    if (!productItems.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
+      materialSpecStore.createItem({ category: "panel-product", name, description: "" });
+    }
+    onChange(name);
+  };
+  // Renaming also renames it on every spec that uses it, so specs and the list stay in step.
+  const renameProduct = (from: string, to: string) => {
+    const item = productItems.find((p) => p.name === from);
+    if (!item) return;
+    materialSpecStore.updateItem(item.id, { name: to });
+    for (const s of allSpecs.filter((s) => s.product === from)) panelCalcSpecStore.updateSpec(s.id, { product: to });
+    if (getValues("product") === from) setValue("product", to, { shouldValidate: true });
+    toastStore.show(`Renamed "${from}" to "${to}"`, "success");
+  };
+  // Copy: a new product "<name> (copy)" (numbered if that's taken), opened for renaming by the dropdown.
+  const copyProduct = (name: string) => {
+    const taken = new Set(productItems.map((p) => p.name.toLowerCase()));
+    let copy = `${name} (copy)`;
+    for (let n = 2; taken.has(copy.toLowerCase()); n++) copy = `${name} (copy ${n})`;
+    materialSpecStore.createItem({ category: "panel-product", name: copy, description: "" });
+    return copy;
+  };
+  // A product a spec still uses can't be deleted (that spec would point at a name no longer in the list).
+  const deleteProduct = (name: string) => {
+    const usedBy = allSpecs.filter((s) => s.product === name).length;
+    if (usedBy) {
+      toastStore.show(`"${name}" is used by ${usedBy} spec${usedBy === 1 ? "" : "s"}. Change or delete ${usedBy === 1 ? "it" : "them"} first.`, "error");
+      return;
+    }
+    const item = productItems.find((p) => p.name === name);
+    if (!item) return;
+    materialSpecStore.deleteItem(item.id);
+    if (getValues("product") === name) setValue("product", "", { shouldValidate: true });
+    toastStore.show(`Deleted "${name}"`, "success", { action: { label: "Undo", onClick: () => materialSpecStore.restoreItem(item.id) } });
+  };
   // Panel label comes from the same Material Library "Furniture Component"
   // list Cabinet Type components use (Bottom Panel, Back Panel, Shutter, …).
   const componentItems = useMaterialItems("furniture-component");
@@ -117,25 +166,17 @@ export function PanelSpecFormDialog({
         ? {
             brand: spec.brand, product: spec.product, length: spec.length, height: spec.height,
             description: spec.description,
-            panels: spec.panels.length > 0 ? spec.panels : [newPanel("Panel"), newPanel("Back Panel")],
+            panels: spec.panels.length > 0 ? spec.panels.map((p) => ({ ...p, qty: p.qty ?? 1 })) : [newPanel("Panel"), newPanel("Back Panel")],
           }
-        : emptyValues
+        : copyFrom
+          ? { ...emptyValues, panels: copyFrom.panels.map((p) => ({ ...p, qty: p.qty ?? 1, id: newPanel(p.label).id })) }
+          : emptyValues
     );
-  }, [open, spec, reset]);
-
-  // Once Product is picked, pull its Description from any existing spec
-  // with that product (any brand) instead of making the admin retype the
-  // same description for every length/width/height variant. Only fills an
-  // empty field — never overwrites something already typed.
-  useEffect(() => {
-    if (!productValue || descriptionValue) return;
-    const match = allSpecs.find((s) => s.product === productValue && s.description);
-    if (match) setValue("description", match.description);
-  }, [productValue, descriptionValue, allSpecs, setValue]);
+  }, [open, spec, copyFrom, reset]);
 
   const submit = (values: SpecFormValues) => {
     if (panelCalcSpecStore.isDuplicate(values.brand, values.product, values.length, values.height, spec?.id)) {
-      setError("height", { message: "A spec for this brand/product/length/height already exists." });
+      setError("product", { message: "This product already has a spec. Edit that one instead." });
       return;
     }
     onSubmit(values);
@@ -144,31 +185,16 @@ export function PanelSpecFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) reset(); onOpenChange(next); }}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Panel Spec" : "Add Panel Spec"}</DialogTitle>
           <DialogDescription>
-            {isEdit ? "Update this hardware spec entry." : "Add panel cutting formulas for a brand/product/length/height combination."}
+            {isEdit ? "Update this hardware spec entry." : copyFrom ? `A copy of ${copyFrom.product}'s panels. Pick the product for the copy.` : "Add panel cutting formulas for a product."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(submit)} noValidate className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label>Brand *</Label>
-              <Controller
-                control={control}
-                name="brand"
-                render={({ field }) => (
-                  <MaterialReferenceSelect
-                    category="brand"
-                    value={brandItems.find((i) => i.name === field.value)?.id ?? ""}
-                    onChange={(id) => field.onChange(brandItems.find((i) => i.id === id)?.name ?? "")}
-                  />
-                )}
-              />
-              {errors.brand && <span className="text-xs font-body text-error">{errors.brand.message}</span>}
-            </div>
+          <div className="grid grid-cols-1 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label>Product *</Label>
               <Controller
@@ -179,30 +205,15 @@ export function PanelSpecFormDialog({
                     label="Product"
                     options={productOptions}
                     value={field.value}
-                    onChange={field.onChange}
-                    disabled={!brandValue}
+                    onChange={(name) => pickProduct(name, field.onChange)}
+                    onCopy={copyProduct}
+                    onRename={renameProduct}
+                    onDelete={deleteProduct}
+                    wide
                   />
                 )}
               />
               {errors.product && <span className="text-xs font-body text-error">{errors.product.message}</span>}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="ps-description">Description (optional)</Label>
-            <Input id="ps-description" placeholder="e.g. Blum Antaro Tandem Drawer System" {...register("description")} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="ps-length">Length (mm) *</Label>
-              <Input id="ps-length" type="number" placeholder="450" {...register("length", { valueAsNumber: true })} />
-              {errors.length && <span className="text-xs font-body text-error">{errors.length.message}</span>}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="ps-height">Height (mm) *</Label>
-              <Input id="ps-height" type="number" placeholder="100" {...register("height", { valueAsNumber: true })} />
-              {errors.height && <span className="text-xs font-body text-error">{errors.height.message}</span>}
             </div>
           </div>
 
@@ -219,52 +230,56 @@ export function PanelSpecFormDialog({
 
             {panelsOpen && (
               <>
-                <p className="text-xs font-body text-grey-500">Formula using Width as W (entered in the Calculator), Length as L, and Height as H — e.g. W-10, H-24. Panel is picked from Material Library&apos;s Furniture Component list.</p>
-                {fields.map((field, i) => {
-                  const rowErr = errors.panels?.[i];
-                  return (
-                    <div key={field.id} className="flex flex-col gap-2 rounded-md border border-grey-100 bg-card p-3">
-                      <div className="flex items-center gap-2">
-                        <Controller
-                          control={control}
-                          name={`panels.${i}.label`}
-                          render={({ field: labelField }) => (
-                            <div className="flex-1">
-                              <MaterialReferenceSelect
-                                category="furniture-component"
-                                value={componentItems.find((c) => c.name === labelField.value)?.id ?? ""}
-                                onChange={(id) => labelField.onChange(componentItems.find((c) => c.id === id)?.name ?? "")}
-                              />
-                            </div>
-                          )}
-                        />
-                        {fields.length > 1 && (
-                          <button type="button" onClick={() => remove(i)} aria-label="Remove panel" className="shrink-0 rounded-md p-2 text-grey-400 hover:bg-error-transparent hover:text-error">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                      {rowErr?.label && <span className="text-xs font-body text-error">{rowErr.label.message}</span>}
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="flex flex-col gap-1">
-                          <Label className="text-xs">Width formula *</Label>
-                          <Input placeholder="e.g. W-10" {...register(`panels.${i}.widthFormula`)} />
-                          {rowErr?.widthFormula && <span className="text-xs font-body text-error">{rowErr.widthFormula.message}</span>}
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <Label className="text-xs">Height formula *</Label>
-                          <Input placeholder="e.g. H-10" {...register(`panels.${i}.heightFormula`)} />
-                          {rowErr?.heightFormula && <span className="text-xs font-body text-error">{rowErr.heightFormula.message}</span>}
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <Label className="text-xs">Thickness *</Label>
-                          <Input type="number" placeholder="e.g. 18mm" {...register(`panels.${i}.thickness`, { valueAsNumber: true })} />
-                          {rowErr?.thickness && <span className="text-xs font-body text-error">{rowErr.thickness.message}</span>}
-                        </div>
-                      </div>
+                <p className="text-xs font-body text-grey-500">Formula using Clear Width as W (entered in the Calculator), Runner Length as L, and Height as H — e.g. W-10, H-24. Panel is picked from Material Library&apos;s Furniture Component list.</p>
+                {/* One table line per panel, laid out like the quote's and Cabinet Type's tables. */}
+                <div className="overflow-x-auto rounded-md border border-grey-100 bg-card">
+                  <div className="min-w-[620px]">
+                    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[var(--table-head)] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: PANEL_COLUMNS }}>
+                      <span>No.</span>
+                      <span>Panel *</span>
+                      <span className="text-center">Width Formula *</span>
+                      <span className="text-center">Height Formula *</span>
+                      <span className="text-center">Thickness *</span>
+                      <span className="text-center">Qty *</span>
+                      <span />
                     </div>
-                  );
-                })}
+                    {fields.map((field, i) => {
+                      const rowErr = errors.panels?.[i];
+                      const rowErrors = [rowErr?.label, rowErr?.widthFormula, rowErr?.heightFormula, rowErr?.thickness, rowErr?.qty].map((e) => e?.message).filter(Boolean);
+                      return (
+                        <div key={field.id} className="unit-row border-b border-grey-100 bg-card px-2 py-0.5 last:border-b-0">
+                          <div className="grid items-center gap-x-1.5" style={{ gridTemplateColumns: PANEL_COLUMNS }}>
+                            <span className="num text-xs font-semibold text-grey-700">{i + 1}</span>
+                            <Controller
+                              control={control}
+                              name={`panels.${i}.label`}
+                              render={({ field: labelField }) => (
+                                <MaterialReferenceSelect
+                                  category="furniture-component"
+                                  wide
+                                  value={componentItems.find((c) => c.name === labelField.value)?.id ?? ""}
+                                  onChange={(id) => labelField.onChange(componentItems.find((c) => c.id === id)?.name ?? "")}
+                                />
+                              )}
+                            />
+                            <Input aria-label="Width formula" placeholder="W-10" {...register(`panels.${i}.widthFormula`)} className="num px-1 text-center" />
+                            <Input aria-label="Height formula" placeholder="H-10" {...register(`panels.${i}.heightFormula`)} className="num px-1 text-center" />
+                            <Input aria-label="Thickness" type="number" placeholder="18" {...register(`panels.${i}.thickness`, { valueAsNumber: true })} className="num px-1 text-center" />
+                            <Input aria-label="Qty" type="number" min={1} placeholder="1" {...register(`panels.${i}.qty`, { valueAsNumber: true })} className="num px-1 text-center" />
+                            {fields.length > 1 ? (
+                              <button type="button" onClick={() => remove(i)} aria-label="Remove panel" className="justify-self-end rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-error">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            ) : (
+                              <span />
+                            )}
+                          </div>
+                          {rowErrors.length > 0 && <p className="pb-0.5 text-[11px] font-body text-error">{rowErrors.join(" · ")}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => append(newPanel("Panel"))}

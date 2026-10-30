@@ -20,6 +20,8 @@ import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { requirementState, useBuildCtx } from "@/lib/requirement-state";
 import { REQUIREMENT_STATUS_LABEL, REQUIREMENT_STATUS_STYLE } from "@/lib/requirement-progress";
 import { SentLinesContext } from "@/components/shared/sent-lines-context";
+import { PanelCalculatorContext } from "@/components/shared/panel-calculator-context";
+import { PanelCalculatorForm } from "@/components/templates/panel-calculator-form";
 import { SendToPoDialog } from "@/components/purchase-orders/send-to-po-dialog";
 
 // Same tabs as the quote editor.
@@ -183,6 +185,8 @@ export default function ProcurementEditorPage({ params }: { params: Promise<{ id
         <div className="px-2 py-2">
           <div role="tabpanel" className={cn("flex-col gap-5", tab === "items" ? "flex" : "hidden")}>
             <SentLinesContext.Provider value={sentNumbers}>
+            {/* Each cabinet's Other Panel gets a Calculator button (Purchase > Calculator) that adds its panels there. */}
+            <PanelCalculatorContext.Provider value={PanelCalculatorForm}>
             <UnitsSection
               bare
               send={state ? { sendable: new Set(state.ids), sent: sentNumbers, blocked: dirty ? "Save your changes first" : undefined, onSend: setSending } : undefined}
@@ -197,6 +201,7 @@ export default function ProcurementEditorPage({ params }: { params: Promise<{ id
               }}
               onChange={changeUnits}
             />
+            </PanelCalculatorContext.Provider>
             </SentLinesContext.Provider>
             <QuoteTotalsBar quote={quote} />
             {row && <SendToPoDialog ro={row} lineIds={sending ?? []} open={sending !== null} onOpenChange={(o) => !o && setSending(null)} />}

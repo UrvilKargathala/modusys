@@ -43,6 +43,7 @@ export function SelectField({
   addLabel,
   onAddClick,
   searchPlaceholder,
+  menuClassName,
   "aria-label": ariaLabel,
 }: {
   value?: string | number;
@@ -65,6 +66,8 @@ export function SelectField({
   // Instead of the inline name box, the add row just calls this (for example to open the full Add form).
   onAddClick?: () => void;
   searchPlaceholder?: string;
+  // Size of the open list (default w-72), e.g. "w-max" for a list as wide as its longest option.
+  menuClassName?: string;
   "aria-label"?: string;
 }) {
   const [adding, setAdding] = useState("");
@@ -92,7 +95,7 @@ export function SelectField({
         <span className={cn("min-w-0 truncate", !current && "text-grey-400")}>{shown?.label ?? ""}</span>
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 p-2">
+      <PopoverContent align="start" className={cn("w-72 p-2", menuClassName)}>
         {searchable && <Input autoFocus placeholder={searchPlaceholder ?? "Search"} value={query} onChange={(e) => setQuery(e.target.value)} className="mb-1" />}
         <div className="flex max-h-60 flex-col overflow-y-auto">
           {results.map((o) => (

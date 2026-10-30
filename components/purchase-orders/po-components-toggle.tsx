@@ -14,9 +14,8 @@ import {
 import { useUnitTypes } from "@/lib/store/unit-type-store";
 import type { PoCabinet } from "@/lib/purchase-order";
 
-// A cabinet's own "Components visible" tick, on the PO's cabinet header: unticked keeps the cabinet title only (no component rows) in the
-// PDFs, for this cabinet only. Ticked until changed (Unit Types no longer have the setting). It shows on cabinets that came from a unit
-// type (matched by the cabinet's unit name) and on every Proforma Invoice cabinet.
+// A cabinet's own "Components visible" tick, on a Proforma Invoice's cabinet header (Purchase Orders don't have it): unticked keeps the
+// cabinet title only (no component rows) in the PDFs, for this cabinet only. Ticked until changed.
 // Changing it shows a message first and only applies when confirmed.
 export function PoComponentsToggle({ unitName, cabinet, onCabinetChange, proforma = false }: { unitName?: string; cabinet: PoCabinet; onCabinetChange: (cabinet: PoCabinet) => void; proforma?: boolean }) {
   const unitTypes = useUnitTypes();

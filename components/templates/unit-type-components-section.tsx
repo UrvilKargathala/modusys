@@ -8,7 +8,7 @@ import { Plus, ChevronDown, ChevronRight, X, PackageSearch } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { EmptyState } from "@/components/shared/empty-state";
-import { FurnitureLineItemRow } from "@/components/templates/furniture-line-item-row";
+import { FurnitureLineItemRow, FurnitureTable } from "@/components/templates/furniture-line-item-row";
 import { BulkActionConfirmDialog } from "@/components/templates/bulk-action-confirm-dialog";
 import { CabinetTypeFormDialog } from "@/components/templates/cabinet-type-form-dialog";
 import { useCabinetTypes, cabinetTypeStore } from "@/lib/store/cabinet-type-store";
@@ -215,22 +215,21 @@ export function UnitTypeComponentsSection({
                 ) : (
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => reorderWithinGroup(groupItems, e)}>
                     <SortableContext items={groupItems.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-                      <div className="flex flex-col gap-3">
+                      <FurnitureTable showComponentName nameLabel="Component">
                         {groupItems.map((c) => (
                           <FurnitureLineItemRow
                             key={c.id}
-                            collapsible
+                            table
                             value={c}
                             label="Component"
                             showComponentName
-                            compact
                             rateReadOnly
                             onChange={(patch) => updateComponent(c.id, patch)}
                             onRemove={() => removeComponent(c.id)}
                             onCopy={() => copyComponent(c)}
                           />
                         ))}
-                      </div>
+                      </FurnitureTable>
                     </SortableContext>
                   </DndContext>
                 )}
@@ -260,21 +259,20 @@ export function UnitTypeComponentsSection({
               onDragEnd={(e) => reorderWithinGroup(additionalComponents, e)}
             >
               <SortableContext items={additionalComponents.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-                <div className="flex flex-col gap-3">
+                <FurnitureTable showComponentName nameLabel="Component">
                   {additionalComponents.map((c) => (
                     <FurnitureLineItemRow
                       key={c.id}
-                      collapsible
+                      table
                       value={c}
                       label="Component"
                       showComponentName
-                      compact
                       rateReadOnly
                       onChange={(patch) => updateComponent(c.id, patch)}
                       onRemove={() => removeComponent(c.id)}
                     />
                   ))}
-                </div>
+                </FurnitureTable>
               </SortableContext>
             </DndContext>
           )

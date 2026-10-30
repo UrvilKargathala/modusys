@@ -12,8 +12,11 @@ let hydrated = false;
 const listeners = new Set<() => void>();
 
 const putAll = makeDebouncedPut("/api/panel-calc-specs");
+// Saved only after the real list has loaded once: the save replaces the whole table, so saving the empty starting list
+// (a page whose load failed) would delete every spec.
+let loaded = false;
 function persist() {
-  putAll(specs);
+  if (loaded) putAll(specs);
 }
 
 function emit() {
@@ -25,6 +28,7 @@ function ensureHydrated() {
   hydrated = true;
   void fetchJson<PanelCalcSpec[]>("/api/panel-calc-specs").then((data) => {
     if (data) {
+      loaded = true;
       specs = data;
       emit();
     }

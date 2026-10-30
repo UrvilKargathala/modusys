@@ -10,6 +10,8 @@ export type PanelFormula = {
   widthFormula: string;
   heightFormula: string;
   thickness: number;
+  // How many of this panel (e.g. 2 side panels); missing on older specs = 1. The Calculator multiplies it by its own Qty.
+  qty?: number;
 };
 
 export type PanelCalcSpec = {

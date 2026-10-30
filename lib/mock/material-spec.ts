@@ -19,6 +19,8 @@ export type MaterialCategoryKey =
   | "internal-colour"
   | "external-colour"
   | "finish-material"
+  // Panel Calculator products (Purchase > Calculator > Panel Spec). Kept here as its own list, not shown in Material Spec.
+  | "panel-product"
   | "thickness"
   | "category"
   | "brand"

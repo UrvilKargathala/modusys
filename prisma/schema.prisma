@@ -301,6 +301,16 @@ model PanelCalcHistory {
   createdAt DateTime @default(now())
 }
 
+// Panel Calculator "Save": a snapshot of the Other Panel table, numbered 1, 2,
+// 3 … (never reused). Shared by everyone; only the latest 5 are kept.
+model PanelCalcTicket {
+  id        String   @id
+  no        Int      @unique
+  rows      Json     @default("[]")
+  createdBy String   @default("")
+  createdAt DateTime @default(now())
+}
+
 model FurniturePriceItem {
   id                String   @id
   thicknessId       String

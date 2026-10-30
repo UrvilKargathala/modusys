@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
-import { CabinetTypeComponentRow } from "@/components/templates/cabinet-type-component-row";
+import { FurnitureLineItemRow, FurnitureTable } from "@/components/templates/furniture-line-item-row";
 import { EmptyState } from "@/components/shared/empty-state";
 import { cabinetTypeStore, type NewCabinetTypeInput } from "@/lib/store/cabinet-type-store";
 import type { CabinetType, CabinetComponent } from "@/lib/mock/cabinet-type";
@@ -110,7 +110,7 @@ export function CabinetTypeFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-6xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Cabinet Type" : "Add Cabinet Type"}</DialogTitle>
           <DialogDescription>
@@ -196,16 +196,20 @@ export function CabinetTypeFormDialog({
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={values.components.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-                  <div className="flex flex-col gap-3">
+                  <FurnitureTable showComponentName nameLabel="Component">
                     {values.components.map((c) => (
-                      <CabinetTypeComponentRow
+                      <FurnitureLineItemRow
                         key={c.id}
+                        table
                         value={c}
+                        label="Component"
+                        showComponentName
+                        rateReadOnly
                         onChange={(patch) => updateComponent(c.id, patch)}
                         onRemove={() => removeComponent(c.id)}
                       />
                     ))}
-                  </div>
+                  </FurnitureTable>
                 </SortableContext>
               </DndContext>
             )}
