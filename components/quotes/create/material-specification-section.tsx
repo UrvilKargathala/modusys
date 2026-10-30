@@ -120,11 +120,11 @@ export function MaterialSpecificationSection({
           />
         </Field>
 
-        <Field label="Material Description" required>
+        <Field label="Cabinet Description" required>
           <MaterialReferenceSelect
             category="raw-material-description"
             value={quote.materialDescriptionId}
-            onChange={(id) => confirmChange("Material Description", { materialDescriptionId: id })}
+            onChange={(id) => confirmChange("Cabinet Description", { materialDescriptionId: id })}
           />
         </Field>
 
@@ -202,9 +202,9 @@ export function MaterialSpecificationSection({
                 <V>
                   <MaterialReferenceSelect category="product-type" triggerClassName={PICK} value={quote.productTypeId} onChange={(id) => confirmChange("Product Type", { productTypeId: id })} />
                 </V>
-                <L required>Material Description</L>
+                <L required>Cabinet Description</L>
                 <V>
-                  <MaterialReferenceSelect category="raw-material-description" triggerClassName={PICK} value={quote.materialDescriptionId} onChange={(id) => confirmChange("Material Description", { materialDescriptionId: id })} />
+                  <MaterialReferenceSelect category="raw-material-description" triggerClassName={PICK} value={quote.materialDescriptionId} onChange={(id) => confirmChange("Cabinet Description", { materialDescriptionId: id })} />
                 </V>
               </tr>
               <tr>

@@ -250,7 +250,6 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
   const hingesTypes = useMaterialItems("hinges-type");
   const tandemDrawerTypes = useMaterialItems("tandem-drawer-type");
   const externalColours = useMaterialItems("external-colour");
-  const internalColours = useMaterialItems("internal-colour");
   const rawMaterialDescriptions = useMaterialItems("raw-material-description");
   const clientResponsibilities = useMaterialItems("client-responsibility");
   const furnitureComponents = useMaterialItems("furniture-component");
@@ -286,6 +285,16 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
     quote.installationFreightCost
   );
   const { branding, layout, banking, signature, notes, terms, paymentTerms } = settings;
+  // External Finish prints the Shutter Finish Description: the Description of the price row (Variant ID) matching the four
+  // shutter finish materials. Without one, the External Colour's description as before.
+  const shutterVariantDescription = furnitureItems.find(
+    (i) =>
+      !i.deleted &&
+      i.thicknessId === quote.shutterFinishThicknessId &&
+      i.rawMaterialTypeId === quote.shutterFinishRawMaterialId &&
+      i.internalColourId === quote.shutterFinishInternalColourId &&
+      i.externalColourId === quote.shutterFinishExternalColourId
+  )?.description?.trim();
 
   const customerAddressLine = customer
     ? [customer.address, [customer.city, customer.state, customer.postcode].filter(Boolean).join(", ")].filter(Boolean).join(", ")
@@ -359,13 +368,15 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
     // carcass sits right below the first's), then external finishes, then
     // panels, then hardware — all combined across cabinets. Matches how the
     // team reads a quote top-to-bottom by material category.
-    const carcassRows: DetailRow[] = unit.cabinets.map((cabinet) => {
+    // A cabinet with no Cabinet Type has nothing to say (Brand, Product and Description all blank): no row.
+    const carcassRows: DetailRow[] = unit.cabinets.flatMap((cabinet) => {
       const cabinetType = cabinetTypes.find((c) => c.id === cabinet.cabinetTypeId);
+      if (!cabinetType) return [];
       const carcassUnit = carcassUnitFor(cabinet, unit);
       return {
-        brand: cabinetType ? nameOf(brands, cabinetType.brandId) : "—",
-        product: cabinetType?.name ?? "—",
-        description: cabinetType?.description ?? "—",
+        brand: nameOf(brands, cabinetType.brandId),
+        product: cabinetType.name,
+        description: cabinetType.description ?? "—",
         width: carcassUnit.width,
         depth: carcassUnit.depth,
         height: carcassUnit.height,
@@ -655,16 +666,8 @@ export default function QuotePdfPage({ params }: { params: Promise<{ id: string 
         <SectionLabel>Material Specification</SectionLabel>
         <div className="flex flex-col gap-1.5 p-3 pt-2 text-[11px]">
           <Field label="Product Type" value={numFont([nameOf(productTypes, quote.productTypeId), nameOf(externalColours, quote.shutterFinishId), nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId)].filter((v) => v !== "—").join(" + "))} />
-          {/* From the Shutter Finish details (Variant ID). Quotes saved before those existed fall back to the old sources. */}
-          <Field
-            label="Internal Finish"
-            value={numFont(
-              quote.shutterFinishInternalColourId
-                ? descOf(internalColours, quote.shutterFinishInternalColourId)
-                : descOf(rawMaterialDescriptions, quote.materialDescriptionId)
-            )}
-          />
-          <Field label="External Finish" value={numFont(descOf(externalColours, quote.shutterFinishExternalColourId || quote.shutterFinishId))} />
+          <Field label="Cabinet Description" value={numFont(descOf(rawMaterialDescriptions, quote.materialDescriptionId))} />
+          <Field label="External Finish" value={numFont(shutterVariantDescription || descOf(externalColours, quote.shutterFinishExternalColourId || quote.shutterFinishId))} />
           <Field label="Tandem Runner" value={numFont(nameOf(tandemDrawerTypes, quote.tandemDrawerTypeId))} />
           <Field label="Hinges" value={numFont(descOf(hingesTypes, quote.hingesTypeId))} />
           <Field label="Handle" value={numFont(descOf(handleTypes, quote.handleTypeId))} />

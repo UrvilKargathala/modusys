@@ -73,7 +73,7 @@ export const materialCategories: MaterialCategory[] = [
   { key: "product-type", group: "specification", label: "Product Type", noDescription: true },
   { key: "property-type", group: "specification", label: "Property Type", noDescription: true },
   { key: "space", group: "specification", label: "Space", noDescription: true },
-  { key: "raw-material-description", group: "specification", label: "Raw Material Description", longDescription: true },
+  { key: "raw-material-description", group: "specification", label: "Cabinet Description", longDescription: true },
   { key: "handle-type", group: "specification", label: "Handle Type" },
   { key: "hinges-type", group: "specification", label: "Hinges Type" },
   { key: "client-responsibility", group: "specification", label: "Client Responsibility" },
