@@ -19,8 +19,7 @@ import { quoteRawTotal, quoteWaterfall } from "@/lib/quote-pricing";
 import { downloadQuoteExportZip } from "@/lib/quote-export-zip";
 import { formatInr } from "@/lib/format";
 import { toastStore } from "@/lib/store/toast-store";
-import { useOwnFactory } from "@/lib/store/quote-template-store";
-import { pickableStatuses, remarkWithStatusNote, statusConfig, statusRemarkOf, type StatusKey } from "@/lib/status";
+import { remarkWithStatusNote, statusConfig, statusRemarkOf, type StatusKey } from "@/lib/status";
 import { printQuotesReport } from "@/lib/quotes-report";
 import { useArchitects } from "@/lib/store/architects-store";
 import { fullName } from "@/lib/mock/architects";
@@ -71,6 +70,7 @@ function downloadCsv(filename: string, rows: (string | number)[][]) {
 // The sidebar's Quotes group: /quotes lists every quote; /quotes/confirmed and /quotes/cancelled (this same page) list only the quotes with that status.
 const VIEWS = {
   all: { title: "All Quotes", text: "Every priced quotation across your customers", status: null },
+  draft: { title: "Draft Quotes", text: "Quotes still being prepared, not yet confirmed", status: "draft" },
   confirmed: { title: "Confirmed Quotes", text: "Quotes the customer has confirmed", status: "approved" },
   cancelled: { title: "Cancelled Quotes", text: "Quotes that were cancelled", status: "cancelled" },
 } as const;
@@ -78,8 +78,7 @@ const VIEWS = {
 export default function QuotesPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const ownFactory = useOwnFactory();
-  const view: keyof typeof VIEWS = pathname.endsWith("/confirmed") ? "confirmed" : pathname.endsWith("/cancelled") ? "cancelled" : "all";
+  const view: keyof typeof VIEWS = pathname.endsWith("/draft") ? "draft" : pathname.endsWith("/confirmed") ? "confirmed" : pathname.endsWith("/cancelled") ? "cancelled" : "all";
   const quotes = useQuotes();
   const customers = useCustomers();
   const architects = useArchitects();
@@ -508,6 +507,11 @@ export default function QuotesPage() {
           <p className="text-sm font-body text-grey-400">{VIEWS[view].text}</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* A customer's quotes from quote to packing and dispatch. */}
+          <Button type="button" size="sm" variant="outline" onClick={() => router.push("/quotes/customer-history")} className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3">
+            <History className="h-4 w-4" />
+            Customer History
+          </Button>
           <Button type="button" size="sm" variant="outline" onClick={pdfReport} disabled={filtered.length === 0} className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3">
             <FileDown className="h-4 w-4" />
             Quote Report
@@ -571,7 +575,8 @@ export default function QuotesPage() {
             >
               All
             </button>
-            {pickableStatuses(undefined, ownFactory).map((key) => (
+            {/* Only the statuses picked on a quote: Draft, Confirmed, Cancelled (All covers the rest). */}
+            {(["draft", "approved", "cancelled"] as StatusKey[]).map((key) => (
               <button
                 key={key}
                 type="button"

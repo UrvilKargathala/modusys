@@ -5,11 +5,9 @@ import Link from "next/link";
 import { ClipboardList, Eye, Search } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
-import { StatusBadge } from "@/components/shared/status-badge";
 import { useProcurementQuotes, procurementStore } from "@/lib/store/procurement-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { useCustomers } from "@/lib/store/customers-store";
-import { type StatusKey } from "@/lib/status";
 import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { requirementState, useBuildCtx } from "@/lib/requirement-state";
 import { REQUIREMENT_STATUS_LABEL, REQUIREMENT_STATUS_STYLE, type RequirementStatus } from "@/lib/requirement-progress";
@@ -18,7 +16,7 @@ import { useColumnOrder } from "@/components/shared/use-column-order";
 
 const th = "px-4 py-1.5 text-sm font-body font-semibold text-grey-900";
 const RO_HEADS: Record<string, string> = {
-  no: "Requirement No", quote: "Quote No", customer: "Customer", roStatus: "RO Status", quoteStatus: "Quote Status",
+  no: "Requirement No", quote: "Quote No", customer: "Customer", roStatus: "RO Status",
   copied: "Copied On", edited: "Last Edited", actions: "Actions",
 };
 const fmt = (iso: string) => (iso ? new Date(iso).toLocaleDateString("en-GB") : "—");
@@ -98,7 +96,7 @@ export default function ProcurementPage() {
               </tr>
             </thead>
             <tbody>
-              {paged.map(({ r, quote, customer, progress }) => {
+              {paged.map(({ r, customer, progress }) => {
                 const cells: Record<string, React.ReactNode> = {
                     no: (
                   <td key="no" className="px-2 py-0.5 font-number text-xs">
@@ -118,15 +116,6 @@ export default function ProcurementPage() {
                       <span className="h-1.5 w-16 overflow-hidden rounded-full bg-grey-100"><span className="block h-full rounded-full bg-success" style={{ width: `${progress.pct}%` }} /></span>
                       <span className="whitespace-nowrap font-number text-xs text-grey-700">{progress.pct}% · {progress.sent}/{progress.total}</span>
                     </span>
-                  </td>
-                    ),
-                    quoteStatus: (
-                  <td key="quoteStatus" className="px-2 py-0.5">
-                    {!quote ? (
-                      <span className="text-xs text-grey-400">Quote deleted</span>
-                    ) : (
-                      <StatusBadge status={quote.status as StatusKey} className="py-0 leading-5" />
-                    )}
                   </td>
                     ),
                     copied: (

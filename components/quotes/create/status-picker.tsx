@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, ClipboardList } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useOwnFactory } from "@/lib/store/quote-template-store";
-import { nextStatuses, pickableStatuses, statusConfig, statusPickerClass, type StatusKey, type StatusNote } from "@/lib/status";
+import { nextStatuses, statusConfig, statusPickerClass, type StatusKey, type StatusNote } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
 // Native <select><option> can't reliably show a background color across
@@ -30,16 +30,22 @@ export function StatusPicker({
   const [noteDate, setNoteDate] = useState("");
   const [reason, setReason] = useState("");
   const cfg = statusConfig[value] ?? statusConfig.draft;
-  // Every status is listed; only the next step in the flow and Cancelled can be picked, the rest are greyed out.
-  // A company without its own factory has no In Production step.
+  // Only Draft, Confirmed and Cancelled are picked here (the flow's back / next rules still apply). Requirement Order has its own button
+  // on a Confirmed quote; the later steps (In Purchase … Dispatched) follow the orders by themselves.
   const ownFactory = useOwnFactory();
-  const statusOptions = pickableStatuses(value, ownFactory);
+  const statusOptions: StatusKey[] = ["draft", "approved", "cancelled"];
   const allowed = new Set<StatusKey>([value, ...nextStatuses(value, ownFactory)]);
+  const askFor = (s: StatusKey) => {
+    setReason("");
+    setNoteDate(new Date().toLocaleDateString("en-CA"));
+    setNoteFor(s);
+  };
   // Requirement Order makes the quote's Requirement Order (quotesStore.saveQuote); In Purchase follows once a PO is made from it.
   const makesRo = (s: StatusKey | null) => s === "in-procurement";
 
   return (
     <>
+    <span className="flex w-full items-center gap-1">
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className={cn(
@@ -62,11 +68,8 @@ export function StatusPicker({
                 title={allowed.has(s) ? undefined : "Statuses go one step at a time"}
                 onClick={() => {
                   setOpen(false);
-                  if (s === value) return;
                   // Every change, forward or back, asks for the date and a remark.
-                  setReason("");
-                  setNoteDate(new Date().toLocaleDateString("en-CA"));
-                  setNoteFor(s);
+                  if (s !== value) askFor(s);
                 }}
                 className={cn(
                   "flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-sm font-body font-medium transition-colors",
@@ -82,6 +85,19 @@ export function StatusPicker({
         </div>
       </PopoverContent>
     </Popover>
+    {/* A Confirmed quote becomes a Requirement Order here (same date + remark popup); that makes its Requirement Order. */}
+    {value === "approved" && (
+      <button
+        type="button"
+        onClick={() => askFor("in-procurement")}
+        title="Make Requirement Order"
+        aria-label="Make Requirement Order"
+        className="flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-grey-100 bg-card px-2 text-xs font-body font-medium text-primary hover:bg-primary-transparent"
+      >
+        <ClipboardList className="h-3.5 w-3.5" /> Make RO
+      </button>
+    )}
+    </span>
     <Dialog open={!!noteFor} onOpenChange={(o) => !o && setNoteFor(null)}>
       <DialogContent>
         <DialogHeader>

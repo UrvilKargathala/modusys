@@ -20,7 +20,7 @@ export type Vendor = {
 };
 
 // Manufacturing & Dispatch: the factory steps every piece goes through, in order, before Packing. Each is ticked per piece on the Manufacturing page.
-export const MFG_STEPS = [["pressing", "Pressing"], ["cutting", "Cutting"], ["edgeBand", "Edge Band"], ["drilling", "Drilling"], ["manual", "Manual Work"], ["assembly", "Assembly"], ["qc", "Quality Check"]] as const;
+export const MFG_STEPS = [["pressing", "Pressing"], ["cutting", "Cutting"], ["edgeBand", "Edge Band"], ["drilling", "Drilling"], ["manual", "Manual Work"], ["assembly", "Assembly"], ["qc", "Quality Check"], ["packing", "Packing"]] as const;
 export type MfgStep = (typeof MFG_STEPS)[number][0];
 
 export type PoGroup = "carcass" | "shutter" | "other-panel" | "hardware";
@@ -220,11 +220,14 @@ export type PoMaterial = {
   // Proforma Production page: per cut-list row, one entry per piece (Qty) ticked as produced, with its own note (same shape as packing, no boxes).
   production?: Record<string, { pieces: { done: boolean; note: string }[] }>;
   // Manufacturing page: per cut-list row, one entry per piece (Qty) with the factory steps ticked; done = every step is ticked.
-  manufacturing?: Record<string, { pieces: { done: boolean; note: string; steps?: Partial<Record<MfgStep, boolean>> }[] }>;
+  // dates: the day the piece passed each step (asked at each Confirm).
+  manufacturing?: Record<string, { pieces: { done: boolean; note: string; steps?: Partial<Record<MfgStep, boolean>>; dates?: Partial<Record<MfgStep, string>> }[] }>;
   // Manufacturing: the date each step was finished (asked when its last piece is ticked). A step starts when the one before it ends;
   // Pressing starts the day the Work Order was sent to Manufacturing.
   stepDates?: Partial<Record<MfgStep, { end?: string }>>;
-  // The day it was sent on to Packing & Dispatch (asked once Quality Check is finished); until then it is Pending to Packing.
+  // Manufacturing history, one entry per step and change at each Save: who, when, which pieces were ticked / un-ticked, or an end date.
+  mfgHistory?: { at: string; by: string; step: MfgStep; action: "tick" | "untick" | "end"; pieces: { key: string; k: number; label: string }[]; date?: string }[];
+  // Before the Packing step existed: the day the whole Work Order was sent on to Packing & Dispatch (its Quality-Checked pieces count as sent).
   packingSent?: string;
   // A Proforma Invoice made from a Purchase Order (one chain): that PO's id.
   fromPoId?: string;
@@ -388,7 +391,7 @@ export function sortOtherPanel<T extends Pick<PurchaseOrderLine, "description" |
 
 // A Proforma Invoice's Work Order: its Production Work Order number and date, the PI lines sent to it (line keys), and its own Work Order
 // page data (edge band, cut list edits, production), kept apart from the other Work Orders of the PI.
-export const WO_STATE_KEYS = ["production", "edgeBandCombos", "edgeBandColours", "edgeBandSides", "edgeBandCodes", "edgeBandGrain", "usedEdgeBand", "cutListEdits", "cutListHistory", "extraHardware", "manufacturing", "packing", "transport", "stepDates", "packingSent"] as const;
+export const WO_STATE_KEYS = ["production", "edgeBandCombos", "edgeBandColours", "edgeBandSides", "edgeBandCodes", "edgeBandGrain", "usedEdgeBand", "cutListEdits", "cutListHistory", "extraHardware", "manufacturing", "packing", "transport", "stepDates", "packingSent", "mfgHistory"] as const;
 export type ExtraHardware = { id: string; kind: "cabinet" | "misc"; brand: string; category: string; description: string; articleNo: string; unit: string; qty: number };
 export type WorkOrderState = Partial<Pick<PoMaterial, (typeof WO_STATE_KEYS)[number]>>;
 // mfgStart: the day it was set to Send to Manufacturing (Pressing's start date).

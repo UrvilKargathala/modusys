@@ -26,8 +26,9 @@ import { useCurrentUser } from "@/lib/session";
 import { MFG_STEPS, asPoStatus, mostUsed, poStatusLabel, type ExtraHardware, type MfgStep, type PoMaterial, type PurchaseOrder } from "@/lib/purchase-order";
 import { PoHardwareSelect } from "@/components/purchase-orders/po-hardware-select";
 import { formatPoDate } from "@/components/purchase-orders/po-dates";
+import { MfgHistoryDialog, componentRows, pieceLabelOf } from "@/components/purchase-orders/mfg-history-dialog";
 import { cn } from "@/lib/utils";
-import { cutListHeaders, cutListRows, poDetailSections, psLabel } from "@/lib/purchase-order-export";
+import { cutListHeaders, poDetailSections, psLabel } from "@/lib/purchase-order-export";
 
 // A colour picker listing only the colours the components use (the Edge Band tab), as the saved "Brand — Colour" text.
 function UsedColourSelect({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
@@ -271,7 +272,7 @@ function MaterialProcurement({ po, cutRows, bands, branding, extra }: { po: Purc
 }
 
 // One piece of a row: packed (Packing) or every factory step ticked (Manufacturing), its note, its box (Packing) and its ticked steps (Manufacturing).
-type Piece = { done: boolean; note: string; seq?: number; tr?: number; steps?: Partial<Record<MfgStep, boolean>> };
+type Piece = { done: boolean; note: string; seq?: number; tr?: number; steps?: Partial<Record<MfgStep, boolean>>; dates?: Partial<Record<MfgStep, string>> };
 type Packing = Record<string, { pieces: Piece[] }>;
 
 // The Packing page of a Proforma Invoice: everything about the invoice is shown but locked; only the Packed ticks (one per piece, Qty of them)
@@ -356,8 +357,17 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
   const [extraHw, setExtraHw] = useState<ExtraHardware[]>([]);
   // Manufacturing: each step's end date, and the step whose end date is being asked (it has just been finished).
   const [stepDates, setStepDates] = useState<NonNullable<PoMaterial["stepDates"]>>({});
-  const [askStep, setAskStep] = useState<MfgStep | null>(null);
+  // The pieces just confirmed (step by step), whose date is being asked.
+  type PickRef = { step: MfgStep; key: string; k: number };
+  const [askBatch, setAskBatch] = useState<{ ids: PickRef[]; counts: Partial<Record<MfgStep, number>> } | null>(null);
+  // Removing ticks is asked first: the result if Yes, and what it removes (step and number of pieces).
+  const [untickAsk, setUntickAsk] = useState<{ next: Packing; step: MfgStep; count: number } | null>(null);
   const [askDate, setAskDate] = useState("");
+  // Manufacturing: step ticks only pick pieces; Confirm (Send to Packing) asks once for all of them (Yes ticks them, No keeps them picked).
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  // Manufacturing History panel.
+  const [mfgHistOpen, setMfgHistOpen] = useState(false);
+  const [packAsk, setPackAsk] = useState<{ next: Packing; counts: Partial<Record<MfgStep, number>>; ids: PickRef[] } | null>(null);
   // Manufacturing: the day it was sent on to Packing (once Quality Check is finished); unset = Pending to Packing.
   const [packingSent, setPackingSent] = useState<string | undefined>(undefined);
   const SIDES = [["top", "Width-1"], ["bottom", "Width-2"], ["lh", "Height-1"], ["rh", "Height-2"]] as const;
@@ -404,34 +414,7 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
 
   const headers = useMemo(() => (po ? cutListHeaders(po, true) : []), [po]);
   // Row key: Sr no + description + size; identical rows get a running number so each keeps its own packing state.
-  const rows = useMemo(() => {
-    if (!po) return [];
-    const seen = new Map<string, number>();
-    const list = cutListRows(po, true).map((r) => {
-      const base = `${r[0]}|${r[4]}|${r[5]}x${r[6]}`;
-      const n = seen.get(base) ?? 0;
-      seen.set(base, n + 1);
-      const key = n ? `${base}#${n}` : base;
-      // Work Order and Manufacturing: the edits made in the Components table (Cut List edits) replace the row's values everywhere (Edge Band tables, Cut List, totals, pieces).
-      const ed = isProd || isMfg ? po.material.cutListEdits?.[key] : undefined;
-      if (!ed) return { key, cells: r };
-      const cells = [...r];
-      const put = (h: string, v: string | number | undefined) => { const i = h ? cutListHeaders(po, true).indexOf(h) : -1; if (i >= 0 && v !== undefined) cells[i] = v; };
-      put("Description", ed.name);
-      put("Remarks", ed.remarks);
-      put("Width", ed.w);
-      put("Height", ed.h);
-      for (const [h, v] of Object.entries(ed.fields ?? {})) put(h, h === "Qty" ? Number(v) : v);
-      return { key, cells };
-    });
-    // Listed in Sr order (1.1, 1.2 ... 2.1 ...), not in the cut list's material order; loose rows (Sr 0.x, no cabinet) come last.
-    const part = (sr: string | number) => String(sr).split(".").map(Number);
-    return list.sort((a, b) => {
-      const [ac, ar] = part(a.cells[0]);
-      const [bc, br] = part(b.cells[0]);
-      return (ac === 0 ? Infinity : ac) - (bc === 0 ? Infinity : bc) || ar - br;
-    });
-  }, [po]);
+  const rows = useMemo(() => (po ? componentRows(po, isProd || isMfg) : []), [po, isProd, isMfg]);
 
   // One row per thickness + internal + external colour used by the components.
   const edgeGroups = useMemo(() => {
@@ -603,7 +586,9 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
   // Manufacturing: tick one step of one piece; a piece is done once every step is ticked.
   const withStep = (x: Piece, step: MfgStep, on: boolean): Piece => {
     const steps = { ...x.steps, [step]: on };
-    return { ...x, steps, done: MFG_STEPS.every(([s]) => steps[s]) };
+    const dates = { ...x.dates };
+    if (!on) delete dates[step];
+    return { ...x, steps, dates, done: MFG_STEPS.every(([s]) => steps[s]) };
   };
   // Steps go in order: a piece's step can be ticked only once the step before it is, and un-ticked only while the next one isn't.
   const stepAt = (step: MfgStep, d: -1 | 1) => MFG_STEPS[MFG_STEPS.findIndex(([s]) => s === step) + d]?.[0];
@@ -612,42 +597,110 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
     const next = stepAt(step, 1);
     return on ? !prev || !!x.steps?.[prev] : !next || !x.steps?.[next];
   };
-  // After a tick: a step that every piece now has is finished, so its end date is asked (today to start with); one no longer finished loses it.
-  const afterTicks = (next: Packing) => {
+  // After ticks change: a step no longer finished for every piece loses its End date (the date is asked at each Confirm instead).
+  const finishedIn = (p: Packing, step: MfgStep) => {
     const all = rows.reduce((n, r) => n + qtyOf(r.cells), 0);
-    const finished = (p: Packing, step: MfgStep) => all > 0 && rows.reduce((n, r) => n + Array.from({ length: qtyOf(r.cells) }, (_, i) => p[r.key]?.pieces?.[i]).filter((x) => x?.steps?.[step]).length, 0) === all;
-    setStepDates((d) => Object.fromEntries(Object.entries(d).filter(([s]) => finished(next, s as MfgStep))));
-    // Only a step this tick finished is asked (one skipped before can get its date in its heading).
-    const ask = MFG_STEPS.find(([s]) => finished(next, s) && !finished(packing, s) && !stepDates[s]?.end)?.[0];
-    if (ask) {
-      setAskStep(ask);
-      setAskDate(new Date().toISOString().slice(0, 10));
-    }
+    return all > 0 && rows.reduce((n, r) => n + Array.from({ length: qtyOf(r.cells) }, (_, i) => p[r.key]?.pieces?.[i]).filter((x) => x?.steps?.[step]).length, 0) === all;
   };
+  const afterTicks = (next: Packing) => setStepDates((d) => Object.fromEntries(Object.entries(d).filter(([s]) => finishedIn(next, s as MfgStep))));
+  // Ticking a step only picks the piece ("step|row key#piece"); Confirm (Send to Packing for Packing) ticks every pick after one Yes.
+  // Un-ticking a ticked piece happens straight away.
+  const pickId = (step: MfgStep, key: string, k: number) => `${step}|${key}#${k}`;
   const setStep = (key: string, qty: number, k: number, step: MfgStep, on: boolean) => {
     const cur = Array.from({ length: qty }, (_, i) => packing[key]?.pieces?.[i] ?? { done: false, note: "" });
     if (!canTick(cur[k], step, on)) return;
+    if (on) return pick([pickId(step, key, k)]);
+    // A picked (not yet confirmed) piece just goes back.
+    if (picked.has(pickId(step, key, k))) return pick([pickId(step, key, k)]);
     cur[k] = withStep(cur[k], step, on);
-    const next = { ...packing, [key]: { pieces: cur } };
-    setPacking(next);
-    setDirty(true);
-    afterTicks(next);
+    setUntickAsk({ next: { ...packing, [key]: { pieces: cur } }, step, count: 1 });
   };
-  // The tick in a step's heading: that step on (or off) for every piece of the rows shown that the order allows.
+  // The tick in a step's heading picks (or un-picks) every piece shown that can take that step; with none left to pick it un-ticks them.
   const setStepAll = (step: MfgStep, on: boolean) => {
+    const ids = pickable(step);
+    if (ids.length > 0) return setPicked((cur) => { const n = new Set(cur); for (const id of ids) if (on) n.add(id); else n.delete(id); return n; });
+    if (on) return;
     const next = { ...packing };
-    for (const r of visibleRows) next[r.key] = { pieces: Array.from({ length: qtyOf(r.cells) }, (_, i) => packing[r.key]?.pieces?.[i] ?? { done: false, note: "" }).map((x) => (canTick(x, step, on) ? withStep(x, step, on) : x)) };
+    let count = 0;
+    for (const r of visibleRows) next[r.key] = { pieces: Array.from({ length: qtyOf(r.cells) }, (_, i) => packing[r.key]?.pieces?.[i] ?? { done: false, note: "" }).map((x) => (x.steps?.[step] && canTick(x, step, false) ? (count++, withStep(x, step, false)) : x)) };
+    if (count > 0) setUntickAsk({ next, step, count });
+  };
+  // The shown pieces a step can be picked for: not ticked yet and the step before it done.
+  const pickable = (step: MfgStep) => visibleRows.flatMap((r) => piecesOf(r.key, qtyOf(r.cells)).flatMap((x, k) => (!x.steps?.[step] && canTick(x, step, true) ? [pickId(step, r.key, k)] : [])));
+  const pick = (ids: string[]) =>
+    setPicked((cur) => {
+      const next = new Set(cur);
+      const off = ids.length > 0 && ids.every((id) => cur.has(id));
+      for (const id of ids) if (off) next.delete(id); else next.add(id);
+      return next;
+    });
+  // Confirm: every pick gets its tick (with Packing among them, after one Yes).
+  const confirmPicked = () => {
+    const next = { ...packing };
+    const counts: Partial<Record<MfgStep, number>> = {};
+    const ids: PickRef[] = [];
+    for (const [step] of MFG_STEPS) {
+      for (const id of picked) {
+        if (!id.startsWith(`${step}|`)) continue;
+        const rest = id.slice(step.length + 1);
+        const at = rest.lastIndexOf("#");
+        const key = rest.slice(0, at);
+        const k = Number(rest.slice(at + 1));
+        const r = rows.find((x) => x.key === key);
+        if (!r) continue;
+        const cur = Array.from({ length: qtyOf(r.cells) }, (_, i) => next[key]?.pieces?.[i] ?? { done: false, note: "" });
+        if (!cur[k] || cur[k].steps?.[step] || !canTick(cur[k], step, true)) continue;
+        cur[k] = withStep(cur[k], step, true);
+        next[key] = { pieces: cur };
+        counts[step] = (counts[step] ?? 0) + 1;
+        ids.push({ step, key, k });
+      }
+    }
+    if (Object.keys(counts).length === 0) return;
+    // Only Packing (it sends pieces on) asks Yes / No first; other steps are ticked straight away, then their end date is asked.
+    if (counts.packing) return setPackAsk({ next, counts, ids });
+    setPicked(new Set());
     setPacking(next);
     setDirty(true);
     afterTicks(next);
+    askDateFor(ids, counts);
   };
+  // After a Confirm: the date those pieces passed the step(s), today to start with.
+  const askDateFor = (ids: PickRef[], counts: Partial<Record<MfgStep, number>>) => {
+    setAskBatch({ ids, counts });
+    setAskDate(new Date().toISOString().slice(0, 10));
+  };
+  // Save date: on each confirmed piece; a step now finished for every piece also gets it as its End date.
+  const saveBatchDate = () => {
+    if (!askBatch || !askDate) return;
+    const next = { ...packing };
+    for (const { step, key, k } of askBatch.ids) {
+      const r = rows.find((x) => x.key === key);
+      if (!r) continue;
+      const cur = Array.from({ length: qtyOf(r.cells) }, (_, i) => next[key]?.pieces?.[i] ?? { done: false, note: "" });
+      if (!cur[k]?.steps?.[step]) continue;
+      cur[k] = { ...cur[k], dates: { ...cur[k].dates, [step]: askDate } };
+      next[key] = { pieces: cur };
+    }
+    setPacking(next);
+    const ends = Object.keys(askBatch.counts).filter((s) => finishedIn(next, s as MfgStep));
+    if (ends.length) setStepDates((d) => ({ ...d, ...Object.fromEntries(ends.map((s) => [s, { end: askDate }])) }));
+    setDirty(true);
+    setAskBatch(null);
+  };
+  const onlyPacking = picked.size > 0 && [...picked].every((id) => id.startsWith("packing|"));
   // A step starts when the one before it ended; Pressing on the day the Work Order went to Manufacturing.
   const stepStart = (step: MfgStep) => {
     const prev = stepAt(step, -1);
     return prev ? stepDates[prev]?.end : wo?.mfgStart;
   };
-  // Packing a Work Order: only its pieces with Quality Check ticked in Manufacturing are here; the rest are still being made.
-  const ready = (key: string, k: number) => !(isPack && wo) || !!po.material.manufacturing?.[key]?.pieces?.[k]?.steps?.qc;
+  // Packing a Work Order: only its pieces with the Packing step ticked in Manufacturing are here (on one sent before that step existed,
+  // its Quality-Checked pieces); the rest are still being made.
+  const ready = (key: string, k: number) => {
+    if (!(isPack && wo)) return true;
+    const st = po.material.manufacturing?.[key]?.pieces?.[k]?.steps;
+    return !!st?.packing || (!!po.material.packingSent && !!st?.qc);
+  };
   const stepCount = (step: MfgStep) => rows.reduce((n, r) => n + piecesOf(r.key, qtyOf(r.cells)).filter((x) => x.steps?.[step]).length, 0);
   const totalQty = rows.reduce((n, r) => n + Array.from({ length: qtyOf(r.cells) }, (_, k) => ready(r.key, k)).filter(Boolean).length, 0);
   type PieceLike = { done: boolean; seq?: number; tr?: number };
@@ -770,6 +823,32 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
   const woDateShown = woDateEdit ?? (wo?.date || new Date().toISOString().slice(0, 10));
   const woNoShown = woNoEdit ?? (wo?.no || nextWorkOrderNo(woDateShown, productTypes.find((m) => m.id === po.material.productTypeId)?.description, orders));
 
+  // Manufacturing history: what this Save changes against what was saved before, one entry per step and change.
+  const pieceLabel = (key: string, k: number) => pieceLabelOf(po, rows, key, k);
+  const historyEntries = () => {
+    const at = new Date().toISOString();
+    const by = user.name || user.email || "";
+    const saved = po.material.manufacturing ?? {};
+    const out: NonNullable<PoMaterial["mfgHistory"]> = [];
+    for (const [step] of MFG_STEPS) {
+      const on: { key: string; k: number; label: string }[] = [];
+      const off: typeof on = [];
+      for (const r of rows) {
+        for (let k = 0; k < qtyOf(r.cells); k++) {
+          const before = !!saved[r.key]?.pieces?.[k]?.steps?.[step];
+          const after = !!packing[r.key]?.pieces?.[k]?.steps?.[step];
+          if (before !== after) (after ? on : off).push({ key: r.key, k, label: pieceLabel(r.key, k) });
+        }
+      }
+      if (on.length) out.push({ at, by, step, action: "tick", pieces: on });
+      if (off.length) out.push({ at, by, step, action: "untick", pieces: off });
+      const endBefore = po.material.stepDates?.[step]?.end ?? "";
+      const endAfter = stepDates[step]?.end ?? "";
+      if (endBefore !== endAfter) out.push({ at, by, step, action: "end", pieces: [], date: endAfter || undefined });
+    }
+    return [...(po.material.mfgHistory ?? []), ...out];
+  };
+
   const save = async (): Promise<boolean> => {
     setBusy(true);
     try {
@@ -780,7 +859,7 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
         const m = withWorkOrder(stored!, wo!.id, { no: woNoShown.trim(), date: woDateShown, state: { production: packing, edgeBandCombos: edgeCombos, edgeBandColours: edgeColours, edgeBandSides: edgeSides, edgeBandCodes: edgeCodes, edgeBandGrain: edgeGrain, usedEdgeBand: bandWidths, extraHardware: extraHw } });
         return { ...m, ...ref };
       };
-      await purchaseOrdersStore.update(po.id, { material: isProd ? woMaterial() : isMfg ? (wo ? { ...withWorkOrder(stored!, wo.id, { state: { manufacturing: packing, stepDates, packingSent } }), ...ref } : { ...po.material, ...ref, manufacturing: packing, stepDates, packingSent }) : (wo ? { ...withWorkOrder(stored!, wo.id, { state: { packing, transport } }), ...ref } : { ...po.material, ...ref, packing, transport }) });
+      await purchaseOrdersStore.update(po.id, { material: isProd ? woMaterial() : isMfg ? (wo ? { ...withWorkOrder(stored!, wo.id, { state: { manufacturing: packing, stepDates, packingSent, mfgHistory: historyEntries() } }), ...ref } : { ...po.material, ...ref, manufacturing: packing, stepDates, packingSent, mfgHistory: historyEntries() }) : (wo ? { ...withWorkOrder(stored!, wo.id, { state: { packing, transport } }), ...ref } : { ...po.material, ...ref, packing, transport }) });
       setDirty(false);
       toastStore.show(isProd ? "Work order saved" : isMfg ? "Manufacturing saved" : "Packing saved", "success");
       return true;
@@ -811,16 +890,6 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => router.push(base)}>
             <X className="h-4 w-4" /> {dirty ? "Cancel" : "Close"}
           </Button>
-          {/* Manufacturing: once every piece has Quality Check it is Pending to Packing until sent on (saved with Save). */}
-          {isMfg && totalQty > 0 && stepCount("qc") === totalQty && (
-            packingSent ? (
-              <span className="rounded-full bg-success-transparent px-2.5 py-1 text-xs font-body font-semibold text-success">Sent to Packing <span className="font-number">{formatPoDate(packingSent)}</span></span>
-            ) : (
-              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => { setPackingSent(new Date().toISOString().slice(0, 10)); setDirty(true); }} title="Pending to Packing">
-                <Boxes className="h-4 w-4" /> Send to Packing
-              </Button>
-            )
-          )}
           {/* A Work Order can always be saved (it keeps its number and date even with nothing else changed). */}
           <Button type="button" size="sm" disabled={busy || (!dirty && !isProd)} onClick={async () => { if (await save()) router.push(base); }}>
             <Save className="h-4 w-4" /> {busy ? "Saving…" : "Save"}
@@ -856,48 +925,90 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
           )}
         </DialogContent>
       </Dialog>
-      {/* Manufacturing: a step was just finished (its last piece ticked): when did it end? Saved with the page's Save. */}
-      <Dialog open={askStep !== null} onOpenChange={(o) => !o && setAskStep(null)}>
+      {/* Manufacturing: removing ticks is confirmed first (Yes removes them and their dates; saved with Save). */}
+      <Dialog open={untickAsk !== null} onOpenChange={(o) => !o && setUntickAsk(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>{MFG_STEPS.find(([s]) => s === askStep)?.[1]} finished</DialogTitle>
+            <DialogTitle>Remove the {MFG_STEPS.find(([s]) => s === untickAsk?.step)?.[1]} tick?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm font-body text-grey-700">
+            <span className="font-number">{untickAsk?.count ?? 0}</span> {untickAsk?.count === 1 ? "piece goes" : "pieces go"} back to before {MFG_STEPS.find(([s]) => s === untickAsk?.step)?.[1]}, and {untickAsk?.count === 1 ? "its" : "their"} {MFG_STEPS.find(([s]) => s === untickAsk?.step)?.[1]} date is removed.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setUntickAsk(null)}>No</Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (!untickAsk) return;
+                const { next } = untickAsk;
+                setUntickAsk(null);
+                setPacking(next);
+                setDirty(true);
+                afterTicks(next);
+              }}
+            >
+              Yes, remove
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Manufacturing History: Timeline and By Piece (shared with the Manufacturing list's actions). */}
+      {isMfg && <MfgHistoryDialog po={po} title={wo?.no} open={mfgHistOpen} onOpenChange={setMfgHistOpen} />}
+      {/* Manufacturing: the picked ticks, step by step, are confirmed once (Packing sends the pieces on to Packing & Dispatch). */}
+      <Dialog open={packAsk !== null} onOpenChange={(o) => !o && setPackAsk(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{packAsk && Object.keys(packAsk.counts).every((s) => s === "packing") ? "Send to Packing?" : "Confirm the ticks?"}</DialogTitle>
+          </DialogHeader>
+          <ul className="flex flex-col gap-1 text-sm font-body text-grey-700">
+            {MFG_STEPS.filter(([s]) => packAsk?.counts[s]).map(([s, label]) => (
+              <li key={s}>
+                <span className="font-semibold text-grey-900">{label}:</span> <span className="font-number">{packAsk!.counts[s]}</span> {packAsk!.counts[s] === 1 ? "piece" : "pieces"}
+                {s === "packing" ? (packAsk!.counts[s] === 1 ? " goes" : " go") + " on to Packing & Dispatch" : " done"}
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs font-body text-grey-500">Saved with Save. No keeps them picked here.</p>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setPackAsk(null)} title="The pieces stay picked">No</Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (!packAsk) return;
+                const { next, ids, counts } = packAsk;
+                setPackAsk(null);
+                setPicked(new Set());
+                setPacking(next);
+                setDirty(true);
+                afterTicks(next);
+                askDateFor(ids, counts);
+              }}
+            >
+              {packAsk && Object.keys(packAsk.counts).every((s) => s === "packing") ? "Yes, send" : "Yes"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Manufacturing: a step was just finished (its last piece ticked): when did it end? Saved with the page's Save. */}
+      <Dialog open={askBatch !== null} onOpenChange={(o) => !o && setAskBatch(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{MFG_STEPS.filter(([s]) => askBatch?.counts[s]).map(([, label]) => label).join(", ")} done</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-3">
+            <ul className="flex flex-col gap-0.5 text-sm font-body text-grey-700">
+              {MFG_STEPS.filter(([s]) => askBatch?.counts[s]).map(([s, label]) => (
+                <li key={s}><span className="font-semibold text-grey-900">{label}:</span> <span className="font-number">{askBatch!.counts[s]}</span> {askBatch!.counts[s] === 1 ? "piece" : "pieces"}{s === "packing" ? " sent to Packing" : ""}</li>
+              ))}
+            </ul>
             <label className="flex flex-col gap-1.5 text-sm font-body text-grey-700">
-              End date
+              Date
               <Input type="date" value={askDate} onChange={(e) => setAskDate(e.target.value)} className="font-number" />
             </label>
-            {askStep === "qc" ? (
-              <p className="text-xs font-body text-grey-500">Every piece is through Quality Check. Send it on to Packing & Dispatch now? If not, it stays Pending to Packing.</p>
-            ) : (
-              <p className="text-xs font-body text-grey-500">The next step starts on this date.</p>
-            )}
+            <p className="text-xs font-body text-grey-500">The date these pieces passed. Once every piece has a step, this is its End date and the next step starts then.</p>
             <div className="flex justify-end gap-2">
-              {askStep === "qc" ? (
-                <>
-                  <Button type="button" variant="outline" disabled={!askDate} onClick={() => { setStepDates((d) => ({ ...d, qc: { end: askDate } })); setDirty(true); setAskStep(null); }}>
-                    Not now
-                  </Button>
-                  <Button type="button" disabled={!askDate} onClick={() => { setStepDates((d) => ({ ...d, qc: { end: askDate } })); setPackingSent(askDate); setDirty(true); setAskStep(null); }}>
-                    Send to Packing
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button type="button" variant="outline" onClick={() => setAskStep(null)}>Skip</Button>
-                  <Button
-                    type="button"
-                    disabled={!askDate}
-                    onClick={() => {
-                      if (askStep) setStepDates((d) => ({ ...d, [askStep]: { end: askDate } }));
-                      setDirty(true);
-                      setAskStep(null);
-                    }}
-                  >
-                    Save date
-                  </Button>
-                </>
-              )}
+              <Button type="button" variant="outline" onClick={() => setAskBatch(null)}>Skip</Button>
+              <Button type="button" disabled={!askDate} onClick={saveBatchDate}>Save date</Button>
             </div>
           </div>
         </DialogContent>
@@ -1133,8 +1244,8 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-grey-100 bg-white px-5 py-3 shadow-sm">
         <div className="flex min-w-60 flex-1 items-center gap-3">
           <span className="font-heading text-base font-semibold text-grey-900">Components</span>
-          {/* The Work Order has no ticks: its progress is on the Manufacturing page. */}
-          {!isProd && (
+          {/* Packing only: the Work Order has no ticks, and Manufacturing shows its progress in each step's heading. */}
+          {isPack && (
             <>
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-grey-100">
                 <div className="h-full rounded-full bg-success" style={{ width: `${totalQty ? Math.round((totalPacked / totalQty) * 100) : 0}%` }} />
@@ -1167,6 +1278,31 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
             <History className="h-4 w-4" /> History
           </Button>
         )}
+        {isMfg && (
+          <Button type="button" size="sm" variant="outline" onClick={() => setMfgHistOpen(true)} aria-label="Manufacturing history" title="Who ticked which pieces, and when">
+            <History className="h-4 w-4" /> History
+          </Button>
+        )}
+        {isMfg && picked.size > 0 && (
+          <div className="flex items-center gap-2 rounded-lg bg-primary-transparent px-2 py-1">
+            <span className="text-xs font-body font-semibold text-grey-900"><span className="font-number">{picked.size}</span> {picked.size === 1 ? "tick" : "ticks"} picked</span>
+            <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => setPicked(new Set())}>Clear</Button>
+            {!onlyPacking && (
+              <Button type="button" size="sm" className="h-6 px-2 text-xs" onClick={confirmPicked}>
+                <Check className="h-3 w-3" /> Confirm
+              </Button>
+            )}
+          </div>
+        )}
+        {/* Always here on Manufacturing: sends the pieces ticked in Packing (picked, not yet sent) on to Packing & Dispatch. */}
+        {isMfg && (() => {
+          const n = [...picked].filter((id) => id.startsWith("packing|")).length;
+          return (
+            <Button type="button" size="sm" disabled={n === 0} onClick={confirmPicked} title={n ? undefined : "Tick pieces in the Packing column first"}>
+              <Boxes className="h-4 w-4" /> Send to Packing{n ? <span className="font-number"> ({n})</span> : null}
+            </Button>
+          );
+        })()}
         {!isProd && (
           <Button type="button" size="sm" variant="outline" disabled={isMfg ? !rows.some((r) => piecesOf(r.key, qtyOf(r.cells)).some((x) => x.steps && Object.values(x.steps).some(Boolean))) : totalPacked === 0} onClick={() => setResetOpen(true)}>
             <RotateCcw className="h-4 w-4" /> Reset
@@ -1189,9 +1325,10 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
               {/* Manufacturing: a column per step; the heading's tick does that step for every piece shown. */}
               {isMfg && MFG_STEPS.map(([step, label]) => {
                 const n = stepCount(step);
-                const allOn = totalQty > 0 && n === totalQty;
+                const canPick = pickable(step);
+                const allOn = (totalQty > 0 && n === totalQty) || (canPick.length > 0 && canPick.every((id) => picked.has(id)));
                 // The heading tick works only where the order allows it (e.g. Cutting once Pressing is ticked).
-                const canAll = visibleRows.some((r) => piecesOf(r.key, qtyOf(r.cells)).some((x) => !!x.steps?.[step] !== !allOn && canTick(x, step, !allOn)));
+                const canAll = canPick.length > 0 || visibleRows.some((r) => piecesOf(r.key, qtyOf(r.cells)).some((x) => !!x.steps?.[step] !== !allOn && canTick(x, step, !allOn)));
                 const start = stepStart(step);
                 return (
                   <th key={step} className="whitespace-nowrap border border-grey-100 px-2 py-2 text-center font-semibold">
@@ -1318,7 +1455,7 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
                       <div className="flex flex-col items-center gap-1">
                         {pieces.map((pc, k) => (
                           <div key={k} className="flex h-7 items-center">
-                            <input type="checkbox" aria-label={`Piece ${k + 1} of row ${cells[0]} ${label}`} checked={!!pc.steps?.[step]} disabled={!canTick(pc, step, !pc.steps?.[step])} title={canTick(pc, step, !pc.steps?.[step]) ? undefined : pc.steps?.[step] ? "Un-tick the next step first" : "Tick the step before this first"} onChange={(e) => setStep(key, qty, k, step, e.target.checked)} className="h-4 w-4 accent-primary disabled:cursor-not-allowed disabled:opacity-40" />
+                            <input type="checkbox" aria-label={`Piece ${k + 1} of row ${cells[0]} ${label}`} checked={!!pc.steps?.[step] || picked.has(pickId(step, key, k))} disabled={!canTick(pc, step, !pc.steps?.[step])} title={canTick(pc, step, !pc.steps?.[step]) ? undefined : pc.steps?.[step] ? "Un-tick the next step first" : "Tick the step before this first"} onChange={(e) => setStep(key, qty, k, step, e.target.checked)} className="h-4 w-4 accent-primary disabled:cursor-not-allowed disabled:opacity-40" />
                           </div>
                         ))}
                       </div>

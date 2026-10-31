@@ -78,8 +78,9 @@ export const purchaseOrdersStore = {
       await fetch(`/api/purchase-orders/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fields) })
     );
     put(po);
-    // A status that really changed may move its quote's job status (Dispatched).
-    if (before === undefined || asPoStatus(before) !== asPoStatus(po.status)) void import("@/lib/job-flow").then((m) => m.advanceJobFromOrder(po, false));
+    // A Proforma Invoice's status that really changed may move its quote's job status (Dispatched). A Purchase Order's status changes
+    // only the order itself (it just moves to that status tab of the list); nothing else follows it.
+    if (po.material.proforma && (before === undefined || asPoStatus(before) !== asPoStatus(po.status))) void import("@/lib/job-flow").then((m) => m.advanceJobFromOrder(po, false));
     return po;
   },
   async remove(id: string) {

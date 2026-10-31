@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import "server-only";
-import { MFG_STEPS, WO_STATE_KEYS, type WorkOrderState } from "@/lib/purchase-order";
+import { MFG_STEPS, WO_STATE_KEYS, type MfgStep, type WorkOrderState } from "@/lib/purchase-order";
 
 const str = (v: unknown) => String(v ?? "");
 const num = (v: unknown, d = 0) => (typeof v === "number" && Number.isFinite(v) ? v : d);
@@ -155,6 +155,17 @@ export function cleanMaterial(m: unknown) {
     ),
     // Manufacturing page: the factory steps ticked on each piece; done is worked out here (every step ticked).
     packingSent: str(o.packingSent).slice(0, 10) || undefined,
+    mfgHistory: (Array.isArray(o.mfgHistory) ? (o.mfgHistory as Record<string, unknown>[]) : [])
+      .slice(-2000)
+      .filter((h) => MFG_STEPS.some(([s]) => s === h?.step))
+      .map((h) => ({
+        at: str(h?.at).slice(0, 40),
+        by: str(h?.by).slice(0, 120),
+        step: h.step as MfgStep,
+        action: h?.action === "untick" ? ("untick" as const) : h?.action === "end" ? ("end" as const) : ("tick" as const),
+        pieces: (Array.isArray(h?.pieces) ? (h.pieces as Record<string, unknown>[]) : []).slice(0, 500).map((p) => ({ key: str(p?.key).slice(0, 200), k: Math.max(0, Math.round(num(p?.k))), label: str(p?.label).slice(0, 200) })),
+        date: str(h?.date).slice(0, 10) || undefined,
+      })),
     stepDates: Object.fromEntries(
       MFG_STEPS.map(([s]) => [s, str(((o.stepDates ?? {}) as Record<string, { end?: unknown }>)[s]?.end).slice(0, 10)] as const)
         .filter(([, end]) => end)
@@ -169,7 +180,9 @@ export function cleanMaterial(m: unknown) {
             pieces: (Array.isArray(v?.pieces) ? (v.pieces as Record<string, unknown>[]) : []).slice(0, 500).map((x) => {
               const raw = (x?.steps ?? {}) as Record<string, unknown>;
               const steps = Object.fromEntries(MFG_STEPS.filter(([s]) => raw[s] === true).map(([s]) => [s, true] as const));
-              return { done: MFG_STEPS.every(([s]) => steps[s]), note: str(x?.note).slice(0, 300), steps };
+              const rawDates = (x?.dates ?? {}) as Record<string, unknown>;
+              const dates = Object.fromEntries(MFG_STEPS.filter(([s]) => steps[s] && /^\d{4}-\d{2}-\d{2}$/.test(str(rawDates[s]))).map(([s]) => [s, str(rawDates[s])] as const));
+              return { done: MFG_STEPS.every(([s]) => steps[s]), note: str(x?.note).slice(0, 300), steps, dates };
             }),
           },
         ] as const)

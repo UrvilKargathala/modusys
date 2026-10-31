@@ -26,6 +26,7 @@ import {
   Calculator,
   CircleCheck,
   CircleX,
+  FilePen,
 } from "lucide-react";
 
 // `roles` is an explicit whitelist. Undefined = visible to everyone.
@@ -56,6 +57,7 @@ export const navigationItems: NavItem[] = [
   { label: "CRM", href: "/crm", icon: Users },
   // The order flow, one group per stage: Quotes (Sales), Purchase, Production Planning, Manufacturing & Dispatch.
   { label: "All Quotes", href: "/quotes", icon: FileText, roles: ADMIN_UP, group: "Quotes" },
+  { label: "Draft Quotes", href: "/quotes/draft", icon: FilePen, roles: ADMIN_UP, group: "Quotes" },
   { label: "Confirmed Quotes", href: "/quotes/confirmed", icon: CircleCheck, roles: ADMIN_UP, group: "Quotes" },
   { label: "Cancelled Quotes", href: "/quotes/cancelled", icon: CircleX, roles: ADMIN_UP, group: "Quotes" },
   { label: "Requirement Orders", href: "/procurement", icon: ClipboardList, roles: ADMIN_UP, group: "Purchase" },

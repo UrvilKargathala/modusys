@@ -18,6 +18,7 @@ import { unitTypeStore } from "@/lib/store/unit-type-store";
 // - own factory: a Proforma Invoice made from one of the job's POs → In Production. Dispatched once its Requirement Order is Full
 //   Complete and every line of each of the job's POs is on a Proforma Invoice, all of them Dispatched.
 // - no factory: Dispatched once its Requirement Order is Full Complete and every one of the job's POs is Dispatched (the vendors sent them).
+//   A Purchase Order's status change no longer runs this (only the order moves to its status tab); a PI's still does.
 // A cancelled or completed job, or one already at or past the step, is left alone. Each move writes a status note in the Remark.
 export async function advanceJobFromOrder(po: PurchaseOrder, created: boolean) {
   const ownFactory = (await quoteTemplateStore.ready()).layout.ownFactory !== false;

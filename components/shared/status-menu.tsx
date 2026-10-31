@@ -43,7 +43,7 @@ export function StatusMenu({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         aria-label={label}
-        className={cn("flex h-7 w-auto items-center justify-between gap-2 rounded-lg border border-grey-100 px-2 text-xs font-body font-medium outline-none focus:border-primary", current.className)}
+        className={cn("flex h-7 w-auto items-center justify-between gap-2 whitespace-nowrap rounded-lg border border-grey-100 px-2 text-xs font-body font-medium outline-none focus:border-primary", current.className)}
         style={current.style}
       >
         {current.label}

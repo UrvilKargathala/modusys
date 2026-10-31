@@ -10,5 +10,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 export function makeDbAdapter(connectionString: string | undefined) {
   if (!connectionString) throw new Error("DATABASE_URL is not set");
   const isNeon = new URL(connectionString).hostname.endsWith(".neon.tech");
-  return isNeon ? new PrismaNeon({ connectionString }) : new PrismaPg({ connectionString });
+  if (isNeon) return new PrismaNeon({ connectionString });
+  // keepAlive: idle connections survive the SSH tunnel / NAT. connectionTimeoutMillis: a dead tunnel errors after 15s instead of
+  // loading forever. idleTimeoutMillis: close idle connections before the tunnel drops them ("Connection terminated unexpectedly").
+  return new PrismaPg({ connectionString, keepAlive: true, connectionTimeoutMillis: 15_000, idleTimeoutMillis: 10_000 });
 }
