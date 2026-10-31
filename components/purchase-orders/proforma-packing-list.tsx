@@ -157,26 +157,20 @@ export function ProformaPackingList({ mode = "packing", proforma = true }: { mod
                   woDate: <td key="woDate" className="px-2 py-0.5 font-number">{wo?.date ? formatPoDate(wo.date) : "—"}</td>,
                   mfg: (
                     <td key="mfg" className="px-2 py-0.5">
-                      {/* The last step anything is ticked in. */}
+                      {/* Only the last step reached in the process, with its end date once it has one. */}
                       {MFG_STEPS.some(([s]) => steps[s] > 0) ? (
                         (() => {
                           const [s, label] = [...MFG_STEPS].reverse().find(([x]) => steps[x] > 0)!;
+                          const end = dates[s]?.end;
                           return (
                             <span className={cn("whitespace-nowrap rounded-full px-2 text-[11px] leading-5", steps[s] >= total && total > 0 ? "bg-success-transparent text-success" : "bg-warning-transparent text-grey-900")} title={`${steps[s]} of ${total} pieces through ${label}`}>
                               {label} <span className="font-number">{steps[s]}/{total}</span>
+                              {end && <span className="font-number"> · {formatPoDate(end)}</span>}
                             </span>
                           );
                         })()
                       ) : (
                         <span className="text-grey-400">Not started</span>
-                      )}
-                      {/* Each finished step's end date. */}
-                      {MFG_STEPS.some(([s]) => dates[s]?.end) && (
-                        <div className="mt-0.5 flex flex-wrap gap-x-2 text-[10px] text-grey-600">
-                          {MFG_STEPS.filter(([s]) => dates[s]?.end).map(([s, label]) => (
-                            <span key={s} className="whitespace-nowrap">{label} <span className="font-number">{formatPoDate(dates[s]!.end!)}</span></span>
-                          ))}
-                        </div>
                       )}
                     </td>
                   ),
