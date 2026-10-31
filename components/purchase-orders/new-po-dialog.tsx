@@ -74,7 +74,7 @@ export function NewPoDialog({ open, onOpenChange, direct = false, proforma = fal
     setBusy(true);
     try {
       // A PI from a PO keeps no quote link (quoteId stays the PO's alone, so the quote's auto PO never finds the PI); fromPoId links them.
-      const { statusLog: _s, production: _p, packing: _k, manufacturing: _m, transport: _t, vendorPiNo: _vn, vendorPiDate: _vd, vendorPiAmount: _va, ...copied } = fromPo?.material ?? blankMaterial();
+      const { statusLog: _s, production: _p, packing: _k, manufacturing: _m, transport: _t, vendorPiNo: _vn, vendorPiDate: _vd, vendorPiAmount: _va, workOrders: _wl, workOrderNo: _wn, workOrderDate: _wd, ...copied } = fromPo?.material ?? blankMaterial();
       const po = await purchaseOrdersStore.create({
         poNumber,
         poDate,

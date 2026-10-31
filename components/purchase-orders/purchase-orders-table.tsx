@@ -1,18 +1,23 @@
 "use client";
 
 import { statusConfig, type StatusKey } from "@/lib/status";
-import { usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
+import { purchaseTemplateStore, useOwnFactory, usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
+import { piProgress, woProgress } from "@/lib/pi-progress";
+import { REQUIREMENT_STATUS_LABEL, REQUIREMENT_STATUS_STYLE } from "@/lib/requirement-progress";
 import { downloadOrderTracker, printOrderTracker } from "@/lib/order-tracker-export";
 import { PoRowActions } from "@/components/purchase-orders/po-row-actions";
 import { useProformaStatusChange } from "@/components/purchase-orders/proforma-status-change";
 import { StatusMenu } from "@/components/shared/status-menu";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ShoppingCart, Plus, Trash2, Download } from "lucide-react";
+import { Search, ShoppingCart, Plus, Trash2, Download, Columns3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useColumnOrder } from "@/components/shared/use-column-order";
+import { useLocalStorage } from "@/lib/hooks/use-local-storage";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 import { toastStore } from "@/lib/store/toast-store";
@@ -24,7 +29,7 @@ import { formatInr } from "@/lib/format";
 import { formatPoDate } from "@/components/purchase-orders/po-dates";
 import { useMaterialItems, materialSpecStore } from "@/lib/store/material-spec-store";
 import { DEFAULT_PO_STATUSES, statusColourStyle } from "@/lib/mock/material-spec";
-import { asPoStatus, poStatusLabel, poStatusList, poTotals, type PoStatus, type PurchaseOrder } from "@/lib/purchase-order";
+import { asPoStatus, isFixedPoStatus, PO_STATUS_LABEL, poStatusLabel, poStatusList, poTotals, type PoStatus, type PurchaseOrder } from "@/lib/purchase-order";
 
 // The same status colours as the Quotes picker.
 const PO_TO_QUOTE_TONE: Record<string, StatusKey> = { pending: "in-production", confirmed: "in-procurement", "in-production": "in-production", delivered: "completed" };
@@ -52,15 +57,77 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
     const [a, b, c, d] = DEFAULT_PO_STATUSES;
     void materialSpecStore.seedDefaults(statusCategory, proforma ? [a, b, c, { name: "Packing", description: "#06AED4" }, d] : [{ name: "Packing", description: "#06AED4" }]);
   }, [proforma, statusCategory]);
+  // Every status in the menu can be renamed or deleted. The fixed ones (Pending, Confirmed, In Production, Dispatched, Packing) keep
+  // their key, so only the name shown changes, and deleting just takes them off the lists (the Purchase Template settings hold both);
+  // the others are library entries, and renaming moves every order with the old name to the new one. A status still used by an order
+  // can't be deleted, and Pending never (new orders start as Pending).
+  const poNames = template.layout.poStatusLabels ?? {};
+  const poHidden = template.layout.poHiddenStatuses ?? [];
+  const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
   const addStatus = (po: PurchaseOrder, name: string) => {
+    // Typing a deleted fixed status's name brings it back.
+    const fixed = poHidden.find((st) => sameName(poStatusLabel(st), name) || sameName(PO_STATUS_LABEL[st] ?? st, name));
+    if (fixed) {
+      purchaseTemplateStore.updateLayout({ poHiddenStatuses: poHidden.filter((st) => st !== fixed) });
+      askChange(po, fixed);
+      return;
+    }
     const exists = materials.some((m) => m.name.trim().toLowerCase() === name.toLowerCase());
     if (!exists) materialSpecStore.createItem({ category: statusCategory, name, description: "#5D6772" });
     askChange(po, asPoStatus(name));
   };
+  const libraryItem = (st: string) => materials.find((m) => asPoStatus(m.name) === st);
+  const editableStatus = (st: string) => isFixedPoStatus(st) || !!libraryItem(st);
+  const usingStatus = (st: string) => orders.filter((o) => asPoStatus(o.status) === st);
+  const renameStatus = async (st: string, name: string) => {
+    const next = name.trim();
+    if (!next || sameName(next, poStatusLabel(st))) return;
+    if (statuses.some((s) => s !== st && (sameName(poStatusLabel(s), next) || sameName(s, next)))) {
+      toastStore.show(`"${next}" is already a status`, "error");
+      return;
+    }
+    const before = poStatusLabel(st);
+    if (isFixedPoStatus(st)) {
+      const { [st]: _old, ...rest } = poNames;
+      purchaseTemplateStore.updateLayout({ poStatusLabels: sameName(next, PO_STATUS_LABEL[st] ?? st) ? rest : { ...rest, [st]: next } });
+      toastStore.show(`Renamed "${before}" to "${next}"`, "success");
+      return;
+    }
+    const item = libraryItem(st);
+    if (!item) return;
+    const using = usingStatus(st);
+    materialSpecStore.updateItem(item.id, { name: next });
+    await Promise.all(using.map((o) => purchaseOrdersStore.update(o.id, { status: asPoStatus(next) })));
+    if (status === st) setStatus(asPoStatus(next));
+    toastStore.show(`Renamed "${before}" to "${next}"${using.length ? ` on ${using.length} order${using.length === 1 ? "" : "s"}` : ""}`, "success");
+  };
+  // Delete asks first in a window. A status still used anywhere (any Purchase Order, Direct PO or Proforma Invoice) can't be deleted:
+  // the window lists those orders instead. Pending never (new orders start as Pending).
+  const [deleteAsk, setDeleteAsk] = useState<{ st: string; using: PurchaseOrder[] } | null>(null);
+  const deleteStatus = (st: string) => setDeleteAsk({ st, using: allOrders.filter((o) => asPoStatus(o.status) === st) });
+  const confirmDelete = (st: string) => {
+    const label = poStatusLabel(st);
+    setDeleteAsk(null);
+    if (isFixedPoStatus(st)) {
+      purchaseTemplateStore.updateLayout({ poHiddenStatuses: [...poHidden, st] });
+      toastStore.show(`Deleted status "${label}" (type its name in Add status to bring it back)`, "success", {
+        durationMs: 8000,
+        action: { label: "Undo", onClick: () => purchaseTemplateStore.updateLayout({ poHiddenStatuses: (purchaseTemplateStore.getSnapshot().layout.poHiddenStatuses ?? []).filter((x) => x !== st) }) },
+      });
+      return;
+    }
+    const item = libraryItem(st);
+    if (!item) return;
+    materialSpecStore.deleteItem(item.id);
+    toastStore.show(`Deleted status "${label}"`, "success", { durationMs: 8000, action: { label: "Undo", onClick: () => materialSpecStore.restoreItem(item.id) } });
+  };
+  const kindOf = (o: PurchaseOrder) => (o.material.proforma ? "Proforma Invoice" : o.material.direct ? "Direct PO" : "Purchase Order");
+  const linkOf = (o: PurchaseOrder) => `${o.material.proforma ? "/proforma-invoices" : o.material.direct ? "/direct-purchase-orders" : "/purchase-orders"}/${o.id}`;
   const colours = useMemo(() => Object.fromEntries(materials.map((m) => [asPoStatus(m.name), m.description])), [materials]);
-  const statuses = useMemo(() => poStatusList(orders, materials.map((m) => m.name)), [orders, materials]);
-  // Purchase Orders: In Production and Packing have their own tabs on the page, so no pill for them here (they still show under All).
-  const listed = useMemo(() => (proforma ? statuses : statuses.filter((st) => st.toLowerCase() !== "packing" && st !== "in-production")), [proforma, statuses]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- poHidden is read inside poStatusList (set from the same settings)
+  const statuses = useMemo(() => poStatusList(orders, materials.map((m) => m.name)), [orders, materials, poHidden]);
+  // Every status has its own pill (Purchase Orders no longer have Work Order / Packing tabs).
+  const listed = statuses;
   const customers = useCustomers();
   const quotes = useQuotes();
   const [search, setSearch] = useState("");
@@ -101,6 +168,79 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   }, [orders, customerName, quoteNumber, search, quoteId, status]);
   const count = (st: PoStatus) => orders.filter((o) => asPoStatus(o.status) === st && (!quoteId || o.quoteId === quoteId)).length;
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(rows);
+
+  // The columns, in the order this person dragged them into (useColumnOrder; "Reset columns" puts them back).
+  type Row = (typeof paged)[number];
+  const ownFactory = useOwnFactory();
+  const productTypes = useMaterialItems(proforma ? "proforma-product-type" : "purchase-product-type");
+  const productTypeName = (id?: string) => {
+    const m = productTypes.find((t) => t.id === id);
+    return m ? `${m.name}${m.description ? ` (${m.description})` : ""}` : "—";
+  };
+  const extraCols: { key: string; head: string; right?: boolean; className?: string; cell: (r: Row) => React.ReactNode }[] = [
+    { key: "productType", head: proforma ? "Proforma Product Type" : "Purchase Product Type", className: "text-xs font-body text-grey-700", cell: ({ po }) => productTypeName(po.material.productTypeId) },
+    { key: "orderType", head: proforma ? "Proforma Order Type" : "Purchase Order Type", className: "text-xs font-body text-grey-700", cell: ({ po }) => po.material.orderType || "—" },
+    { key: "approxDelivery", head: "Approx Delivery Date", className: "font-number text-xs text-grey-700", cell: ({ po }) => (po.material.approxDeliveryDate ? formatPoDate(po.material.approxDeliveryDate) : "—") },
+    ...(proforma
+      ? [{ key: "refCode", head: "Ref Code", className: "font-number text-xs text-grey-700", cell: ({ po }: Row) => po.material.refCode || "—" }]
+      : [
+          { key: "vendorPiNo", head: "Vendor PI No", className: "font-number text-xs text-grey-700", cell: ({ po }: Row) => po.material.vendorPiNo || "—" },
+          { key: "vendorPiDate", head: "Vendor PI Date", className: "font-number text-xs text-grey-700", cell: ({ po }: Row) => (po.material.vendorPiDate ? formatPoDate(po.material.vendorPiDate) : "—") },
+          { key: "vendorPiAmount", head: "Vendor PI Amount", right: true, className: "text-right font-number text-xs text-grey-900", cell: ({ po }: Row) => (po.material.vendorPiAmount === undefined ? "—" : formatInr(po.material.vendorPiAmount)) },
+        ]),
+    { key: "highlight", head: "Order Tracker", className: "text-xs font-body text-grey-700", cell: ({ po }) => (po.material.highlight ? "Highlighted" : "—") },
+  ];
+  const [extraShown, setExtraShown] = useLocalStorage<string[]>(`po-extra-columns-${proforma ? "proforma" : mode}`, []);
+  const cols: { key: string; head: string; right?: boolean; className?: string; cell: (r: Row) => React.ReactNode }[] = [
+    { key: "no", head: proforma ? "PI No" : "PO No", className: "font-number text-xs text-grey-900", cell: ({ po }) => <Link href={`${baseOf(po)}/${po.id}`} className="text-primary hover:underline">{po.poNumber || <span className="text-grey-400">Not set</span>}</Link> },
+    ...(all ? [{ key: "type", head: "PO Type", cell: ({ po }: Row) => <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${po.material.direct ? "bg-info-transparent text-info" : "bg-primary-transparent text-primary"}`}>{po.material.direct ? "Direct" : "PO"}</span> }] : []),
+    { key: "date", head: proforma ? "PI Date" : "Date", className: "font-number text-xs text-grey-700", cell: ({ po }) => formatPoDate(po.poDate) },
+    { key: "required", head: "Required", className: "font-number text-xs text-grey-700", cell: ({ po }) => formatPoDate(po.requiredDate) },
+    { key: "vendor", head: proforma ? "Dealer" : "Vendor", className: "text-xs font-body text-grey-900", cell: ({ po }) => po.vendorName || <span className="text-grey-400">No vendor yet</span> },
+    { key: "customer", head: "Customer", className: "text-xs font-body text-grey-700", cell: ({ customer }) => customer || "—" },
+    { key: "quote", head: "Quote", className: "font-number text-xs text-grey-700", cell: ({ quote }) => quote || "—" },
+    { key: "amount", head: "Amount", right: true, className: "text-right font-number text-xs text-grey-900", cell: ({ total }) => formatInr(total) },
+    // Own factory: how much of the PO is on Proforma Invoices (Send to PI), or of the PI on its Work Order (Send to Work Order),
+    // shown like the Requirement Orders' RO Status.
+    ...(ownFactory
+      ? [{
+          key: "detailStatus",
+          head: proforma ? "PI Detail Status" : "PO Detail Status",
+          cell: ({ po }: Row) => {
+            const p = proforma ? woProgress(po) : piProgress(po, allOrders);
+            return (
+              <span className="flex items-center gap-2" title={`${p.sentCount} of ${p.total} lines on ${proforma ? "the work order" : "a proforma invoice"}, ${p.total - p.sentCount} pending`}>
+                <span className={cn("whitespace-nowrap rounded-full px-2 text-xs font-body font-semibold leading-5", REQUIREMENT_STATUS_STYLE[p.status])}>{REQUIREMENT_STATUS_LABEL[p.status]}</span>
+                <span className="h-1.5 w-16 overflow-hidden rounded-full bg-grey-100"><span className="block h-full rounded-full bg-success" style={{ width: `${p.pct}%` }} /></span>
+                <span className="whitespace-nowrap font-number text-xs text-grey-700">{p.pct}% · {p.sentCount}/{p.total}</span>
+              </span>
+            );
+          },
+        }]
+      : []),
+    {
+      key: "status",
+      head: proforma ? "PI Status" : "PO Status",
+      // Changeable here like the Quotes status. Completing needs the PO's required fields filled in.
+      cell: ({ po }) => (
+        <StatusMenu
+          label={`Status of ${po.poNumber || "this PO"}`}
+          value={asPoStatus(po.status)}
+          options={statuses.map((st) => ({ value: st, label: poStatusLabel(st), className: colours[st] ? "border" : statusClass(st), style: statusColourStyle(colours[st]) }))}
+          onChange={(v) => askChange(po, v as PoStatus)}
+          onAdd={(name) => addStatus(po, name)}
+          editable={editableStatus}
+          onRename={(st, name) => void renameStatus(st, name)}
+          onDelete={deleteStatus}
+        />
+      ),
+    },
+    // Purchase Order Details fields, shown when picked in "Columns" (kept in this browser per list).
+    ...extraCols.filter((c) => extraShown.includes(c.key)),
+    { key: "actions", head: "Actions", right: true, cell: ({ po }) => <PoRowActions po={po} proforma={proforma} base={baseOf(po)} /> },
+  ];
+  const colDrag = useColumnOrder(`po-columns-${proforma ? "proforma" : mode}`, cols.map((c) => c.key));
+  const shownCols = colDrag.order.map((k) => cols.find((c) => c.key === k)!);
 
   // Proforma Invoices ask for a date and notes first (one shared popup, see proforma-status-change); the other lists change at once.
   const askProforma = useProformaStatusChange();
@@ -172,27 +312,52 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
             </button>
           ))}
         </div>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" className="h-7 gap-1 rounded-md px-2.5 text-xs [&_svg]:h-3.5 [&_svg]:w-3.5" onClick={() => downloadOrderTracker(orders, customers, `order-tracker${proforma ? "-proforma" : mode === "direct" ? "-direct" : ""}.xlsx`, trackerOptions())}>
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          <Popover>
+            <PopoverTrigger className="flex h-6 items-center gap-1 rounded-md border border-grey-100 bg-card px-2 text-[11px] font-body text-grey-900 hover:bg-light-600">
+              <Columns3 className="h-3 w-3" />
+              Columns{extraShown.length ? ` (+${extraShown.filter((k) => extraCols.some((c) => c.key === k)).length})` : ""}
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-2">
+              <p className="px-1 pb-1 text-xs font-body text-grey-500">Add fields from {proforma ? "Proforma Invoice" : "Purchase Order"} Details to this list:</p>
+              {extraCols.map((c) => (
+                <label key={c.key} className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-sm font-body text-grey-900 hover:bg-light-600">
+                  <input
+                    type="checkbox"
+                    checked={extraShown.includes(c.key)}
+                    onChange={(e) => setExtraShown((x) => (e.target.checked ? [...x, c.key] : x.filter((k) => k !== c.key)))}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  {c.head}
+                </label>
+              ))}
+            </PopoverContent>
+          </Popover>
+          {colDrag.customized && (
+            <button type="button" onClick={colDrag.reset} className="text-[11px] font-body text-primary hover:underline">
+              Reset columns
+            </button>
+          )}
+          <Button size="sm" variant="outline" className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3" onClick={() => downloadOrderTracker(orders, customers, `order-tracker${proforma ? "-proforma" : mode === "direct" ? "-direct" : ""}.xlsx`, trackerOptions())}>
             <Download className="h-4 w-4" />
             Order Tracker (Excel)
           </Button>
-          <Button size="sm" variant="outline" className="h-7 gap-1 rounded-md px-2.5 text-xs [&_svg]:h-3.5 [&_svg]:w-3.5" onClick={() => printOrderTracker(orders, customers, trackerOptions())}>
+          <Button size="sm" variant="outline" className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3" onClick={() => printOrderTracker(orders, customers, trackerOptions())}>
             <Download className="h-4 w-4" />
             Order Tracker (PDF)
           </Button>
-          <div className="relative w-64">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
+          <div className="relative w-56">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-grey-300" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search PO no, vendor, customer, quote..."
-              className="w-full rounded-lg border border-grey-100 bg-card py-1 pl-8 pr-3 text-xs font-body text-grey-900 outline-none focus:border-primary"
+              className="h-6 w-full rounded-md border border-grey-100 bg-card py-0 pl-7 pr-2 text-[11px] font-body text-grey-900 outline-none focus:border-primary"
             />
           </div>
           {onNew && (
-            <Button size="sm" className="h-7 gap-1 rounded-md px-2.5 text-xs [&_svg]:h-3.5 [&_svg]:w-3.5" onClick={onNew}>
-              <Plus className="h-3.5 w-3.5" />
+            <Button size="sm" className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3" onClick={onNew}>
+              <Plus className="h-3 w-3" />
               {proforma ? "Create Proforma Invoice" : all ? "Create" : direct ? "Create Direct Purchase Order" : "Create Purchase Order"}
             </Button>
           )}
@@ -214,46 +379,25 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           <table className="w-full text-left">
             <thead className="bg-[var(--table-head)]">
               <tr>
-                {[proforma ? "PI No" : "PO No", ...(all ? ["PO Type"] : []), proforma ? "PI Date" : "Date", "Required", proforma ? "Dealer" : "Vendor", "Customer", "Quote", "Amount", "Status", "Actions"].map((h) => (
+                {shownCols.map((c) => (
                   <th
-                    key={h}
-                    className={`whitespace-nowrap px-2 py-1 text-xs font-body font-medium text-grey-900 ${h === "Amount" ? "text-right" : h === "Actions" ? "text-right" : ""}`}
+                    key={c.key}
+                    {...colDrag.thProps(c.key)}
+                    className={cn("whitespace-nowrap px-2 py-1 text-xs font-body font-medium text-grey-900", c.right && "text-right", colDrag.thClass(c.key))}
                   >
-                    {h}
+                    {c.head}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {paged.map(({ po, customer, quote, total }) => (
-                <tr key={po.id} className="hover:bg-light-600/60">
-                  <td className="px-2 py-0.5 font-number text-xs text-grey-900">
-                    <Link href={`${baseOf(po)}/${po.id}`} className="text-primary hover:underline">{po.poNumber || <span className="text-grey-400">Not set</span>}</Link>
-                  </td>
-                  {all && (
-                    <td className="px-2 py-0.5">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${po.material.direct ? "bg-info-transparent text-info" : "bg-primary-transparent text-primary"}`}>{po.material.direct ? "Direct" : "PO"}</span>
+              {paged.map((row) => (
+                <tr key={row.po.id} className="hover:bg-light-600/60">
+                  {shownCols.map((c) => (
+                    <td key={c.key} className={cn("px-2 py-0.5", c.className)}>
+                      {c.cell(row)}
                     </td>
-                  )}
-                  <td className="px-2 py-0.5 font-number text-xs text-grey-700">{formatPoDate(po.poDate)}</td>
-                  <td className="px-2 py-0.5 font-number text-xs text-grey-700">{formatPoDate(po.requiredDate)}</td>
-                  <td className="px-2 py-0.5 text-xs font-body text-grey-900">{po.vendorName || <span className="text-grey-400">No vendor yet</span>}</td>
-                  <td className="px-2 py-0.5 text-xs font-body text-grey-700">{customer || "—"}</td>
-                  <td className="px-2 py-0.5 font-number text-xs text-grey-700">{quote || "—"}</td>
-                  <td className="px-2 py-0.5 text-right font-number text-xs text-grey-900">{formatInr(total)}</td>
-                  <td className="px-2 py-0.5">
-                    {/* Changeable here like the Quotes status. Completing needs the PO's required fields filled in. */}
-                    <StatusMenu
-                      label={`Status of ${po.poNumber || "this PO"}`}
-                      value={asPoStatus(po.status)}
-                      options={statuses.map((st) => ({ value: st, label: poStatusLabel(st), className: colours[st] ? "border" : statusClass(st), style: statusColourStyle(colours[st]) }))}
-                      onChange={(v) => askChange(po, v as PoStatus)}
-                      onAdd={(name) => addStatus(po, name)}
-                    />
-                  </td>
-                  <td className="px-2 py-0.5">
-                    <PoRowActions po={po} proforma={proforma} base={baseOf(po)} />
-                  </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
@@ -262,6 +406,51 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
       )}
       </div>
       <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
+      {deleteAsk && (
+        <Dialog open onOpenChange={(o) => !o && setDeleteAsk(null)}>
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>
+                {deleteAsk.st === "pending" || deleteAsk.using.length ? "Can't delete" : "Delete"} status &ldquo;{poStatusLabel(deleteAsk.st)}&rdquo;{deleteAsk.st === "pending" || deleteAsk.using.length ? "" : "?"}
+              </DialogTitle>
+            </DialogHeader>
+            {deleteAsk.st === "pending" || deleteAsk.using.length ? (
+              <div className="flex flex-col gap-2">
+                {deleteAsk.st === "pending" && (
+                  <p className="text-sm font-body text-grey-700">Every new order starts as this status, so it can&apos;t be deleted. You can rename it.</p>
+                )}
+                <p className="text-sm font-body text-grey-700">
+                  {deleteAsk.using.length === 0
+                    ? "It is not used on any order right now."
+                    : `It is used on ${deleteAsk.using.length} order${deleteAsk.using.length === 1 ? "" : "s"}.${deleteAsk.st === "pending" ? "" : ` Move ${deleteAsk.using.length === 1 ? "it" : "them"} to another status first, then delete it.`}`}
+                </p>
+                {deleteAsk.using.length > 0 && <ul className="max-h-64 overflow-y-auto rounded-md border border-grey-100">
+                  {deleteAsk.using.map((o) => (
+                    <li key={o.id} className="flex items-center justify-between gap-3 border-b border-grey-100 px-3 py-1.5 text-sm font-body last:border-b-0">
+                      <Link href={linkOf(o)} className="font-number text-primary hover:underline" onClick={() => setDeleteAsk(null)}>
+                        {o.poNumber || "Not set"}
+                      </Link>
+                      <span className="text-xs text-grey-500">{kindOf(o)}{o.vendorName ? ` · ${o.vendorName}` : ""}</span>
+                    </li>
+                  ))}
+                </ul>}
+              </div>
+            ) : (
+              <p className="text-sm font-body text-grey-700">It is not used on any order. It will be removed from the status lists.</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setDeleteAsk(null)}>
+                {deleteAsk.st === "pending" || deleteAsk.using.length ? "Close" : "Cancel"}
+              </Button>
+              {deleteAsk.st !== "pending" && deleteAsk.using.length === 0 && (
+                <Button type="button" className="bg-error text-white hover:bg-error/90" onClick={() => confirmDelete(deleteAsk.st)}>
+                  Delete
+                </Button>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

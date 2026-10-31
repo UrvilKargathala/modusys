@@ -32,8 +32,8 @@ export const toastStore = {
     options?: { action?: Toast["action"]; durationMs?: number }
   ) {
     const id = `toast-${Date.now()}-${Math.random()}`;
-    // Errors stay longer so they can be read; every toast has a close button.
-    const durationMs = options?.durationMs ?? (variant === "error" ? 6000 : 4000);
+    // Every toast goes after 2 seconds (each has a close button); one with a button to press (Undo, Open) keeps its own time.
+    const durationMs = options?.action ? (options.durationMs ?? 4000) : 2000;
     toasts = [...toasts, { id, message, variant, action: options?.action, durationMs }];
     emit();
     setTimeout(() => {

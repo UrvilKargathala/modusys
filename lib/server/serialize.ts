@@ -210,6 +210,8 @@ export function serializePurchaseOrder(po: PurchaseOrder & { lines: PurchaseOrde
       .sort((a, b) => a.position - b.position)
       .map((l) => ({
         id: l.id,
+        // Older rows have no key yet: their current id becomes it (kept from the next save on).
+        lineKey: l.lineKey || l.id,
         group: l.group as PoGroup,
         srNo: l.srNo,
         position: l.position,

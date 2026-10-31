@@ -14,8 +14,13 @@ import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { requirementState, useBuildCtx } from "@/lib/requirement-state";
 import { REQUIREMENT_STATUS_LABEL, REQUIREMENT_STATUS_STYLE, type RequirementStatus } from "@/lib/requirement-progress";
 import { cn } from "@/lib/utils";
+import { useColumnOrder } from "@/components/shared/use-column-order";
 
-const th = "px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900";
+const th = "px-4 py-1.5 text-sm font-body font-semibold text-grey-900";
+const RO_HEADS: Record<string, string> = {
+  no: "Requirement No", quote: "Quote No", customer: "Customer", roStatus: "RO Status", quoteStatus: "Quote Status",
+  copied: "Copied On", edited: "Last Edited", actions: "Actions",
+};
 const fmt = (iso: string) => (iso ? new Date(iso).toLocaleDateString("en-GB") : "—");
 
 // Requirement Orders (procurement copies of quotes): made when a quote goes In Purchase, edited here without touching the sold quote.
@@ -41,6 +46,8 @@ export default function ProcurementPage() {
   }, [rows, quotes, customers, search, orders, ctx]);
   const list = useMemo(() => all.filter((x) => statusFilter === "all" || x.progress.status === statusFilter), [all, statusFilter]);
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(list);
+  // Drag a heading to move its column (kept in this browser).
+  const roCols = useColumnOrder("ro-columns", Object.keys(RO_HEADS));
 
   return (
     <div className="-mx-2 flex flex-col gap-2 lg:-mx-4">
@@ -63,6 +70,10 @@ export default function ProcurementPage() {
             </button>
           ))}
         </div>
+        <div className="ml-auto flex items-center gap-3">
+        {roCols.customized && (
+          <button type="button" onClick={roCols.reset} className="text-xs font-body text-primary hover:underline">Reset columns</button>
+        )}
         <div className="relative w-64">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
           <input
@@ -72,50 +83,68 @@ export default function ProcurementPage() {
             className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
           />
         </div>
+        </div>
       </div>
       {list.length === 0 ? (
         <EmptyState icon={ClipboardList} message={!procurementStore.isLoaded() ? "Loading…" : rows.length === 0 ? "No requirement orders yet. Set a confirmed quote's Status to Requirement Order to copy it here." : "No requirement orders match."} />
       ) : (
-        <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 [&_tbody_tr]:h-8 [&_td]:align-middle">
+        <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 [&_tbody_tr]:h-7 [&_td]:align-middle [&_td]:leading-none">
           <table className="w-full text-left">
             <thead className="bg-[var(--table-head)]">
               <tr>
-                {["Requirement No", "Quote No", "Customer", "Status", "Quote Status", "Copied On", "Last Edited", "Actions"].map((h) => (
-                  <th key={h} className={`${th} ${h === "Actions" ? "text-right" : ""}`}>{h}</th>
+                {roCols.order.map((k) => (
+                  <th key={k} {...roCols.thProps(k)} className={cn(th, k === "actions" && "text-right", roCols.thClass(k))}>{RO_HEADS[k]}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {paged.map(({ r, quote, customer, progress }) => (
-                <tr key={r.id}>
-                  <td className="px-2 py-0.5 font-number text-xs">
+              {paged.map(({ r, quote, customer, progress }) => {
+                const cells: Record<string, React.ReactNode> = {
+                    no: (
+                  <td key="no" className="px-2 py-0.5 font-number text-xs">
                     <Link href={`/procurement/${r.id}`} className="text-primary hover:underline">{r.number}</Link>
                   </td>
-                  <td className="px-2 py-0.5 font-number text-xs text-grey-700">{r.data.quoteNumber}</td>
-                  <td className="px-2 py-0.5 text-xs font-body text-grey-900">{customer || "—"}</td>
-                  <td className="px-2 py-0.5" title={`${progress.sent} of ${progress.total} lines on a purchase order, ${progress.pending} pending`}>
+                    ),
+                    quote: (
+                  <td key="quote" className="px-2 py-0.5 font-number text-xs text-grey-700">{r.data.quoteNumber}</td>
+                    ),
+                    customer: (
+                  <td key="customer" className="px-2 py-0.5 text-xs font-body text-grey-900">{customer || "—"}</td>
+                    ),
+                    roStatus: (
+                  <td key="roStatus" className="px-2 py-0.5" title={`${progress.sent} of ${progress.total} lines on a purchase order, ${progress.pending} pending`}>
                     <span className="flex items-center gap-2">
-                      <span className={cn("whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-body font-semibold", REQUIREMENT_STATUS_STYLE[progress.status])}>{REQUIREMENT_STATUS_LABEL[progress.status]}</span>
+                      <span className={cn("whitespace-nowrap rounded-full px-2 text-xs font-body font-semibold leading-5", REQUIREMENT_STATUS_STYLE[progress.status])}>{REQUIREMENT_STATUS_LABEL[progress.status]}</span>
                       <span className="h-1.5 w-16 overflow-hidden rounded-full bg-grey-100"><span className="block h-full rounded-full bg-success" style={{ width: `${progress.pct}%` }} /></span>
                       <span className="whitespace-nowrap font-number text-xs text-grey-700">{progress.pct}% · {progress.sent}/{progress.total}</span>
                     </span>
                   </td>
-                  <td className="px-2 py-0.5">
+                    ),
+                    quoteStatus: (
+                  <td key="quoteStatus" className="px-2 py-0.5">
                     {!quote ? (
                       <span className="text-xs text-grey-400">Quote deleted</span>
                     ) : (
-                      <StatusBadge status={quote.status as StatusKey} />
+                      <StatusBadge status={quote.status as StatusKey} className="py-0 leading-5" />
                     )}
                   </td>
-                  <td className="px-2 py-0.5 font-number text-xs text-grey-700">{fmt(r.createdAt)}</td>
-                  <td className="px-2 py-0.5 font-number text-xs text-grey-700">{fmt(r.updatedAt)}</td>
-                  <td className="px-2 py-0.5 text-right">
-                    <Link href={`/procurement/${r.id}`} aria-label="Open" className="inline-flex rounded-md p-1.5 text-grey-400 hover:bg-light-600 hover:text-primary">
+                    ),
+                    copied: (
+                  <td key="copied" className="px-2 py-0.5 font-number text-xs text-grey-700">{fmt(r.createdAt)}</td>
+                    ),
+                    edited: (
+                  <td key="edited" className="px-2 py-0.5 font-number text-xs text-grey-700">{fmt(r.updatedAt)}</td>
+                    ),
+                    actions: (
+                  <td key="actions" className="px-2 py-0.5 text-right">
+                    <Link href={`/procurement/${r.id}`} aria-label="Open" className="inline-flex rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-primary">
                       <Eye className="h-4 w-4" />
                     </Link>
                   </td>
-                </tr>
-              ))}
+                    ),
+                };
+                return <tr key={r.id}>{roCols.order.map((k) => cells[k])}</tr>;
+              })}
             </tbody>
           </table>
         </div>

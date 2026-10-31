@@ -34,6 +34,8 @@ export const PO_GROUPS: { key: PoGroup; code: string; label: string }[] = [
 
 export type PurchaseOrderLine = {
   id: string;
+  // Fixed id that survives saves (see the schema). A Proforma Invoice line sent from a PO line keeps that line's key.
+  lineKey?: string;
   group: PoGroup;
   srNo: number;
   position: number;
@@ -79,10 +81,24 @@ export const asPoStatus = (s: unknown): PoStatus => {
   if (LEGACY_STATUS[key]) return LEGACY_STATUS[key];
   return DIRECT_PO_STATUSES.includes(key) ? key : t;
 };
-export const poStatusLabel = (s: string) => PO_STATUS_LABEL[asPoStatus(s)] ?? asPoStatus(s);
+// Renamed / deleted statuses from the Purchase Template settings (set by the template store when they load, so every list, badge and
+// export uses them). The fixed statuses keep their saved key, so the flow that depends on them keeps working; only the name changes.
+let renamedStatuses: Record<string, string> = {};
+let hiddenStatuses: string[] = [];
+export const setPoStatusSettings = (s: { poStatusLabels?: Record<string, string>; poHiddenStatuses?: string[] }) => {
+  renamedStatuses = s.poStatusLabels ?? {};
+  hiddenStatuses = s.poHiddenStatuses ?? [];
+};
+// Statuses the app's flow depends on (by key): renamed and deleted through the settings above, never in the library.
+export const isFixedPoStatus = (s: string) => DIRECT_PO_STATUSES.includes(s) || s.toLowerCase() === "packing";
+export const poStatusLabel = (s: string) => renamedStatuses[asPoStatus(s)] ?? PO_STATUS_LABEL[asPoStatus(s)] ?? asPoStatus(s);
 // The built-in statuses, then the ones added in Purchase Material Library > Purchase Order Status, then any other status name still in
 // use on these POs (for example one that was renamed or deleted in the library), in the order first seen.
-export const poStatusList = (orders: { status: string }[], added: string[] = []): PoStatus[] => [...new Set([...DIRECT_PO_STATUSES, ...added.map((a) => asPoStatus(a)), ...orders.map((o) => asPoStatus(o.status))])];
+// A deleted status still shows while an order uses it.
+export const poStatusList = (orders: { status: string }[], added: string[] = []): PoStatus[] =>
+  [...new Set([...DIRECT_PO_STATUSES, ...added.map((a) => asPoStatus(a)), ...orders.map((o) => asPoStatus(o.status))])].filter(
+    (st) => !hiddenStatuses.includes(st) || orders.some((o) => asPoStatus(o.status) === st)
+  );
 // One pill colour per status: pending yellow, confirmed indigo, in production yellow, delivered teal; a status someone added is grey.
 // A soft fill, a border in the colour and dark text, so the label stays readable.
 const PO_STATUS_STYLES: Record<string, string> = {
@@ -207,6 +223,11 @@ export type PoMaterial = {
   manufacturing?: Record<string, { pieces: { done: boolean; note: string; steps?: Partial<Record<MfgStep, boolean>> }[] }>;
   // A Proforma Invoice made from a Purchase Order (one chain): that PO's id.
   fromPoId?: string;
+  // Proforma Invoice, own factory: its Work Orders, one per Send to Work Order (like Send to PO from a Requirement Order). Unset on a PI from
+  // before this, whose one Work Order (once In Production) holds every line and keeps its page data on the PI itself (with the two below).
+  workOrders?: WorkOrder[];
+  workOrderNo?: string;
+  workOrderDate?: string;
   // A Purchase Order made by Send to PO: the Requirement Order (procurement copy) it came from and the ids of its lines on this PO.
   fromRequirement?: { roId: string; lines: string[] };
   // Proforma Production page, Edge Band tab: one entry per thickness + internal + external colour combination found on the components (key "thk|internal|external"), with its edge band and the sides it is used on (Top, Bottom, LH, RH; "A,B").
@@ -220,6 +241,8 @@ export type PoMaterial = {
   edgeBandGrain?: Record<string, "h" | "v" | "n">;
   // Used Edge Band list (Production page): the Edge Band Width and Thickness (mm) and the Wastage % (default 20) typed for each line, keyed by code|panel thickness.
   usedEdgeBand?: Record<string, { width?: string; thickness?: string; wastage?: string }>;
+  // Work Order > Material Procurement: hardware added by hand to its Hardware (cabinet) or Misc Hardware list.
+  extraHardware?: ExtraHardware[];
   // Cut List edits (Production page), by component row: cut size, description, remarks, grain and the edge band code on each side ("" = no band).
   // They change only the Cut List, never the Components rows. cutListHistory keeps every saved change.
   cutListEdits?: Record<string, Partial<{ w: number; h: number; name: string; remarks: string; grain: "h" | "v" | "n"; top: string; bottom: string; lh: string; rh: string; fields: Record<string, string> }>>;
@@ -357,3 +380,16 @@ export function sortOtherPanel<T extends Pick<PurchaseOrderLine, "description" |
     })
     .map((x) => x.r);
 }
+
+// A Proforma Invoice's Work Order: its Production Work Order number and date, the PI lines sent to it (line keys), and its own Work Order
+// page data (edge band, cut list edits, production), kept apart from the other Work Orders of the PI.
+export const WO_STATE_KEYS = ["production", "edgeBandCombos", "edgeBandColours", "edgeBandSides", "edgeBandCodes", "edgeBandGrain", "usedEdgeBand", "cutListEdits", "cutListHistory", "extraHardware", "manufacturing"] as const;
+export type ExtraHardware = { id: string; kind: "cabinet" | "misc"; brand: string; category: string; description: string; articleNo: string; unit: string; qty: number };
+export type WorkOrderState = Partial<Pick<PoMaterial, (typeof WO_STATE_KEYS)[number]>>;
+export type WorkOrder = { id: string; no: string; date: string; lines: string[]; status?: WorkOrderStatus; state?: WorkOrderState };
+// Production Work Order Status: Pending until it is sent on to Manufacturing.
+export type WorkOrderStatus = "pending" | "manufacturing";
+export const WO_STATUSES: { value: WorkOrderStatus; label: string; className: string }[] = [
+  { value: "pending", label: "Pending", className: PO_STATUS_STYLES.pending },
+  { value: "manufacturing", label: "Send to Manufacturing", className: "border border-indigo bg-indigo-200 font-semibold text-grey-900" },
+];

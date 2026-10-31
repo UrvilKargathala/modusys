@@ -4,6 +4,7 @@ import { SelectField } from "@/components/shared/select-field";
 import { cn } from "@/lib/utils";
 import { Fragment, createContext, useContext, useState, type ReactNode } from "react";
 import { selectOnClick } from "@/components/shared/select-on-click";
+import { PiSendContext } from "@/components/purchase-orders/pi-send-context";
 import { PoLibraryContext } from "@/components/purchase-orders/po-library-context";
 import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, ChevronRight, ChevronsUpDown, Copy, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -85,8 +86,10 @@ const TEXT_KEYS = new Set(["description", "designType", "internalColour", "exter
 
 // A new empty row for a group, in the given cabinet.
 export function newBlankLine(group: PoGroup, srNo: number, designType: string, position: number): PurchaseOrderLine {
+  const id = `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   return {
-    id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    id,
+    lineKey: id,
     group,
     srNo,
     position,
@@ -231,7 +234,11 @@ export function PoLinesTable({
   const proforma = useContext(PoLibraryContext) === "proforma";
   const cols = (hardware ? HW_COLS : PANEL_COLS).filter((c) => (srNo === undefined || proforma || c.key !== "designType") && !(proforma && c.key === "vendor"));
   const sortable = group === "other-panel" && srNo === undefined && !!onSortChange;
-  const mineAll = lines.filter((l) => l.group === group && (srNo === undefined || l.srNo === srNo) && (!only || only(l)));
+  // Send to PI (own factory): tick boxes, the All / Pending / Sent filter, and lines on a PI locked.
+  const piSend = useContext(PiSendContext);
+  const keyOf = (l: PurchaseOrderLine) => l.lineKey ?? l.id;
+  const shownBySend = (l: PurchaseOrderLine) => !piSend || piSend.filter === "all" || (piSend.filter === "sent") === piSend.sent.has(keyOf(l));
+  const mineAll = lines.filter((l) => l.group === group && (srNo === undefined || l.srNo === srNo) && (!only || only(l)) && shownBySend(l));
   const mine = sortable ? sortOtherPanel(mineAll, sort) : mineAll;
   const total = mine.reduce((s, l) => s + lineAmount(l), 0);
   const totalSqft = hardware ? 0 : mine.reduce((s, l) => s + l.sqft, 0);
@@ -263,7 +270,9 @@ export function PoLinesTable({
   const copyRow = (l: PurchaseOrderLine) => {
     const end = group === "shutter" || group === "other-panel" ? mineAll[mineAll.length - 1]?.id : undefined;
     const at = lines.findIndex((x) => x.id === (end ?? l.id));
-    const clone = { ...l, id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
+    // A copy is a new line: its own key, so it isn't taken as already sent to a Proforma Invoice.
+    const cloneId = `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const clone = { ...l, id: cloneId, lineKey: cloneId };
     onChange([...lines.slice(0, at + 1), clone, ...lines.slice(at + 1)].map((x, i) => ({ ...x, position: i })));
   };
   const add = () => {
@@ -317,6 +326,21 @@ export function PoLinesTable({
           <table className="w-full min-w-max table-fixed text-left">
             <thead className={group === "hardware" ? "hw-head bg-[#FFD599]/50" : "bg-[var(--table-head)]"}>
               <tr>
+                {piSend && (() => {
+                  const live = mine.filter((l) => !piSend.sent.has(keyOf(l))).map(keyOf);
+                  return (
+                    <th className="w-8 px-1">
+                      <input
+                        type="checkbox"
+                        aria-label={`Tick every ${title} line not yet on ${piSend.takeOff ? "the work order" : "a proforma invoice"}`}
+                        disabled={live.length === 0}
+                        checked={live.length > 0 && live.every((k) => piSend.picked.has(k))}
+                        onChange={(e) => piSend.pick(live, e.target.checked)}
+                        className="h-4 w-4 cursor-pointer accent-primary disabled:cursor-default"
+                      />
+                    </th>
+                  );
+                })()}
                 {cols.map((c) => (
                   <th key={c.key} data-col={c.key} className={`${th} ${c.width} ${["width", "depth", "height", "qty", "sqft", "rate", "discountPct", "netRate", "amount"].includes(c.key) ? "text-right" : ""}`}>
                     {sortable && (c.key === "description" || c.key === "depth") ? (
@@ -341,11 +365,26 @@ export function PoLinesTable({
               </tr>
             </thead>
             <tbody>
-              {mine.map((l) => (
+              {mine.map((l) => {
+                const onPi = piSend?.sent.get(keyOf(l));
+                return (
                 <Fragment key={l.id}>
-                <tr className={`border-t border-grey-100 ${l.rate ? "" : "bg-error-200"}`} title={l.rate ? undefined : "No rate for this row: none in the price list for this vendor. Type one in."}>
+                <tr className={`border-t border-grey-100 ${l.rate ? "" : "bg-error-200"} ${onPi ? "opacity-70" : ""}`} title={onPi ? `On ${onPi}` : l.rate ? undefined : "No rate for this row: none in the price list for this vendor. Type one in."}>
+                  {piSend && (
+                    <td className="w-8 px-1">
+                      <input
+                        type="checkbox"
+                        aria-label={onPi ? `On ${onPi}` : `Tick line ${l.srNo}`}
+                        disabled={!!onPi}
+                        checked={!!onPi || piSend.picked.has(keyOf(l))}
+                        onChange={(e) => piSend.pick([keyOf(l)], e.target.checked)}
+                        className="h-4 w-4 cursor-pointer accent-primary disabled:cursor-default"
+                      />
+                    </td>
+                  )}
                   {cols.map((c) => (
-                    <td key={c.key} data-col={c.key} className="px-1 py-1">
+                    // A line on a Proforma Invoice can't be changed here (take it off that PI first).
+                    <td key={c.key} data-col={c.key} className="px-1 py-1" inert={!!onPi || undefined}>
                       {c.key === "vendor" && !hardware ? (
                         <SelectField
                           aria-label={`Row ${l.srNo} vendor`}
@@ -416,7 +455,7 @@ export function PoLinesTable({
                       )}
                     </td>
                   ))}
-                  <td className={`sticky right-0 whitespace-nowrap px-1 shadow-[-6px_0_6px_-6px_rgba(0,0,0,0.2)] ${l.rate ? "bg-card" : "bg-error-200"}`}>
+                  <td className={`sticky right-0 whitespace-nowrap px-1 shadow-[-6px_0_6px_-6px_rgba(0,0,0,0.2)] ${l.rate ? "bg-card" : "bg-error-200"}`} inert={!!onPi || undefined}>
                     <button
                       type="button"
                       aria-label="Copy row"
@@ -436,9 +475,21 @@ export function PoLinesTable({
                     </button>
                   </td>
                 </tr>
+                {onPi && (
+                  <tr>
+                    <td colSpan={cols.length + 2} className="px-3 pb-1 text-xs font-body text-success">
+                      On {onPi} · locked (take it off {piSend?.takeOff ? "that Work Order" : "that PI"} to change it)
+                      {piSend?.takeOff && (
+                        <button type="button" onClick={() => piSend.takeOff!(keyOf(l))} className="ml-2 font-medium text-primary hover:underline">
+                          Take off Work Order
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )}
                 {!hardware && !l.rate && (
                   <tr className="bg-error-transparent">
-                    <td colSpan={cols.length + 1} className="px-3 py-1.5">
+                    <td colSpan={cols.length + 1 + (piSend ? 1 : 0)} className="px-3 py-1.5">
                       <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-body text-error">
                         <span className="flex items-center gap-1.5">
                           <AlertTriangle className="h-4 w-4" />
@@ -458,7 +509,8 @@ export function PoLinesTable({
                   </tr>
                 )}
                 </Fragment>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -62,7 +62,7 @@ export const navigationItems: NavItem[] = [
   { label: "Purchase Orders", href: "/purchase-orders", icon: ShoppingCart, roles: ADMIN_UP, group: "Purchase", alsoActive: ["/direct-purchase-orders"] },
   { label: "Panel Calculator", href: "/calculator", icon: Calculator, roles: ADMIN_UP, group: "Purchase" },
   { label: "Proforma Invoices", href: "/proforma-invoices", icon: FileText, roles: ADMIN_UP, group: "Production Planning", factory: true },
-  { label: "Work Orders", href: "/proforma-invoices/production", icon: Ruler, roles: ADMIN_UP, group: "Production Planning", factory: true },
+  { label: "Production Work Order", href: "/proforma-invoices/production", icon: Ruler, roles: ADMIN_UP, group: "Production Planning", factory: true },
   { label: "Manufacturing", href: "/proforma-invoices/manufacturing", icon: Hammer, roles: ADMIN_UP, group: "Manufacturing & Dispatch", factory: true },
   { label: "Packing & Dispatch", href: "/proforma-invoices/packing", icon: Truck, roles: ADMIN_UP, group: "Manufacturing & Dispatch", factory: true },
   { label: "Customers", href: "/customers", icon: Contact, group: "Contacts" },

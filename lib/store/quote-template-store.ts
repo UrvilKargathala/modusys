@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { mockQuoteTemplateSettings, type QuoteTemplateSettings } from "@/lib/mock/quote-template";
 import { fetchJson, makeDebouncedPut } from "@/lib/store/api-sync";
+import { setPoStatusSettings } from "@/lib/purchase-order";
 
 function moveItem<T>(list: T[], index: number, direction: -1 | 1): T[] {
   const target = index + direction;
@@ -160,6 +161,8 @@ function createTemplateStore(url: string) {
 
 export const quoteTemplateStore = createTemplateStore("/api/quote-template");
 export const purchaseTemplateStore = createTemplateStore("/api/quote-template?kind=purchase");
+// Keep the renamed / deleted PO statuses in step with the Purchase Template settings (before the lists re-render).
+purchaseTemplateStore.subscribe(() => setPoStatusSettings(purchaseTemplateStore.getSnapshot().layout));
 export type TemplateStore = typeof quoteTemplateStore;
 
 export function useQuoteTemplateSettings() {

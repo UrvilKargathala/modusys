@@ -536,8 +536,8 @@ function DirectCabinetsTable({ po, title, vendor, vendors, edge }: { po: Purchas
             const rows = po.lines.filter((l) => l.srNo === no && l.group === "carcass");
             // The cabinet's own Carcass rows first (what the editor shows for it), then the value kept on the cabinet; never another cabinet's.
             const common = (k: "internalColour" | "externalColour" | "material") => mostUsed(rows.map((l) => l[k])) || c[k] || "";
-            // Proforma Invoice: a cabinet whose "Components visible" tick is on (the default) lists its component rows under it.
-            const showComponents = !!po.material.proforma && c.componentsVisible !== false && rows.length > 0;
+            // Proforma Invoice: a cabinet lists its component rows under it.
+            const showComponents = !!po.material.proforma && rows.length > 0;
             return (
               <Fragment key={no}>
               <tr className={`po-row-bold ${i % 2 ? "bg-light-600" : ""}`}>

@@ -4,12 +4,12 @@ import { SelectField } from "@/components/shared/select-field";
 import { useUnitTypes } from "@/lib/store/unit-type-store";
 import { useContext, useState } from "react";
 import { PoLibraryContext } from "@/components/purchase-orders/po-library-context";
+import { PiSendContext } from "@/components/purchase-orders/pi-send-context";
 import { ChevronDown, ChevronRight, Copy, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useConfirmChange } from "@/components/purchase-orders/po-confirm-change";
 import { Button } from "@/components/ui/button";
 import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
-import { PoComponentsToggle } from "@/components/purchase-orders/po-components-toggle";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { PoDefaultVendorContext, PoLinesTable, newBlankLine } from "@/components/purchase-orders/po-lines-table";
@@ -82,11 +82,46 @@ export function PoUnitNameCell({ cabinet }: { cabinet?: PoCabinet }) {
     </div>
   );
 }
-export function PoCabinetListHeader({ proforma = false, unit = false }: { proforma?: boolean; unit?: boolean }) {
+// Send to PI (own factory, By Unit): one tick for every line of a cabinet not yet on a Proforma Invoice, shown after its drag handle.
+export function PoCabinetTick({ srNo, lines }: { srNo: number; lines: PurchaseOrderLine[] }) {
+  const piSend = useContext(PiSendContext);
+  const mine = lines.filter((l) => l.srNo === srNo);
+  if (!piSend || mine.length === 0) return <span className="w-3.5" />;
+  const keys = mine.map((l) => l.lineKey ?? l.id);
+  const live = keys.filter((k) => !piSend.sent.has(k));
+  const allSent = live.length === 0;
+  return (
+    <input
+      type="checkbox"
+      aria-label={`Tick cabinet ${srNo}`}
+      title={allSent ? `Every line is on ${piSend.sent.get(keys[0])}` : `Tick the ${live.length} line${live.length === 1 ? "" : "s"} of this cabinet not yet on ${piSend.takeOff ? "a Work Order" : "a PI"}`}
+      disabled={allSent}
+      checked={allSent || live.every((k) => piSend.picked.has(k))}
+      onChange={(e) => piSend.pick(live, e.target.checked)}
+      className="h-3.5 w-3.5 cursor-pointer accent-primary disabled:cursor-default"
+    />
+  );
+}
+// tick: the rows below have a Send to PI tick box after their drag handle (By Unit), so the left gutter is a little wider; with lines it
+// also holds a select-all for them, in line with the rows' tick boxes.
+export function PoCabinetListHeader({ proforma = false, unit = false, tick = false, lines }: { proforma?: boolean; unit?: boolean; tick?: boolean; lines?: PurchaseOrderLine[] }) {
+  const piSend = useContext(PiSendContext);
+  const tickGutter = tick && !!piSend;
+  const live = piSend && lines ? lines.map((l) => l.lineKey ?? l.id).filter((k) => !piSend.sent.has(k)) : [];
   const heads = ["", "Sr No", ...(unit ? ["Unit Name"] : []), "Cabinet Type", "Cabinet Name", "Design", ...(proforma ? [] : ["Vendor"]), "Width", "Depth", "Height", "Qty", "Internal Colour", "External Colour", "Material", ...(proforma ? ["Sq.Ft"] : []), "Total", "Remarks", "Action"];
   return (
     // The pink band runs the full width of the list; the grid inside lines up with the cabinet lines below it.
-    <div className="rounded-t-md border border-grey-200 bg-[var(--table-head)] pl-[40px] pr-2">
+    <div className={`relative rounded-t-md border border-grey-200 bg-[var(--table-head)] pr-2 ${tickGutter ? "pl-[46px]" : "pl-[40px]"}`}>
+      {tickGutter && lines && (
+        <input
+          type="checkbox"
+          aria-label={`Tick every line not yet on ${piSend.takeOff ? "the work order" : "a proforma invoice"}`}
+          disabled={live.length === 0}
+          checked={live.length > 0 && live.every((k) => piSend.picked.has(k))}
+          onChange={(e) => piSend.pick(live, e.target.checked)}
+          className="absolute left-[27px] top-1/2 h-3.5 w-3.5 -translate-y-1/2 cursor-pointer accent-primary disabled:cursor-default"
+        />
+      )}
       <div className={`${cabinetRowGrid(proforma, unit)} cab-head whitespace-nowrap text-sm font-body font-bold text-grey-900`}>
         {heads.map((h, i) => (
           <div key={i} className="cell justify-center text-center">{h}</div>
@@ -145,7 +180,7 @@ export function PoCabinetCard({
         toastStore.show("This cabinet type has no components to add.", "error");
         return;
       }
-      onChange([...lines.filter((l) => !mineCarcass.includes(l)), ...rows.map((r, i) => ({ ...r, id: `new-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}` }))].map((l, i) => ({ ...l, position: i })));
+      onChange([...lines.filter((l) => !mineCarcass.includes(l)), ...rows.map((r, i) => { const id = `new-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`; return { ...r, id, lineKey: id }; })].map((l, i) => ({ ...l, position: i })));
       toastStore.show(`Cabinet ${srNo}: ${rows.length} carcass row${rows.length === 1 ? "" : "s"} added from ${cabinetType.name}`, "success");
       return;
     }
@@ -270,8 +305,6 @@ export function PoCabinetCard({
           <input aria-label={`Cabinet ${srNo} remark`} {...selectOnClick} placeholder="Remark" value={cab.remark ?? ""} onChange={(e) => onCabinetChange({ ...cab, remark: e.target.value })} />
         </div>
         <div className="cell justify-center gap-0.5">
-          {/* "Components visible" is a Proforma Invoice setting only; a Purchase Order always lists its components. */}
-          {proforma && cabinet && !isManual && <PoComponentsToggle unitName={cabinet.unitName} cabinet={cabinet} onCabinetChange={onCabinetChange} proforma />}
           {onCopyCabinet && (
             <button type="button" className="rounded-md p-1 text-grey-400 hover:bg-primary-transparent hover:text-primary" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
               <Copy className="h-4 w-4" />

@@ -13,7 +13,7 @@ import { SelectField } from "@/components/shared/select-field";
 import { PanelCalculatorContext } from "@/components/shared/panel-calculator-context";
 import type { FurnitureLineItem } from "@/lib/mock/unit-type";
 import { EmptyState } from "@/components/shared/empty-state";
-import { QuoteUnitCard, UNIT_ROW_GRID } from "@/components/quotes/create/quote-unit-card";
+import { QuoteUnitCard, UNIT_ROW_GRID, UNIT_ROW_GRID_TICK } from "@/components/quotes/create/quote-unit-card";
 import { FurnitureLineItemRow, FurnitureTableHeader, furnitureTableColumns } from "@/components/templates/furniture-line-item-row";
 import { UnitTypeHardwareRow, HardwareTableHeader, HARDWARE_TABLE_COLUMNS } from "@/components/templates/unit-type-hardware-row";
 import { carcassUnitFor, effectiveFurnitureRate, effectiveHardwareRate, evaluateFormula, SQMM_PER_SQFT, unitSqFt, unitTotal } from "@/lib/quote-pricing";
@@ -87,7 +87,7 @@ export function UnitsSection({
   const sectionCollapsed = !bare && collapsedState;
   const addUnit = () => onChange([...units, blankQuoteUnit()]);
   // Filter: All Units (the table), or every Carcass / Shutter / Other Panel / Hardware line of the quote listed together, still editable.
-  const [view, setView] = useState<"units" | FurnView | "hardware" | "merge">("units");
+  const [view, setView] = useState<"units" | FurnView | "hardware" | "merge" | "pending">("units");
   const furn = view in FURN ? FURN[view as FurnView] : null;
   // Send to PO: the ticked lines (a line already on a PO can't be ticked; once sent it drops out by itself) and the All / Pending / Sent filter.
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -98,13 +98,11 @@ export function UnitsSection({
   const passes = (ids: string[]) => !send || lineFilter === "all" || (lineFilter === "sent" ? ids.length > 0 && ids.every((id) => send.sent.has(id)) : ids.some((id) => !send.sent.has(id)));
   // A tick box for one line, a cabinet or a whole table: ticks the lines of it that can still go to a PO. Ticked and greyed out when every
   // line of it is on a PO already.
-  const tickBox = (ids: string[], label: string) => {
+  const tickInput = (ids: string[], label: string) => {
     if (!send) return null;
-    if (ids.length === 0) return <span className="w-6 shrink-0" />;
     const live = ids.filter(canPick);
     const allSent = ids.length > 0 && ids.every((id) => send.sent.has(id));
     return (
-      <span className="flex w-6 shrink-0 items-center justify-center self-stretch">
         <input
           type="checkbox"
           aria-label={`Tick ${label}`}
@@ -114,8 +112,12 @@ export function UnitsSection({
           onChange={(e) => pick(live, e.target.checked)}
           className="h-3.5 w-3.5 cursor-pointer accent-primary disabled:cursor-default"
         />
-      </span>
     );
+  };
+  const tickBox = (ids: string[], label: string) => {
+    if (!send) return null;
+    if (ids.length === 0) return <span className="w-6 shrink-0" />;
+    return <span className="flex w-6 shrink-0 items-center justify-center self-stretch">{tickInput(ids, label)}</span>;
   };
   // A table row (or heading) with its tick box in front.
   const withTick = (ids: string[], label: string, node: React.ReactNode, key?: string) =>
@@ -156,6 +158,8 @@ export function UnitsSection({
   const [sort, setSort] = useState<LineSort>(null);
   const onSort = (key: string) => setSort((cur) => nextLineSort(cur, key));
   const changeView = (k: typeof view) => {
+    // Rate Pending lists the lines without a rate as they are when the tab opens, so a line stays put while its rate is typed in.
+    if (k === "pending") setPendingIds(new Set(units.flatMap((u) => u.cabinets.flatMap((c) => [...[...c.components, ...c.externalFinishes, ...c.panels].filter(noFurnRate), ...c.hardware.filter(noHwRate)].map((x) => x.id)))));
     setView(k);
     setQuery("");
     setSort(null);
@@ -267,6 +271,11 @@ export function UnitsSection({
   const count = (pick: (c: QuoteCabinet) => number) => units.reduce((n, u) => n + u.cabinets.reduce((m, c) => m + pick(c), 0), 0);
   const furnCount = (v: FurnView) => count((c) => FURN[v].pick(c).length);
   const hardwareCount = count((c) => c.hardware.length);
+  // Rate Pending (like the Purchase Order's): every line with no rate (none in the price list and none typed in).
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const noFurnRate = (f: FurnLine) => !(effectiveFurnitureRate(f, furniturePrices) ?? 0);
+  const noHwRate = (h: QuoteCabinet["hardware"][number]) => !(effectiveHardwareRate(h, hardwarePrices) ?? 0);
+  const pendingCount = count((c) => [...c.components, ...c.externalFinishes, ...c.panels].filter(noFurnRate).length + c.hardware.filter(noHwRate).length);
   const patchCabinet = (unitId: string, cabinetId: string, patch: Partial<QuoteCabinet>) =>
     onChange(units.map((u) => (u.id === unitId ? { ...u, cabinets: u.cabinets.map((c) => (c.id === cabinetId ? { ...c, ...patch } : c)) } : u)));
 
@@ -277,6 +286,85 @@ export function UnitsSection({
   // Populate), its components in a table under it. Cabinets are numbered through the quote (1, 2, 3 …), their components 1.1, 1.2 …
   // Everything stays editable as inside the cabinet. The search shows a cabinet whose type or unit matches, or only its matching components.
   const [closedCabinets, setClosedCabinets] = useState<Set<string>>(new Set());
+  // Rate Pending tab: a table per group (Carcass, Shutter, Other Panel, Hardware) of the lines that had no rate when the tab opened,
+  // numbered by unit (1.1, 1.2 ... 2.1) and edited in place.
+  const ratePending = () => {
+    const numbered = <T extends { id: string }>(pick: (c: QuoteCabinet) => T[]) =>
+      units.flatMap((u, i) => {
+        let n = 0;
+        return u.cabinets.flatMap((c) => pick(c).map((item) => ({ u, c, item, no: `${i + 1}.${++n}` })));
+      }).filter((r) => pendingIds.has(r.item.id));
+    const groups = (["carcass", "shutter", "panel"] as const).map((v) => {
+      const rows = numbered(FURN[v].pick);
+      const values = (r: (typeof rows)[number]) => furnValues(r.item, dimsFor(v, r.u, r.c), r.no);
+      return { v, values, rows: arrange(rows, values).filter((r) => passes([r.item.id])) };
+    }).filter((g) => g.rows.length > 0);
+    const hw = arrange(numbered((c) => c.hardware), (r) => hardwareValues(r.item, r.no, undefined, r.u)).filter((r) => passes([r.item.id]));
+    if (groups.length === 0 && hw.length === 0) {
+      return <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">{pendingIds.size === 0 ? "Every line has a rate." : "No lines match your search."}</p>;
+    }
+    const title = (label: string, n: number) => <h4 className="px-1 pb-1 font-heading text-sm font-semibold text-grey-900">{label} <span className="font-number text-xs font-normal text-grey-500">({n})</span></h4>;
+    return (
+      <div className="quote-dense flex flex-col gap-4">
+        {groups.map(({ v, rows, values }) => {
+          const def = FURN[v];
+          return (
+            <div key={v} className="-mx-2 overflow-x-auto">
+              <div className="min-w-[1060px]">
+                {title({ carcass: "Carcass", shutter: "Shutter", panel: "Other Panel" }[v], rows.length)}
+                {withTick(rows.map((r) => r.item.id), `every ${v} line shown`, <FurnitureTableHeader showComponentName showLevelType={def.level} nameLabel={def.label} withNo sort={sort} onSort={onSort} />)}
+                <DndContext sensors={sensors} collisionDetection={closestCenter}>
+                  <SortableContext items={rows.map((r) => r.item.id)} strategy={verticalListSortingStrategy}>
+                    {rows.map((r) => {
+                      const { u, c, item, no } = r;
+                      const list = def.pick(c);
+                      return withTick([item.id], `line ${no}`, (
+                        <FurnitureLineItemRow
+                          key={item.id}
+                          table
+                          rowNo={no}
+                          value={item}
+                          label={def.label}
+                          showComponentName
+                          showLevelType={def.level}
+                          totalSqFt={values(r).sqft}
+                          unitDims={dimsFor(v, u, c)}
+                          onChange={(patch) => patchCabinet(u.id, c.id, def.put(list.map((x) => (x.id === item.id ? { ...x, ...patch } : x))))}
+                          onRemove={() => patchCabinet(u.id, c.id, def.put(list.filter((x) => x.id !== item.id)))}
+                        />
+                      ), item.id);
+                    })}
+                  </SortableContext>
+                </DndContext>
+              </div>
+            </div>
+          );
+        })}
+        {hw.length > 0 && (
+          <div className="-mx-2 overflow-x-auto">
+            <div className="min-w-[1060px]">
+              {title("Hardware", hw.length)}
+              {withTick(hw.map((r) => r.item.id), "every hardware line shown", <HardwareTableHeader withNo sort={sort} onSort={onSort} />)}
+              <DndContext sensors={sensors} collisionDetection={closestCenter}>
+                <SortableContext items={hw.map((r) => r.item.id)} strategy={verticalListSortingStrategy}>
+                  {hw.map(({ u, c, item, no }) => withTick([item.id], `line ${no}`, (
+                    <UnitTypeHardwareRow
+                      key={item.id}
+                      table
+                      rowNo={no}
+                      value={item}
+                      onChange={(patch) => patchCabinet(u.id, c.id, { hardware: c.hardware.map((x) => (x.id === item.id ? { ...x, ...patch } : x)) })}
+                      onRemove={() => patchCabinet(u.id, c.id, { hardware: c.hardware.filter((x) => x.id !== item.id) })}
+                    />
+                  ), item.id))}
+                </SortableContext>
+              </DndContext>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
   const carcassByCabinet = () => {
     const q = query.trim().toLowerCase();
     let n = 0;
@@ -332,7 +420,7 @@ export function UnitsSection({
                   ))}
                   {open && (
                     <div className="mb-1.5 ml-7 mr-1 overflow-hidden rounded-md border border-grey-100">
-                      {withTick([], "", <FurnitureTableHeader showComponentName showLevelType={false} nameLabel="Component" withNo sort={sort} onSort={onSort} />)}
+                      {withTick(lines.map((r) => r.item.id), `every line of cabinet ${no}`, <FurnitureTableHeader showComponentName showLevelType={false} nameLabel="Component" withNo sort={sort} onSort={onSort} />)}
                       <DndContext sensors={sensors} collisionDetection={closestCenter}>
                         <SortableContext items={lines.map((r) => r.item.id)} strategy={verticalListSortingStrategy}>
                           {lines.map((r) => withTick([r.item.id], `line ${r.no}`, (
@@ -446,7 +534,7 @@ export function UnitsSection({
       {bare && units.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex w-fit rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Show">
-            {([["units", "All Units", units.length], ["carcass", "Carcass", furnCount("carcass")], ["shutter", "Shutter", furnCount("shutter")], ["panel", "Other Panel", furnCount("panel")], ["hardware", "Hardware", hardwareCount], ["merge", "Merge Hardware", merged.length]] as const).map(([k, label, n]) => (
+            {([["units", "All Units", units.length], ["carcass", "Carcass", furnCount("carcass")], ["shutter", "Shutter", furnCount("shutter")], ["panel", "Other Panel", furnCount("panel")], ["hardware", "Hardware", hardwareCount], ["merge", "Merge Hardware", merged.length], ["pending", "Rate Pending", pendingCount]] as const).map(([k, label, n]) => (
               <button
                 key={k}
                 type="button"
@@ -460,15 +548,16 @@ export function UnitsSection({
             ))}
           </div>
           {/* Requirement Order: All / Pending / Sent lines, and Send to PO once something is ticked. */}
-          {send && view !== "units" && (
+          {send && (
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Lines">
+              {/* The filter is for the line tabs; All Units has a tick per unit. */}
+              {view !== "units" && <div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Lines">
                 {(["all", "pending", "sent"] as const).map((k) => (
                   <button key={k} type="button" role="tab" aria-selected={lineFilter === k} onClick={() => setLineFilter(k)} className={`rounded-md px-2.5 py-0.5 text-xs font-body font-medium ${lineFilter === k ? "bg-blush font-semibold text-grey-900" : "text-grey-600 hover:bg-light-600"}`}>
                     {k === "all" ? "All" : k === "pending" ? "Pending" : "Sent"}
                   </button>
                 ))}
-              </div>
+              </div>}
               {pickedLive.length > 0 && (
                 <div className="flex items-center gap-2 rounded-lg bg-primary-transparent px-2 py-1">
                   <span className="text-xs font-body font-semibold text-grey-900"><span className="font-number">{pickedLive.length}</span> {pickedLive.length === 1 ? "line" : "lines"} ticked</span>
@@ -534,6 +623,8 @@ export function UnitsSection({
             </div>
           </div>
         )
+      ) : bare && view === "pending" && units.length > 0 ? (
+        ratePending()
       ) : bare && view === "carcass" && units.length > 0 ? (
         carcassByCabinet()
       ) : bare && view !== "units" && units.length > 0 ? (
@@ -649,8 +740,19 @@ export function UnitsSection({
             <SortableContext items={shownUnits.map(({ unit }) => unit.id)} strategy={verticalListSortingStrategy}>
               <div className="-mx-2 overflow-x-auto">
                <div className="min-w-[1020px]">
-                <div className={cn(UNIT_ROW_GRID, "unit-top unit-head bg-[var(--table-head)] px-2 py-1 text-xs font-body font-medium text-grey-900")}>
-                  <span className="col-span-3" />
+                <div className={cn(send ? UNIT_ROW_GRID_TICK : UNIT_ROW_GRID, "unit-top unit-head bg-[var(--table-head)] px-2 py-1 text-xs font-body font-medium text-grey-900")}>
+                  {send ? (
+                    <>
+                      {/* Send to PO: a tick for every unit shown, in line with the units' own ticks (after the drag handle's width). */}
+                      <span className="flex items-center gap-0.5">
+                        <span className="w-5 shrink-0" />
+                        {tickInput(shownUnits.flatMap(({ unit }) => unit.cabinets.flatMap((c) => [...c.components, ...c.externalFinishes, ...c.panels, ...c.hardware].map((x) => x.id))).filter((id) => send.sendable.has(id)), "every unit shown")}
+                      </span>
+                      <span className="col-span-2" />
+                    </>
+                  ) : (
+                    <span className="col-span-3" />
+                  )}
                   <SortLabel label="Space" k="space" sort={sort} onSort={onSort} />
                   <SortLabel label="Unit Type" k="unitType" sort={sort} onSort={onSort} />
                   <span className="text-center"><SortLabel label="W" k="w" sort={sort} onSort={onSort} /></span>
@@ -666,6 +768,8 @@ export function UnitsSection({
                 {shownUnits.map(({ unit, index }) => (
                   <QuoteUnitCard
                     key={unit.id}
+                    // Send to PO: one tick for every line of the unit that can still go to a PO (right after the drag handle).
+                    tick={send ? tickInput(unit.cabinets.flatMap((c) => [...c.components, ...c.externalFinishes, ...c.panels, ...c.hardware].map((x) => x.id)).filter((id) => send.sendable.has(id)), `unit ${index + 1}`) : undefined}
                     unit={unit}
                     index={index}
                     shutterFinishId={shutterFinishId}

@@ -56,6 +56,8 @@ export const printWithLetterhead = (el: HTMLElement, docTitle: string, branding:
 function printCopy(el: HTMLElement, docTitle: string, header?: string) {
   const copy = el.cloneNode(true) as HTMLElement;
   copy.querySelectorAll(".no-print").forEach((n) => n.remove());
+  // Typed values print too (a copied input keeps its value, but only as a property, which the HTML below would drop).
+  copy.querySelectorAll("input").forEach((n) => n.setAttribute("value", n.value));
   copy.classList.remove("cutlist-print");
   const frame = document.createElement("iframe");
   frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";

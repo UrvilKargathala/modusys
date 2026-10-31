@@ -1,5 +1,6 @@
+import { randomUUID } from "crypto";
 import "server-only";
-import { MFG_STEPS } from "@/lib/purchase-order";
+import { MFG_STEPS, WO_STATE_KEYS, type WorkOrderState } from "@/lib/purchase-order";
 
 const str = (v: unknown) => String(v ?? "");
 const num = (v: unknown, d = 0) => (typeof v === "number" && Number.isFinite(v) ? v : d);
@@ -30,7 +31,15 @@ export function cleanLines(input: unknown) {
     discountPct: num(l.discountPct),
     remarks: str(l.remarks),
     vendorId: str(l.vendorId),
+    // A line sent without a key (made on the server or by an older page) gets one now.
+    lineKey: str(l.lineKey).slice(0, 80) || randomUUID(),
   }));
+}
+
+// A Work Order's page data, cleaned like the PI's own (a typed step, so cleanMaterial's type doesn't refer to itself).
+function cleanWoState(s: unknown): WorkOrderState {
+  const m = cleanMaterial(s) as unknown as WorkOrderState;
+  return Object.fromEntries(WO_STATE_KEYS.map((k) => [k, m[k]])) as WorkOrderState;
 }
 
 export function cleanMaterial(m: unknown) {
@@ -76,6 +85,8 @@ export function cleanMaterial(m: unknown) {
     orderType: str(o.orderType) || undefined,
     vendorPiNo: str(o.vendorPiNo) || undefined,
     refCode: str(o.refCode) || undefined,
+    workOrderNo: str(o.workOrderNo).slice(0, 80) || undefined,
+    workOrderDate: str(o.workOrderDate).slice(0, 10) || undefined,
     vendorPiDate: str(o.vendorPiDate) || undefined,
     vendorPiAmount: o.vendorPiAmount === undefined || o.vendorPiAmount === null || o.vendorPiAmount === "" ? undefined : num(o.vendorPiAmount),
     brandVendors: Object.fromEntries(
@@ -158,6 +169,19 @@ export function cleanMaterial(m: unknown) {
         ] as const)
     ),
     fromPoId: str(o.fromPoId).slice(0, 60) || undefined,
+    workOrders: !Array.isArray(o.workOrders)
+      ? undefined
+      : (o.workOrders as Record<string, unknown>[]).slice(0, 200).map((w, i) => {
+          // Each Work Order's page data is cleaned like the PI's own.
+          return {
+            id: str(w?.id).slice(0, 60) || `wo-${i}`,
+            no: str(w?.no).slice(0, 80),
+            date: str(w?.date).slice(0, 10),
+            lines: list(w?.lines).slice(0, 5000).map((x) => x.slice(0, 80)),
+            status: w?.status === "manufacturing" ? ("manufacturing" as const) : ("pending" as const),
+            state: cleanWoState(w?.state),
+          };
+        }),
     fromRequirement: (() => {
       const v = o.fromRequirement as { roId?: unknown; lines?: unknown } | undefined;
       const roId = str(v?.roId).slice(0, 60);
@@ -196,6 +220,18 @@ export function cleanMaterial(m: unknown) {
     cutListHistory: (Array.isArray(o.cutListHistory) ? (o.cutListHistory as Record<string, unknown>[]) : [])
       .slice(-2000)
       .map((h) => ({ at: str(h?.at).slice(0, 40), by: str(h?.by).slice(0, 120), id: str(h?.id).slice(0, 300), sr: str(h?.sr).slice(0, 40), piece: str(h?.piece).slice(0, 200), field: str(h?.field).slice(0, 40), from: str(h?.from).slice(0, 500), to: str(h?.to).slice(0, 500) })),
+    extraHardware: !Array.isArray(o.extraHardware)
+      ? undefined
+      : (o.extraHardware as Record<string, unknown>[]).slice(0, 500).map((h, i) => ({
+          id: str(h?.id).slice(0, 60) || `xh-${i}`,
+          kind: h?.kind === "misc" ? ("misc" as const) : ("cabinet" as const),
+          brand: str(h?.brand).slice(0, 120),
+          category: str(h?.category).slice(0, 120),
+          description: str(h?.description).slice(0, 500),
+          articleNo: str(h?.articleNo).slice(0, 120),
+          unit: str(h?.unit).slice(0, 40),
+          qty: Math.max(0, num(h?.qty)),
+        })),
     usedEdgeBand: Object.fromEntries(
       Object.entries((o.usedEdgeBand ?? {}) as Record<string, Record<string, unknown>>)
         .filter(([k]) => k)

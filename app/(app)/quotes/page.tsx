@@ -31,7 +31,14 @@ import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { getCurrentUser } from "@/lib/session";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
+import { useColumnOrder } from "@/components/shared/use-column-order";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
+
+// All Quotes columns, in their normal order (drag a heading to move one).
+const Q_HEADS: Record<string, string> = {
+  quoteNumber: "Quote No.", customer: "Customer", date: "Date", productType: "Product Type", finalAmount: "Final Amount",
+  revision: "Revision", status: "Status", actions: "Actions",
+};
 
 function PdfIcon({ className }: { className?: string }) {
   return (
@@ -284,12 +291,14 @@ export default function QuotesPage() {
   }, [filtered]);
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(entries);
+  // Drag a heading to move its column (kept in this browser).
+  const qCols = useColumnOrder("quote-columns", Object.keys(Q_HEADS));
 
   const SortHeader = ({ label, k, align = "left" }: { label: string; k: SortKey; align?: "left" | "right" }) => {
     const active = sort?.key === k;
     const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
     return (
-      <th className={cn("whitespace-nowrap px-2 py-1", align === "right" && "text-right")}>
+      <th {...qCols.thProps(k)} className={cn("whitespace-nowrap px-2 py-1", align === "right" && "text-right", qCols.thClass(k))}>
         <button
           type="button"
           onClick={() => toggleSort(k)}
@@ -308,15 +317,27 @@ export default function QuotesPage() {
 
   const renderRow = (quote: Quote, sub = false) => {
     const status = quote.status as StatusKey;
-    return (
-      <tr key={quote.id} className={cn("hover:bg-light-600/60", sub && "bg-light-600/40")}>
-                        <td className={cn("whitespace-nowrap px-2 py-0.5 font-number font-medium text-grey-800", sub && "pl-8")}>{quote.quoteNumber}</td>
-                        <td className="whitespace-nowrap px-2 py-0.5 text-grey-700">{customerName(quote.customerId)}</td>
-                        <td className="whitespace-nowrap px-2 py-0.5 font-number text-grey-500">{formatDate(quote.date)}</td>
-                        <td className="px-2 py-0.5 text-grey-700">{productTypeLabel(quote)}</td>
-                        <td className="whitespace-nowrap px-2 py-0.5 font-number font-medium text-grey-800">{formatInr(finalAmount(quote))}</td>
-                        <td className="whitespace-nowrap px-2 py-0.5 font-number text-grey-500">{quote.revision}</td>
-                        <td className="whitespace-nowrap px-2 py-0.5">
+    const cells: Record<string, React.ReactNode> = {
+      quoteNumber: (
+                        <td key="quoteNumber" className={cn("whitespace-nowrap px-2 py-0.5 font-number font-medium text-grey-800", sub && "pl-8")}>{quote.quoteNumber}</td>
+      ),
+      customer: (
+                        <td key="customer" className="whitespace-nowrap px-2 py-0.5 text-grey-700">{customerName(quote.customerId)}</td>
+      ),
+      date: (
+                        <td key="date" className="whitespace-nowrap px-2 py-0.5 font-number text-grey-500">{formatDate(quote.date)}</td>
+      ),
+      productType: (
+                        <td key="productType" className="px-2 py-0.5 text-grey-700">{productTypeLabel(quote)}</td>
+      ),
+      finalAmount: (
+                        <td key="finalAmount" className="whitespace-nowrap px-2 py-0.5 font-number font-medium text-grey-800">{formatInr(finalAmount(quote))}</td>
+      ),
+      revision: (
+                        <td key="revision" className="whitespace-nowrap px-2 py-0.5 font-number text-grey-500">{quote.revision}</td>
+      ),
+      status: (
+                        <td key="status" className="whitespace-nowrap px-2 py-0.5">
                           <StatusPicker
                             value={status}
                             onChange={(next, note) => {
@@ -326,7 +347,9 @@ export default function QuotesPage() {
                             className="h-7 w-auto px-2 py-0 text-xs"
                           />
                         </td>
-                        <td className="whitespace-nowrap px-2 py-0.5">
+      ),
+      actions: (
+                        <td key="actions" className="whitespace-nowrap px-2 py-0.5">
                           <div className="flex items-center justify-end gap-1">
                             <Tooltip>
                               <TooltipTrigger
@@ -470,7 +493,10 @@ export default function QuotesPage() {
                             </Tooltip>
                           </div>
                         </td>
-                      </tr>
+      ),
+    };
+    return (
+      <tr key={quote.id} className={cn("hover:bg-light-600/60", sub && "bg-light-600/40")}>{qCols.order.map((k) => cells[k])}</tr>
     );
   };
 
@@ -563,18 +589,22 @@ export default function QuotesPage() {
             </div>
             )}
           </div>
+          {qCols.customized && (
+            <div className="flex justify-end px-2">
+              <button type="button" onClick={qCols.reset} className="text-xs font-body text-primary hover:underline">Reset columns</button>
+            </div>
+          )}
           <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 [&_tbody_tr]:h-8 [&_td]:align-middle">
             <table className="w-full text-xs font-body">
               <thead>
                 <tr className="bg-[var(--table-head)] text-left text-xs font-medium text-grey-900">
-                  <SortHeader label="Quote No." k="quoteNumber" />
-                  <SortHeader label="Customer" k="customer" />
-                  <SortHeader label="Date" k="date" />
-                  <SortHeader label="Product Type" k="productType" />
-                  <SortHeader label="Final Amount" k="finalAmount" />
-                  <SortHeader label="Revision" k="revision" />
-                  <SortHeader label="Status" k="status" />
-                  <th className="whitespace-nowrap px-2 py-0.5 text-right">Actions</th>
+                  {qCols.order.map((k) =>
+                    k === "actions" ? (
+                      <th key={k} {...qCols.thProps(k)} className={cn("whitespace-nowrap px-2 py-0.5 text-right", qCols.thClass(k))}>Actions</th>
+                    ) : (
+                      <SortHeader key={k} label={Q_HEADS[k]} k={k as SortKey} />
+                    )
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -596,18 +626,27 @@ export default function QuotesPage() {
                           onClick={() => setOpenGroups((s) => { const n = new Set(s); if (n.has(entry.key)) n.delete(entry.key); else n.add(entry.key); return n; })}
                           className="cursor-pointer bg-primary-transparent hover:bg-light-600/60"
                         >
-                          <td className="whitespace-nowrap px-2 py-0.5 font-number font-semibold text-grey-900">
-                            <span className="inline-flex items-center gap-1.5">
-                              {isOpen ? <ChevronDown className="h-4 w-4 text-grey-500" /> : <ChevronRight className="h-4 w-4 text-grey-500" />}
-                              {latest.quoteNumber}
-                              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{entry.quotes.length} quotes</span>
-                            </span>
-                          </td>
-                          <td className="whitespace-nowrap px-2 py-0.5 text-grey-700">{customerName(latest.customerId)}</td>
-                          <td className="whitespace-nowrap px-2 py-0.5 font-number text-grey-500">{formatDate(latest.date)}</td>
-                          <td className="px-2 py-0.5 text-grey-700">{productTypeLabel(latest)}</td>
-                          <td className="whitespace-nowrap px-2 py-0.5 font-number font-medium text-grey-800">{formatInr(finalAmount(latest))}</td>
-                          <td colSpan={3} />
+                          {qCols.order.map((k) =>
+                            k === "quoteNumber" ? (
+                              <td key={k} className="whitespace-nowrap px-2 py-0.5 font-number font-semibold text-grey-900">
+                                <span className="inline-flex items-center gap-1.5">
+                                  {isOpen ? <ChevronDown className="h-4 w-4 text-grey-500" /> : <ChevronRight className="h-4 w-4 text-grey-500" />}
+                                  {latest.quoteNumber}
+                                  <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{entry.quotes.length} quotes</span>
+                                </span>
+                              </td>
+                            ) : k === "customer" ? (
+                              <td key={k} className="whitespace-nowrap px-2 py-0.5 text-grey-700">{customerName(latest.customerId)}</td>
+                            ) : k === "date" ? (
+                              <td key={k} className="whitespace-nowrap px-2 py-0.5 font-number text-grey-500">{formatDate(latest.date)}</td>
+                            ) : k === "productType" ? (
+                              <td key={k} className="px-2 py-0.5 text-grey-700">{productTypeLabel(latest)}</td>
+                            ) : k === "finalAmount" ? (
+                              <td key={k} className="whitespace-nowrap px-2 py-0.5 font-number font-medium text-grey-800">{formatInr(finalAmount(latest))}</td>
+                            ) : (
+                              <td key={k} />
+                            )
+                          )}
                         </tr>
                         {isOpen && entry.quotes.map((q) => renderRow(q, true))}
                       </Fragment>

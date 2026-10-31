@@ -16,7 +16,10 @@ import { nextCopyNumber, type PurchaseOrder } from "@/lib/purchase-order";
 // The row action icons shared by the PO lists and the Packing tab: View, (Packing), Download menu, Copy, Delete.
 // viewHref: where the eye icon goes (default: the PO / invoice editor). packingSlips: a proforma's Download menu lists the three Packing Slip PDFs
 // only on the Packing tab. workOrder: the Production tab adds a Production Work Order PDF after Proforma Invoice With Components.
-export function PoRowActions({ po, proforma, base, showPacking = false, viewHref, packingSlips = false, workOrder = false }: { po: PurchaseOrder; proforma: boolean; base: string; showPacking?: boolean; viewHref?: string; packingSlips?: boolean; workOrder?: boolean }) {
+// wo: a row of the Work Order list stands for one Work Order of the PI: its downloads are of that Work Order, there is no Copy, and Delete
+// removes only that Work Order (its lines go back to Pending on the PI).
+export function PoRowActions({ po, proforma, base, showPacking = false, viewHref, packingSlips = false, workOrder = false, wo }: { po: PurchaseOrder; proforma: boolean; base: string; showPacking?: boolean; viewHref?: string; packingSlips?: boolean; workOrder?: boolean; wo?: { id: string; no: string; onDelete: () => Promise<void> } }) {
+  const woQuery = wo ? `wo=${encodeURIComponent(wo.id)}` : "";
   const router = useRouter();
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Purchase Order → Proforma Invoice (one chain): opens the PO's invoice when it has one, otherwise makes it.
@@ -72,7 +75,7 @@ export function PoRowActions({ po, proforma, base, showPacking = false, viewHref
                           <DropdownMenuGroup>
                           <DropdownMenuLabel>PDF</DropdownMenuLabel>
                           {(proforma ? [...PO_PDF_PARTS.filter((p) => p.key !== "full" && p.key !== "ledger" && (packingSlips || p.key !== "components")).flatMap((p) => (p.key === "components" ? [p, ...PACKING_PDF_PARTS] : p.key === "cabinets" && workOrder ? [p, { key: "work-order" as const, label: "Production Work Order" }] : [p])), { key: "cutlist" as const, label: "Cut List" }] : PO_PDF_PARTS).map((p) => (
-                            <DropdownMenuItem key={`pdf-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf${p.key === "full" ? "" : `?part=${p.key}`}`, "_blank")}>
+                            <DropdownMenuItem key={`pdf-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?${[p.key === "full" ? "" : `part=${p.key}`, woQuery].filter(Boolean).join("&")}`, "_blank")}>
                               <FileText className="h-4 w-4 text-grey-400" />
                               {p.key === "work-order" ? p.label : partLabel(p.label, proforma)}
                             </DropdownMenuItem>
@@ -82,7 +85,7 @@ export function PoRowActions({ po, proforma, base, showPacking = false, viewHref
                           <DropdownMenuGroup>
                           <DropdownMenuLabel>Excel</DropdownMenuLabel>
                           {PO_EXCEL_PARTS.filter((p) => !proforma || p.key !== "full" && p.key !== "ledger").map((p) => (
-                            <DropdownMenuItem key={`xls-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?format=excel${p.key === "full" ? "" : `&part=${p.key}`}`, "_blank")}>
+                            <DropdownMenuItem key={`xls-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?format=excel${p.key === "full" ? "" : `&part=${p.key}`}${woQuery ? `&${woQuery}` : ""}`, "_blank")}>
                               <FileSpreadsheet className="h-4 w-4 text-grey-400" />
                               {partLabel(p.label, proforma)}
                             </DropdownMenuItem>
@@ -90,6 +93,7 @@ export function PoRowActions({ po, proforma, base, showPacking = false, viewHref
                           </DropdownMenuGroup>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      {!wo && (
                       <Tooltip>
                         <TooltipTrigger
                           aria-label="Copy"
@@ -100,6 +104,7 @@ export function PoRowActions({ po, proforma, base, showPacking = false, viewHref
                         </TooltipTrigger>
                         <TooltipContent>Copy</TooltipContent>
                       </Tooltip>
+                      )}
                       {!proforma && ownFactory && (
                         <Tooltip>
                           <TooltipTrigger
@@ -125,11 +130,12 @@ export function PoRowActions({ po, proforma, base, showPacking = false, viewHref
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
-        title={`Delete ${proforma ? "proforma invoice" : "PO"} ${po.poNumber || "(no number)"}?`}
-        description="This removes it and its lines. The quote it came from is not affected."
+        title={wo ? `Delete Work Order ${wo.no || "(no number)"}?` : `Delete ${proforma ? "proforma invoice" : "PO"} ${po.poNumber || "(no number)"}?`}
+        description={wo ? `Only this Work Order goes: its lines go back to Pending on ${po.poNumber || "the proforma invoice"}, which stays as it is.` : "This removes it and its lines. The quote it came from is not affected."}
         onConfirm={async () => {
           try {
-            await purchaseOrdersStore.remove(po.id);
+            if (wo) await wo.onDelete();
+            else await purchaseOrdersStore.remove(po.id);
             toastStore.show("Deleted", "success");
           } catch (e) {
             toastStore.show(e instanceof Error ? e.message : "Could not delete", "error");

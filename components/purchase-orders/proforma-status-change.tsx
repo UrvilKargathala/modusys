@@ -51,8 +51,9 @@ export function ProformaStatusProvider({ children }: { children: React.ReactNode
       : po.material.proforma ? [{ status, date: changeDate, note: changeNote.trim(), amount: changeAmount, advance: Number(changeAdvance) || 0, balance: changeBalance }] : [{ status, date: changeDate, note: changeNote.trim() }]);
     // An invoice / order moved to Packing or In Production now shows in that tab of its page.
     const tabUrl = (tab: string) => (po.material.proforma ? `/proforma-invoices/${tab}` : `/purchase-orders?tab=${tab}`);
-    if (ok && status.toLowerCase() === "packing") router.push(tabUrl("packing"));
-    if (ok && status === "in-production") router.push(tabUrl("production"));
+    // A Proforma Invoice moves to its Work Order / Packing tab; Purchase Orders no longer have those tabs, so they stay in the list.
+    if (ok && po.material.proforma && status.toLowerCase() === "packing") router.push(tabUrl("packing"));
+    if (ok && po.material.proforma && status === "in-production") router.push(tabUrl("production"));
   };
   const changeStatus = async (po: PurchaseOrder, status: PoStatus, requiredDate?: string, logs?: { status: string; date: string; note: string; amount?: number; advance?: number; balance?: number }[]) => {
     try {

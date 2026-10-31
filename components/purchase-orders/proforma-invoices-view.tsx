@@ -38,8 +38,9 @@ function View() {
     <ProformaStatusProvider>
     <div className="-mx-2 flex flex-col gap-2 lg:-mx-4">
       <div className="px-2">
-        <h1 className="font-heading text-2xl font-semibold text-grey-900">Proforma Invoices</h1>
-        <p className="text-sm font-body text-grey-500">Proforma invoices made directly, without a quote.</p>
+        {/* The Work Order list (its own sidebar item) is headed Production Work Order. */}
+        <h1 className="font-heading text-2xl font-semibold text-grey-900">{tab === "production" ? "Production Work Order" : tab === "manufacturing" ? "Manufacturing" : "Proforma Invoices"}</h1>
+        <p className="text-sm font-body text-grey-500">{tab === "production" ? "The work orders sent from proforma invoices (Send to Work Order)." : tab === "manufacturing" ? "The production work orders sent to Manufacturing, with how many pieces are through every factory step." : "Proforma invoices made directly, without a quote."}</p>
       </div>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <KpiCard compact label="Total Invoices" value={String(kpis.total)} icon={FileText} accent="primary" />
@@ -49,16 +50,17 @@ function View() {
       </div>
 
       <Tabs value={tab} onValueChange={(v) => router.replace(["packing", "production", "manufacturing"].includes(String(v)) ? `/proforma-invoices/${String(v)}` : `/proforma-invoices?tab=${String(v)}`, { scroll: false })}>
-        <TabsList>
-          <TabsTrigger value="dealers">Dealers</TabsTrigger>
-          <TabsTrigger value="invoices">Proforma Invoices</TabsTrigger>
-          <TabsTrigger value="production">Work Order</TabsTrigger>
-          <TabsTrigger value="manufacturing">Manufacturing</TabsTrigger>
-          <TabsTrigger value="packing">Packing &amp; Dispatch</TabsTrigger>
-        </TabsList>
+        {/* The Production Work Order page has its own status tabs instead. */}
+        {tab !== "production" && tab !== "manufacturing" && (
+          <TabsList>
+            <TabsTrigger value="dealers">Dealers</TabsTrigger>
+            <TabsTrigger value="invoices">Proforma Invoices</TabsTrigger>
+          </TabsList>
+        )}
         <TabsContent value="invoices" className="pt-0">
           <PurchaseOrdersTable direct proforma onNew={() => setNewOpen(true)} />
         </TabsContent>
+        {/* No Work Order, Manufacturing or Packing & Dispatch tabs: each has its own sidebar item, whose page still opens its list here. */}
         <TabsContent value="production" className="pt-0">
           <ProformaPackingList mode="production" />
         </TabsContent>

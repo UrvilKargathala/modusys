@@ -767,6 +767,8 @@
 .po-dense .unit-row { padding-left: 8px; }
 /* Only rows with a drag handle (inside a sortable cabinet) leave room for it. */
 .po-dense .relative > .unit-row { padding-left: 40px; }
+/* By Unit with Send to PI: a tick box sits right after the drag handle. */
+.po-dense .relative.has-lead > .unit-row { padding-left: 46px; }
 
 /* Tighter spacing in the cabinet list: no gap between cabinet lines (they carry their own divider), 24px buttons, thin group bands. */
 .po-dense .relative:has(> .unit-row) + .relative:has(> .unit-row) { margin-top: -8px; }

@@ -32,6 +32,8 @@ import { cn } from "@/lib/utils";
 // One grid for the unit row and the column header above the list, so the columns line up.
 // Columns: drag, expand, no., space, unit type, W, D, H, qty, sq.ft, amount, actions, remarks.
 export const UNIT_ROW_GRID = "grid grid-cols-[20px_28px_28px_112px_minmax(160px,1fr)_52px_52px_52px_44px_52px_84px_84px_150px] items-center gap-x-1.5";
+// Requirement Order (Send to PO): the first column also holds the unit's tick box, right after the drag handle.
+export const UNIT_ROW_GRID_TICK = "grid grid-cols-[36px_28px_28px_112px_minmax(160px,1fr)_52px_52px_52px_44px_52px_84px_84px_150px] items-center gap-x-1";
 const NUM_INPUT = "num bg-card px-1 text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
 function cloneLineItem(item: FurnitureLineItem): FurnitureLineItem {
@@ -193,7 +195,10 @@ export function QuoteUnitCard({
   onChange,
   onRemove,
   onDuplicate,
+  tick,
 }: {
+  // Requirement Order (Send to PO): the unit's tick box, shown right after the drag handle.
+  tick?: React.ReactNode;
   unit: QuoteUnit;
   index: number;
   shutterFinishId: string;
@@ -287,16 +292,19 @@ export function QuoteUnitCard({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn("flex flex-col gap-2 px-2 py-0.5 hover:bg-light-600/60", isDragging && "opacity-50")}
     >
-      <div className={cn(UNIT_ROW_GRID, "unit-row unit-top")}>
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          aria-label="Drag to reorder unit"
-          className="flex h-8 w-5 cursor-grab touch-none items-center justify-center rounded text-grey-300 hover:text-grey-500 active:cursor-grabbing"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+      <div className={cn(tick ? UNIT_ROW_GRID_TICK : UNIT_ROW_GRID, "unit-row unit-top")}>
+        <span className="flex items-center gap-0.5">
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            aria-label="Drag to reorder unit"
+            className="flex h-8 w-5 shrink-0 cursor-grab touch-none items-center justify-center rounded text-grey-300 hover:text-grey-500 active:cursor-grabbing"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+          {tick}
+        </span>
 
         <button
           type="button"

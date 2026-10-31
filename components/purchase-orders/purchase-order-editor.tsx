@@ -6,12 +6,17 @@ import { SelectField } from "@/components/shared/select-field";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Calendar, CheckCircle2, ChevronDown, ChevronRight, Download, FileText, Hash, IndianRupee, Layers, Plus, RotateCcw, Save, Search, Store, Trash2, Upload, User, X } from "lucide-react";
+import { ArrowLeft, Calendar, CheckCircle2, ChevronDown, ChevronRight, Download, FileText, Hash, IndianRupee, Layers, Plus, RotateCcw, Save, Search, Send, Store, Trash2, Upload, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { PoCabinetCard, PoCabinetListHeader, poUnitParts } from "@/components/purchase-orders/po-cabinet-card";
+import { PoCabinetCard, PoCabinetListHeader, PoCabinetTick, poUnitParts } from "@/components/purchase-orders/po-cabinet-card";
 import { useUnitTypes } from "@/lib/store/unit-type-store";
+import { useOwnFactory, usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
+import { PiSendContext } from "@/components/purchase-orders/pi-send-context";
+import { SendToPiDialog } from "@/components/purchase-orders/send-to-pi-dialog";
+import { nextWorkOrderNo, piProgress, woProgress, workOrdersOf } from "@/lib/pi-progress";
+import { REQUIREMENT_STATUS_LABEL, REQUIREMENT_STATUS_STYLE } from "@/lib/requirement-progress";
 import { GROUP_BAND, PoBrandVendorContext, PoDefaultVendorContext, PoDimNotesContext, PoLinesTable, PoVendorContext } from "@/components/purchase-orders/po-lines-table";
 import { applyPurchaseRates, purchaseRateFor } from "@/lib/purchase-order-rate";
 import { PoImportFromCalculator } from "@/components/purchase-orders/po-import-calculator";
@@ -42,7 +47,7 @@ import { useConfirmChange } from "@/components/purchase-orders/po-confirm-change
 import { PoLibraryContext, libKey } from "@/components/purchase-orders/po-library-context";
 import { materialCategories, parseFinishRule, statusColourStyle } from "@/lib/mock/material-spec";
 import { MaterialItemFormDialog } from "@/components/templates/material-item-form-dialog";
-import { PO_GROUPS, asPoStatus, poStatusLabel, poStatusList, poStatusStyle, customerCode, lineAmount, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder, type PurchaseOrderLine } from "@/lib/purchase-order";
+import { PO_GROUPS, asPoStatus, poStatusLabel, poStatusList, poStatusStyle, customerCode, lineAmount, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder, type PurchaseOrderLine, type WorkOrder } from "@/lib/purchase-order";
 
 const NEW_VENDOR = "__new-vendor__";
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
@@ -92,6 +97,58 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const lib = isProforma ? "proforma" : "purchase";
   const base = isProforma ? "/proforma-invoices" : pathname.startsWith("/direct-purchase-orders") ? "/direct-purchase-orders" : "/purchase-orders";
   const orders = usePurchaseOrders();
+  // Send to PI (own factory, Purchase Orders and Direct POs): ticked line keys, the All / Pending / Sent filter, and which lines are on a
+  // Proforma Invoice already (from the saved PO, as Send to PI copies the saved lines).
+  const ownFactory = useOwnFactory();
+  const [piPicked, setPiPicked] = useState<Set<string>>(new Set());
+  const [piFilter, setPiFilter] = useState<"all" | "pending" | "sent">("all");
+  const [piSending, setPiSending] = useState<string[] | null>(null);
+  const storedPo = orders.find((o) => o.id === id);
+  // A Proforma Invoice does the same towards Work Orders (Send to Work Order): each send is a Work Order of its own, kept on the PI.
+  const piProg = useMemo(() => (ownFactory && storedPo ? (isProforma ? woProgress(storedPo) : piProgress(storedPo, orders)) : null), [ownFactory, isProforma, storedPo, orders]);
+  const [woSending, setWoSending] = useState<string[] | null>(null);
+  // Take off needs the PI saved; set once `dirty` is known below.
+  const dirtyRef = useRef(false);
+  // Saves the PI's Work Orders straight away (Send / Take off need no unsaved changes), and keeps the draft in step.
+  const saveWorkOrders = async (workOrders: WorkOrder[]) => {
+    if (!storedPo) return;
+    await purchaseOrdersStore.update(storedPo.id, { material: { ...storedPo.material, workOrders } });
+    setDraft((d) => (d ? { ...d, material: { ...d.material, workOrders } } : d));
+  };
+  // A new Work Order of the ticked lines, dated today and numbered PWO-DDMMYY-<product type code>-NN.
+  const newWorkOrder = (lines: string[]): WorkOrder => {
+    const date = new Date().toISOString().slice(0, 10);
+    const code = materialSpecStore.getSnapshot().find((m) => m.id === storedPo?.material.productTypeId)?.description;
+    return { id: `wo-${Date.now()}`, no: nextWorkOrderNo(date, code, orders), date, lines };
+  };
+  const piCtx = useMemo(
+    () =>
+      piProg
+        ? {
+            sent: piProg.sent,
+            picked: piPicked,
+            filter: piFilter,
+            pick: (keys: string[], on: boolean) => setPiPicked((cur) => { const next = new Set(cur); for (const k of keys) if (on) next.add(k); else next.delete(k); return next; }),
+            ...(isProforma
+              ? {
+                  takeOff: (key: string) => {
+                    if (dirtyRef.current) return toastStore.show("Save your changes first", "error");
+                    if (!storedPo) return;
+                    // An older PI's one Work Order becomes a Work Order of its own here; one left without lines goes.
+                    const next = workOrdersOf(storedPo)
+                      .map((w) => (w.id === "" ? { ...w, id: `wo-${Date.now()}`, no: w.no || newWorkOrder([]).no, date: w.date || new Date().toISOString().slice(0, 10) } : w))
+                      .map((w) => ({ ...w, lines: w.lines.filter((k) => k !== key) }))
+                      .filter((w) => w.lines.length > 0);
+                    void saveWorkOrders(next).then(() => toastStore.show("Line taken off its Work Order", "success"));
+                  },
+                }
+              : {}),
+          }
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- takeOff reads the latest stored PI when clicked
+    [piProg, piPicked, piFilter, isProforma, storedPo]
+  );
+  const piPickedLive = piProg && storedPo ? [...piPicked].filter((k) => !piProg.sent.has(k) && storedPo.lines.some((l) => (l.lineKey ?? l.id) === k)) : [];
   const [orderTypeDialog, setOrderTypeDialog] = useState(false);
   const [productTypeDialog, setProductTypeDialog] = useState(false);
   // The colour picked for each status added in Purchase Material Library > Purchase Order Status.
@@ -145,7 +202,10 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
 
   // Unit codes for the Import from Calculator cabinet picker's Unit Name.
   const unitTypes = useUnitTypes();
+  // Loads the Purchase Template settings, which hold the renamed / deleted PO status names used by the status menu.
+  usePurchaseTemplateSettings();
   const dirty = useMemo(() => !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved), [draft, saved]);
+  dirtyRef.current = dirty;
   const totals = useMemo(() => (draft ? poTotals(draft) : null), [draft]);
   // Cabinets in quote order; internal/external lists are what the rows actually use.
   const cabinetNos = useMemo(
@@ -593,7 +653,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const copyCabinet = (no: number) => {
     const next = Math.max(0, ...cabinetNos) + 1;
     const src = cabinetFor(no);
-    const rows = draft.lines.filter((l) => l.srNo === no).map((l, i) => ({ ...l, id: `new-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`, srNo: next }));
+    const rows = draft.lines.filter((l) => l.srNo === no).map((l, i) => { const id = `new-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`; return { ...l, id, lineKey: id, srNo: next }; });
     set({
       lines: [...draft.lines, ...rows].map((x, i) => ({ ...x, position: i })),
       material: { ...draft.material, cabinets: { ...draft.material.cabinets, ...(src ? { [String(next)]: { ...src } } : {}) } },
@@ -785,6 +845,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   );
 
   return (
+    <PiSendContext.Provider value={piCtx}>
     <PoLibraryContext.Provider value={isProforma ? "proforma" : "purchase"}>
     <PoAllowedColoursContext.Provider value={(() => {
       const colourRows = finishEntries().filter((e) => inPart(e, "primary") || inPart(e, "secondary"));
@@ -820,6 +881,14 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               >
                 {poStatusLabel(draft.status)}
               </span>
+              {/* Own factory: how much of the PO is on Proforma Invoices (Send to PI). */}
+              {piProg && piProg.total > 0 && (
+                <span className="flex items-center gap-2 font-body text-xs font-normal" title={`${piProg.sentCount} of ${piProg.total} lines on ${isProforma ? "the work order" : "a proforma invoice"}, ${piProg.total - piProg.sentCount} pending`}>
+                  <span className={`whitespace-nowrap rounded-full px-2 font-semibold leading-5 ${REQUIREMENT_STATUS_STYLE[piProg.status]}`}>{REQUIREMENT_STATUS_LABEL[piProg.status]}</span>
+                  <span className="h-1.5 w-16 overflow-hidden rounded-full bg-grey-100"><span className="block h-full rounded-full bg-success" style={{ width: `${piProg.pct}%` }} /></span>
+                  <span className="whitespace-nowrap font-number text-grey-700">{piProg.pct}% · {piProg.sentCount}/{piProg.total}</span>
+                </span>
+              )}
             </h1>
             <p className="text-sm font-body text-grey-500">{dirty ? "Unsaved changes" : "All changes saved"}</p>
           </div>
@@ -1140,6 +1209,27 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 ))}
               </div>
             )}
+            {/* Own factory: All / Pending / Sent lines, and Send to PI once something is ticked. */}
+            {piCtx && (
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Lines on a proforma invoice">
+                  {(["all", "pending", "sent"] as const).map((k) => (
+                    <button key={k} type="button" role="tab" aria-selected={piFilter === k} onClick={() => setPiFilter(k)} className={`rounded-md px-2.5 py-0.5 text-xs font-body font-medium ${piFilter === k ? "bg-blush font-semibold text-grey-900" : "text-grey-600 hover:bg-light-600"}`}>
+                      {k === "all" ? "All" : k === "pending" ? "Pending" : "Sent"}
+                    </button>
+                  ))}
+                </div>
+                {piPickedLive.length > 0 && (
+                  <div className="flex items-center gap-2 rounded-lg bg-primary-transparent px-2 py-1">
+                    <span className="text-xs font-body font-semibold text-grey-900"><span className="font-number">{piPickedLive.length}</span> {piPickedLive.length === 1 ? "line" : "lines"} ticked</span>
+                    <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => setPiPicked(new Set())}>Clear</Button>
+                    <Button type="button" size="sm" className="h-6 px-2 text-xs" disabled={dirty} title={dirty ? "Save your changes first" : undefined} onClick={() => (isProforma ? setWoSending(piPickedLive) : setPiSending(piPickedLive))}>
+                      <Send className="h-3 w-3" /> {isProforma ? "Send to Work Order" : "Send to PI"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
             {isDirect && directTab === "other-panel" && calcImport}
             {!isDirect && (<div className="flex rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Group rows by">
               {(["component", "cabinet", "pending", "vendor", "hardware"] as const).map((v) => (
@@ -1399,11 +1489,11 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 {carcassOpen && (
                   <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
 <div className="overflow-x-auto"><div className="min-w-[1540px]">
-                <PoCabinetListHeader proforma={isProforma} unit={!isDirect} />
+                <PoCabinetListHeader proforma={isProforma} unit={!isDirect} tick lines={draft.lines.filter((l) => l.group === g.key)} />
                 {cabinetNos
                   .filter((no) => draft.lines.some((l) => l.group === g.key && l.srNo === no))
                   .map((no) => (
-                    <SortableCabinet key={no} no={no}>
+                    <SortableCabinet key={no} no={no} lead={<PoCabinetTick srNo={no} lines={draft.lines.filter((l) => l.group === g.key)} />}>
                     <PoCabinetBlock
                       key={no}
                       group={g.key}
@@ -1428,9 +1518,9 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           : (
             <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
 <div className="overflow-x-auto"><div className="min-w-[1540px]">
-              <PoCabinetListHeader proforma={isProforma} unit={!isDirect} />
+              <PoCabinetListHeader proforma={isProforma} unit={!isDirect} tick lines={draft.lines} />
               {cabinetNos.map((no) => (
-              <SortableCabinet key={no} no={no}>
+              <SortableCabinet key={no} no={no} lead={<PoCabinetTick srNo={no} lines={draft.lines} />}>
               <PoCabinetCard
                 key={no}
                 srNo={no}
@@ -1661,6 +1751,26 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           }
         }}
       />
+      {storedPo && piSending && <SendToPiDialog po={storedPo} lineKeys={piSending} open onOpenChange={(o) => !o && setPiSending(null)} />}
+      {/* Proforma Invoice: Send to Work Order adds the ticked lines to the PI's Work Order (its page shows only the lines sent). */}
+      <ConfirmDialog
+        open={woSending !== null}
+        onOpenChange={(o) => !o && setWoSending(null)}
+        title={`Send ${woSending?.length ?? 0} ${woSending?.length === 1 ? "line" : "lines"} to a new Work Order?`}
+        description="They make a new Production Work Order of their own (cut list, edge band, material and production) and are locked here until taken off."
+        confirmLabel="Send to Work Order"
+        onConfirm={() => {
+          const keys = woSending ?? [];
+          setWoSending(null);
+          if (!storedPo) return;
+          // A Work Order of its own for these lines (like Send to PO), then it opens.
+          const wo = newWorkOrder(keys);
+          void saveWorkOrders([...(storedPo.material.workOrders ?? []), wo]).then(() => {
+            toastStore.show(`${keys.length} ${keys.length === 1 ? "line" : "lines"} sent to Work Order ${wo.no}`, "success");
+            router.push(`/proforma-invoices/production/${storedPo.id}?wo=${wo.id}`);
+          });
+        }}
+      />
       <MaterialItemFormDialog
         open={productTypeDialog}
         onOpenChange={setProductTypeDialog}
@@ -1686,5 +1796,6 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
     </PoVendorContext.Provider>
     </PoAllowedColoursContext.Provider>
     </PoLibraryContext.Provider>
+    </PiSendContext.Provider>
   );
 }

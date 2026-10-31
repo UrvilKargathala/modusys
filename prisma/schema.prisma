@@ -855,6 +855,9 @@ model PurchaseOrderLine {
   remarks        String        @default("")
   // Panel rows: the vendor this row is bought from; "" = the cabinet's vendor, else the PO's. Hardware rows leave it empty.
   vendorId       String        @default("")
+  // A fixed id for the line that survives saves (the row id is new on every save). A Proforma Invoice line made from a PO line
+  // ("Send to PI") keeps the PO line's key, which is how the PO knows the line is on a PI. "" on rows saved before it existed.
+  lineKey        String        @default("")
 
   @@index([poId])
 }

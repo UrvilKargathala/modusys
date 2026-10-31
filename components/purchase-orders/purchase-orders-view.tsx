@@ -13,8 +13,6 @@ import { CreateFromProcurementDialog } from "@/components/purchase-orders/create
 import { CreatePoDialog } from "@/components/purchase-orders/create-po-dialog";
 import type { Quote } from "@/lib/mock/quote";
 import { VendorsTable } from "@/components/purchase-orders/vendors-table";
-import { useOwnFactory } from "@/lib/store/quote-template-store";
-import { ProformaPackingList } from "@/components/purchase-orders/proforma-packing-list";
 import { ProformaStatusProvider } from "@/components/purchase-orders/proforma-status-change";
 import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { useVendors } from "@/lib/store/vendors-store";
@@ -25,8 +23,6 @@ import { poTotals } from "@/lib/purchase-order";
 const tabs = [
   { value: "all", label: "All" },
   { value: "po", label: "Purchase Orders" },
-  { value: "production", label: "Work Order" },
-  { value: "packing", label: "Packing & Dispatch" },
   { value: "vendors", label: "Vendors" },
 ] as const;
 type TabValue = (typeof tabs)[number]["value"];
@@ -38,7 +34,6 @@ function View() {
   const param = searchParams.get("tab");
   const tab: TabValue = tabs.some((t) => t.value === param) ? (param as TabValue) : "all";
   const quoteFilter = searchParams.get("quote");
-  const ownFactory = useOwnFactory();
   // What the Create button is doing: asking which kind (All tab), or creating one kind.
   const [create, setCreate] = useState<null | "choose" | "po" | "direct">(null);
   // A Purchase Order is made from a Procurement copy: pick it, then the vendor / PO number form opens for its quote.
@@ -77,8 +72,7 @@ function View() {
 
       <Tabs value={tab} onValueChange={(v) => router.replace(`${pathname}?tab=${String(v)}`, { scroll: false })}>
         <TabsList>
-          {/* Without its own factory a company stops at the Purchase Order: no Work Order or Packing tabs. */}
-          {tabs.filter((t) => ownFactory || (t.value !== "production" && t.value !== "packing")).map((t) => (
+          {tabs.map((t) => (
             <TabsTrigger key={t.value} value={t.value}>
               {t.label}
             </TabsTrigger>
@@ -89,12 +83,6 @@ function View() {
             <PurchaseOrdersTable mode={m} onNew={onNew} quoteId={quoteFilter} onClearQuote={() => router.replace(`${pathname}?tab=${m}`, { scroll: false })} />
           </TabsContent>
         ))}
-        <TabsContent value="production" className="pt-0">
-          <ProformaPackingList mode="production" proforma={false} />
-        </TabsContent>
-        <TabsContent value="packing" className="pt-0">
-          <ProformaPackingList proforma={false} />
-        </TabsContent>
         <TabsContent value="vendors" className="pt-0">
           <VendorsTable />
         </TabsContent>

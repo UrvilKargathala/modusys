@@ -1,6 +1,8 @@
 import { ProformaPackingPage } from "@/components/purchase-orders/proforma-packing-page";
 
-export default async function ProductionPage({ params }: { params: Promise<{ id: string }> }) {
+// ?wo= picks one of the PI's Work Orders (Send to Work Order); without it, its first.
+export default async function ProductionPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ wo?: string }> }) {
   const { id } = await params;
-  return <ProformaPackingPage id={id} mode="production" />;
+  const { wo } = await searchParams;
+  return <ProformaPackingPage id={id} mode="production" woId={wo} />;
 }

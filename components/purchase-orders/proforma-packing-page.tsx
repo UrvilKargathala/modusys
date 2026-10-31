@@ -1,5 +1,7 @@
 "use client";
 
+import { nextWorkOrderNo, withWorkOrder, workOrderView, workOrdersOf } from "@/lib/pi-progress";
+
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Boxes, Check, Download, FileText, History, Pencil, Layers, Plus, Printer, Ruler, RotateCcw, Save, Scissors, Store, Tag, Trash2, X } from "lucide-react";
@@ -21,7 +23,9 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
 import { useCurrentUser } from "@/lib/session";
-import { MFG_STEPS, asPoStatus, mostUsed, poStatusLabel, type MfgStep, type PoMaterial, type PurchaseOrder } from "@/lib/purchase-order";
+import { MFG_STEPS, asPoStatus, mostUsed, poStatusLabel, type ExtraHardware, type MfgStep, type PoMaterial, type PurchaseOrder } from "@/lib/purchase-order";
+import { PoHardwareSelect } from "@/components/purchase-orders/po-hardware-select";
+import { cn } from "@/lib/utils";
 import { cutListHeaders, cutListRows, poDetailSections, psLabel } from "@/lib/purchase-order-export";
 
 // A colour picker listing only the colours the components use (the Edge Band tab), as the saved "Brand — Colour" text.
@@ -36,11 +40,12 @@ function UsedColourSelect({ value, options, onChange }: { value: string; options
 }
 
 // Dealer / Proforma details as the editor's Field / Selection table, locked (plain text).
-function LockedFields({ rows, refCode }: { rows: [string, string][]; refCode?: { value: string; onChange: (v: string) => void } }) {
-  // "Ref Code" is typed here; everything else stays locked.
+type FieldEdit = { value: string; onChange: (v: string) => void; type?: "date"; placeholder?: string };
+function LockedFields({ rows, edits }: { rows: [string, string][]; edits?: Record<string, FieldEdit> }) {
+  // The fields in edits (Ref Code, Work Order No / Date) are typed here; everything else stays locked.
   const cell = (k: string, v: string) =>
-    k === "Ref Code" && refCode ? (
-      <input aria-label="Ref Code" value={refCode.value} onChange={(e) => refCode.onChange(e.target.value)} placeholder="Type the reference code" className="w-full rounded-md border border-grey-100 bg-white px-2 py-1 font-number text-grey-900 outline-none focus:border-primary" />
+    edits?.[k] ? (
+      <input aria-label={k} type={edits[k].type ?? "text"} value={edits[k].value} onChange={(e) => edits[k].onChange(e.target.value)} placeholder={edits[k].placeholder} className="w-full rounded-md border border-grey-100 bg-white px-2 py-1 font-number text-grey-900 outline-none focus:border-primary" />
     ) : (
       <span className="block whitespace-pre-line px-1 py-1 font-number text-grey-900">{v || "—"}</span>
     );
@@ -122,10 +127,13 @@ function MaterialDetailsLocked({ po }: { po: PurchaseOrder }) {
 
 // Work Order > Material Procurement: what to buy for this order. Boards = the Cut List's groups with the sheets they need (at the Cut List's starting
 // sheet size), edge band = the Required Edge Band List with its wastage, hardware = the order's hardware rows added up per item; rows that are not in a
-// cabinet are Misc Hardware. Nothing here is saved: it follows the order, the work order edits and the Edge Band tab.
+// cabinet are Misc Hardware. Nothing here is saved: it follows the order, the work order edits and the Edge Band tab; except extra: hardware
+// added by hand (Add on the Hardware / Misc Hardware lists), saved with the Work Order.
 type BandNeed = { code: string; width: string; len: number; pct: number; total: number; bandWidth: string; bandThk: string };
-function MaterialProcurement({ po, cutRows, bands, branding }: { po: PurchaseOrder; cutRows: CutRow[]; bands: BandNeed[]; branding: { companyName: string; logoDataUrl?: string } }) {
+function MaterialProcurement({ po, cutRows, bands, branding, extra }: { po: PurchaseOrder; cutRows: CutRow[]; bands: BandNeed[]; branding: { companyName: string; logoDataUrl?: string }; extra?: { rows: ExtraHardware[]; onChange: (rows: ExtraHardware[]) => void } }) {
   const ref = useRef<HTMLDivElement>(null);
+  const editExtra = (id: string, patch: Partial<ExtraHardware>) => extra?.onChange(extra.rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const addExtra = (kind: ExtraHardware["kind"]) => extra?.onChange([...extra.rows, { id: `xh-${Date.now()}`, kind, brand: "", category: "", description: "", articleNo: "", unit: "", qty: 1 }]);
   const boards = useMemo(
     () => cutGroups(cutRows).map(([key, g]) => ({
       key,
@@ -157,9 +165,12 @@ function MaterialProcurement({ po, cutRows, bands, branding }: { po: PurchaseOrd
   const td = "px-4 py-2 font-body text-grey-900";
   const tdn = "px-4 py-2 text-right font-number text-grey-900";
   // The last `numCols` columns hold numbers (right-aligned).
-  const table = (title: string, heads: string[], numCols: number, body: React.ReactNode, foot?: React.ReactNode, empty = "Nothing to buy.") => (
+  const table = (title: string, heads: string[], numCols: number, body: React.ReactNode, foot?: React.ReactNode, empty = "Nothing to buy.", action?: React.ReactNode) => (
     <div className="po-dense finish-table flex flex-col gap-2">
-      <h3 className="font-heading text-base font-semibold text-grey-900">{title}</h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-heading text-base font-semibold text-grey-900">{title}</h3>
+        {action}
+      </div>
       <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
         <table className="w-full text-left">
           <thead className="bg-[var(--table-head)]"><tr>{heads.map((h, i) => <th key={h} className={`${th} ${i >= heads.length - numCols ? "text-right" : ""}`}>{h}</th>)}</tr></thead>
@@ -169,12 +180,43 @@ function MaterialProcurement({ po, cutRows, bands, branding }: { po: PurchaseOrd
       </div>
     </div>
   );
-  const hwTable = (title: string, list: typeof hardware.cabinet, empty: string) =>
-    table(title, ["Brand", "Category", "Description", "Article No", "Unit", "Qty"], 1, list.length ? list.map((h, i) => (
-      <tr key={i} className="border-t border-grey-100">
-        <td className={td}>{h.brand || "—"}</td><td className={td}>{h.category || "—"}</td><td className={td}>{h.description || "—"}</td><td className={`${td} font-number`}>{h.articleNo || "—"}</td><td className={td}>{h.unit || "—"}</td><td className={tdn}>{q(h.qty)}</td>
-      </tr>
-    )) : null, undefined, empty);
+  const cellInput = "h-7 w-full min-w-[80px] rounded-md border border-grey-100 bg-white px-2 text-sm font-body text-grey-900 outline-none focus:border-primary";
+  const hwTable = (title: string, list: typeof hardware.cabinet, empty: string, kind: ExtraHardware["kind"]) => {
+    const added = extra?.rows.filter((r) => r.kind === kind) ?? [];
+    const rows = [
+      ...list.map((h, i) => (
+        <tr key={i} className="border-t border-grey-100">
+          <td className={td}>{h.brand || "—"}</td><td className={td}>{h.category || "—"}</td><td className={td}>{h.description || "—"}</td><td className={`${td} font-number`}>{h.articleNo || "—"}</td><td className={td}>{h.unit || "—"}</td><td className={tdn}>{q(h.qty)}</td>
+        </tr>
+      )),
+      // Added here: typed in place, with a remove button.
+      ...added.map((r) => (
+        <tr key={r.id} className="border-t border-grey-100 bg-primary-transparent/40">
+          {/* Picked from Templates > Price List > Hardware, like a PO's hardware row: a description or article no brings the whole item. */}
+          {(["brand", "category", "description", "articleNo"] as const).map((k) => (
+            <td key={k} className="px-1 py-0.5">
+              <PoHardwareSelect field={k} line={r} onChange={(f) => editExtra(r.id, { brand: f.brand ?? r.brand, category: f.category ?? r.category, description: f.description ?? r.description, articleNo: f.articleNo ?? r.articleNo, unit: f.unit ?? r.unit })} />
+            </td>
+          ))}
+          <td className={td}>{r.unit || "—"}</td>
+          <td className="px-2 py-1">
+            <div className="flex items-center justify-end gap-1">
+              <input type="number" min={0} aria-label={`Qty of added ${title}`} value={r.qty} onChange={(e) => editExtra(r.id, { qty: Math.max(0, Number(e.target.value) || 0) })} className={cn(cellInput, "min-w-[60px] w-20 text-right font-number")} />
+              <button type="button" aria-label={`Remove added ${title} row`} onClick={() => extra!.onChange(extra!.rows.filter((x) => x.id !== r.id))} className="no-print rounded-md p-1 text-grey-400 hover:bg-error-transparent hover:text-error">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </td>
+        </tr>
+      )),
+    ];
+    return table(title, ["Brand", "Category", "Description", "Article No", "Unit", "Qty"], 1, rows.length ? rows : null, undefined, empty,
+      extra ? (
+        <Button type="button" size="sm" variant="outline" className="no-print" onClick={() => addExtra(kind)}>
+          <Plus className="h-4 w-4" /> Add {title}
+        </Button>
+      ) : undefined);
+  };
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-end">
@@ -219,8 +261,9 @@ function MaterialProcurement({ po, cutRows, bands, branding }: { po: PurchaseOrd
           ) : undefined,
           "No edge band yet. Set it on the Edge Band tab."
         )}
-        {hwTable("Hardware", hardware.cabinet, "No cabinet hardware on this order.")}
-        {hwTable("Misc Hardware", hardware.misc, "No loose hardware on this order.")}
+        {hwTable("Hardware", hardware.cabinet, "No cabinet hardware on this order.", "cabinet")}
+        {hwTable("Misc Hardware", hardware.misc, "No loose hardware on this order.", "misc")}
+
       </div>
     </div>
   );
@@ -234,12 +277,18 @@ type Packing = Record<string, { pieces: Piece[] }>;
 // and each piece's note can be changed. Saved on the invoice (material.packing), keyed by the row.
 // mode "production" is the same page for the Work Order tab: edge band, cut list and Material Procurement (no ticks, transport, boxes or numbers).
 // mode "manufacturing": every factory step (Pressing … Quality Check) ticked per piece, with a note per piece (material.manufacturing).
-export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode?: "packing" | "production" | "manufacturing" }) {
+export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string; mode?: "packing" | "production" | "manufacturing"; woId?: string }) {
   const isProd = mode === "production";
   const isMfg = mode === "manufacturing";
   const isPack = mode === "packing";
   const router = useRouter();
-  const po = usePurchaseOrders().find((o) => o.id === id);
+  const orders = usePurchaseOrders();
+  const stored = orders.find((o) => o.id === id);
+  // Work Order: one of the PI's Work Orders (?wo=, else its first), with only the lines sent to it and its own page data; a PI from before
+  // Send to Work Order has one, of all its lines.
+  // Manufacturing: with ?wo= one Work Order sent to Manufacturing (its lines and its own ticks); without, the whole PI as before.
+  const wo = useMemo(() => (stored && isProd ? (woId !== undefined ? workOrdersOf(stored).find((w) => w.id === woId) : workOrdersOf(stored)[0]) : stored && isMfg && woId !== undefined ? workOrdersOf(stored).find((w) => w.id === woId) : undefined), [stored, isProd, isMfg, woId]);
+  const po = useMemo(() => (stored && (isProd || (isMfg && woId !== undefined)) ? (wo ? workOrderView(stored, wo) : undefined) : stored), [stored, isProd, isMfg, woId, wo]);
   const vendors = useAllVendors();
   const customers = useCustomers();
   const quotes = useQuotes();
@@ -254,6 +303,9 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
   const [historyKey, setHistoryKey] = useState<string | null>(null);
   // Ref Code typed on this page (null = not touched, so the saved one shows).
   const [refCodeEdit, setRefCodeEdit] = useState<string | null>(null);
+  // Work Order No / Date typed on the Work Order page (null = not touched).
+  const [woNoEdit, setWoNoEdit] = useState<string | null>(null);
+  const [woDateEdit, setWoDateEdit] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [seeded, setSeeded] = useState("");
   // Show all rows, only the pieces still to pack, or only those already packed.
@@ -299,6 +351,8 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
   const [bandWidths, setBandWidths] = useState<NonNullable<PoMaterial["usedEdgeBand"]>>({});
   const [edgeGrain, setEdgeGrain] = useState<NonNullable<PoMaterial["edgeBandGrain"]>>({});
   const [edgeCodes, setEdgeCodes] = useState<NonNullable<PoMaterial["edgeBandCodes"]>>({});
+  // Work Order: hardware added by hand on the Material Procurement tab.
+  const [extraHw, setExtraHw] = useState<ExtraHardware[]>([]);
   const SIDES = [["top", "Width-1"], ["bottom", "Width-2"], ["lh", "Height-1"], ["rh", "Height-2"]] as const;
   // Sides saved before the rename (Top / Bottom / LH / RH) read as Width-1 / Width-2 / Height-1 / Height-2.
   const LEGACY_SIDE: Record<string, string> = { Top: "Width-1", Bottom: "Width-2", LH: "Height-1", RH: "Height-2" };
@@ -321,9 +375,10 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
   const [resetOpen, setResetOpen] = useState(false);
   const [deleteTransport, setDeleteTransport] = useState<number | null>(null);
   const transportNames = useMaterialItems("proforma-transport");
+  const productTypes = useMaterialItems("proforma-product-type");
 
   useEffect(() => {
-    if (po && seeded !== po.id) {
+    if (po && seeded !== `${po.id}|${wo?.id ?? ""}`) {
       setPacking((isProd ? po.material.production : isMfg ? po.material.manufacturing : po.material.packing) ?? {});
       setEdgeCombos(po.material.edgeBandCombos ?? {});
       setEdgeColours(po.material.edgeBandColours ?? []);
@@ -331,11 +386,12 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
       setEdgeCodes(po.material.edgeBandCodes ?? {});
       setEdgeGrain(po.material.edgeBandGrain ?? {});
       setBandWidths(po.material.usedEdgeBand ?? {});
+      setExtraHw(po.material.extraHardware ?? []);
       // One empty Transport row is there from the start.
       setTransport(po.material.transport?.length ? po.material.transport : [{ name: "", lr: "", date: "", boxes: 0 }]);
-      setSeeded(po.id);
+      setSeeded(`${po.id}|${wo?.id ?? ""}`);
     }
-  }, [po, seeded, isProd, isMfg]);
+  }, [po, seeded, isProd, isMfg, wo]);
 
   const headers = useMemo(() => (po ? cutListHeaders(po, true) : []), [po]);
   // Row key: Sr no + description + size; identical rows get a running number so each keeps its own packing state.
@@ -509,7 +565,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
   // A Proforma Invoice's pages live under /proforma-invoices; a Purchase Order's and a Direct PO's under /purchase-orders (its Production and Packing tabs).
   const isProforma = !!po.material.proforma;
   const base = isProforma ? `/proforma-invoices/${mode}` : `/purchase-orders?tab=${mode}`;
-  const pageTitle = isProd ? "Work Order" : isMfg ? "Manufacturing" : "Packing & Dispatch";
+  const pageTitle = isProd ? "Production Work Order" : isMfg ? "Manufacturing" : "Packing & Dispatch";
   const dealerTitle = isProforma ? "Dealer Details" : "Vendor Details";
   const detailsTitle = isProforma ? "Proforma Details" : "Purchase Order Details";
 
@@ -664,7 +720,9 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
     const at = new Date().toISOString();
     const by = user.name || user.email || "";
     try {
-      await purchaseOrdersStore.update(po.id, { material: { ...po.material, cutListEdits: edits, cutListHistory: [...(po.material.cutListHistory ?? []), ...changes.map(({ store: _s, ...c }) => ({ at, by, ...c }))] } });
+      const cut = { cutListEdits: edits, cutListHistory: [...(po.material.cutListHistory ?? []), ...changes.map(({ store: _s, ...c }) => ({ at, by, ...c }))] };
+      // On a Work Order the edits are its own.
+      await purchaseOrdersStore.update(po.id, { material: stored && wo ? withWorkOrder(stored, wo.id, { state: cut }) : { ...po.material, ...cut } });
       toastStore.show("Cut list saved", "success");
       return true;
     } catch (e) {
@@ -673,11 +731,21 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
     }
   };
 
+  // Production Work Order No / Date: what was typed here, else the saved ones, else today and the next PWO-DDMMYY-<code>-NN.
+  const woDateShown = woDateEdit ?? (wo?.date || new Date().toISOString().slice(0, 10));
+  const woNoShown = woNoEdit ?? (wo?.no || nextWorkOrderNo(woDateShown, productTypes.find((m) => m.id === po.material.productTypeId)?.description, orders));
+
   const save = async (): Promise<boolean> => {
     setBusy(true);
     try {
       const ref = refCodeEdit !== null ? { refCode: refCodeEdit.trim() || undefined } : {};
-      await purchaseOrdersStore.update(po.id, { material: isProd ? { ...po.material, ...ref, production: packing, edgeBandCombos: edgeCombos, edgeBandColours: edgeColours, edgeBandSides: edgeSides, edgeBandCodes: edgeCodes, edgeBandGrain: edgeGrain, usedEdgeBand: bandWidths } : isMfg ? { ...po.material, ...ref, manufacturing: packing } : { ...po.material, ...ref, packing, transport } });
+      // Work Order: its number, date and page data go on that Work Order (one from before numbering gets them on its first save); the
+      // Ref Code stays on the PI.
+      const woMaterial = () => {
+        const m = withWorkOrder(stored!, wo!.id, { no: woNoShown.trim(), date: woDateShown, state: { production: packing, edgeBandCombos: edgeCombos, edgeBandColours: edgeColours, edgeBandSides: edgeSides, edgeBandCodes: edgeCodes, edgeBandGrain: edgeGrain, usedEdgeBand: bandWidths, extraHardware: extraHw } });
+        return { ...m, ...ref };
+      };
+      await purchaseOrdersStore.update(po.id, { material: isProd ? woMaterial() : isMfg ? (wo ? { ...withWorkOrder(stored!, wo.id, { state: { manufacturing: packing } }), ...ref } : { ...po.material, ...ref, manufacturing: packing }) : { ...po.material, ...ref, packing, transport } });
       setDirty(false);
       toastStore.show(isProd ? "Work order saved" : isMfg ? "Manufacturing saved" : "Packing saved", "success");
       return true;
@@ -700,7 +768,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="font-heading text-2xl font-semibold text-grey-900">{pageTitle} <span className="font-number text-lg font-normal text-grey-600">({po.poNumber})</span></h1>
+            <h1 className="font-heading text-2xl font-semibold text-grey-900">{pageTitle}{isProd && woNoShown ? <> <span className="font-number">{woNoShown}</span></> : isMfg && wo?.no ? <> <span className="font-number">{wo.no}</span></> : null} <span className="font-number text-lg font-normal text-grey-600">({po.poNumber})</span></h1>
             <p className="text-sm font-body text-grey-500">Status: {poStatusLabel(asPoStatus(po.status))}. {isProd ? "Edge band, cut list and the material to buy for this order." : isMfg ? "Tick each step as a piece passes it; only the ticks and notes can be changed." : "Only the packed ticks and notes can be changed."}</p>
           </div>
         </div>
@@ -708,7 +776,8 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => router.push(base)}>
             <X className="h-4 w-4" /> {dirty ? "Cancel" : "Close"}
           </Button>
-          <Button type="button" size="sm" disabled={busy || !dirty} onClick={async () => { if (await save()) router.push(base); }}>
+          {/* A Work Order can always be saved (it keeps its number and date even with nothing else changed). */}
+          <Button type="button" size="sm" disabled={busy || (!dirty && !isProd)} onClick={async () => { if (await save()) router.push(base); }}>
             <Save className="h-4 w-4" /> {busy ? "Saving…" : "Save"}
           </Button>
         </div>
@@ -798,7 +867,22 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
             <LockedFields rows={sections.find((sec) => sec.title === dealerTitle)?.rows.filter(([k]) => k !== "GST No" && k !== "Contact" && k !== "Status") ?? []} />
           </div>
           <div role="tabpanel" className={tab === "details" ? "block" : "hidden"}>
-            <LockedFields rows={sections.find((sec) => sec.title === detailsTitle)?.rows.filter(([k]) => k !== "GST No" && k !== "Contact" && k !== "Status") ?? []} refCode={{ value: refCodeEdit ?? po.material.refCode ?? "", onChange: (v) => { setRefCodeEdit(v); setDirty(true); } }} />
+            {/* The Work Order's own number and date come first, before the PI No and PI Date. */}
+            <LockedFields
+              rows={[
+                ...(isProd ? ([["Production Work Order No", ""], ["Work Order Date", ""]] as [string, string][]) : []),
+                ...(sections.find((sec) => sec.title === detailsTitle)?.rows.filter(([k]) => k !== "GST No" && k !== "Contact" && k !== "Status") ?? []),
+              ]}
+              edits={{
+                "Ref Code": { value: refCodeEdit ?? po.material.refCode ?? "", onChange: (v) => { setRefCodeEdit(v); setDirty(true); }, placeholder: "Type the reference code" },
+                ...(isProd
+                  ? {
+                      "Production Work Order No": { value: woNoShown, onChange: (v: string) => { setWoNoEdit(v); setDirty(true); }, placeholder: "PWO-DDMMYY-code-NN" },
+                      "Work Order Date": { value: woDateShown, onChange: (v: string) => { setWoDateEdit(v); setDirty(true); }, type: "date" as const },
+                    }
+                  : {}),
+              }}
+            />
           </div>
           <div role="tabpanel" className={tab === "material" ? "block" : "hidden"}>
             {po && <MaterialDetailsLocked po={po} />}
@@ -807,7 +891,7 @@ export function ProformaPackingPage({ id, mode = "packing" }: { id: string; mode
             <div role="tabpanel"><ProformaCutList rows={cutRows} title={po.poNumber} branding={{ companyName: settings.branding.companyName, logoDataUrl: settings.branding.logoDataUrl ?? undefined }} /></div>
           )}
           {isProd && tab === "procurement" && (
-            <div role="tabpanel"><MaterialProcurement po={po} cutRows={cutRows} branding={{ companyName: settings.branding.companyName, logoDataUrl: settings.branding.logoDataUrl ?? undefined }} bands={usedBands().map((b) => {
+            <div role="tabpanel"><MaterialProcurement po={po} cutRows={cutRows} extra={isProd ? { rows: extraHw, onChange: (rows) => { setExtraHw(rows); setDirty(true); } } : undefined} branding={{ companyName: settings.branding.companyName, logoDataUrl: settings.branding.logoDataUrl ?? undefined }} bands={usedBands().map((b) => {
               const k = `${b.code}|${b.width}`;
               const pct = bandWidths[k]?.wastage === undefined || bandWidths[k]?.wastage === "" ? 20 : Math.max(0, Number(bandWidths[k]?.wastage) || 0);
               return { ...b, pct, total: (b.len / 1000) * (1 + pct / 100), bandWidth: bandWidths[k]?.width ?? "", bandThk: bandWidths[k]?.thickness ?? "" };

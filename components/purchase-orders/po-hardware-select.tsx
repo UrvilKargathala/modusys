@@ -13,7 +13,8 @@ const norm = (s: string) => s.trim().toLowerCase();
 
 // Hardware row cell picked from the Hardware Price List. Brand / Category pick just that value (and narrow the
 // other lists). Description / Article No pick a whole item: brand, category, unit, MRP and discount come with it.
-export function PoHardwareSelect({ field, line, onChange }: { field: Field; line: PurchaseOrderLine; onChange: (fields: Partial<PurchaseOrderLine>) => void }) {
+// line: any row with these four fields (a PO hardware line, or hardware added on a Work Order).
+export function PoHardwareSelect({ field, line, onChange }: { field: Field; line: Pick<PurchaseOrderLine, Field>; onChange: (fields: Partial<PurchaseOrderLine>) => void }) {
   const hardware = useHardwarePriceItems();
   const materials = useSyncExternalStore(materialSpecStore.subscribe, materialSpecStore.getSnapshot, materialSpecStore.getServerSnapshot);
   const [open, setOpen] = useState(false);

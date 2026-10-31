@@ -12,6 +12,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
 import { applyPdfColours } from "@/lib/palette";
+import { workOrderView, workOrdersOf } from "@/lib/pi-progress";
 
 // Print route for one PO: A4 landscape, white + black. "Print / Save as PDF"
 // uses the browser's own print engine (same approach as the quote's Print flow).
@@ -26,17 +27,18 @@ export default function PurchaseOrderPdfPage({ params }: { params: Promise<{ id:
   const orders = usePurchaseOrders();
   const vendors = useAllVendors();
   const settings = usePurchaseTemplateSettings();
-  const po = orders.find((o) => o.id === id);
+  // ?wo= prints one Work Order of a Proforma Invoice: only its lines and its own cut list edits.
+  const woId = useSearchParams().get("wo");
+  const stored = orders.find((o) => o.id === id);
+  const wo = stored && woId !== null ? workOrdersOf(stored).find((w) => w.id === woId) : undefined;
+  const po = stored && wo ? workOrderView(stored, wo) : stored;
   const vendor = vendors.find((v) => v.id === po?.vendorId);
   const customer = useCustomers().find((c) => c.id === po?.customerId);
   const quoteNumber = useQuotes().find((q) => q.id === po?.quoteId)?.quoteNumber;
 
-  // Proforma Invoice cabinets whose own "Components visible" tick is off: just the cabinet title in Carcass, with no component rows
-  // (Shutter, Other Panel and hardware stay; the PO itself and the Excel are unchanged). A Purchase Order has no such tick and always
-  // prints its components, even if an older one had it unticked.
-  const noComponentCabinets = new Set(
-    (po?.material.proforma ? po.lines : []).filter((l) => l.group === "carcass" && po?.material.cabinets?.[String(l.srNo)]?.componentsVisible === false).map((l) => l.srNo)
-  );
+  // The "Components visible" tick is gone (Purchase Orders and Proforma Invoices), so every cabinet prints its components, even one
+  // that had it unticked before.
+  const noComponentCabinets = new Set<number>();
 
   // The PDF letterhead colour saved in Templates > Colour Palette.
   useEffect(() => { applyPdfColours(); }, []);
