@@ -154,6 +154,12 @@ export function cleanMaterial(m: unknown) {
         ] as const)
     ),
     // Manufacturing page: the factory steps ticked on each piece; done is worked out here (every step ticked).
+    packingSent: str(o.packingSent).slice(0, 10) || undefined,
+    stepDates: Object.fromEntries(
+      MFG_STEPS.map(([s]) => [s, str(((o.stepDates ?? {}) as Record<string, { end?: unknown }>)[s]?.end).slice(0, 10)] as const)
+        .filter(([, end]) => end)
+        .map(([s, end]) => [s, { end }])
+    ),
     manufacturing: Object.fromEntries(
       Object.entries((o.manufacturing ?? {}) as Record<string, Record<string, unknown>>)
         .filter(([k]) => k)
@@ -179,6 +185,7 @@ export function cleanMaterial(m: unknown) {
             date: str(w?.date).slice(0, 10),
             lines: list(w?.lines).slice(0, 5000).map((x) => x.slice(0, 80)),
             status: w?.status === "manufacturing" ? ("manufacturing" as const) : ("pending" as const),
+            mfgStart: str(w?.mfgStart).slice(0, 10) || undefined,
             state: cleanWoState(w?.state),
           };
         }),

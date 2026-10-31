@@ -221,6 +221,11 @@ export type PoMaterial = {
   production?: Record<string, { pieces: { done: boolean; note: string }[] }>;
   // Manufacturing page: per cut-list row, one entry per piece (Qty) with the factory steps ticked; done = every step is ticked.
   manufacturing?: Record<string, { pieces: { done: boolean; note: string; steps?: Partial<Record<MfgStep, boolean>> }[] }>;
+  // Manufacturing: the date each step was finished (asked when its last piece is ticked). A step starts when the one before it ends;
+  // Pressing starts the day the Work Order was sent to Manufacturing.
+  stepDates?: Partial<Record<MfgStep, { end?: string }>>;
+  // The day it was sent on to Packing & Dispatch (asked once Quality Check is finished); until then it is Pending to Packing.
+  packingSent?: string;
   // A Proforma Invoice made from a Purchase Order (one chain): that PO's id.
   fromPoId?: string;
   // Proforma Invoice, own factory: its Work Orders, one per Send to Work Order (like Send to PO from a Requirement Order). Unset on a PI from
@@ -383,10 +388,11 @@ export function sortOtherPanel<T extends Pick<PurchaseOrderLine, "description" |
 
 // A Proforma Invoice's Work Order: its Production Work Order number and date, the PI lines sent to it (line keys), and its own Work Order
 // page data (edge band, cut list edits, production), kept apart from the other Work Orders of the PI.
-export const WO_STATE_KEYS = ["production", "edgeBandCombos", "edgeBandColours", "edgeBandSides", "edgeBandCodes", "edgeBandGrain", "usedEdgeBand", "cutListEdits", "cutListHistory", "extraHardware", "manufacturing"] as const;
+export const WO_STATE_KEYS = ["production", "edgeBandCombos", "edgeBandColours", "edgeBandSides", "edgeBandCodes", "edgeBandGrain", "usedEdgeBand", "cutListEdits", "cutListHistory", "extraHardware", "manufacturing", "packing", "transport", "stepDates", "packingSent"] as const;
 export type ExtraHardware = { id: string; kind: "cabinet" | "misc"; brand: string; category: string; description: string; articleNo: string; unit: string; qty: number };
 export type WorkOrderState = Partial<Pick<PoMaterial, (typeof WO_STATE_KEYS)[number]>>;
-export type WorkOrder = { id: string; no: string; date: string; lines: string[]; status?: WorkOrderStatus; state?: WorkOrderState };
+// mfgStart: the day it was set to Send to Manufacturing (Pressing's start date).
+export type WorkOrder = { id: string; no: string; date: string; lines: string[]; status?: WorkOrderStatus; mfgStart?: string; state?: WorkOrderState };
 // Production Work Order Status: Pending until it is sent on to Manufacturing.
 export type WorkOrderStatus = "pending" | "manufacturing";
 export const WO_STATUSES: { value: WorkOrderStatus; label: string; className: string }[] = [

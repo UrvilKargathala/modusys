@@ -6,7 +6,7 @@ import { ProformaStatusCell } from "@/components/purchase-orders/proforma-status
 import { PoRowActions } from "@/components/purchase-orders/po-row-actions";
 import { EmptyState } from "@/components/shared/empty-state";
 import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
-import { asPoStatus, WO_STATUSES, type WorkOrder, type WorkOrderStatus } from "@/lib/purchase-order";
+import { asPoStatus, MFG_STEPS, WO_STATUSES, type MfgStep, type WorkOrder, type WorkOrderStatus } from "@/lib/purchase-order";
 import { withWorkOrder, workOrderView, workOrdersOf } from "@/lib/pi-progress";
 import { StatusMenu } from "@/components/shared/status-menu";
 import { toastStore } from "@/lib/store/toast-store";
@@ -31,14 +31,17 @@ export function ProformaPackingList({ mode = "packing", proforma = true }: { mod
     const q = search.toLowerCase();
     return orders
       // Work Order (Proforma Invoices): one row per Work Order (Send to Work Order; a PI from before that, In Production, has one of all its lines).
-      // Manufacturing: one row per Work Order set to Send to Manufacturing; a PI from before Work Orders, In Production, stays one row.
-      .filter((o) => !!o.material.proforma === proforma && (proforma && (isProd || isMfg) && o.material.workOrders ? o.material.workOrders.length > 0 : isProd && proforma ? asPoStatus(o.status) === "in-production" : asPoStatus(o.status).toLowerCase() === (isProd || isMfg ? "in-production" : "packing")))
+      // Manufacturing: one row per Work Order set to Send to Manufacturing; Packing: one per Work Order with a piece through Quality Check.
+      // A PI from before Work Orders stays one row (In Production / Packing), as before.
+      .filter((o) => !!o.material.proforma === proforma && (proforma && o.material.workOrders ? o.material.workOrders.length > 0 : isProd && proforma ? asPoStatus(o.status) === "in-production" : asPoStatus(o.status).toLowerCase() === (isProd || isMfg ? "in-production" : "packing")))
       .flatMap((po) =>
         isProd && proforma
           ? workOrdersOf(po).map((wo) => ({ po, wo }))
           : isMfg && proforma && po.material.workOrders
             ? po.material.workOrders.filter((wo) => wo.status === "manufacturing").map((wo) => ({ po, wo }))
-            : [{ po, wo: undefined as WorkOrder | undefined }]
+            : proforma && po.material.workOrders
+              ? po.material.workOrders.filter((wo) => !!wo.state?.packingSent).map((wo) => ({ po, wo }))
+              : [{ po, wo: undefined as WorkOrder | undefined }]
       )
       .filter(({ po, wo }) => `${wo?.no ?? ""} ${po.poNumber} ${po.vendorName}`.toLowerCase().includes(q))
       .map(({ po: pi, wo }) => {
@@ -48,16 +51,22 @@ export function ProformaPackingList({ mode = "packing", proforma = true }: { mod
         const seen = new Map<string, number>();
         let total = 0;
         let packed = 0;
+        // Manufacturing: how many pieces have each step ticked.
+        const steps = Object.fromEntries(MFG_STEPS.map(([s]) => [s, 0])) as Record<MfgStep, number>;
         for (const r of cutListRows(po, true)) {
           // Same row key as the packing page.
           const base = `${r[0]}|${r[4]}|${r[5]}x${r[6]}`;
           const n = seen.get(base) ?? 0;
           seen.set(base, n + 1);
           const qty = Math.max(0, Number(r[8]) || 0);
-          total += qty;
-          packed += (packing[n ? `${base}#${n}` : base]?.pieces ?? []).slice(0, qty).filter((x) => x.done).length;
+          const key = n ? `${base}#${n}` : base;
+          // Packing a Work Order counts only its pieces through Quality Check.
+          const qc = !isMfg && wo ? po.material.manufacturing?.[key]?.pieces ?? [] : null;
+          total += qc ? qc.slice(0, qty).filter((x) => x.steps?.qc).length : qty;
+          packed += (packing[key]?.pieces ?? []).slice(0, qty).filter((x) => x.done).length;
+          if (isMfg) for (const x of (po.material.manufacturing?.[key]?.pieces ?? []).slice(0, qty)) for (const [s] of MFG_STEPS) if (x.steps?.[s]) steps[s] += 1;
         }
-        return { po: pi, wo, total, packed };
+        return { po: pi, wo, total, packed, steps, dates: po.material.stepDates ?? {}, sent: po.material.packingSent };
       });
   }, [orders, search, isProd, isMfg, proforma]);
   const woStatus = (wo?: WorkOrder): WorkOrderStatus => wo?.status ?? "pending";
@@ -66,13 +75,15 @@ export function ProformaPackingList({ mode = "packing", proforma = true }: { mod
   // Drag a heading to move its column (kept in this browser, one order per list). The Work Order list has no progress column.
   const woRows = isProd && proforma;
   // Manufacturing shows the Work Order too (an older PI's row has none).
-  const woCols = proforma && (isProd || isMfg);
+  const woCols = proforma;
   const heads: Record<string, string> = {
     ...(woCols ? { wo: "Production Work Order No", woDate: "Work Order Date" } : {}),
     no: proforma ? "PI No" : "PO No",
     date: proforma ? "PI Date" : "Date",
     vendor: proforma ? "Dealer" : "Vendor",
-    ...(woCols ? { woStatus: "Production Work Order Status" } : {}),
+    // Manufacturing shows the steps ticked so far instead of the Work Order status.
+    ...(woCols && !isMfg ? { woStatus: "Production Work Order Status" } : {}),
+    ...(isMfg ? { mfg: "Manufacturing", mfgStatus: "Manufacturing Status" } : {}),
     status: woCols ? "PI Status" : "Status",
     ...(isProd ? {} : { progress: isMfg ? "Through all steps" : "Packed" }),
     actions: "Actions",
@@ -83,7 +94,21 @@ export function ProformaPackingList({ mode = "packing", proforma = true }: { mod
     const pi = orders.find((o) => o.id === piId);
     if (!pi) return;
     try {
-      await purchaseOrdersStore.update(pi.id, { material: withWorkOrder(pi, woId, { status }) });
+      // Sent to Manufacturing: that day is Pressing's start date (kept if it was sent before).
+      const wo = workOrdersOf(pi).find((w) => w.id === woId);
+      const mfgStart = status === "manufacturing" && !wo?.mfgStart ? { mfgStart: new Date().toISOString().slice(0, 10) } : {};
+      await purchaseOrdersStore.update(pi.id, { material: withWorkOrder(pi, woId, { status, ...mfgStart }) });
+    } catch (e) {
+      toastStore.show(e instanceof Error ? e.message : "Could not change the status", "error");
+    }
+  };
+
+  // Manufacturing: send a Work Order on to Packing (today) or take it back to Pending to Packing.
+  const setPackingSent = async (piId: string, woId: string, on: boolean) => {
+    const pi = orders.find((o) => o.id === piId);
+    if (!pi) return;
+    try {
+      await purchaseOrdersStore.update(pi.id, { material: withWorkOrder(pi, woId, { state: { packingSent: on ? new Date().toISOString().slice(0, 10) : undefined } }) });
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not change the status", "error");
     }
@@ -110,7 +135,7 @@ export function ProformaPackingList({ mode = "packing", proforma = true }: { mod
       )}
       </div>
       {rows.length === 0 ? (
-        <EmptyState icon={PackageCheck} message={woRows ? (allRows.length ? "No work orders with this status." : "No production work orders yet. Tick lines on a proforma invoice and use Send to Work Order.") : isMfg && proforma ? "Nothing in Manufacturing yet. Set a Production Work Order's status to Send to Manufacturing and it appears here." : `No ${proforma ? "proforma invoices" : "purchase orders"} in ${title}. Change ${proforma ? "an invoice's" : "an order's"} status to ${isProd || isMfg ? "In Production" : "Packing"} and it appears here.`} />
+        <EmptyState icon={PackageCheck} message={woRows ? (allRows.length ? "No work orders with this status." : "No production work orders yet. Tick lines on a proforma invoice and use Send to Work Order.") : isMfg && proforma ? "Nothing in Manufacturing yet. Set a Production Work Order's status to Send to Manufacturing and it appears here." : proforma ? "Nothing to pack yet. A work order appears here once it is sent to Packing from Manufacturing (or an older invoice is set to Packing)." : `No ${proforma ? "proforma invoices" : "purchase orders"} in ${title}. Change ${proforma ? "an invoice's" : "an order's"} status to ${isProd || isMfg ? "In Production" : "Packing"} and it appears here.`} />
       ) : (
         <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 [&_tbody_tr]:h-8 [&_td]:align-middle">
           <table className="w-full text-left text-xs font-body">
@@ -124,11 +149,58 @@ export function ProformaPackingList({ mode = "packing", proforma = true }: { mod
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ po, wo, total, packed }) => {
+              {rows.map(({ po, wo, total, packed, steps, dates, sent }) => {
+                const qcDone = total > 0 && steps.qc >= total;
                 const href = `${proforma ? "/proforma-invoices" : "/purchase-orders"}/${mode}/${po.id}${wo ? `?wo=${encodeURIComponent(wo.id)}` : ""}`;
                 const cells: Record<string, React.ReactNode> = {
                   wo: <td key="wo" className="px-2 py-0.5 font-number text-primary">{wo?.no || "—"}</td>,
                   woDate: <td key="woDate" className="px-2 py-0.5 font-number">{wo?.date ? formatPoDate(wo.date) : "—"}</td>,
+                  mfg: (
+                    <td key="mfg" className="px-2 py-0.5">
+                      {/* The last step anything is ticked in. */}
+                      {MFG_STEPS.some(([s]) => steps[s] > 0) ? (
+                        (() => {
+                          const [s, label] = [...MFG_STEPS].reverse().find(([x]) => steps[x] > 0)!;
+                          return (
+                            <span className={cn("whitespace-nowrap rounded-full px-2 text-[11px] leading-5", steps[s] >= total && total > 0 ? "bg-success-transparent text-success" : "bg-warning-transparent text-grey-900")} title={`${steps[s]} of ${total} pieces through ${label}`}>
+                              {label} <span className="font-number">{steps[s]}/{total}</span>
+                            </span>
+                          );
+                        })()
+                      ) : (
+                        <span className="text-grey-400">Not started</span>
+                      )}
+                      {/* Each finished step's end date. */}
+                      {MFG_STEPS.some(([s]) => dates[s]?.end) && (
+                        <div className="mt-0.5 flex flex-wrap gap-x-2 text-[10px] text-grey-600">
+                          {MFG_STEPS.filter(([s]) => dates[s]?.end).map(([s, label]) => (
+                            <span key={s} className="whitespace-nowrap">{label} <span className="font-number">{formatPoDate(dates[s]!.end!)}</span></span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                  ),
+                  // In Manufacturing until every piece has Quality Check; then Pending to Packing until sent on (here or on its page).
+                  mfgStatus: (
+                    <td key="mfgStatus" className="px-2 py-0.5">
+                      {!qcDone ? (
+                        <span className="whitespace-nowrap rounded-full bg-warning-transparent px-2 text-[11px] leading-5 text-grey-900">In Manufacturing</span>
+                      ) : wo ? (
+                        <StatusMenu
+                          label={`Manufacturing Status of ${wo.no || po.poNumber}`}
+                          value={sent ? "sent" : "pending"}
+                          options={[
+                            { value: "pending", label: "Pending to Packing", className: "border border-warning bg-warning-200 font-semibold text-grey-900" },
+                            { value: "sent", label: "Sent to Packing", className: "border border-success bg-success-200 font-semibold text-grey-900" },
+                          ]}
+                          onChange={(v) => void setPackingSent(po.id, wo.id, v === "sent")}
+                        />
+                      ) : (
+                        <span className="whitespace-nowrap text-[11px] text-grey-600">Through all steps</span>
+                      )}
+                      {sent && <div className="mt-0.5 text-[10px] text-grey-600">Sent <span className="font-number">{formatPoDate(sent)}</span></div>}
+                    </td>
+                  ),
                   woStatus: (
                     <td key="woStatus" className="px-2 py-0.5">
                       {wo && <StatusMenu label={`Production Work Order Status of ${wo.no || po.poNumber}`} value={woStatus(wo)} options={WO_STATUSES} onChange={(v) => void setWoStatus(po.id, wo.id, v as WorkOrderStatus)} />}

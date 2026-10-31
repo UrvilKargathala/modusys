@@ -25,6 +25,7 @@ import { usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
 import { useCurrentUser } from "@/lib/session";
 import { MFG_STEPS, asPoStatus, mostUsed, poStatusLabel, type ExtraHardware, type MfgStep, type PoMaterial, type PurchaseOrder } from "@/lib/purchase-order";
 import { PoHardwareSelect } from "@/components/purchase-orders/po-hardware-select";
+import { formatPoDate } from "@/components/purchase-orders/po-dates";
 import { cn } from "@/lib/utils";
 import { cutListHeaders, cutListRows, poDetailSections, psLabel } from "@/lib/purchase-order-export";
 
@@ -286,9 +287,9 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
   const stored = orders.find((o) => o.id === id);
   // Work Order: one of the PI's Work Orders (?wo=, else its first), with only the lines sent to it and its own page data; a PI from before
   // Send to Work Order has one, of all its lines.
-  // Manufacturing: with ?wo= one Work Order sent to Manufacturing (its lines and its own ticks); without, the whole PI as before.
-  const wo = useMemo(() => (stored && isProd ? (woId !== undefined ? workOrdersOf(stored).find((w) => w.id === woId) : workOrdersOf(stored)[0]) : stored && isMfg && woId !== undefined ? workOrdersOf(stored).find((w) => w.id === woId) : undefined), [stored, isProd, isMfg, woId]);
-  const po = useMemo(() => (stored && (isProd || (isMfg && woId !== undefined)) ? (wo ? workOrderView(stored, wo) : undefined) : stored), [stored, isProd, isMfg, woId, wo]);
+  // Manufacturing and Packing: with ?wo= one Work Order (its lines and its own ticks); without, the whole PI as before.
+  const wo = useMemo(() => (stored && isProd ? (woId !== undefined ? workOrdersOf(stored).find((w) => w.id === woId) : workOrdersOf(stored)[0]) : stored && woId !== undefined ? workOrdersOf(stored).find((w) => w.id === woId) : undefined), [stored, isProd, woId]);
+  const po = useMemo(() => (stored && (isProd || woId !== undefined) ? (wo ? workOrderView(stored, wo) : undefined) : stored), [stored, isProd, woId, wo]);
   const vendors = useAllVendors();
   const customers = useCustomers();
   const quotes = useQuotes();
@@ -353,6 +354,12 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
   const [edgeCodes, setEdgeCodes] = useState<NonNullable<PoMaterial["edgeBandCodes"]>>({});
   // Work Order: hardware added by hand on the Material Procurement tab.
   const [extraHw, setExtraHw] = useState<ExtraHardware[]>([]);
+  // Manufacturing: each step's end date, and the step whose end date is being asked (it has just been finished).
+  const [stepDates, setStepDates] = useState<NonNullable<PoMaterial["stepDates"]>>({});
+  const [askStep, setAskStep] = useState<MfgStep | null>(null);
+  const [askDate, setAskDate] = useState("");
+  // Manufacturing: the day it was sent on to Packing (once Quality Check is finished); unset = Pending to Packing.
+  const [packingSent, setPackingSent] = useState<string | undefined>(undefined);
   const SIDES = [["top", "Width-1"], ["bottom", "Width-2"], ["lh", "Height-1"], ["rh", "Height-2"]] as const;
   // Sides saved before the rename (Top / Bottom / LH / RH) read as Width-1 / Width-2 / Height-1 / Height-2.
   const LEGACY_SIDE: Record<string, string> = { Top: "Width-1", Bottom: "Width-2", LH: "Height-1", RH: "Height-2" };
@@ -387,6 +394,8 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
       setEdgeGrain(po.material.edgeBandGrain ?? {});
       setBandWidths(po.material.usedEdgeBand ?? {});
       setExtraHw(po.material.extraHardware ?? []);
+      setStepDates(po.material.stepDates ?? {});
+      setPackingSent(po.material.packingSent);
       // One empty Transport row is there from the start.
       setTransport(po.material.transport?.length ? po.material.transport : [{ name: "", lr: "", date: "", boxes: 0 }]);
       setSeeded(`${po.id}|${wo?.id ?? ""}`);
@@ -596,31 +605,57 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
     const steps = { ...x.steps, [step]: on };
     return { ...x, steps, done: MFG_STEPS.every(([s]) => steps[s]) };
   };
+  // Steps go in order: a piece's step can be ticked only once the step before it is, and un-ticked only while the next one isn't.
+  const stepAt = (step: MfgStep, d: -1 | 1) => MFG_STEPS[MFG_STEPS.findIndex(([s]) => s === step) + d]?.[0];
+  const canTick = (x: Piece, step: MfgStep, on: boolean) => {
+    const prev = stepAt(step, -1);
+    const next = stepAt(step, 1);
+    return on ? !prev || !!x.steps?.[prev] : !next || !x.steps?.[next];
+  };
+  // After a tick: a step that every piece now has is finished, so its end date is asked (today to start with); one no longer finished loses it.
+  const afterTicks = (next: Packing) => {
+    const all = rows.reduce((n, r) => n + qtyOf(r.cells), 0);
+    const finished = (p: Packing, step: MfgStep) => all > 0 && rows.reduce((n, r) => n + Array.from({ length: qtyOf(r.cells) }, (_, i) => p[r.key]?.pieces?.[i]).filter((x) => x?.steps?.[step]).length, 0) === all;
+    setStepDates((d) => Object.fromEntries(Object.entries(d).filter(([s]) => finished(next, s as MfgStep))));
+    // Only a step this tick finished is asked (one skipped before can get its date in its heading).
+    const ask = MFG_STEPS.find(([s]) => finished(next, s) && !finished(packing, s) && !stepDates[s]?.end)?.[0];
+    if (ask) {
+      setAskStep(ask);
+      setAskDate(new Date().toISOString().slice(0, 10));
+    }
+  };
   const setStep = (key: string, qty: number, k: number, step: MfgStep, on: boolean) => {
-    setPacking((p) => {
-      const cur = Array.from({ length: qty }, (_, i) => p[key]?.pieces?.[i] ?? { done: false, note: "" });
-      cur[k] = withStep(cur[k], step, on);
-      return { ...p, [key]: { pieces: cur } };
-    });
+    const cur = Array.from({ length: qty }, (_, i) => packing[key]?.pieces?.[i] ?? { done: false, note: "" });
+    if (!canTick(cur[k], step, on)) return;
+    cur[k] = withStep(cur[k], step, on);
+    const next = { ...packing, [key]: { pieces: cur } };
+    setPacking(next);
     setDirty(true);
+    afterTicks(next);
   };
-  // The tick in a step's heading: that step on (or off) for every piece of the rows shown.
+  // The tick in a step's heading: that step on (or off) for every piece of the rows shown that the order allows.
   const setStepAll = (step: MfgStep, on: boolean) => {
-    setPacking((p) => {
-      const next = { ...p };
-      for (const r of visibleRows) next[r.key] = { pieces: Array.from({ length: qtyOf(r.cells) }, (_, i) => withStep(p[r.key]?.pieces?.[i] ?? { done: false, note: "" }, step, on)) };
-      return next;
-    });
+    const next = { ...packing };
+    for (const r of visibleRows) next[r.key] = { pieces: Array.from({ length: qtyOf(r.cells) }, (_, i) => packing[r.key]?.pieces?.[i] ?? { done: false, note: "" }).map((x) => (canTick(x, step, on) ? withStep(x, step, on) : x)) };
+    setPacking(next);
     setDirty(true);
+    afterTicks(next);
   };
+  // A step starts when the one before it ended; Pressing on the day the Work Order went to Manufacturing.
+  const stepStart = (step: MfgStep) => {
+    const prev = stepAt(step, -1);
+    return prev ? stepDates[prev]?.end : wo?.mfgStart;
+  };
+  // Packing a Work Order: only its pieces with Quality Check ticked in Manufacturing are here; the rest are still being made.
+  const ready = (key: string, k: number) => !(isPack && wo) || !!po.material.manufacturing?.[key]?.pieces?.[k]?.steps?.qc;
   const stepCount = (step: MfgStep) => rows.reduce((n, r) => n + piecesOf(r.key, qtyOf(r.cells)).filter((x) => x.steps?.[step]).length, 0);
-  const totalQty = rows.reduce((n, r) => n + qtyOf(r.cells), 0);
+  const totalQty = rows.reduce((n, r) => n + Array.from({ length: qtyOf(r.cells) }, (_, k) => ready(r.key, k)).filter(Boolean).length, 0);
   type PieceLike = { done: boolean; seq?: number; tr?: number };
   const matches = (x: PieceLike) =>
     (filter === "all" || (filter === "pending" ? !x.done : x.done)) &&
     (!slipPick || (x.done && String(x.tr ?? 0) === slipPick)) &&
     (!boxPick || (x.done && String(x.seq ?? "") === boxPick));
-  const visibleRows = rows.filter((r) => piecesOf(r.key, qtyOf(r.cells)).some((x) => matches(x)));
+  const visibleRows = rows.filter((r) => piecesOf(r.key, qtyOf(r.cells)).some((x, k) => ready(r.key, k) && matches(x)));
   // Box numbers that exist for the picked slip (or for all slips).
   const boxNumbers = [...new Set(rows.flatMap((r) => piecesOf(r.key, qtyOf(r.cells))).filter((x) => x.done && x.seq && (!slipPick || String(x.tr ?? 0) === slipPick)).map((x) => x.seq as number))].sort((a, b) => a - b);
   const totalPacked = rows.reduce((n, r) => n + piecesOf(r.key, qtyOf(r.cells)).filter((x) => x.done).length, 0);
@@ -745,7 +780,7 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
         const m = withWorkOrder(stored!, wo!.id, { no: woNoShown.trim(), date: woDateShown, state: { production: packing, edgeBandCombos: edgeCombos, edgeBandColours: edgeColours, edgeBandSides: edgeSides, edgeBandCodes: edgeCodes, edgeBandGrain: edgeGrain, usedEdgeBand: bandWidths, extraHardware: extraHw } });
         return { ...m, ...ref };
       };
-      await purchaseOrdersStore.update(po.id, { material: isProd ? woMaterial() : isMfg ? (wo ? { ...withWorkOrder(stored!, wo.id, { state: { manufacturing: packing } }), ...ref } : { ...po.material, ...ref, manufacturing: packing }) : { ...po.material, ...ref, packing, transport } });
+      await purchaseOrdersStore.update(po.id, { material: isProd ? woMaterial() : isMfg ? (wo ? { ...withWorkOrder(stored!, wo.id, { state: { manufacturing: packing, stepDates, packingSent } }), ...ref } : { ...po.material, ...ref, manufacturing: packing, stepDates, packingSent }) : (wo ? { ...withWorkOrder(stored!, wo.id, { state: { packing, transport } }), ...ref } : { ...po.material, ...ref, packing, transport }) });
       setDirty(false);
       toastStore.show(isProd ? "Work order saved" : isMfg ? "Manufacturing saved" : "Packing saved", "success");
       return true;
@@ -768,7 +803,7 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="font-heading text-2xl font-semibold text-grey-900">{pageTitle}{isProd && woNoShown ? <> <span className="font-number">{woNoShown}</span></> : isMfg && wo?.no ? <> <span className="font-number">{wo.no}</span></> : null} <span className="font-number text-lg font-normal text-grey-600">({po.poNumber})</span></h1>
+            <h1 className="font-heading text-2xl font-semibold text-grey-900">{pageTitle}{isProd && woNoShown ? <> <span className="font-number">{woNoShown}</span></> : wo?.no ? <> <span className="font-number">{wo.no}</span></> : null} <span className="font-number text-lg font-normal text-grey-600">({po.poNumber})</span></h1>
             <p className="text-sm font-body text-grey-500">Status: {poStatusLabel(asPoStatus(po.status))}. {isProd ? "Edge band, cut list and the material to buy for this order." : isMfg ? "Tick each step as a piece passes it; only the ticks and notes can be changed." : "Only the packed ticks and notes can be changed."}</p>
           </div>
         </div>
@@ -776,6 +811,16 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => router.push(base)}>
             <X className="h-4 w-4" /> {dirty ? "Cancel" : "Close"}
           </Button>
+          {/* Manufacturing: once every piece has Quality Check it is Pending to Packing until sent on (saved with Save). */}
+          {isMfg && totalQty > 0 && stepCount("qc") === totalQty && (
+            packingSent ? (
+              <span className="rounded-full bg-success-transparent px-2.5 py-1 text-xs font-body font-semibold text-success">Sent to Packing <span className="font-number">{formatPoDate(packingSent)}</span></span>
+            ) : (
+              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => { setPackingSent(new Date().toISOString().slice(0, 10)); setDirty(true); }} title="Pending to Packing">
+                <Boxes className="h-4 w-4" /> Send to Packing
+              </Button>
+            )
+          )}
           {/* A Work Order can always be saved (it keeps its number and date even with nothing else changed). */}
           <Button type="button" size="sm" disabled={busy || (!dirty && !isProd)} onClick={async () => { if (await save()) router.push(base); }}>
             <Save className="h-4 w-4" /> {busy ? "Saving…" : "Save"}
@@ -809,6 +854,52 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
               </table>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* Manufacturing: a step was just finished (its last piece ticked): when did it end? Saved with the page's Save. */}
+      <Dialog open={askStep !== null} onOpenChange={(o) => !o && setAskStep(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{MFG_STEPS.find(([s]) => s === askStep)?.[1]} finished</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1.5 text-sm font-body text-grey-700">
+              End date
+              <Input type="date" value={askDate} onChange={(e) => setAskDate(e.target.value)} className="font-number" />
+            </label>
+            {askStep === "qc" ? (
+              <p className="text-xs font-body text-grey-500">Every piece is through Quality Check. Send it on to Packing & Dispatch now? If not, it stays Pending to Packing.</p>
+            ) : (
+              <p className="text-xs font-body text-grey-500">The next step starts on this date.</p>
+            )}
+            <div className="flex justify-end gap-2">
+              {askStep === "qc" ? (
+                <>
+                  <Button type="button" variant="outline" disabled={!askDate} onClick={() => { setStepDates((d) => ({ ...d, qc: { end: askDate } })); setDirty(true); setAskStep(null); }}>
+                    Not now
+                  </Button>
+                  <Button type="button" disabled={!askDate} onClick={() => { setStepDates((d) => ({ ...d, qc: { end: askDate } })); setPackingSent(askDate); setDirty(true); setAskStep(null); }}>
+                    Send to Packing
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button type="button" variant="outline" onClick={() => setAskStep(null)}>Skip</Button>
+                  <Button
+                    type="button"
+                    disabled={!askDate}
+                    onClick={() => {
+                      if (askStep) setStepDates((d) => ({ ...d, [askStep]: { end: askDate } }));
+                      setDirty(true);
+                      setAskStep(null);
+                    }}
+                  >
+                    Save date
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
       <ConfirmDialog
@@ -1098,15 +1189,26 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
               {/* Manufacturing: a column per step; the heading's tick does that step for every piece shown. */}
               {isMfg && MFG_STEPS.map(([step, label]) => {
                 const n = stepCount(step);
+                const allOn = totalQty > 0 && n === totalQty;
+                // The heading tick works only where the order allows it (e.g. Cutting once Pressing is ticked).
+                const canAll = visibleRows.some((r) => piecesOf(r.key, qtyOf(r.cells)).some((x) => !!x.steps?.[step] !== !allOn && canTick(x, step, !allOn)));
+                const start = stepStart(step);
                 return (
                   <th key={step} className="whitespace-nowrap border border-grey-100 px-2 py-2 text-center font-semibold">
-                    <label className="flex flex-col items-center gap-1">
+                    <div className="flex flex-col items-center gap-1">
                       <span>{label}</span>
                       <span className="flex items-center gap-1 font-number text-[11px] font-normal text-grey-600">
-                        <input type="checkbox" aria-label={`${label} for every piece shown`} checked={totalQty > 0 && n === totalQty} onChange={(e) => setStepAll(step, e.target.checked)} className="h-3.5 w-3.5 accent-primary" />
+                        <input type="checkbox" aria-label={`${label} for every piece shown`} checked={allOn} disabled={!canAll} onChange={(e) => setStepAll(step, e.target.checked)} className="h-3.5 w-3.5 accent-primary disabled:opacity-40" />
                         {n}/{totalQty}
                       </span>
-                    </label>
+                      <span className="font-number text-[10px] font-normal text-grey-600" title="Start date: when the step before it ended">Start {start ? formatPoDate(start) : "—"}</span>
+                      <span className="flex items-center gap-1 font-number text-[10px] font-normal text-grey-600">
+                        End
+                        {stepDates[step]?.end || allOn ? (
+                          <input type="date" aria-label={`${label} end date`} value={stepDates[step]?.end ?? ""} onChange={(e) => { const end = e.target.value; setStepDates((d) => ({ ...d, [step]: { end } })); setDirty(true); }} className="h-5 w-[104px] rounded border border-grey-100 bg-white px-1 font-number text-[10px]" />
+                        ) : "—"}
+                      </span>
+                    </div>
                   </th>
                 );
               })}
@@ -1216,7 +1318,7 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
                       <div className="flex flex-col items-center gap-1">
                         {pieces.map((pc, k) => (
                           <div key={k} className="flex h-7 items-center">
-                            <input type="checkbox" aria-label={`Piece ${k + 1} of row ${cells[0]} ${label}`} checked={!!pc.steps?.[step]} onChange={(e) => setStep(key, qty, k, step, e.target.checked)} className="h-4 w-4 accent-primary" />
+                            <input type="checkbox" aria-label={`Piece ${k + 1} of row ${cells[0]} ${label}`} checked={!!pc.steps?.[step]} disabled={!canTick(pc, step, !pc.steps?.[step])} title={canTick(pc, step, !pc.steps?.[step]) ? undefined : pc.steps?.[step] ? "Un-tick the next step first" : "Tick the step before this first"} onChange={(e) => setStep(key, qty, k, step, e.target.checked)} className="h-4 w-4 accent-primary disabled:cursor-not-allowed disabled:opacity-40" />
                           </div>
                         ))}
                       </div>
@@ -1237,7 +1339,7 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
                   {isPack && (
                   <td className="border border-grey-100 px-2 py-1">
                     <div className="flex flex-col gap-1">
-                      {pieces.map((pc, k) => ({ pc, k })).filter(({ pc }) => matches(pc)).map(({ pc, k }) => (
+                      {pieces.map((pc, k) => ({ pc, k })).filter(({ pc, k }) => ready(key, k) && matches(pc)).map(({ pc, k }) => (
                         <div key={k} className="flex items-center gap-2">
                           <input type="checkbox" aria-label={`Piece ${k + 1} of row ${cells[0]} packed`} checked={pc.done} onChange={(e) => setPiece(key, qty, k, { done: e.target.checked })} className="h-4 w-4 accent-primary" />
                           {pc.done && pc.seq ? <span className="whitespace-nowrap text-center font-number text-[11px] font-semibold text-primary">{pc.seq} · {psLabel(po.poNumber, pc.tr ?? 0)}</span> : null}
