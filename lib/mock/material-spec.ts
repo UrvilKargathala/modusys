@@ -45,7 +45,10 @@ export type MaterialCategoryKey =
   | "proforma-dealer-area"
   | "proforma-sales-person"
   | "proforma-transport"
-  | "proforma-finish-rule";
+  | "proforma-finish-rule"
+  // City / State lists of the Customer, Architect, Vendor and Dealer forms (not shown in Material Spec)
+  | "city"
+  | "state";
 
 export type MaterialCategory = {
   key: MaterialCategoryKey;

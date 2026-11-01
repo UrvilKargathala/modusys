@@ -27,6 +27,7 @@ import {
   CircleCheck,
   CircleX,
   FilePen,
+  Store,
 } from "lucide-react";
 
 // `roles` is an explicit whitelist. Undefined = visible to everyone.
@@ -67,8 +68,11 @@ export const navigationItems: NavItem[] = [
   { label: "Production Work Order", href: "/proforma-invoices/production", icon: Ruler, roles: ADMIN_UP, group: "Production Planning", factory: true },
   { label: "Manufacturing", href: "/proforma-invoices/manufacturing", icon: Hammer, roles: ADMIN_UP, group: "Manufacturing & Dispatch", factory: true },
   { label: "Packing & Dispatch", href: "/proforma-invoices/packing", icon: Truck, roles: ADMIN_UP, group: "Manufacturing & Dispatch", factory: true },
-  { label: "Customers", href: "/customers", icon: Contact, group: "Contacts" },
-  { label: "Architects", href: "/architects", icon: Building2, group: "Contacts" },
+  { label: "Customer Master", href: "/customers", icon: Contact, group: "Masters" },
+  { label: "Architect Master", href: "/architects", icon: Building2, group: "Masters" },
+  // The Vendors / Dealers tabs of Purchase Orders and Proforma Invoices, as their own pages too.
+  { label: "Vendor Master", href: "/vendors", icon: Store, roles: ADMIN_UP, group: "Masters" },
+  { label: "Dealer Master", href: "/dealers", icon: Store, roles: ADMIN_UP, group: "Masters", factory: true },
   { label: "Templates", href: "/templates", icon: LayoutTemplate, roles: ADMIN_UP },
 ];
 

@@ -532,7 +532,8 @@ export function UnitsSection({
       )}
 
       {bare && units.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        // Requirement Order (send): the whole row in 12px.
+        <div className={`flex flex-wrap items-center justify-between gap-2 ${send ? "[&_*]:!text-xs" : ""}`}>
           <div className="flex w-fit rounded-lg border border-grey-100 p-0.5" role="tablist" aria-label="Show">
             {([["units", "All Units", units.length], ["carcass", "Carcass", furnCount("carcass")], ["shutter", "Shutter", furnCount("shutter")], ["panel", "Other Panel", furnCount("panel")], ["hardware", "Hardware", hardwareCount], ["merge", "Merge Hardware", merged.length], ["pending", "Rate Pending", pendingCount]] as const).map(([k, label, n]) => (
               <button

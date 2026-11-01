@@ -8,6 +8,7 @@ import { Plus, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { PlaceSelect } from "@/components/shared/place-select";
 import { Input } from "@/components/ui/input";
 import type { Vendor } from "@/lib/purchase-order";
 import { SelectField } from "@/components/shared/select-field";
@@ -125,11 +126,11 @@ export function VendorFormDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="v-city">City</Label>
-              <Input id="v-city" {...register("city")} />
+              <PlaceSelect kind="city" value={watch("city") ?? ""} onChange={(v) => setValue("city", v, { shouldDirty: true })} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="v-state">State</Label>
-              <Input id="v-state" placeholder="e.g. Maharashtra" {...register("state")} />
+              <PlaceSelect kind="state" value={watch("state") ?? ""} onChange={(v) => setValue("state", v, { shouldDirty: true })} />
             </div>
           </div>
           <div className="flex flex-col gap-1.5">

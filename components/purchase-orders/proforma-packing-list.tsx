@@ -153,9 +153,19 @@ export function ProformaPackingList({ mode = "packing", proforma = true }: { mod
     }
   };
 
+  const searchBox = (
+    // Right end of its row; gives up some width (down to 160 px) before it would wrap under the tabs.
+    <div className="relative ml-auto w-72 min-w-40 shrink">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
+      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={woRows ? "Search work order no, PI no, dealer" : proforma ? "Search PI no, dealer" : "Search PO no, vendor"} className="h-9 w-full rounded-lg border border-grey-100 bg-card pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary" />
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-4">
+      {/* Production Work Order: the status tabs, with the search on the same line on the right. */}
       {woRows && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex w-fit rounded-lg border border-grey-100 bg-card p-0.5" role="tablist" aria-label="Production Work Order Status">
           {([["all", "All"], ...WO_STATUSES.map((s) => [s.value, s.label])] as [string, string][]).map(([k, label]) => (
             <button key={k} type="button" role="tab" aria-selected={woTab === k} onClick={() => setWoTab(k as typeof woTab)} className={cn("rounded-md px-3 py-1 text-sm font-body font-medium", woTab === k ? "bg-blush font-semibold text-grey-900" : "text-grey-600 hover:bg-light-600")}>
@@ -163,14 +173,13 @@ export function ProformaPackingList({ mode = "packing", proforma = true }: { mod
             </button>
           ))}
         </div>
+        {searchBox}
+        </div>
       )}
+      {(!woRows || listCols.customized) && (
       <div className="flex items-center justify-between gap-3">
-      <div className="flex flex-wrap items-center gap-3">
-      <div className="relative w-72">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={woRows ? "Search work order no, PI no, dealer" : proforma ? "Search PI no, dealer" : "Search PO no, vendor"} className="h-9 w-full rounded-lg border border-grey-100 bg-card pl-9 pr-3 text-sm font-body text-grey-900 outline-none focus:border-primary" />
-      </div>
-      {/* Manufacturing: filter by the last step each work order has reached. */}
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+      {/* Manufacturing: filter by the last step each work order has reached. The search sits at the right end of the row. */}
       {isMfg && (
         <div className="flex flex-wrap rounded-lg border border-grey-100 bg-card p-0.5" role="tablist" aria-label="Manufacturing process">
           {([["all", "All"], ["none", "Not Started"], ...MFG_STEPS] as [string, string][]).map(([k, label]) => (
@@ -180,11 +189,13 @@ export function ProformaPackingList({ mode = "packing", proforma = true }: { mod
           ))}
         </div>
       )}
+      {!woRows && searchBox}
       </div>
       {listCols.customized && (
         <button type="button" onClick={listCols.reset} className="text-xs font-body text-primary hover:underline">Reset columns</button>
       )}
       </div>
+      )}
       {rows.length === 0 ? (
         <EmptyState icon={PackageCheck} message={woRows ? (allRows.length ? "No work orders with this status." : "No production work orders yet. Tick lines on a proforma invoice and use Send to Work Order.") : isMfg && proforma && allRows.length ? "No work orders at this step." : isMfg && proforma ? "Nothing in Manufacturing yet. Set a Production Work Order's status to Send to Manufacturing and it appears here." : proforma ? "Nothing to pack yet. A work order appears here once it is sent to Packing from Manufacturing (or an older invoice is set to Packing)." : `No ${proforma ? "proforma invoices" : "purchase orders"} in ${title}. Change ${proforma ? "an invoice's" : "an order's"} status to ${isProd || isMfg ? "In Production" : "Packing"} and it appears here.`} />
       ) : (

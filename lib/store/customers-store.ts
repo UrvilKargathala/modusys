@@ -6,8 +6,8 @@ import { mockCustomers, type Customer } from "@/lib/mock/pipeline";
 // Backed by the shared PostgreSQL database via /api/customers. The merged
 // Customer table holds both the pipeline fields and the profile fields
 // (email/phone/gst/city…) — POST/PATCH persist all of it directly. The one
-// remaining exception is architectId, which has no Customer column yet and
-// still lives in the client-only profileOverridesStore.
+// architectId is a Customer column too (older ones may still sit only in the
+// client-only profileOverridesStore, read as a fallback).
 
 let all: Customer[] = mockCustomers;
 let hydrated = false;
@@ -70,6 +70,7 @@ export type NewCustomerInput = {
   birthdayMonth: string;
   birthdayDay: string;
   birthdayYear: string;
+  architectId?: string;
   createdById: string;
 };
 

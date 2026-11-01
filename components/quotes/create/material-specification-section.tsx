@@ -196,7 +196,7 @@ export function MaterialSpecificationSection({
       )}
 
       {bare && (
-        <SpecTable>
+        <SpecTable borderless>
               <tr>
                 <L required>Product Type</L>
                 <V>

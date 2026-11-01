@@ -25,6 +25,29 @@ function apply(table: HTMLTableElement, ths: HTMLTableCellElement[], rawWidths: 
   });
 }
 
+// The narrowest each column may be: wide enough for the dropdowns and buttons in it (a status pill is never cut off; text still ends in "…").
+function floors(table: HTMLTableElement, n: number) {
+  const out = new Array<number>(n).fill(MIN);
+  for (const row of Array.from(table.tBodies).flatMap((b) => Array.from(b.rows))) {
+    if (row.cells.length !== n) continue;
+    Array.from(row.cells).forEach((td, i) => {
+      const cs = getComputedStyle(td);
+      const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+      // Only a control whose content no longer fits (it is being cut off) sets a floor, so full-width dropdowns can still be narrowed.
+      // A control that shortens itself with "…" on purpose (the Material / Vendor pickers) is left alone.
+      td.querySelectorAll("button").forEach((b) => { if (b.scrollWidth > b.clientWidth + 1 && getComputedStyle(b).textOverflow !== "ellipsis") out[i] = Math.max(out[i], Math.ceil(b.scrollWidth + pad)); });
+    });
+  }
+  return out;
+}
+
+// Widen any saved column that has become too narrow for its controls (rows load after the widths are applied, so this runs on every scan).
+function widenToFit(table: HTMLTableElement, ths: HTMLTableCellElement[]) {
+  const widths = ths.map((th) => parseFloat(th.style.width) || MIN);
+  const min = floors(table, ths.length);
+  if (widths.some((w, i) => w < min[i])) apply(table, ths, widths.map((w, i) => Math.max(w, min[i])));
+}
+
 // Back to automatic widths (the saved ones are kept).
 function clear(table: HTMLTableElement, ths: HTMLTableCellElement[]) {
   table.classList.remove("col-fixed");
@@ -80,6 +103,9 @@ function enhance(table: HTMLTableElement, path: string) {
       const up = () => {
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", up);
+        const min = floors(table, ths.length);
+        latest = latest.map((w, j) => Math.max(w, min[j]));
+        apply(table, ths, latest);
         try { window.localStorage.setItem(key, JSON.stringify(latest)); } catch { /* widths just aren't kept */ }
       };
       window.addEventListener("pointermove", move);
@@ -96,6 +122,7 @@ function enhance(table: HTMLTableElement, path: string) {
       if (Array.isArray(saved) && saved.length === ths.length && saved.every((n) => typeof n === "number" && n >= MIN)) apply(table, ths, saved);
     } catch { /* ignore */ }
   }
+  if (table.classList.contains("col-fixed")) widenToFit(table, ths);
 }
 
 export function ResizableTables() {

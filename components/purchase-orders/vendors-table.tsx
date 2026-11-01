@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Pencil, Trash2, Plus, Store } from "lucide-react";
+import { Search, Pencil, Trash2, Plus, Store, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -29,7 +29,31 @@ export function VendorsTable({ dealers = false }: { dealers?: boolean }) {
     const q = search.toLowerCase();
     return vendors.filter((v) => `${v.name} ${v.code ?? ""} ${v.city} ${v.state} ${v.gst} ${(v.emails ?? []).join(" ")}`.toLowerCase().includes(q));
   }, [vendors, search]);
-  const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(filtered);
+  // Every column but Action sorts on click: A→Z, then Z→A, then back to the saved order (numbers in order, case ignored).
+  const cols: [string, (v: Vendor) => string][] = [
+    [word, (v) => v.name],
+    ["Code", (v) => v.code ?? ""],
+    ...(dealers ? ([["Category", (v) => v.category ?? ""], ["Area", (v) => v.area ?? ""], ["Sales Person", (v) => v.salesPerson ?? ""]] as [string, (v: Vendor) => string][]) : []),
+    ["City / State", (v) => [v.city, v.state].filter(Boolean).join(", ")],
+    ["GST No", (v) => v.gst ?? ""],
+    ["Contact", (v) => v.contacts.map((c) => [c.name, c.phone].filter(Boolean).join(": ")).join(" · ")],
+    ["Email", (v) => (v.emails ?? []).join(", ")],
+  ];
+  const [sort, setSort] = useState<{ col: string; desc: boolean } | null>(null);
+  const sorted = useMemo(() => {
+    const get = sort && cols.find(([h]) => h === sort.col)?.[1];
+    if (!get) return filtered;
+    // Blanks always last.
+    return [...filtered].sort((a, b) => {
+      const x = get(a), y = get(b);
+      if (!x || !y) return x ? -1 : y ? 1 : 0;
+      const c = x.localeCompare(y, undefined, { sensitivity: "base", numeric: true });
+      return sort.desc ? -c : c;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, sort, dealers]);
+  const toggleSort = (col: string) => setSort((s) => (s?.col !== col ? { col, desc: false } : !s.desc ? { col, desc: true } : null));
+  const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(sorted);
 
   const add = async (values: Parameters<typeof vendorsStore.createVendor>[0]) => {
     try {
@@ -61,15 +85,19 @@ export function VendorsTable({ dealers = false }: { dealers?: boolean }) {
       {filtered.length === 0 ? (
         <EmptyState icon={Store} message={dealers ? "No dealers yet. Add one to start creating proforma invoices." : "No vendors yet. Add one to start creating purchase orders."} cta={{ label: `Add ${word}`, onClick: () => setAddOpen(true) }} />
       ) : (
-        <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 [&_tbody_tr]:h-8 [&_td]:align-middle">
+        <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 [&_tbody_tr]:h-6 [&_td]:align-middle">
           <table className="w-full text-left">
             <thead className="bg-[var(--table-head)]">
               <tr>
-                {(dealers ? [word, "Code", "Category", "Area", "Sales Person", "City / State", "GST No", "Contact", "Email", ""] : [word, "Code", "City / State", "GST No", "Contact", "Email", ""]).map((h) => (
-                  <th key={h} className="px-2 py-1 text-xs font-body font-semibold uppercase tracking-wide text-grey-900">
-                    {h}
+                {cols.map(([h]) => (
+                  <th key={h} className="px-2 py-1 whitespace-nowrap text-xs font-body font-semibold text-grey-900">
+                    <button type="button" onClick={() => toggleSort(h)} className="flex items-center gap-1 whitespace-nowrap font-semibold text-grey-900 hover:text-grey-700">
+                      {h}
+                      {sort?.col !== h ? <ArrowUpDown className="h-3 w-3 text-grey-300" /> : sort.desc ? <ArrowDown className="h-3 w-3 text-primary" /> : <ArrowUp className="h-3 w-3 text-primary" />}
+                    </button>
                   </th>
                 ))}
+                <th className="px-2 py-1 whitespace-nowrap text-xs font-body font-semibold text-grey-900">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -96,9 +124,9 @@ export function VendorsTable({ dealers = false }: { dealers?: boolean }) {
                         <TooltipTrigger
                           aria-label="Edit"
                           onClick={() => setEditTarget(v)}
-                          className="rounded-md p-1 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                          className="rounded-md p-0.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="h-3.5 w-3.5" />
                         </TooltipTrigger>
                         <TooltipContent>Edit</TooltipContent>
                       </Tooltip>
@@ -107,9 +135,9 @@ export function VendorsTable({ dealers = false }: { dealers?: boolean }) {
                           <TooltipTrigger
                             aria-label="Delete"
                             onClick={() => setDeleteTarget(v)}
-                            className="rounded-md p-1 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
+                            className="rounded-md p-0.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </TooltipTrigger>
                           <TooltipContent>Delete</TooltipContent>
                         </Tooltip>

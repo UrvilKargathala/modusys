@@ -34,7 +34,7 @@ function StageBadge({ stage }: { stage: Customer["stage"] }) {
   const colors = stageColorTokens[meta.color];
   return (
     <span
-      className="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-body font-semibold"
+      className="inline-flex w-fit items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-body font-semibold"
       style={{ backgroundColor: colors.light, color: colors.solid }}
     >
       {meta.label}
@@ -43,7 +43,7 @@ function StageBadge({ stage }: { stage: Customer["stage"] }) {
 }
 
 function NameCell({ customer }: { customer: Customer }) {
-  return <span className="font-body text-sm text-grey-900">{customer.name}</span>;
+  return <span className="whitespace-nowrap font-body text-xs text-grey-900">{customer.name}</span>;
 }
 
 export function CustomersTable() {
@@ -66,8 +66,18 @@ export function CustomersTable() {
 
   const columns = useMemo<ColumnDef<Customer>[]>(
     () => [
+      {
+        id: "code",
+        header: "Customer Code",
+        accessorFn: (c) => c.srNo ?? 0,
+        cell: ({ row }) => {
+          const c = row.original;
+          return <span className="whitespace-nowrap font-number text-xs text-grey-700">{c.srNo ? `${String(c.srNo).padStart(4, "0")}${c.customerCode ? `-${c.customerCode}` : ""}` : "—"}</span>;
+        },
+      },
+      { accessorKey: "prefix", header: "Prefix", cell: ({ row }) => <span className="text-xs text-grey-700">{row.original.prefix}</span> },
       { accessorKey: "name", header: "Name", cell: ({ row }) => <NameCell customer={row.original} /> },
-      { accessorKey: "address", header: "Address", cell: ({ row }) => <span className="text-sm"><Nums>{row.original.address}</Nums></span> },
+      { accessorKey: "address", header: "Address", cell: ({ row }) => <span className="text-xs"><Nums>{row.original.address}</Nums></span> },
       {
         accessorKey: "stage",
         header: "Stage",
@@ -75,7 +85,7 @@ export function CustomersTable() {
       },
       {
         id: "actions",
-        header: "",
+        header: "Action",
         cell: ({ row }) => {
           const customer = row.original;
           return (
@@ -84,7 +94,7 @@ export function CustomersTable() {
                 <TooltipTrigger
                   aria-label="View"
                   onClick={() => customerPanelStore.open(customer.id, { showActivity: false })}
-                  className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                  className="rounded-md p-1 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
                 >
                   <Eye className="h-4 w-4" />
                 </TooltipTrigger>
@@ -96,7 +106,7 @@ export function CustomersTable() {
                   <TooltipTrigger
                     aria-label="Edit"
                     onClick={() => setEditTarget(customer)}
-                    className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                    className="rounded-md p-1 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
                   >
                     <Pencil className="h-4 w-4" />
                   </TooltipTrigger>
@@ -109,7 +119,7 @@ export function CustomersTable() {
                   <TooltipTrigger
                     aria-label="Delete"
                     onClick={() => setDeleteTarget(customer)}
-                    className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
+                    className="rounded-md p-1 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
                   >
                     <Trash2 className="h-4 w-4" />
                   </TooltipTrigger>
@@ -185,13 +195,13 @@ export function CustomersTable() {
                     return (
                       <th
                         key={header.id}
-                        className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900"
+                        className="whitespace-nowrap px-2 py-1.5 text-xs font-body font-semibold text-grey-900"
                       >
                         {canSort ? (
                           <button
                             type="button"
                             onClick={header.column.getToggleSortingHandler()}
-                            className="flex items-center gap-1 uppercase tracking-wide font-semibold text-grey-900 hover:text-grey-700"
+                            className="flex items-center gap-1 whitespace-nowrap font-semibold text-grey-900 hover:text-grey-700"
                           >
                             {rendered}
                             {sorted === "asc" ? (
@@ -215,7 +225,7 @@ export function CustomersTable() {
               {pagedRows.map((row) => (
                 <tr key={row.id} className="border-t border-grey-100">
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3">
+                    <td key={cell.id} className="px-2 py-1">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -232,7 +242,7 @@ export function CustomersTable() {
         open={addOpen}
         onOpenChange={setAddOpen}
         onSubmit={async (values) => {
-          const created = await customersStore.createCustomer({
+          await customersStore.createCustomer({
             prefix: values.prefix,
             firstName: values.firstName,
             lastName: values.lastName,
@@ -247,11 +257,9 @@ export function CustomersTable() {
             birthdayMonth: values.birthdayMonth,
             birthdayDay: values.birthdayDay,
             birthdayYear: values.birthdayYear,
+            architectId: values.architectId,
             createdById: CURRENT_USER_ID,
           });
-          if (created?.id && values.architectId) {
-            profileOverridesStore.setFields(created.id, { architectId: values.architectId });
-          }
           toastStore.show(`${values.firstName} ${values.lastName} added`, "success");
         }}
       />
@@ -280,10 +288,10 @@ export function CustomersTable() {
               birthdayMonth: values.birthdayMonth,
               birthdayDay: values.birthdayDay,
               birthdayYear: values.birthdayYear,
-            });
-            // architectId has no Customer column yet — stays client-only.
-            profileOverridesStore.setFields(editTarget.id, {
               architectId: values.architectId,
+            });
+            // Edit metadata (who/when) still stays client-only — no DB column for it.
+            profileOverridesStore.setFields(editTarget.id, {
               updatedAt: new Date().toISOString(),
               updatedById: CURRENT_USER_ID,
             });

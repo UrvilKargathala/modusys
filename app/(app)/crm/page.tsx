@@ -11,7 +11,6 @@ import { TasksTab } from "@/components/crm/tasks/tasks-tab";
 import { CustomerFormDialog } from "@/components/customers/customer-form-dialog";
 import { customersStore } from "@/lib/store/customers-store";
 import { useArchitects } from "@/lib/store/architects-store";
-import { profileOverridesStore } from "@/lib/store/customer-profile-overrides-store";
 import { CURRENT_USER_ID, getCurrentUser } from "@/lib/session";
 import { toastStore } from "@/lib/store/toast-store";
 import { useTasks, visibleTasks } from "@/lib/store/tasks-store";
@@ -108,7 +107,7 @@ function CrmPageContent() {
         open={addOpen}
         onOpenChange={setAddOpen}
         onSubmit={async (values) => {
-          const created = await customersStore.createCustomer({
+          await customersStore.createCustomer({
             prefix: values.prefix,
             firstName: values.firstName,
             lastName: values.lastName,
@@ -123,11 +122,9 @@ function CrmPageContent() {
             birthdayMonth: values.birthdayMonth,
             birthdayDay: values.birthdayDay,
             birthdayYear: values.birthdayYear,
+            architectId: values.architectId,
             createdById: CURRENT_USER_ID,
           });
-          if (created?.id && values.architectId) {
-            profileOverridesStore.setFields(created.id, { architectId: values.architectId });
-          }
           toastStore.show(`${values.firstName} ${values.lastName} added`, "success");
         }}
       />

@@ -11,6 +11,8 @@ import { UserPicker } from "@/components/crm/tasks/user-picker";
 import { StatusPicker } from "@/components/quotes/create/status-picker";
 import { SpecTable, L, V } from "@/components/quotes/create/spec-table";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useCustomers } from "@/lib/store/customers-store";
+import { profileOverridesStore } from "@/lib/store/customer-profile-overrides-store";
 import { remarkWithStatusNote, type StatusKey } from "@/lib/status";
 import type { Quote } from "@/lib/mock/quote";
 import { cn } from "@/lib/utils";
@@ -72,6 +74,13 @@ export function ClientDetailsSection({
     [confirmChanges, onChange]
   );
 
+  // Picking a customer brings in the architect set on that customer (Add/Edit Customer); one without an architect leaves the quote's as it is.
+  const customers = useCustomers();
+  const pickCustomer = (id: string) => {
+    const architectId = id && (customers.find((c) => c.id === id)?.architectId || profileOverridesStore.getSnapshot()[id]?.architectId);
+    confirmChange("Customer", { customerId: id || null, ...(architectId ? { architectId } : {}) });
+  };
+
   return (
     <section className={cn("flex flex-col gap-6 quote-form", !bare && "rounded-xl border border-blush bg-blush", !bare && (collapsed ? "p-4" : "p-6"))}>
       {!bare && (
@@ -90,7 +99,7 @@ export function ClientDetailsSection({
       <div className={cn("flex flex-col gap-4", collapsed && "hidden")}>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Field label="Customer Name" required>
-            <CustomerPicker value={quote.customerId ?? ""} onChange={(id) => confirmChange("Customer", { customerId: id || null })} />
+            <CustomerPicker value={quote.customerId ?? ""} onChange={pickCustomer} />
             {quote.customerId && <CustomerReadOnlyDetails customerId={quote.customerId} />}
           </Field>
 
@@ -176,11 +185,11 @@ export function ClientDetailsSection({
       )}
 
       {bare && (
-        <SpecTable>
+        <SpecTable borderless>
           <tr>
             <L required>Customer Name</L>
             <V>
-              <CustomerPicker value={quote.customerId ?? ""} onChange={(id) => confirmChange("Customer", { customerId: id || null })} />
+              <CustomerPicker value={quote.customerId ?? ""} onChange={pickCustomer} />
               {quote.customerId && <div className="mt-1"><CustomerReadOnlyDetails customerId={quote.customerId} /></div>}
             </V>
             <L required>Architect Name</L>

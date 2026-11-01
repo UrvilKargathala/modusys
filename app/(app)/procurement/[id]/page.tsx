@@ -134,10 +134,14 @@ export default function ProcurementEditorPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      <QuoteInfoStrip quote={quote} />
+      {/* Info strip in 14px, status pill included. */}
+      <div className="[&_*]:!text-sm">
+        <QuoteInfoStrip quote={quote} />
+      </div>
 
       <div className="rounded-xl border border-grey-100 bg-card">
-        <div className="sticky top-[calc(var(--quote-header-h,0px)-1rem)] z-10 flex items-center justify-between gap-3 rounded-t-xl border-b border-grey-100 bg-card px-3">
+        {/* Tabs and the Expand / Collapse / Add Unit buttons in 14px. */}
+        <div className="sticky top-[calc(var(--quote-header-h,0px)-1rem)] z-10 flex items-center justify-between gap-3 rounded-t-xl border-b border-grey-100 bg-card px-3 [&_*]:!text-sm">
           <div role="tablist" className="flex gap-1 overflow-x-auto">
             {TABS.map(({ key, label, icon: Icon }) => (
               <button

@@ -25,7 +25,7 @@ import { TablePagination, usePagination } from "@/components/shared/table-pagina
 
 function NameCell({ architect, isDuplicate }: { architect: Architect; isDuplicate: boolean }) {
   return (
-    <span className="flex items-center gap-1.5 font-body text-sm text-grey-900">
+    <span className="flex items-center gap-1.5 font-body text-xs text-grey-900">
       {fullName(architect)}
       {isDuplicate && (
         <Tooltip>
@@ -82,16 +82,16 @@ export function ArchitectsTable() {
           <NameCell architect={row.original} isDuplicate={duplicateNames.has(fullName(row.original).toLowerCase())} />
         ),
       },
-      { accessorKey: "company", header: "Company", cell: ({ row }) => <span className="text-sm">{row.original.company}</span> },
+      { accessorKey: "company", header: "Company", cell: ({ row }) => <span className="text-xs">{row.original.company}</span> },
       {
         id: "mobile",
         accessorFn: (a) => a.mobile,
         header: "Mobile",
-        cell: ({ row }) => <span className="font-number text-sm">{row.original.mobile || "—"}</span>,
+        cell: ({ row }) => <span className="font-number text-xs">{row.original.mobile || "—"}</span>,
       },
       {
         id: "actions",
-        header: "",
+        header: "Action",
         cell: ({ row }) => {
           const architect = row.original;
           return (
@@ -100,7 +100,7 @@ export function ArchitectsTable() {
                 <TooltipTrigger
                   aria-label="View"
                   onClick={() => architectPanelStore.open(architect.id)}
-                  className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                  className="rounded-md p-1 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
                 >
                   <Eye className="h-4 w-4" />
                 </TooltipTrigger>
@@ -112,7 +112,7 @@ export function ArchitectsTable() {
                   <TooltipTrigger
                     aria-label="Edit"
                     onClick={() => setEditTarget(architect)}
-                    className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                    className="rounded-md p-1 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
                   >
                     <Pencil className="h-4 w-4" />
                   </TooltipTrigger>
@@ -125,7 +125,7 @@ export function ArchitectsTable() {
                   <TooltipTrigger
                     aria-label="Delete"
                     onClick={() => setDeleteTarget(architect)}
-                    className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
+                    className="rounded-md p-1 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
                   >
                     <Trash2 className="h-4 w-4" />
                   </TooltipTrigger>
@@ -199,13 +199,13 @@ export function ArchitectsTable() {
                     return (
                       <th
                         key={header.id}
-                        className="px-4 py-2.5 text-sm font-body font-semibold uppercase tracking-wide text-grey-900"
+                        className="whitespace-nowrap px-2 py-1.5 text-xs font-body font-semibold text-grey-900"
                       >
                         {canSort ? (
                           <button
                             type="button"
                             onClick={header.column.getToggleSortingHandler()}
-                            className="flex items-center gap-1 uppercase tracking-wide font-semibold text-grey-900 hover:text-grey-700"
+                            className="flex items-center gap-1 whitespace-nowrap font-semibold text-grey-900 hover:text-grey-700"
                           >
                             {rendered}
                             {sorted === "asc" ? (
@@ -229,7 +229,7 @@ export function ArchitectsTable() {
               {pagedRows.map((row) => (
                 <tr key={row.id} className="border-t border-grey-100">
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3">
+                    <td key={cell.id} className="px-2 py-1">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}

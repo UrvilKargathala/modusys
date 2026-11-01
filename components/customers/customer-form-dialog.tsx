@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { PlaceSelect } from "@/components/shared/place-select";
 import { Input } from "@/components/ui/input";
 import { months } from "@/lib/constants/months";
 import { mockUsers } from "@/lib/mock/users";
@@ -92,7 +93,8 @@ function emptyValues(): CustomerFormValues {
 // real data here: the edit form round-trips whatever it's prefilled with
 // back to the server on save, so a blank field must stay blank, not get
 // silently replaced with fabricated data the user never typed.
-function prefillValues(customer: Customer): CustomerFormValues {
+// architectId: an older one may sit only in this browser's override, so it shows and gets saved to the DB on Save.
+function prefillValues(customer: Customer, override?: ProfileOverride): CustomerFormValues {
   return {
     prefix: customer.prefix ?? "",
     firstName: customer.firstName || customer.name,
@@ -107,7 +109,7 @@ function prefillValues(customer: Customer): CustomerFormValues {
     birthdayMonth: customer.birthdayMonth ?? "",
     birthdayDay: customer.birthdayDay ?? "",
     birthdayYear: customer.birthdayYear ?? "",
-    architectId: customer.architectId ?? "",
+    architectId: customer.architectId || override?.architectId || "",
   };
 }
 
@@ -151,7 +153,7 @@ export function CustomerFormDialog({
   // whatever the user was actively typing back to the prefilled values.
   useEffect(() => {
     if (!open) return;
-    reset(customer ? prefillValues(customer) : emptyValues());
+    reset(customer ? prefillValues(customer, override) : emptyValues());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, customer?.id]);
 
@@ -190,13 +192,13 @@ export function CustomerFormDialog({
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="c-srno">SR No</Label>
                 <div className="flex h-9 items-center justify-center rounded-lg border border-grey-100 bg-light-600 px-1 text-sm font-number font-medium text-grey-700">
-                  {pad4(srNo)}{liveCode ? `-${liveCode}` : ""}
+                  {pad4(srNo)}
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="c-code">Customer Code</Label>
-                <div className="flex h-9 items-center justify-center rounded-lg border border-grey-100 bg-light-600 px-1 text-sm font-body font-medium text-grey-700">
-                  {liveCode || "—"}
+                <div className="flex h-9 items-center justify-center rounded-lg border border-grey-100 bg-light-600 px-1 text-sm font-number font-medium text-grey-700">
+                  {pad4(srNo)}{liveCode ? `-${liveCode}` : ""}
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -215,7 +217,7 @@ export function CustomerFormDialog({
               </div>
             </div>
             {errors.firstName && <span className="text-xs font-body text-error">{errors.firstName.message}</span>}
-            <span className="text-xs font-body text-grey-400">Customer Code is auto-generated from the first two letters of Name and Surname.</span>
+            <span className="text-xs font-body text-grey-400">Customer Code is the SR No plus the first two letters of Name and Surname.</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -244,7 +246,10 @@ export function CustomerFormDialog({
             </div>
             <SelectField
               id="c-architect"
-              {...register("architectId")}
+              // Controlled, not register(): the architects list may still be loading when the form opens, and an uncontrolled
+              // select would lose the saved architect (no matching option yet) and show "Select an architect".
+              value={watch("architectId") ?? ""}
+              onChange={(e) => setValue("architectId", e.target.value, { shouldDirty: true, shouldValidate: true })}
               className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
             >
               <option value="">Select an architect</option>
@@ -269,11 +274,11 @@ export function CustomerFormDialog({
           <div className="grid grid-cols-3 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="c-city">City</Label>
-              <Input id="c-city" {...register("city")} />
+              <PlaceSelect kind="city" value={watch("city") ?? ""} onChange={(v) => setValue("city", v, { shouldDirty: true })} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="c-state">State</Label>
-              <Input id="c-state" {...register("state")} />
+              <PlaceSelect kind="state" value={watch("state") ?? ""} onChange={(v) => setValue("state", v, { shouldDirty: true })} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="c-postcode">Postcode</Label>
@@ -290,7 +295,8 @@ export function CustomerFormDialog({
               <SelectField
                 id="c-bday-day"
                 aria-label="Birthday day"
-                {...register("birthdayDay")}
+                value={watch("birthdayDay") ?? ""}
+                onChange={(e) => setValue("birthdayDay", e.target.value, { shouldDirty: true, shouldValidate: true })}
                 className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-number text-grey-900 outline-none focus:border-primary"
               >
                 <option value="">Day</option>
@@ -303,7 +309,8 @@ export function CustomerFormDialog({
               <SelectField
                 id="c-bday-month"
                 aria-label="Birthday month"
-                {...register("birthdayMonth")}
+                value={watch("birthdayMonth") ?? ""}
+                onChange={(e) => setValue("birthdayMonth", e.target.value, { shouldDirty: true, shouldValidate: true })}
                 className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-body text-grey-900 outline-none focus:border-primary"
               >
                 <option value="">Month</option>
@@ -316,7 +323,8 @@ export function CustomerFormDialog({
               <SelectField
                 id="c-bday-year"
                 aria-label="Birthday year"
-                {...register("birthdayYear")}
+                value={watch("birthdayYear") ?? ""}
+                onChange={(e) => setValue("birthdayYear", e.target.value, { shouldDirty: true, shouldValidate: true })}
                 className="h-9 w-full rounded-lg border border-grey-100 bg-card px-2.5 text-sm font-number text-grey-900 outline-none focus:border-primary"
               >
                 <option value="">Year</option>

@@ -19,11 +19,11 @@ import { GlobalSearch } from "@/components/layout/global-search";
 import { NotificationPanel } from "@/components/layout/notification-panel";
 import { useNotificationRows } from "@/components/layout/use-notification-rows";
 
-// The desktop navigation: a left sidebar that collapses to icons and expands again. Groups (the order stages, Contacts, Attendance, Admin) open
+// The desktop navigation: a left sidebar that collapses to icons and expands again. Groups (the order stages, Masters, Attendance, Admin) open
 // as a list when expanded, and as a pop-out menu beside the icon when collapsed. The mobile bottom bar is separate.
 type Entry = { kind: "link"; item: NavItem } | { kind: "group"; label: string; icon: LucideIcon; items: NavItem[] };
 
-const GROUP_ICON: Record<string, LucideIcon> = { Quotes: FileText, Purchase: ShoppingCart, "Production Planning": DraftingCompass, "Manufacturing & Dispatch": Factory, Contacts: Contact };
+const GROUP_ICON: Record<string, LucideIcon> = { Quotes: FileText, Purchase: ShoppingCart, "Production Planning": DraftingCompass, "Manufacturing & Dispatch": Factory, Masters: Contact };
 const STORAGE_KEY = "sidebar-collapsed";
 
 export function Sidebar() {
@@ -85,7 +85,7 @@ export function Sidebar() {
     await signOut();
     router.push("/sign-in");
   };
-  // MAIN holds the page links and the order stage / Contacts groups; SETTINGS holds Attendance, Payroll and Admin.
+  // MAIN holds the page links and the order stage / Masters groups; SETTINGS holds Attendance, Payroll and Admin.
   const isSettings = (e: Entry) => e.kind === "group" && ["Attendance", "Payroll", "Admin"].includes(e.label);
   const main = entries.filter((e) => !isSettings(e));
   const settings = entries.filter(isSettings);

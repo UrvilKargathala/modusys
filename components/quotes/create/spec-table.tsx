@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 
 // Shared table layout for the Customer Details and Material Specification tabs:
-// two label + value pairs per row, a pink header, a divider between the pairs.
-export function SpecTable({ children }: { children: ReactNode }) {
+// two label + value pairs per row, a pink header, a divider between the pairs. borderless: no frame or lines at all (the quote's tabs).
+export function SpecTable({ children, borderless = false }: { children: ReactNode; borderless?: boolean }) {
   return (
-    <div className="spec-table overflow-x-auto rounded-lg border border-grey-100 bg-card">
+    <div className={`spec-table overflow-x-auto rounded-lg bg-card ${borderless ? "[&_td]:!border-0 [&_th]:!border-0 [&_tr]:!border-0" : "border border-grey-100"}`}>
       <table className="w-full min-w-[760px] border-collapse">
         <thead>
           <tr className="bg-[var(--table-head)] text-left text-sm font-medium text-grey-900">

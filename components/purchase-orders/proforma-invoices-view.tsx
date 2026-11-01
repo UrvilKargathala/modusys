@@ -1,28 +1,26 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { FileText, CalendarDays, IndianRupee, Store } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { useDealers } from "@/lib/store/vendors-store";
 import { formatInr } from "@/lib/format";
 import { poTotals } from "@/lib/purchase-order";
 import { PurchaseOrdersTable } from "@/components/purchase-orders/purchase-orders-table";
-import { VendorsTable } from "@/components/purchase-orders/vendors-table";
 import { ProformaPackingList } from "@/components/purchase-orders/proforma-packing-list";
 import { ProformaStatusProvider } from "@/components/purchase-orders/proforma-status-change";
 import { NewPoDialog } from "@/components/purchase-orders/new-po-dialog";
 
-// Proforma Invoices: for now a copy of Direct Purchase Orders (same table, editor and PDFs), kept in their own list, with their own
-// Dealers (the same screen as Vendors).
+// Proforma Invoices: for now a copy of Direct Purchase Orders (same table, editor and PDFs), kept in their own list. Their dealers are in
+// Masters > Dealer Master.
 function View() {
   const router = useRouter();
   const pathname = usePathname();
-  const dealersTab = useSearchParams().get("tab") === "dealers";
   // Work Order (/production) and Material Procurement are Production Planning; Manufacturing and Packing & Dispatch are the factory's.
-  const tab = pathname.endsWith("/packing") ? "packing" : pathname.endsWith("/production") ? "production" : pathname.endsWith("/manufacturing") ? "manufacturing" : dealersTab ? "dealers" : "invoices";
+  const tab = pathname.endsWith("/packing") ? "packing" : pathname.endsWith("/production") ? "production" : pathname.endsWith("/manufacturing") ? "manufacturing" : "invoices";
   const [newOpen, setNewOpen] = useState(false);
   const invoices = usePurchaseOrders().filter((o) => !!o.material.proforma);
   const dealers = useDealers();
@@ -50,13 +48,6 @@ function View() {
       </div>
 
       <Tabs value={tab} onValueChange={(v) => router.replace(["packing", "production", "manufacturing"].includes(String(v)) ? `/proforma-invoices/${String(v)}` : `/proforma-invoices?tab=${String(v)}`, { scroll: false })}>
-        {/* The Production Work Order page has its own status tabs instead. */}
-        {tab !== "production" && tab !== "manufacturing" && tab !== "packing" && (
-          <TabsList>
-            <TabsTrigger value="dealers">Dealers</TabsTrigger>
-            <TabsTrigger value="invoices">Proforma Invoices</TabsTrigger>
-          </TabsList>
-        )}
         <TabsContent value="invoices" className="pt-0">
           <PurchaseOrdersTable direct proforma onNew={() => setNewOpen(true)} />
         </TabsContent>
@@ -69,9 +60,6 @@ function View() {
         </TabsContent>
         <TabsContent value="packing" className="pt-0">
           <ProformaPackingList />
-        </TabsContent>
-        <TabsContent value="dealers" className="pt-0">
-          <VendorsTable dealers />
         </TabsContent>
       </Tabs>
       <NewPoDialog direct proforma open={newOpen} onOpenChange={setNewOpen} />

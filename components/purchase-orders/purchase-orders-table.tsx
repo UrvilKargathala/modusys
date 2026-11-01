@@ -134,8 +134,8 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   // The status tab you last opened comes back when you return from a PO (Cancel / Back / Save). Kept for this browser tab only.
   const tabKey = `po-status-tab-${proforma ? "proforma" : mode}`;
   const [statusPick, setStatusState] = useState<PoStatus>("pending");
-  // Proforma Invoices also have an "All Invoices" tab (value "all") listing every invoice.
-  const status = (proforma && statusPick === "all") || listed.includes(statusPick) ? statusPick : "pending";
+  // Proforma Invoices (and the Purchase Orders page, mode "all") also have an "All" pill (value "all") listing every order.
+  const status = ((proforma || all) && statusPick === "all") || listed.includes(statusPick) ? statusPick : "pending";
   const setStatus = (st: PoStatus) => {
     setStatusState(st);
     try {
@@ -145,7 +145,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem(tabKey) as PoStatus | null;
-      if (saved && ((proforma && saved === "all") || listed.includes(saved))) setStatusState(saved);
+      if (saved && (((proforma || all) && saved === "all") || listed.includes(saved))) setStatusState(saved);
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabKey]);
@@ -293,26 +293,9 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
       )}
       {/* Plain table: no frame or lines, full width with a small side gap. */}
       <div className="overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 py-1">
-        <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Purchase order status">
-          {/* Proforma: Packing has its own tab on the page, so no Packing pill here (its invoices still show under All Invoices). */}
-          {(proforma ? ["all", ...statuses.filter((st) => st.toLowerCase() !== "packing" && st !== "in-production")] : listed).map((st) => (
-            <button
-              key={st}
-              type="button"
-              role="tab"
-              aria-selected={status === st}
-              onClick={() => setStatus(st)}
-              className={cn(
-                "rounded-full border px-3 py-0.5 text-xs font-body font-medium transition-colors",
-                status === st ? "border-primary bg-primary-transparent text-primary" : "border-grey-100 bg-card text-grey-600 hover:bg-light-600"
-              )}
-            >
-              {st === "all" ? "All Invoices" : poStatusLabel(st)} <span className="font-number">({st === "all" ? orders.filter((o) => !quoteId || o.quoteId === quoteId).length : count(st)})</span>
-            </button>
-          ))}
-        </div>
-        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+      {/* Two rows: the buttons (Columns, Tracker, Search, Create) in the top right corner, then the status pills from the left. */}
+      <div className="flex flex-col items-start gap-1.5 py-1">
+        <div className="flex flex-wrap items-center justify-end gap-1.5 self-end">
           <Popover>
             <PopoverTrigger className="flex h-6 items-center gap-1 rounded-md border border-grey-100 bg-card px-2 text-[11px] font-body text-grey-900 hover:bg-light-600">
               <Columns3 className="h-3 w-3" />
@@ -340,13 +323,13 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           )}
           <Button size="sm" variant="outline" className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3" onClick={() => downloadOrderTracker(orders, customers, `order-tracker${proforma ? "-proforma" : mode === "direct" ? "-direct" : ""}.xlsx`, trackerOptions())}>
             <Download className="h-4 w-4" />
-            Order Tracker (Excel)
+            {proforma ? "PI" : "PO"} Tracker (XLS)
           </Button>
           <Button size="sm" variant="outline" className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3" onClick={() => printOrderTracker(orders, customers, trackerOptions())}>
             <Download className="h-4 w-4" />
-            Order Tracker (PDF)
+            {proforma ? "PI" : "PO"} Tracker (PDF)
           </Button>
-          <div className="relative w-56">
+          <div className="relative w-48">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-grey-300" />
             <input
               value={search}
@@ -362,6 +345,24 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
             </Button>
           )}
         </div>
+        <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Purchase order status">
+          {/* Proforma: Packing has its own tab on the page, so no Packing pill here (its invoices still show under All Invoices). */}
+          {(proforma ? ["all", ...statuses.filter((st) => st.toLowerCase() !== "packing" && st !== "in-production")] : all ? ["all", ...listed] : listed).map((st) => (
+            <button
+              key={st}
+              type="button"
+              role="tab"
+              aria-selected={status === st}
+              onClick={() => setStatus(st)}
+              className={cn(
+                "shrink-0 whitespace-nowrap rounded-full border px-3 py-0.5 text-xs font-body font-medium transition-colors",
+                status === st ? "border-primary bg-primary-transparent text-primary" : "border-grey-100 bg-card text-grey-600 hover:bg-light-600"
+              )}
+            >
+              {st === "all" ? (proforma ? "All Invoices" : "All") : poStatusLabel(st)} <span className="font-number">({st === "all" ? orders.filter((o) => !quoteId || o.quoteId === quoteId).length : count(st)})</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {rows.length === 0 ? (
@@ -370,7 +371,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           message={
             status === "pending"
               ? proforma ? "No pending proforma invoices." : all ? "No pending purchase orders." : direct ? "No pending direct purchase orders." : "No pending purchase orders. One appears here when a quote is set to In Purchase, or you can create one by hand."
-              : `No ${poStatusLabel(status).toLowerCase()} purchase orders yet.`
+              : status === "all" ? (proforma ? "No proforma invoices yet." : "No purchase orders yet.") : `No ${poStatusLabel(status).toLowerCase()} purchase orders yet.`
           }
           cta={status === "pending" && onNew ? { label: proforma ? "Create Proforma Invoice" : all ? "Create" : direct ? "Create Direct Purchase Order" : "Create Purchase Order", onClick: onNew } : undefined}
         />

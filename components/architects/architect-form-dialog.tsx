@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { PlaceSelect } from "@/components/shared/place-select";
 import { Input } from "@/components/ui/input";
 import { months } from "@/lib/constants/months";
 import { mockUsers } from "@/lib/mock/users";
@@ -141,6 +142,7 @@ export function ArchitectFormDialog({
     control,
     handleSubmit,
     reset,
+    watch,
     setValue,
     formState: { errors, isSubmitting, isValid },
   } = useForm<ArchitectFormValues>({
@@ -301,11 +303,11 @@ export function ArchitectFormDialog({
           <div className="grid grid-cols-3 gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="a-city">City</Label>
-              <Input id="a-city" {...register("city")} />
+              <PlaceSelect kind="city" value={watch("city") ?? ""} onChange={(v) => setValue("city", v, { shouldDirty: true })} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="a-state">State</Label>
-              <Input id="a-state" {...register("state")} />
+              <PlaceSelect kind="state" value={watch("state") ?? ""} onChange={(v) => setValue("state", v, { shouldDirty: true })} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="a-postcode">Postcode</Label>
