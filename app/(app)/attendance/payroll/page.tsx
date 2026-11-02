@@ -4,11 +4,12 @@ import { AlertTriangle, Clock, Download, IndianRupee, Users, Wallet } from "luci
 import { getSessionUser } from "@/lib/server/require-user";
 import { getPayrollEmployees, loadPayroll } from "@/lib/server/payroll-data";
 import { Card } from "@/components/ui/card";
+import { DatePicker } from "@/components/shared/date-picker";
 import { KpiCard } from "@/components/shared/kpi-card";
 import { FinalizeButton } from "@/components/payroll/payroll-actions";
 import { EmployeeHistoryDialog } from "@/components/payroll/employee-history-dialog";
 import { statusOf } from "@/components/payroll/day-status";
-import { hoursText, periodRange, sumSummaries, type PayrollSummary } from "@/lib/payroll";
+import { hoursText, monthRange, payrollRange, sumSummaries, type PayrollSummary } from "@/lib/payroll";
 import { formatInr } from "@/lib/format";
 import { istDateString } from "@/lib/attendance-config";
 
@@ -35,12 +36,13 @@ const money = (n: number | null) => (n == null ? "—" : formatInr(n));
 
 // Payroll dashboard: every employee's attendance and salary for a day, month or year, all from attendance records,
 // each employee's own schedule and rate, holidays and approved adjustments (the same engine as the reports and CSV).
-export default async function PayrollPage({ searchParams }: { searchParams: Promise<{ view?: string; value?: string; employee?: string; status?: string }> }) {
+export default async function PayrollPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string; date?: string; view?: string; value?: string; employee?: string; status?: string }> }) {
   const user = await getSessionUser();
   if (!user) redirect("/sign-in");
   if (user.role !== "super-admin") redirect("/my-attendance");
   const sp = await searchParams;
-  const p = periodRange(sp.view, sp.value);
+  const today = istDateString();
+  const p = payrollRange(sp, today);
   const status = STATUSES.some(([v]) => v === sp.status) ? (sp.status ?? "") : "";
 
   const all = await getPayrollEmployees();
@@ -48,8 +50,16 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
   const rows = (await loadPayroll(p.from, p.to, chosen)).filter((r) => matches(r.summary, status));
   const total = sumSummaries(rows.map((r) => r.summary));
   const setupCount = rows.filter((r) => r.summary.issues.length).length;
-  const monthEnded = p.view === "month" && p.to < istDateString();
-  const qs = new URLSearchParams({ view: p.view, value: p.value, ...(sp.employee ? { employeeId: sp.employee } : {}) }).toString();
+  const monthEnded = !!p.month && p.to < today;
+  const qs = new URLSearchParams({ from: p.from, to: p.to, ...(sp.employee ? { employeeId: sp.employee } : {}) }).toString();
+  const shift = (ym: string, n: number) => new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7) - 1 + n, 1)).toISOString().slice(0, 7);
+  const thisYm = today.slice(0, 7);
+  const link = (from: string, to: string) => `/attendance/payroll?${new URLSearchParams({ from, to, ...(sp.employee ? { employee: sp.employee } : {}), ...(status ? { status } : {}) })}`;
+  const shortcuts = [
+    ["This month", link(monthRange(thisYm).from, monthRange(thisYm).to)],
+    ["Last month", link(monthRange(shift(thisYm, -1)).from, monthRange(shift(thisYm, -1)).to)],
+    ["Last 3 months", link(monthRange(shift(thisYm, -3)).from, monthRange(shift(thisYm, -1)).to)],
+  ];
   const reportQs = `from=${p.from}&to=${p.to}&preset=custom`;
 
   return (
@@ -69,22 +79,12 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
 
       <form className="flex flex-wrap items-end gap-3 rounded-xl border border-grey-100 bg-card p-3">
         <label className="flex flex-col gap-1 text-xs text-grey-500">
-          View
-          <select name="view" defaultValue={p.view} className="h-9 rounded-md border border-grey-200 bg-card px-2 text-sm text-grey-900">
-            <option value="day">Daily</option>
-            <option value="month">Monthly</option>
-            <option value="year">Yearly</option>
-          </select>
+          From
+          <DatePicker key={p.from} name="from" mode="day" defaultValue={p.from} />
         </label>
         <label className="flex flex-col gap-1 text-xs text-grey-500">
-          {p.view === "day" ? "Date" : p.view === "year" ? "Year" : "Month"}
-          {p.view === "day" ? (
-            <input type="date" name="value" defaultValue={p.value} className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900" />
-          ) : p.view === "year" ? (
-            <input type="number" name="value" min="2020" max="2100" defaultValue={p.value} className="h-9 w-28 rounded-md border border-grey-200 px-2 text-sm text-grey-900" />
-          ) : (
-            <input type="month" name="value" defaultValue={p.value} className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900" />
-          )}
+          To
+          <DatePicker key={p.to} name="to" mode="day" defaultValue={p.to} />
         </label>
         <label className="flex flex-col gap-1 text-xs text-grey-500">
           Employee
@@ -101,7 +101,13 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
         </label>
         <button type="submit" className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-white hover:bg-primary/90">Apply</button>
         <span className="ml-auto self-center font-number text-xs text-grey-500">{p.from.split("-").reverse().join("/")} – {p.to.split("-").reverse().join("/")}</span>
+        <div className="flex basis-full flex-wrap items-center gap-2">
+          {shortcuts.map(([label, href]) => (
+            <Link key={label} href={href} className="rounded-full border border-grey-200 bg-card px-3 py-1 text-xs text-grey-700 hover:bg-light-600">{label}</Link>
+          ))}
+        </div>
       </form>
+      {p.error && <p className="-mt-2 text-sm text-error">{p.error}</p>}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard compact label="Employees" value={String(rows.length)} icon={Users} accent="primary" />
@@ -123,8 +129,8 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
           <table className="w-full min-w-[1500px] text-left">
             <thead>
               <tr className="bg-[var(--table-head)] text-xs font-body font-medium text-grey-900">
-                {["Employee", "Present / Absent", "Scheduled Days", "Required / Day", "Expected", "Actual", "Late", "Early Exit", "Overtime (approved)", "Rate", "Earned", "Final Payable", ...(p.view === "month" ? [""] : [])].map((h) => (
-                  <th key={h} className="whitespace-nowrap px-3 py-2">{h}</th>
+                {["Employee", "Present / Absent", "Scheduled Days", "Required / Day", "Expected", "Actual", "Late", "Early Exit", "Overtime (approved)", "Rate", "Earned", "Final Payable", ""].map((h) => (
+                  <th key={h || "action"} className={`whitespace-nowrap px-3 py-2 ${h === "Final Payable" ? `sticky z-10 shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.15)] right-[140px] bg-[var(--table-head)]` : !h ? "sticky right-0 z-10 w-[140px] min-w-[140px] bg-[var(--table-head)]" : ""}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -137,7 +143,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                       // Only days that say something: no plain weekly offs, days still to come or days before joining.
                       days={days.filter((d) => d.status !== "UPCOMING" && d.status !== "BEFORE_START" && !(d.status === "OFF" && d.offReason === "WEEKLY_OFF")).map((d) => {
                         const [label, cls] = statusOf(d);
-                        return { date: d.date, label, cls, checkIn: d.checkIn?.toISOString() ?? null, checkOut: d.checkOut?.toISOString() ?? null, actual: d.actualMinutes, breakMin: d.breakMinutes, payable: d.payableMinutes, late: d.lateMinutes, early: d.earlyMinutes, overtime: d.overtimeMinutes, overtimeApproved: d.overtimeApproved, rate: d.rate, earned: d.earned, overtimePay: d.overtimePay };
+                        return { date: d.date, label, cls, recordId: d.recordId, realIn: d.realCheckIn?.toISOString() ?? null, realOut: d.realCheckOut?.toISOString() ?? null, checkIn: d.checkIn?.toISOString() ?? null, checkOut: d.checkOut?.toISOString() ?? null, editedIn: !!d.editCheckIn, editedOut: !!d.editCheckOut, actual: d.actualMinutes, breakMin: d.breakMinutes, payable: d.payableMinutes, late: d.lateMinutes, early: d.earlyMinutes, overtime: d.overtimeMinutes, overtimeApproved: d.overtimeApproved, rate: d.rate, earned: d.earned, overtimePay: d.overtimePay };
                       })}
                       totals={{ present: s.presentDays, absent: s.absentDays, leave: s.leaveDays, expected: s.expectedMinutes, actual: s.actualMinutes, payable: s.payableMinutes, late: s.lateMinutes, early: s.earlyMinutes, overtime: s.overtimeMinutes, approvedOvertime: s.approvedOvertimeMinutes,
                         rate: s.hourlyRate != null ? `${formatInr(s.hourlyRate)}/h` : s.issues.includes("NO_RATE") ? "Not set" : "Varies by month",
@@ -156,13 +162,11 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                   <td className="whitespace-nowrap px-3 py-2 font-number">{s.overtimeMinutes ? `${hoursText(s.overtimeMinutes)} (${hoursText(s.approvedOvertimeMinutes)})` : "—"}</td>
                   <td className="whitespace-nowrap px-3 py-2 font-number">{s.hourlyRate != null ? formatInr(s.hourlyRate) : s.issues.includes("NO_RATE") ? "—" : <span className="text-xs text-grey-500">Varies by month</span>}</td>
                   <td className="whitespace-nowrap px-3 py-2 font-number">{money(s.earnedSalary)}</td>
-                  <td className="whitespace-nowrap px-3 py-2 font-number text-base font-semibold text-grey-900">{money(s.finalSalary)}</td>
-                  {p.view === "month" && (
-                    <td className="whitespace-nowrap px-3 py-2 text-right">
-                      <FinalizeButton employeeId={e.id} period={p.value} finalized={finalizedMonths.includes(p.value)}
-                        disabled={!monthEnded ? "A month can be finalized once it has ended" : s.issues.length ? "Set a schedule and hourly rate first" : undefined} />
-                    </td>
-                  )}
+                  <td className={`whitespace-nowrap bg-card px-3 py-2 font-number text-base font-semibold text-grey-900 sticky z-10 shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.15)] right-[140px]`}>{money(s.finalSalary)}</td>
+                  <td className="sticky right-0 z-10 w-[140px] min-w-[140px] whitespace-nowrap bg-card px-3 py-2 text-right">
+                    <FinalizeButton employeeId={e.id} period={p.month ?? ""} finalized={!!p.month && finalizedMonths.includes(p.month)}
+                      disabled={!p.month ? "Pick one full month to finalize" : !monthEnded ? "A month can be finalized once it has ended" : s.issues.length ? "Set a schedule and hourly rate first" : undefined} />
+                  </td>
                 </tr>
               ))}
               {rows.length === 0 && (
@@ -183,8 +187,8 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                   <td className="px-3 py-2 font-number">{hoursText(total.overtimeMinutes)}</td>
                   <td className="px-3 py-2" />
                   <td className="px-3 py-2 font-number">{money(total.earnedSalary)}</td>
-                  <td className="px-3 py-2 font-number">{money(total.finalSalary)}</td>
-                  {p.view === "month" && <td />}
+                  <td className={`bg-light-600 px-3 py-2 font-number sticky z-10 shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.15)] right-[140px]`}>{money(total.finalSalary)}</td>
+                  <td className="sticky right-0 z-10 w-[140px] min-w-[140px] bg-light-600" />
                 </tr>
               </tfoot>
             )}

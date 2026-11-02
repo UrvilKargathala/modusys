@@ -6,6 +6,9 @@ import { usePathname } from "next/navigation";
 // Drag-to-resize columns for every <table> in the app: a thin handle on the right edge of each heading cell. Widths are kept in this browser,
 // per page and per set of headings. Double-click a handle to go back to automatic widths. A table opts out with data-no-resize, and tables that
 // already have their own resize handles (role="separator" in a heading) are left alone.
+// The same tables also get drag-to-reorder columns: drag a heading onto another one and the whole column moves (cells are moved in the DOM, the
+// order is kept in this browser per page and set of headings, and a small reset button appears in the last heading while it is changed).
+// Tables with their own draggable headings (useColumnOrder) are left alone.
 const MIN = 48;
 const HANDLE = "col-resizer";
 
@@ -66,12 +69,148 @@ function reset(table: HTMLTableElement, ths: HTMLTableCellElement[], key: string
   try { window.localStorage.removeItem(key); } catch { /* ignore */ }
 }
 
+// ---- Column order ----
+const text = (th: Element) => (th.textContent ?? "").trim();
+const ORDER_RESET = "col-order-reset";
+let dragging: { table: HTMLTableElement; th: HTMLTableCellElement } | null = null;
+
+// Rows made of one plain cell per column (not a "no results" row or a row with a merged cell).
+const plainRows = (table: HTMLTableElement, n: number) => Array.from(table.rows).filter((r) => r.cells.length === n && Array.from(r.cells).every((c) => c.colSpan === 1));
+const orderOf = (headRow: HTMLTableRowElement) => Array.from(headRow.cells).map((th) => Number((th as HTMLElement).dataset.c));
+// A heading that cannot be dragged or dropped on: empty or "Action", sticky, or holding a field the person types in.
+const isFixed = (th: HTMLTableCellElement) => !text(th) || /^actions?$/i.test(text(th)) || getComputedStyle(th).position === "sticky" || !!th.querySelector("input:not([type=checkbox]), select, textarea");
+
+// Give every cell its column number (the order React drew it in) and put rows that were drawn since into the current column order.
+function syncRows(table: HTMLTableElement, headRow: HTMLTableRowElement) {
+  const n = headRow.cells.length;
+  const order = orderOf(headRow);
+  for (const r of plainRows(table, n)) {
+    const cells = Array.from(r.cells) as HTMLElement[];
+    const lacking = cells.filter((c) => c.dataset.c === undefined);
+    if (!lacking.length) continue;
+    if (lacking.length === n) {
+      cells.forEach((c, i) => (c.dataset.c = String(i)));
+      if (order.some((c, i) => c !== i)) order.forEach((c) => r.appendChild(cells[c]));
+    } else {
+      lacking.forEach((c) => (c.dataset.c = (headRow.cells[cells.indexOf(c)] as HTMLElement).dataset.c));
+    }
+  }
+}
+
+function afterMove(table: HTMLTableElement, headRow: HTMLTableRowElement, path: string) {
+  const ths = Array.from(headRow.cells);
+  const sig = `${path}:${ths.map(text).sort().join("|")}`;
+  const order = orderOf(headRow);
+  const changed = order.some((c, i) => c !== i);
+  try {
+    if (changed) window.localStorage.setItem(`col-order:${sig}`, JSON.stringify(ths.map(text)));
+    else window.localStorage.removeItem(`col-order:${sig}`);
+  } catch { /* the order just isn't kept */ }
+  // Widths travel with their heading: keep them under the new order's key.
+  const key = storageKey(path, ths);
+  table.dataset.colKey = key;
+  if (table.classList.contains("col-fixed")) {
+    try { window.localStorage.setItem(key, JSON.stringify(ths.map((th) => parseFloat(th.style.width) || MIN))); } catch { /* ignore */ }
+  }
+  resetButton(table, headRow, path, changed);
+}
+
+function resetButton(table: HTMLTableElement, headRow: HTMLTableRowElement, path: string, show: boolean) {
+  const last = headRow.cells[headRow.cells.length - 1];
+  const have = last.querySelector(`:scope > .${ORDER_RESET}`);
+  if (!show) { have?.remove(); return; }
+  if (have) return;
+  const b = document.createElement("span");
+  b.className = ORDER_RESET;
+  b.setAttribute("role", "button");
+  b.title = "Put the columns back in their normal order";
+  if (getComputedStyle(last).position === "static") (last as HTMLElement).style.position = "relative";
+  b.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const cur = table.tHead!.rows[0];
+    const n = cur.cells.length;
+    for (const r of plainRows(table, n)) {
+      const cells = Array.from(r.cells) as HTMLElement[];
+      cells.sort((a, c) => Number(a.dataset.c) - Number(c.dataset.c)).forEach((c) => r.appendChild(c));
+    }
+    afterMove(table, cur, path);
+  });
+  b.addEventListener("pointerdown", (e) => e.stopPropagation());
+  last.appendChild(b);
+}
+
+// Make the headings draggable, and bring back the saved column order the first time a set of headings is seen.
+function setupOrder(table: HTMLTableElement, headRow: HTMLTableRowElement, path: string) {
+  let ths = Array.from(headRow.cells);
+  // A heading made draggable by the page itself (useColumnOrder) or a table with merged-down cells keeps its own behaviour.
+  if (ths.some((th) => th.draggable && !th.dataset.colDrag)) return;
+  if (Array.from(table.tBodies).some((b) => b.querySelector('[rowspan]:not([rowspan="1"])'))) return;
+  const sig = `${path}:${ths.map(text).sort().join("|")}`;
+  if (table.dataset.orderSig !== sig) {
+    table.querySelectorAll("[data-c]").forEach((el) => el.removeAttribute("data-c"));
+    ths.forEach((th, i) => ((th as HTMLElement).dataset.c = String(i)));
+    table.dataset.orderSig = sig;
+    syncRows(table, headRow);
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(`col-order:${sig}`) ?? "null") as unknown;
+      const names = ths.map(text);
+      if (Array.isArray(saved) && saved.length === names.length && [...saved].sort().join("|") === [...names].sort().join("|")) {
+        const used = new Set<number>();
+        const perm = saved.map((name) => { const i = names.findIndex((x, j) => x === name && !used.has(j)); used.add(i); return i; });
+        for (const r of plainRows(table, names.length)) {
+          const cells = Array.from(r.cells);
+          perm.forEach((p) => r.appendChild(cells[p]));
+        }
+        ths = Array.from(headRow.cells);
+        afterMove(table, headRow, path);
+      }
+    } catch { /* ignore */ }
+  }
+  syncRows(table, headRow);
+  ths.forEach((th) => {
+    if (th.dataset.colDrag || isFixed(th)) return;
+    th.dataset.colDrag = "1";
+    th.draggable = true;
+    th.addEventListener("dragstart", (e) => {
+      if (table.dataset.resizing) { e.preventDefault(); return; }
+      dragging = { table, th };
+      e.dataTransfer?.setData("text/plain", text(th));
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+      th.style.opacity = "0.4";
+    });
+    th.addEventListener("dragover", (e) => {
+      if (!dragging || dragging.table !== table || dragging.th === th || isFixed(th)) return;
+      e.preventDefault();
+      th.style.boxShadow = "inset 2px 0 0 var(--color-primary)";
+    });
+    th.addEventListener("dragleave", () => { th.style.boxShadow = ""; });
+    th.addEventListener("drop", (e) => {
+      th.style.boxShadow = "";
+      if (!dragging || dragging.table !== table || isFixed(th)) return;
+      e.preventDefault();
+      const row = table.tHead!.rows[0];
+      const cur = Array.from(row.cells);
+      const from = cur.indexOf(dragging.th);
+      const to = cur.indexOf(th);
+      if (from < 0 || to < 0 || from === to) return;
+      for (const r of plainRows(table, cur.length)) {
+        const cells = Array.from(r.cells);
+        r.insertBefore(cells[from], from < to ? cells[to].nextSibling : cells[to]);
+      }
+      afterMove(table, row, path);
+    });
+    th.addEventListener("dragend", () => { th.style.opacity = ""; dragging = null; });
+  });
+}
+
 function enhance(table: HTMLTableElement, path: string) {
   if (table.hasAttribute("data-no-resize") || table.closest("[data-no-resize]")) return;
   const headRow = table.tHead?.rows[0];
   if (!headRow) return;
+  const first = Array.from(headRow.cells);
+  if (first.length < 2 || first.some((th) => th.colSpan > 1 || th.querySelector('[role="separator"]'))) return;
+  if (!table.hasAttribute("data-no-reorder") && !table.closest("[data-no-reorder]")) setupOrder(table, headRow, path);
   const ths = Array.from(headRow.cells);
-  if (ths.length < 2 || ths.some((th) => th.colSpan > 1 || th.querySelector('[role="separator"]'))) return;
   const key = storageKey(path, ths);
   let fresh = false;
   // React keeps the same <table> when another list is opened in its place (other headings): the widths set for the old columns must not stay on it,
@@ -91,6 +230,7 @@ function enhance(table: HTMLTableElement, path: string) {
     h.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      table.dataset.resizing = "1";
       const base = ths.map((c) => Math.max(MIN, Math.round(c.getBoundingClientRect().width)));
       const startX = e.clientX;
       const startW = base[i];
@@ -103,6 +243,7 @@ function enhance(table: HTMLTableElement, path: string) {
       const up = () => {
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", up);
+        delete table.dataset.resizing;
         const min = floors(table, ths.length);
         latest = latest.map((w, j) => Math.max(w, min[j]));
         apply(table, ths, latest);

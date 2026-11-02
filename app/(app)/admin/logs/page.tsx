@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTableColumnOrder } from "@/components/shared/use-column-order";
+import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/lib/session";
 import { redirect } from "next/navigation";
 import {
@@ -273,9 +275,11 @@ export default function AdminLogsPage() {
     },
   ], []);
 
+  const colOrder = useTableColumnOrder("audit-log-columns", columns.map((c) => c.id ?? (c as { accessorKey?: string }).accessorKey ?? ""));
   const table = useReactTable({
     data: rows,
     columns,
+    state: { columnOrder: colOrder.columnOrder },
     getCoreRowModel: getCoreRowModel(),
   });
 
@@ -381,7 +385,7 @@ export default function AdminLogsPage() {
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((header) => (
-                  <th key={header.id} className="whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900">
+                  <th key={header.id} {...colOrder.thProps(header.column.id)} className={cn("whitespace-nowrap px-4 py-2.5 text-xs font-body font-bold uppercase tracking-wide text-grey-900", colOrder.thClass(header.column.id))}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}

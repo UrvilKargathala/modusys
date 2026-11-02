@@ -646,6 +646,9 @@ model AttendanceRecord {
   timezone         String    @default("Asia/Kolkata")
   // Overtime is paid unless an admin unticks it on the report (approved by default).
   overtimeApproved Boolean   @default(true)
+  // Super-admin edits made on Payroll. Null = same as the real checkIn/checkOut; salary counts these when set.
+  editCheckIn      DateTime?
+  editCheckOut     DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

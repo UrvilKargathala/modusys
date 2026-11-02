@@ -34,7 +34,9 @@ export type PayrollEmployee = {
   // First day this employee is tracked (YYYY-MM-DD). Earlier days are neither scheduled nor absent.
   trackFrom?: string | null;
 };
-export type PayrollRecord = { id: string; date: string; checkIn: Date; checkOut: Date | null; overtimeApproved: boolean };
+// checkIn/checkOut are the times pay is counted on (the super-admin edit when set, else the real time).
+// The real* and edit* fields only carry what the Payroll history shows beside them.
+export type PayrollRecord = { id: string; date: string; checkIn: Date; checkOut: Date | null; overtimeApproved: boolean; realCheckIn?: Date; realCheckOut?: Date | null; editCheckIn?: Date | null; editCheckOut?: Date | null };
 export type PayrollLeave = { from: string; to: string; isHalfDay: boolean; label: string };
 export type PayrollAdjustment = { kind: "ADDITION" | "DEDUCTION"; amount: number };
 
@@ -48,8 +50,12 @@ export type PayrollDay = {
   status: DayStatus;
   leaveLabel: string | null;
   recordId: string | null;
-  checkIn: Date | null;
+  checkIn: Date | null; // counted for pay (edited if a super admin edited it)
   checkOut: Date | null;
+  realCheckIn: Date | null; // as clocked
+  realCheckOut: Date | null;
+  editCheckIn: Date | null; // super-admin edit, null = none
+  editCheckOut: Date | null;
   actualMinutes: number; // check-in to check-out, nothing taken off
   breakMinutes: number; // unpaid break taken off payable / overtime that day
   payableMinutes: number;
@@ -154,7 +160,7 @@ export function computePayroll(
     const beforeStart = !r && !!e.trackFrom && date < e.trackFrom;
     const scheduled = !offReason && !beforeStart;
     const leave = scheduled ? leaveOn(date) : null;
-    const day: PayrollDay = { date, weekday, scheduled, offReason, holidayName, status: "UPCOMING", leaveLabel: leave?.label ?? null, recordId: r?.id ?? null, checkIn: r?.checkIn ?? null, checkOut: r?.checkOut ?? null, actualMinutes: 0, breakMinutes: 0, payableMinutes: 0, lateMinutes: 0, earlyMinutes: 0, overtimeMinutes: 0, overtimeApproved: r?.overtimeApproved ?? false, rate: null, earned: null, overtimePay: null };
+    const day: PayrollDay = { date, weekday, scheduled, offReason, holidayName, status: "UPCOMING", leaveLabel: leave?.label ?? null, recordId: r?.id ?? null, checkIn: r?.checkIn ?? null, checkOut: r?.checkOut ?? null, realCheckIn: r ? (r.realCheckIn ?? r.checkIn) : null, realCheckOut: r ? (r.realCheckOut === undefined ? r.checkOut : r.realCheckOut) : null, editCheckIn: r?.editCheckIn ?? null, editCheckOut: r?.editCheckOut ?? null, actualMinutes: 0, breakMinutes: 0, payableMinutes: 0, lateMinutes: 0, earlyMinutes: 0, overtimeMinutes: 0, overtimeApproved: r?.overtimeApproved ?? false, rate: null, earned: null, overtimePay: null };
     if (scheduled) s.scheduledDays++;
     else if (!beforeStart) s.offDays++;
 
@@ -301,6 +307,29 @@ export function periodRange(view: string | undefined, value: string | undefined,
   }
   const v = /^\d{4}-(0[1-9]|1[0-2])$/.test(value ?? "") ? value! : today.slice(0, 7);
   return { view: "month", value: v, ...monthRange(v) };
+}
+
+// The Payroll page's period: From and To dates (YYYY-MM-DD, up to 13 months), or the whole month of an old link's ?date= / ?value=.
+// `month` is set when the range is exactly one whole month (the only period that can be finalized); `error` says why a bad range fell back.
+export function payrollRange(sp: { from?: string; to?: string; date?: string; value?: string }, today = istDateString()): { from: string; to: string; month: string | null; error?: string } {
+  const day = (v?: string) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v ?? "");
+    if (!m) return null;
+    const t = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+    return new Date(t).toISOString().slice(0, 10) === v ? t : null;
+  };
+  const a = day(sp.from);
+  const b = day(sp.to);
+  let error: string | undefined;
+  let r: { from: string; to: string };
+  if (a !== null && b !== null && b >= a && (b - a) / 86400000 <= 400) r = { from: sp.from!, to: sp.to! };
+  else {
+    if (sp.from || sp.to) error = a !== null && b !== null && b < a ? "To date is before From date, so this month is shown." : "Pick two dates up to 13 months apart, so this month is shown.";
+    const p = periodRange("month", error ? today.slice(0, 7) : (sp.date ?? sp.value ?? "").slice(0, 7), today);
+    r = { from: p.from, to: p.to };
+  }
+  const ym = r.from.slice(0, 7);
+  return { ...r, month: r.from.endsWith("-01") && monthRange(ym).to === r.to ? ym : null, error };
 }
 
 export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;

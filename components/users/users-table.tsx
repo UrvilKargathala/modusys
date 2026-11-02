@@ -33,6 +33,7 @@ import { usersStore } from "@/lib/store/users-store";
 import { toastStore } from "@/lib/store/toast-store";
 import type { OrgUser } from "@/lib/mock/users";
 import { cn } from "@/lib/utils";
+import { useTableColumnOrder } from "@/components/shared/use-column-order";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 
 function formatLastActive(iso: string) {
@@ -172,10 +173,11 @@ export function UsersTable({ users }: { users: OrgUser[] }) {
     [duplicateNames, canSetPassword, canEditUser]
   );
 
+  const colOrder = useTableColumnOrder("user-columns", columns.map((c) => c.id ?? (c as { accessorKey?: string }).accessorKey ?? ""));
   const table = useReactTable({
     data: filtered,
     columns,
-    state: { sorting },
+    state: { sorting, columnOrder: colOrder.columnOrder },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -205,8 +207,9 @@ export function UsersTable({ users }: { users: OrgUser[] }) {
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
+                    {...colOrder.thProps(header.column.id)}
                     onClick={header.column.getToggleSortingHandler()}
-                    className="cursor-pointer select-none whitespace-nowrap px-4 py-2.5 text-left text-sm font-semibold uppercase tracking-wide text-grey-900"
+                    className={cn("cursor-pointer whitespace-nowrap px-4 py-2.5 text-left text-sm font-semibold uppercase tracking-wide text-grey-900", colOrder.thClass(header.column.id))}
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
                     {{ asc: " ▲", desc: " ▼" }[header.column.getIsSorted() as string] ?? ""}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Search, Pencil, Trash2, Plus, Store, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 import { VendorFormDialog } from "@/components/purchase-orders/vendor-form-dialog";
 import { useDealers, useVendors, vendorsStore } from "@/lib/store/vendors-store";
+import { useColumnOrder } from "@/components/shared/use-column-order";
+import { cn } from "@/lib/utils";
 import { toastStore } from "@/lib/store/toast-store";
 import { getCurrentUser } from "@/lib/session";
 import type { Vendor } from "@/lib/purchase-order";
@@ -39,6 +41,7 @@ export function VendorsTable({ dealers = false }: { dealers?: boolean }) {
     ["Contact", (v) => v.contacts.map((c) => [c.name, c.phone].filter(Boolean).join(": ")).join(" · ")],
     ["Email", (v) => (v.emails ?? []).join(", ")],
   ];
+  const colDrag = useColumnOrder(`${dealers ? "dealer" : "vendor"}-columns`, cols.map(([h]) => h));
   const [sort, setSort] = useState<{ col: string; desc: boolean } | null>(null);
   const sorted = useMemo(() => {
     const get = sort && cols.find(([h]) => h === sort.col)?.[1];
@@ -54,6 +57,23 @@ export function VendorsTable({ dealers = false }: { dealers?: boolean }) {
   }, [filtered, sort, dealers]);
   const toggleSort = (col: string) => setSort((s) => (s?.col !== col ? { col, desc: false } : !s.desc ? { col, desc: true } : null));
   const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(sorted);
+
+  // One cell per heading, shown in the order the columns are dragged into.
+  const cell = (v: Vendor): Record<string, React.ReactNode> => ({
+    [word]: <td className="px-2 py-0.5 text-xs font-body text-grey-900">{v.name}</td>,
+    Code: <td className="px-2 py-0.5 font-number text-xs text-grey-700">{v.code || "—"}</td>,
+    Category: <td className="px-2 py-0.5 text-xs font-body text-grey-700">{v.category || "—"}</td>,
+    Area: <td className="px-2 py-0.5 text-xs font-body text-grey-700">{v.area || "—"}</td>,
+    "Sales Person": <td className="px-2 py-0.5 text-xs font-body text-grey-700">{v.salesPerson || "—"}</td>,
+    "City / State": <td className="px-2 py-0.5 text-xs font-body text-grey-700">{[v.city, v.state].filter(Boolean).join(", ") || "—"}</td>,
+    "GST No": <td className="px-2 py-0.5 font-number text-xs text-grey-700">{v.gst || "—"}</td>,
+    Contact: (
+      <td className="px-2 py-0.5 text-xs font-body text-grey-700">
+        {v.contacts.length ? v.contacts.map((c) => [c.name, c.phone].filter(Boolean).join(": ")).join(" · ") : "—"}
+      </td>
+    ),
+    Email: <td className="px-2 py-0.5 text-xs font-body text-grey-700">{v.emails?.length ? v.emails.join(", ") : "—"}</td>,
+  });
 
   const add = async (values: Parameters<typeof vendorsStore.createVendor>[0]) => {
     try {
@@ -89,8 +109,8 @@ export function VendorsTable({ dealers = false }: { dealers?: boolean }) {
           <table className="w-full text-left">
             <thead className="bg-[var(--table-head)]">
               <tr>
-                {cols.map(([h]) => (
-                  <th key={h} className="px-2 py-1 whitespace-nowrap text-xs font-body font-semibold text-grey-900">
+                {colDrag.order.map((h) => (
+                  <th key={h} {...colDrag.thProps(h)} className={cn("px-2 py-1 whitespace-nowrap text-xs font-body font-semibold text-grey-900", colDrag.thClass(h))}>
                     <button type="button" onClick={() => toggleSort(h)} className="flex items-center gap-1 whitespace-nowrap font-semibold text-grey-900 hover:text-grey-700">
                       {h}
                       {sort?.col !== h ? <ArrowUpDown className="h-3 w-3 text-grey-300" /> : sort.desc ? <ArrowDown className="h-3 w-3 text-primary" /> : <ArrowUp className="h-3 w-3 text-primary" />}
@@ -103,21 +123,9 @@ export function VendorsTable({ dealers = false }: { dealers?: boolean }) {
             <tbody>
               {paged.map((v) => (
                 <tr key={v.id} className="hover:bg-light-600/60">
-                  <td className="px-2 py-0.5 text-xs font-body text-grey-900">{v.name}</td>
-                  <td className="px-2 py-0.5 font-number text-xs text-grey-700">{v.code || "—"}</td>
-                  {dealers && (
-                    <>
-                      <td className="px-2 py-0.5 text-xs font-body text-grey-700">{v.category || "—"}</td>
-                      <td className="px-2 py-0.5 text-xs font-body text-grey-700">{v.area || "—"}</td>
-                      <td className="px-2 py-0.5 text-xs font-body text-grey-700">{v.salesPerson || "—"}</td>
-                    </>
-                  )}
-                  <td className="px-2 py-0.5 text-xs font-body text-grey-700">{[v.city, v.state].filter(Boolean).join(", ") || "—"}</td>
-                  <td className="px-2 py-0.5 font-number text-xs text-grey-700">{v.gst || "—"}</td>
-                  <td className="px-2 py-0.5 text-xs font-body text-grey-700">
-                    {v.contacts.length ? v.contacts.map((c) => [c.name, c.phone].filter(Boolean).join(": ")).join(" · ") : "—"}
-                  </td>
-                  <td className="px-2 py-0.5 text-xs font-body text-grey-700">{v.emails?.length ? v.emails.join(", ") : "—"}</td>
+                  {colDrag.order.map((h) => (
+                    <Fragment key={h}>{cell(v)[h]}</Fragment>
+                  ))}
                   <td className="px-2 py-0.5">
                     <div className="flex items-center justify-end gap-1">
                       <Tooltip>

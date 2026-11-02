@@ -11,6 +11,7 @@ import {
 } from "@tanstack/react-table";
 import { ChevronDown, ChevronRight, MoreHorizontal, Plus, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTableColumnOrder } from "@/components/shared/use-column-order";
 import { SortMenu } from "@/components/crm/pipeline/sort-menu";
 import {
   DropdownMenu,
@@ -83,10 +84,11 @@ export function ListSection({
 
   const filtered = useMemo(() => sortCustomers(customers, sort), [customers, sort]);
 
+  const colOrder = useTableColumnOrder("crm-list-columns", columns.map((c) => c.id ?? (c as { accessorKey?: string }).accessorKey ?? ""));
   const table = useReactTable({
     data: filtered,
     columns,
-    state: { sorting },
+    state: { sorting, columnOrder: colOrder.columnOrder },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -163,8 +165,9 @@ export function ListSection({
                       {headerGroup.headers.map((header) => (
                         <th
                           key={header.id}
+                          {...colOrder.thProps(header.column.id)}
                           onClick={header.column.getToggleSortingHandler()}
-                          className="cursor-pointer select-none whitespace-nowrap px-4 py-2 text-left text-xs font-medium text-grey-400"
+                          className={cn("cursor-pointer whitespace-nowrap px-4 py-2 text-left text-xs font-medium text-grey-400", colOrder.thClass(header.column.id))}
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {{ asc: " ▲", desc: " ▼" }[header.column.getIsSorted() as string] ?? ""}

@@ -57,3 +57,14 @@ export function useColumnOrder(storageKey: string, keys: string[]) {
     );
   return { order, thProps, thClass, customized: saved.length > 0, reset: () => setSaved([]) };
 }
+
+// TanStack tables: the same drag-to-move, fed to the table as `state.columnOrder`. `fixed` columns (the row-action one) never move and stay last.
+export function useTableColumnOrder(storageKey: string, columnIds: string[], fixed: string[] = ["actions"]) {
+  const co = useColumnOrder(storageKey, columnIds.filter((k) => !fixed.includes(k)));
+  const isFixed = (k: string) => fixed.includes(k);
+  return {
+    columnOrder: [...co.order, ...columnIds.filter(isFixed)],
+    thProps: (k: string) => (isFixed(k) ? {} : co.thProps(k)),
+    thClass: (k: string) => (isFixed(k) ? "" : co.thClass(k)),
+  };
+}

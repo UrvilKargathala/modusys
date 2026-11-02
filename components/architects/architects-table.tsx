@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTableColumnOrder } from "@/components/shared/use-column-order";
+import { cn } from "@/lib/utils";
 import {
   useReactTable,
   getCoreRowModel,
@@ -140,10 +142,11 @@ export function ArchitectsTable() {
     [canEdit, canDelete, duplicateNames]
   );
 
+  const colOrder = useTableColumnOrder("architect-columns", columns.map((c) => c.id ?? (c as { accessorKey?: string }).accessorKey ?? ""));
   const table = useReactTable({
     data: filtered,
     columns,
-    state: { sorting },
+    state: { sorting, columnOrder: colOrder.columnOrder },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -199,7 +202,8 @@ export function ArchitectsTable() {
                     return (
                       <th
                         key={header.id}
-                        className="whitespace-nowrap px-2 py-1.5 text-xs font-body font-semibold text-grey-900"
+                        {...colOrder.thProps(header.column.id)}
+                        className={cn("whitespace-nowrap px-2 py-1.5 text-xs font-body font-semibold text-grey-900", colOrder.thClass(header.column.id))}
                       >
                         {canSort ? (
                           <button

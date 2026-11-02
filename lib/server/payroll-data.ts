@@ -46,7 +46,7 @@ export async function loadPayroll(from: string, to: string, employees: Awaited<R
   const fromDate = new Date(`${from}T00:00:00Z`);
   const toDate = new Date(`${to}T00:00:00Z`);
   const [records, leaves, holidays, adjustments, periods, firsts] = await Promise.all([
-    prisma.attendanceRecord.findMany({ where: { employeeId: { in: ids }, date: { gte: fromDate, lte: toDate } }, select: { id: true, employeeId: true, date: true, checkIn: true, checkOut: true, overtimeApproved: true } }),
+    prisma.attendanceRecord.findMany({ where: { employeeId: { in: ids }, date: { gte: fromDate, lte: toDate } }, select: { id: true, employeeId: true, date: true, checkIn: true, checkOut: true, editCheckIn: true, editCheckOut: true, overtimeApproved: true } }),
     prisma.leaveRequest.findMany({ where: { employeeId: { in: ids }, status: "APPROVED", fromDate: { lte: toDate }, toDate: { gte: fromDate } } }),
     // Whole months, so a salary's per-month rate counts every holiday in the month, not only those in the range.
     prisma.holiday.findMany({ where: { date: { gte: new Date(`${monthRange(months[0]).from}T00:00:00Z`), lte: new Date(`${monthRange(months[months.length - 1]).to}T00:00:00Z`) } } }),
@@ -60,7 +60,7 @@ export async function loadPayroll(from: string, to: string, employees: Awaited<R
     const first = firsts.find((f) => f.employeeId === emp.id)?._min.date;
     const added = istDateString(emp.createdAt);
     const pe = { ...toPayrollEmployee(emp), trackFrom: first && ymd(first) < added ? ymd(first) : added };
-    const recs = records.filter((r) => r.employeeId === emp.id).map((r) => ({ id: r.id, date: ymd(r.date), checkIn: r.checkIn, checkOut: r.checkOut, overtimeApproved: r.overtimeApproved }));
+    const recs = records.filter((r) => r.employeeId === emp.id).map((r) => ({ id: r.id, date: ymd(r.date), checkIn: r.editCheckIn ?? r.checkIn, checkOut: r.editCheckOut ?? r.checkOut, realCheckIn: r.checkIn, realCheckOut: r.checkOut, editCheckIn: r.editCheckIn, editCheckOut: r.editCheckOut, overtimeApproved: r.overtimeApproved }));
     const lv = leaves.filter((l) => l.employeeId === emp.id).map((l) => ({
       from: ymd(l.fromDate), to: ymd(l.toDate), isHalfDay: l.isHalfDay,
       label: `${l.leaveType === "OTHER" && l.customLeaveType ? l.customLeaveType : (LEAVE_TYPES.find((t) => t.value === l.leaveType)?.label ?? l.leaveType)} leave${l.isHalfDay ? " (half)" : ""}`,
