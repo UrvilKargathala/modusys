@@ -67,7 +67,7 @@ export function PoHardwareSelect({ field, line, onChange }: { field: Field; line
         <div className="flex max-h-64 flex-col overflow-y-auto">
           {shown.length === 0 && <p className="px-2 py-3 text-sm text-grey-400">No match in the Hardware Price List</p>}
           {shown.map((o) => (
-            <button key={o.key} type="button" onClick={() => pick(o)} className="flex flex-col rounded-md px-2 py-1.5 text-left text-sm hover:bg-light-600">
+            <button data-opt key={o.key} type="button" onClick={() => pick(o)} className="flex flex-col rounded-md px-2 py-1.5 text-left text-sm hover:bg-light-600">
               <span className="text-grey-900">{o.label || "—"}</span>
               {o.sub && <span className="text-xs text-grey-500">{o.sub}</span>}
             </button>

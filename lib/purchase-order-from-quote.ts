@@ -101,6 +101,7 @@ export function buildPoFromQuote(quote: Quote, { materials, unitTypes, hardwareI
     const dims = carcassUnitFor(c.cabinet, c.unit);
     cabinetInfo[String(c.srNo)] = {
       label: c.cabinet.label,
+      ...(c.cabinet.cabinetName ? { cabinetName: c.cabinet.cabinetName } : {}),
       unitName: unitTypes.find((u) => u.id === c.unit.unitTypeId)?.name ?? "",
       space: name(c.unit.spaceId),
       width: dims.width,

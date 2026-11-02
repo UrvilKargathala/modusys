@@ -27,6 +27,7 @@ export type HistoryDay = {
   overtimeApproved: boolean;
   rate: number | null;
   earned: number | null;
+  realEarned: number | null;
   overtimePay: number | null;
 };
 export type HistoryTotals = {
@@ -57,9 +58,16 @@ function roundedColumn(values: (number | null)[], total: number | null): (number
 }
 
 // One editable time (IST) for the Edit In / Edit Out columns. Starts as the real time; putting the real time back (or clearing it) removes the edit.
-function TimeCell({ recordId, field, value, real, edited, onError }: { recordId: string; field: "editCheckIn" | "editCheckOut"; value: string | null; real: string | null; edited: boolean; onError: (m: string) => void }) {
+function TimeCell({ recordId, field, value, real, edited, schedule, onError }: { recordId: string; field: "editCheckIn" | "editCheckOut"; value: string | null; real: string | null; edited: boolean; schedule: string | null; onError: (m: string) => void }) {
   const router = useRouter();
   const shown = hhmm(value);
+  async function save(input: HTMLInputElement, t: string) {
+    if (t === shown) return;
+    onError("");
+    const res = await fetch("/api/attendance/payroll/edit-times", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recordId, [field]: t === hhmm(real) ? null : t }) });
+    if (!res.ok) { onError((await res.json().catch(() => null))?.error ?? "Could not save"); input.value = shown; return; }
+    router.refresh();
+  }
   return (
     <input
       key={shown}
@@ -67,25 +75,24 @@ function TimeCell({ recordId, field, value, real, edited, onError }: { recordId:
       defaultValue={shown}
       aria-label={field === "editCheckIn" ? "Edit in" : "Edit out"}
       className={cn("h-7 rounded-md border bg-card px-1.5 font-number text-sm", edited ? "border-primary text-primary" : "border-grey-100 text-grey-900")}
-      onBlur={async (e) => {
-        const t = e.target.value;
+      title={schedule ? `Double-click to use the schedule time (${schedule})` : undefined}
+      onDoubleClick={(e) => { if (schedule) { e.currentTarget.value = schedule; void save(e.currentTarget, schedule); } }}
+      onBlur={(e) => {
         if (e.target.validity.badInput) { e.target.value = shown; return; } // half-typed time: keep the saved one
-        if (t === shown) return;
-        onError("");
-        const res = await fetch("/api/attendance/payroll/edit-times", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recordId, [field]: t === hhmm(real) ? null : t }) });
-        if (!res.ok) { onError((await res.json().catch(() => null))?.error ?? "Could not save"); e.target.value = shown; return; }
-        router.refresh();
+        void save(e.target, e.target.value);
       }}
     />
   );
 }
 
-export function EmployeeHistoryDialog({ name, code, period, reportHref, days: raw, totals }: { name: string; code: string | null; period: string; reportHref: string; days: HistoryDay[]; totals: HistoryTotals }) {
+export function EmployeeHistoryDialog({ name, code, period, reportHref, scheduleIn, scheduleOut, days: raw, totals }: { name: string; code: string | null; period: string; reportHref: string; scheduleIn: string | null; scheduleOut: string | null; days: HistoryDay[]; totals: HistoryTotals }) {
   const [open, setOpen] = useState(false);
   const [err, setErr] = useState("");
   const earned = roundedColumn(raw.map((d) => d.earned), totals.earned);
+  // Rounded the same way as Edited Earned, so a day with no edit shows the same amount in both columns.
+  const realEarned = roundedColumn(raw.map((d) => d.realEarned), totals.earned == null ? null : Math.round(raw.reduce((n, d) => n + (d.realEarned ?? 0), 0) * 100) / 100);
   const otPay = roundedColumn(raw.map((d) => d.overtimePay), totals.overtimePay);
-  const days = raw.map((d, i) => ({ ...d, earned: earned[i], overtimePay: otPay[i] }));
+  const days = raw.map((d, i) => ({ ...d, earned: earned[i], realEarned: realEarned[i], overtimePay: otPay[i] }));
   const realTotal = days.reduce((n, d) => n + span(d.realIn, d.realOut), 0);
   return (
     <>
@@ -120,7 +127,7 @@ export function EmployeeHistoryDialog({ name, code, period, reportHref, days: ra
           <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-grey-100">
             <table className="w-full min-w-[1400px] text-left text-sm">
               <thead className="sticky top-0 bg-light-600 text-xs text-grey-500">
-                <tr>{["Date", "Status", "Actual In", "Actual Out", "Actual", "Edit In", "Edit Out", "Edit Actual", "Payable", "Late", "Early", "Overtime", "Rate", "Earned", "OT Pay", "Day Total"].map((h) => <th key={h} className="whitespace-nowrap px-2 py-2 font-medium">{h}</th>)}</tr>
+                <tr>{["Date", "Status", "Actual In", "Actual Out", "Actual", "Edit In", "Edit Out", "Edit Actual", "Payable", "Late", "Early", "Overtime", "Rate", "Actual Earned", "Edited Earned", "OT Pay", "Day Total"].map((h) => <th key={h} className="whitespace-nowrap px-2 py-2 font-medium">{h}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-grey-100">
                 {days.map((d) => (
@@ -130,20 +137,21 @@ export function EmployeeHistoryDialog({ name, code, period, reportHref, days: ra
                     <td className="whitespace-nowrap px-2 py-1.5 font-number">{time(d.realIn)}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 font-number">{d.realIn && !d.realOut ? <span className="text-error">—</span> : time(d.realOut)}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 font-number">{span(d.realIn, d.realOut) ? hm(span(d.realIn, d.realOut)) : "—"}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5">{d.recordId ? <TimeCell recordId={d.recordId} field="editCheckIn" value={d.checkIn} real={d.realIn} edited={d.editedIn} onError={setErr} /> : <span className="text-grey-300">—</span>}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5">{d.recordId ? <TimeCell recordId={d.recordId} field="editCheckOut" value={d.checkOut} real={d.realOut} edited={d.editedOut} onError={setErr} /> : <span className="text-grey-300">—</span>}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5">{d.recordId ? <TimeCell recordId={d.recordId} field="editCheckIn" value={d.checkIn} real={d.realIn} edited={d.editedIn} schedule={scheduleIn} onError={setErr} /> : <span className="text-grey-300">—</span>}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5">{d.recordId ? <TimeCell recordId={d.recordId} field="editCheckOut" value={d.checkOut} real={d.realOut} edited={d.editedOut} schedule={scheduleOut} onError={setErr} /> : <span className="text-grey-300">—</span>}</td>
                     <td className={cn("whitespace-nowrap px-2 py-1.5 font-number", d.editedIn || d.editedOut ? "text-primary" : "")}>{d.actual ? hm(d.actual) : "—"}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 font-number">{d.payable ? hm(d.payable) : "—"}</td>
                     <td className={cn("whitespace-nowrap px-2 py-1.5 font-number", d.late ? "text-orange" : "text-grey-300")}>{d.late ? `${d.late}m` : "—"}</td>
                     <td className={cn("whitespace-nowrap px-2 py-1.5 font-number", d.early ? "text-warning-900" : "text-grey-300")}>{d.early ? `${d.early}m` : "—"}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 font-number">{d.overtime ? <span className={d.overtimeApproved ? "text-purple" : "text-grey-500"}>{hm(d.overtime)}{d.overtimeApproved ? " ✓" : ""}</span> : <span className="text-grey-300">—</span>}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 font-number text-grey-500">{d.rate == null ? "—" : inr(d.rate)}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 font-number text-grey-500">{d.realEarned ? inr(d.realEarned) : <span className="text-grey-300">—</span>}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 font-number">{d.earned ? inr(d.earned) : <span className="text-grey-300">—</span>}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 font-number">{d.overtimePay ? <span className="text-purple">{inr(d.overtimePay)}</span> : <span className="text-grey-300">—</span>}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 font-number font-semibold text-grey-900">{d.earned || d.overtimePay ? inr((d.earned ?? 0) + (d.overtimePay ?? 0)) : <span className="font-normal text-grey-300">—</span>}</td>
                   </tr>
                 ))}
-                {days.length === 0 && <tr><td colSpan={16} className="px-3 py-8 text-center text-grey-500">Nothing in this period yet.</td></tr>}
+                {days.length === 0 && <tr><td colSpan={17} className="px-3 py-8 text-center text-grey-500">Nothing in this period yet.</td></tr>}
               </tbody>
               <tfoot className="sticky bottom-0 bg-light-600 text-sm font-semibold text-grey-900">
                 <tr>
@@ -156,6 +164,7 @@ export function EmployeeHistoryDialog({ name, code, period, reportHref, days: ra
                   <td className="px-2 py-2 font-number">{totals.early}m</td>
                   <td className="px-2 py-2 font-number">{hm(totals.overtime)}</td>
                   <td className="px-2 py-2" />
+                  <td className="px-2 py-2 font-number text-grey-500">{totals.earned == null ? "—" : inr(days.reduce((n, d) => n + (d.realEarned ?? 0), 0))}</td>
                   <td className="px-2 py-2 font-number">{inr(totals.earned)}</td>
                   <td className="px-2 py-2 font-number">{inr(totals.overtimePay)}</td>
                   <td className="px-2 py-2 font-number">{totals.earned == null ? "—" : inr(totals.earned + (totals.overtimePay ?? 0))}</td>

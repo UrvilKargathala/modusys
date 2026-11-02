@@ -913,3 +913,8 @@
 .col-order-reset { position: absolute; top: 2px; right: 10px; z-index: 6; cursor: pointer; font-size: 12px; line-height: 1; padding: 2px 4px; border-radius: 4px; color: var(--color-primary); background: var(--color-primary-transparent); font-weight: 600; }
 .col-order-reset::before { content: "\21BA"; }
 table.col-fixed td, table.col-fixed th { overflow: hidden; text-overflow: ellipsis; }
+
+/* Option highlighted with the arrow keys in an open dropdown list (see components/shared/option-keys.ts). */
+[data-opt][data-active="true"] {
+  background-color: var(--color-primary-300);
+}

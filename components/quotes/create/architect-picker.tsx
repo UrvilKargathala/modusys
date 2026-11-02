@@ -61,7 +61,7 @@ export function ArchitectPicker({ value, onChange }: { value: string; onChange: 
           <Input autoFocus placeholder="Search architects" value={query} onChange={(e) => setQuery(e.target.value)} className="mb-2" />
           <div className="flex max-h-52 flex-col overflow-y-auto">
             {results.map((a) => (
-              <button
+              <button data-opt
                 key={a.id}
                 type="button"
                 onClick={() => {

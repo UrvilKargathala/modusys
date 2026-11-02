@@ -51,7 +51,7 @@ export function UserPicker({ value, onChange }: { value: string; onChange: (user
         />
         <div className="flex max-h-52 flex-col overflow-y-auto">
           {results.map((u) => (
-            <button
+            <button data-opt
               key={u.id}
               type="button"
               onClick={() => {

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { PanelCalculatorContext } from "@/components/shared/panel-calculator-context";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { FurnitureLineItemRow, FurnitureTable } from "@/components/templates/furniture-line-item-row";
+import { CabinetFormulasContext, FurnitureLineItemRow, FurnitureTable, cabinetFormulas } from "@/components/templates/furniture-line-item-row";
 import { UnitTypeHardwareRow, HardwareTable } from "@/components/templates/unit-type-hardware-row";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
@@ -47,6 +47,27 @@ function duplicateAt<T extends { id: string }>(items: T[], id: string, makeId: (
   return next;
 }
 
+// Under a cabinet row, the group's arrow sits exactly under the cabinet's own arrow, and its title exactly under the cabinet type box.
+// Cabinet row (from the card's inner edge): 28px arrow button (centre 14px) + 8 gap + 64px "1.1. Type:" label (min-w-16) + 8 gap = 108px to the box.
+// Group header (no accent border here): its content starts 12px in and the 24px arrow button would centre at 24px, so the arrow gets -10px
+// (centre 14px), and the title, which would start 44px in (34px after the arrow moved), gets 74px to land on 108px.
+const ARROW_SHIFT = "-ml-2.5";
+const TITLE_INDENT = "ml-[74px]";
+
+// Open / closed of each bar and cabinet, remembered while the app is open: switching tabs (All Units, Carcass …) or folding a
+// unit unmounts them, and without this they would all come back closed. Keyed by cabinet id + bar.
+const openState = new Map<string, boolean>();
+function useRememberedCollapsed(key: string | undefined, initial: boolean) {
+  const [collapsed, set] = useState(() => (key && openState.has(key) ? openState.get(key)! : initial));
+  const setCollapsed = (next: boolean | ((c: boolean) => boolean)) =>
+    set((c) => {
+      const v = typeof next === "function" ? next(c) : next;
+      if (key) openState.set(key, v);
+      return v;
+    });
+  return [collapsed, setCollapsed] as const;
+}
+
 // One accent per group so a scanning eye can immediately tell Carcass from
 // Shutter from Other Panel without reading the header.
 // Each colour can be changed in Templates > Colour Palette (--sec-* variables); the fallbacks are the built-in colours.
@@ -69,6 +90,8 @@ export function FurnitureGroup({
   accent = "primary",
   hideWhenEmpty,
   defaultOpen,
+  alignTitle,
+  stateKey,
 }: {
   title: string;
   label: string;
@@ -82,13 +105,17 @@ export function FurnitureGroup({
   hideWhenEmpty?: boolean;
   // Starts opened (the Shutter / Hardware filter views); otherwise a group starts closed.
   defaultOpen?: boolean;
+  // Under a cabinet row: the title starts exactly under the cabinet type box (see TITLE_INDENT).
+  alignTitle?: boolean;
+  // Remembers this bar's open / closed across tab switches (see useRememberedCollapsed).
+  stateKey?: string;
 }) {
   const furnitureItems = useFurniturePriceItems();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const subtotal = groupTotal(items, unit, furnitureItems);
   const totalSqFt = groupSqFt(items, unit);
   const isViewMode = useSearchParams().get("mode") === "view";
-  const [collapsed, setCollapsed] = useState(!defaultOpen);
+  const [collapsed, setCollapsed] = useRememberedCollapsed(stateKey, !defaultOpen);
   // Requirement Order only: the Panel Calculator on Other Panel (see PanelCalculatorContext).
   const PanelCalculator = useContext(PanelCalculatorContext);
   const [calcOpen, setCalcOpen] = useState(false);
@@ -106,31 +133,35 @@ export function FurnitureGroup({
 
   const a = groupAccent[accent];
   return (
-    <div className={cn("flex flex-col gap-2 rounded-lg border-l-4 bg-light-600 p-3", a.border)}>
-      <div className={cn("-mx-3 -mt-3 flex items-center justify-between rounded-t-md px-3 py-1", a.header)}>
+    <div className={cn("flex flex-col gap-2 rounded-lg bg-light-600", collapsed ? "p-0" : "p-3", !alignTitle && "border-l-4", !alignTitle && a.border)}>
+      <div
+        className={cn("flex cursor-pointer select-none items-center justify-between px-3", collapsed ? "" : "-mx-3 -mt-3", alignTitle ? "py-0.5" : "py-1", collapsed ? "rounded-md" : "rounded-t-md", a.header)}
+        // Anywhere on the bar opens / closes it; the buttons on the bar keep doing their own job.
+        onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) setCollapsed((c) => !c); }}
+      >
         <div className="flex items-center gap-2">
           <button
             type="button"
             aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
             onClick={() => setCollapsed((c) => !c)}
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-grey-400 hover:bg-card hover:text-grey-700"
+            className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-grey-400 hover:bg-card hover:text-grey-700", alignTitle && ARROW_SHIFT)}
           >
             {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
-          <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-700">{title}</h4>
+          <h4 className={cn("text-xs font-body font-semibold uppercase tracking-wide text-grey-700", alignTitle && TITLE_INDENT)}>{title}</h4>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs font-number text-grey-500">{totalSqFt.toFixed(2)} sq.ft</span>
-          <span className="text-sm font-number font-semibold text-grey-700">₹{subtotal.toFixed(2)}</span>
+          <span className="text-xs font-number font-semibold text-grey-700">₹{subtotal.toFixed(2)}</span>
           {PanelCalculator && label === "Other Panel" && (
-            <Button type="button" size="sm" variant="outline" onClick={() => setCalcOpen(true)}>
+            <Button type="button" size={alignTitle ? "xs" : "sm"} className="text-xs" variant="outline" onClick={() => setCalcOpen(true)}>
               <Calculator className="h-3.5 w-3.5" />
               Calculator
             </Button>
           )}
           <Button
             type="button"
-            size="sm"
+            size={alignTitle ? "xs" : "sm"} className="text-xs"
             variant="outline"
             onClick={() => onChange([...items, blankLineItem()])}
           >
@@ -196,18 +227,22 @@ export function HardwareGroup({
   onChange,
   hideWhenEmpty,
   defaultOpen,
+  alignTitle,
+  stateKey,
 }: {
   items: UnitTypeHardware[];
   unit: { width: number; depth: number; height: number; qty: number };
   onChange: (items: UnitTypeHardware[]) => void;
   hideWhenEmpty?: boolean;
   defaultOpen?: boolean;
+  alignTitle?: boolean;
+  stateKey?: string;
 }) {
   const hardwareItems = useHardwarePriceItems();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const total = items.reduce((sum, h) => sum + hardwareLineTotal(h, unit, hardwareItems), 0);
   const isViewMode = useSearchParams().get("mode") === "view";
-  const [collapsed, setCollapsed] = useState(!defaultOpen);
+  const [collapsed, setCollapsed] = useRememberedCollapsed(stateKey, !defaultOpen);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -222,22 +257,26 @@ export function HardwareGroup({
 
   const a = groupAccent.info;
   return (
-    <div className={cn("flex flex-col gap-2 rounded-lg border-l-4 bg-light-600 p-3", a.border)}>
-      <div className={cn("-mx-3 -mt-3 flex items-center justify-between rounded-t-md px-3 py-1", a.header)}>
+    <div className={cn("flex flex-col gap-2 rounded-lg bg-light-600", collapsed ? "p-0" : "p-3", !alignTitle && "border-l-4", !alignTitle && a.border)}>
+      <div
+        className={cn("flex cursor-pointer select-none items-center justify-between px-3", collapsed ? "" : "-mx-3 -mt-3", alignTitle ? "py-0.5" : "py-1", collapsed ? "rounded-md" : "rounded-t-md", a.header)}
+        // Anywhere on the bar opens / closes it; the buttons on the bar keep doing their own job.
+        onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) setCollapsed((c) => !c); }}
+      >
         <div className="flex items-center gap-2">
           <button
             type="button"
             aria-label={collapsed ? "Expand Hardware" : "Collapse Hardware"}
             onClick={() => setCollapsed((c) => !c)}
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-grey-400 hover:bg-card hover:text-grey-700"
+            className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-grey-400 hover:bg-card hover:text-grey-700", alignTitle && ARROW_SHIFT)}
           >
             {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           </button>
-          <h4 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-700">Hardware</h4>
+          <h4 className={cn("text-xs font-body font-semibold uppercase tracking-wide text-grey-700", alignTitle && TITLE_INDENT)}>Hardware</h4>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm font-number font-semibold text-grey-700">₹{total.toFixed(2)}</span>
-          <Button type="button" size="sm" variant="outline" onClick={() => onChange([...items, blankHardware()])}>
+          <span className="text-xs font-number font-semibold text-grey-700">₹{total.toFixed(2)}</span>
+          <Button type="button" size={alignTitle ? "xs" : "sm"} className="text-xs" variant="outline" onClick={() => onChange([...items, blankHardware()])}>
             <Plus className="h-3.5 w-3.5" />
             Add Hardware
           </Button>
@@ -282,7 +321,7 @@ export function CabinetTypeSelect({ value, onChange, compact = false }: { value:
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className={cn("flex w-full items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card font-body font-semibold text-grey-800 outline-none focus:border-primary", compact ? "h-6 min-w-0 px-2 text-xs" : "min-w-32 px-3 py-1.5 text-sm")}>
+      <PopoverTrigger className={cn("flex w-full items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card font-body font-semibold text-grey-800 outline-none focus:border-primary", compact ? "h-6 min-w-0 px-2 text-xs" : "h-6 min-w-32 px-3 text-xs")}>
         {selected ? <span className="truncate">{selected.name}</span> : <span className="truncate text-grey-400 font-normal">Select Cabinet Type</span>}
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-grey-400" />
       </PopoverTrigger>
@@ -290,7 +329,7 @@ export function CabinetTypeSelect({ value, onChange, compact = false }: { value:
         <Input autoFocus placeholder="Search cabinet types" value={query} onChange={(e) => setQuery(e.target.value)} className="mb-2" />
         <div className="flex max-h-52 flex-col overflow-y-auto">
           {results.map((c) => (
-            <button
+            <button data-opt
               key={c.id}
               type="button"
               onClick={() => {
@@ -335,7 +374,7 @@ export function QuoteCabinetGroup({
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const isViewMode = useSearchParams().get("mode") === "view";
-  const [collapsed, setCollapsed] = useState(isViewMode);
+  const [collapsed, setCollapsed] = useRememberedCollapsed(`${cabinet.id}:cabinet`, isViewMode);
   const cabinetTypes = useCabinetTypes();
   const selectedCabinetType = cabinetTypes.find((c) => c.id === cabinet.cabinetTypeId);
   const carcassUnit = carcassUnitFor(cabinet, unit);
@@ -346,17 +385,17 @@ export function QuoteCabinetGroup({
   };
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-grey-100 bg-card p-3">
+    <div className="flex flex-col gap-1 rounded-lg border border-grey-100 bg-card px-2 py-1.5">
       <div className="flex items-center gap-2">
         <button
           type="button"
           aria-label={collapsed ? "Expand cabinet" : "Collapse cabinet"}
           onClick={() => setCollapsed((c) => !c)}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-grey-100 bg-light-600 text-grey-500 hover:text-grey-800"
+          className="flex h-6 w-7 shrink-0 items-center justify-center rounded-md border border-grey-100 bg-light-600 text-grey-500 hover:text-grey-800"
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
-        <span className="shrink-0 text-xs font-body font-medium text-grey-400">
+        <span className="min-w-16 shrink-0 text-xs font-body font-medium text-grey-400">
           <span className="font-number">{index}</span>. Type:
         </span>
         <div className="min-w-32 max-w-72 flex-1">
@@ -376,7 +415,7 @@ export function QuoteCabinetGroup({
                   type="number"
                   value={cabinet[key] ?? fallback ?? ""}
                   onChange={(e) => onChange({ [key]: Number(e.target.value) })}
-                  className="h-7 w-16 bg-card text-sm font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  className="h-6 w-16 bg-card text-xs md:text-xs font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
               </div>
             );
@@ -388,45 +427,51 @@ export function QuoteCabinetGroup({
               min={1}
               value={cabinet.carcassQty ?? unit.qty ?? ""}
               onChange={(e) => onChange({ carcassQty: Number(e.target.value) })}
-              className="h-7 w-14 bg-card text-sm font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              className="h-6 w-14 bg-card text-xs md:text-xs font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
           </div>
         </div>
-        <Button type="button" size="icon-sm" aria-label="Auto Populate" title="Auto Populate" disabled={!selectedCabinetType} onClick={runAutoPopulate}>
+        <Button type="button" size="icon-xs" aria-label="Auto Populate" title="Auto Populate" disabled={!selectedCabinetType} onClick={runAutoPopulate}>
           <Sparkles className="h-3.5 w-3.5" />
         </Button>
+        {selectedCabinetType && cabinet.components.length === 0 && (
+          <Button type="button" size="xs" className="text-xs" variant="outline" onClick={() => onChange({ components: [blankLineItem()] })}>
+            <Plus className="h-3.5 w-3.5" />
+            Carcass
+          </Button>
+        )}
         {cabinet.externalFinishes.length === 0 && (
-          <Button type="button" size="sm" variant="outline" onClick={() => onChange({ externalFinishes: [blankLineItem()] })}>
+          <Button type="button" size="xs" className="text-xs" variant="outline" onClick={() => onChange({ externalFinishes: [blankLineItem()] })}>
             <Plus className="h-3.5 w-3.5" />
             Shutter
           </Button>
         )}
         {cabinet.panels.length === 0 && (
-          <Button type="button" size="sm" variant="outline" onClick={() => onChange({ panels: [blankLineItem()] })}>
+          <Button type="button" size="xs" className="text-xs" variant="outline" onClick={() => onChange({ panels: [blankLineItem()] })}>
             <Plus className="h-3.5 w-3.5" />
             Other Panel
           </Button>
         )}
         {cabinet.hardware.length === 0 && (
-          <Button type="button" size="sm" variant="outline" onClick={() => onChange({ hardware: [blankHardware()] })}>
+          <Button type="button" size="xs" className="text-xs" variant="outline" onClick={() => onChange({ hardware: [blankHardware()] })}>
             <Plus className="h-3.5 w-3.5" />
             Hardware
           </Button>
         )}
         <div className="ml-auto flex items-center gap-2">
           {onAddCabinet && (
-            <Button type="button" size="sm" variant="outline" onClick={onAddCabinet}>
+            <Button type="button" size="xs" className="text-xs" variant="outline" onClick={onAddCabinet}>
               <Plus className="h-3.5 w-3.5" />
               Add Cabinet
             </Button>
           )}
-          <span className="text-sm font-body font-semibold text-grey-900">Cabinet Total: <span className="font-number">₹{total.toFixed(2)}</span></span>
+          <span className="text-xs font-body font-semibold text-grey-900">Cabinet Total: <span className="font-number">₹{total.toFixed(2)}</span></span>
           <button
             type="button"
             aria-label="Duplicate cabinet"
             title="Duplicate this cabinet"
             onClick={onDuplicate}
-            className="rounded-md p-1.5 text-grey-400 hover:bg-light-600 hover:text-grey-700"
+            className="rounded-md p-1 text-grey-400 hover:bg-light-600 hover:text-grey-700"
           >
             <Copy className="h-4 w-4" />
           </button>
@@ -434,7 +479,7 @@ export function QuoteCabinetGroup({
             type="button"
             aria-label="Remove cabinet"
             onClick={() => setDeleteOpen(true)}
-            className="rounded-md p-1.5 text-grey-400 hover:bg-error-transparent hover:text-error"
+            className="rounded-md p-1 text-grey-400 hover:bg-error-transparent hover:text-error"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -443,8 +488,13 @@ export function QuoteCabinetGroup({
 
       {!collapsed && (
         <>
+          {/* No Carcass bar until a cabinet type is picked and it has components (Auto Populate or + Carcass adds them). */}
+          {selectedCabinetType && cabinet.components.length > 0 && (
+          <CabinetFormulasContext.Provider value={cabinetFormulas(selectedCabinetType.components)}>
           <FurnitureGroup
             title="Carcass"
+            alignTitle
+            stateKey={`${cabinet.id}:carcass`}
             label="Component"
             showComponentName
             accent="primary"
@@ -454,8 +504,12 @@ export function QuoteCabinetGroup({
             onChange={(components) => onChange({ components })}
 
           />
+          </CabinetFormulasContext.Provider>
+          )}
           <FurnitureGroup
             title="Shutter"
+            alignTitle
+            stateKey={`${cabinet.id}:shutter`}
             label="External Finish"
             showComponentName
             accent="teal"
@@ -468,6 +522,8 @@ export function QuoteCabinetGroup({
           />
           <FurnitureGroup
             title="Other Panel"
+            alignTitle
+            stateKey={`${cabinet.id}:panel`}
             label="Other Panel"
             showComponentName
             showLevelType
@@ -480,6 +536,8 @@ export function QuoteCabinetGroup({
 
           />
           <HardwareGroup
+            alignTitle
+            stateKey={`${cabinet.id}:hardware`}
             items={cabinet.hardware}
             unit={unit}
             onChange={(hardware) => onChange({ hardware })}

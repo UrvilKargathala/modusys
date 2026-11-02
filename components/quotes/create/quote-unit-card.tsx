@@ -140,7 +140,7 @@ function UnitTypeSelect({ value, onChange }: { value: string | null; onChange: (
           <Input autoFocus placeholder="Search unit types" value={query} onChange={(e) => setQuery(e.target.value)} className="mb-2 font-number" />
           <div className="flex max-h-52 flex-col overflow-y-auto">
             {results.map((u) => (
-              <button
+              <button data-opt
                 key={u.id}
                 type="button"
                 onClick={() => {
@@ -378,7 +378,10 @@ export function QuoteUnitCard({
       </div>
 
       {!unit.collapsed && (
-        <div className="quote-dense flex flex-col gap-2 pb-1">
+        // Indented so each cabinet's arrow (and the Carcass / Shutter / … arrows under it) sits right under this unit's arrow:
+        // the unit arrow's centre is drag column + gap + 14px (20+6+14 = 40px, or 36+4+14 = 54px with the tick box), the
+        // cabinet arrow's centre is 23px into its card, so the cabinets move 17px (31px with the tick box).
+        <div className={cn("quote-dense flex flex-col gap-2 pb-1", tick ? "ml-[31px]" : "ml-[17px]")}>
           {unit.cabinets.map((cabinet, cabinetIndex) => (
             <QuoteCabinetGroup
               key={cabinet.id}

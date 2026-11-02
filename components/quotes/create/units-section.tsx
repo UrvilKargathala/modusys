@@ -14,13 +14,15 @@ import { PanelCalculatorContext } from "@/components/shared/panel-calculator-con
 import type { FurnitureLineItem } from "@/lib/mock/unit-type";
 import { EmptyState } from "@/components/shared/empty-state";
 import { QuoteUnitCard, UNIT_ROW_GRID, UNIT_ROW_GRID_TICK } from "@/components/quotes/create/quote-unit-card";
-import { FurnitureLineItemRow, FurnitureTableHeader, furnitureTableColumns } from "@/components/templates/furniture-line-item-row";
+import { CabinetFormulasContext, FurnitureLineItemRow, FurnitureTableHeader, cabinetFormulas, furnitureTableColumns } from "@/components/templates/furniture-line-item-row";
 import { UnitTypeHardwareRow, HardwareTableHeader, HARDWARE_TABLE_COLUMNS } from "@/components/templates/unit-type-hardware-row";
 import { carcassUnitFor, effectiveFurnitureRate, effectiveHardwareRate, evaluateFormula, SQMM_PER_SQFT, unitSqFt, unitTotal } from "@/lib/quote-pricing";
 import { useUnitTypes } from "@/lib/store/unit-type-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
-import { useMaterialItems } from "@/lib/store/material-spec-store";
+import { materialSpecStore, useMaterialItems } from "@/lib/store/material-spec-store";
+import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
+import { useLibKey } from "@/components/purchase-orders/po-library-context";
 import { nextLineSort, SortLabel, type LineSort } from "@/components/templates/line-sort";
 import { formatInr } from "@/lib/format";
 import { blankQuoteUnit, type QuoteCabinet, type QuoteUnit } from "@/lib/mock/quote";
@@ -37,6 +39,8 @@ const FURN = {
 type FurnView = keyof typeof FURN;
 // Carcass tab cabinet row: toggle, Sr No, Cabinet Type, Unit, W, D, H, Qty, Sq.ft, Amount, Auto Populate.
 const CABINET_ROW = "24px 36px minmax(150px,1fr) minmax(120px,0.8fr) 52px 52px 52px 44px 56px 84px 26px";
+// Requirement Order: Cabinet Name (Purchase Material Library) and Unit Name (space · code — unit type) in place of Unit.
+const CABINET_ROW_RO = "24px 36px minmax(150px,1fr) minmax(130px,0.8fr) minmax(200px,1.2fr) 52px 52px 52px 44px 56px 84px 26px";
 // The W/D/H a line's formulas use: Carcass follows its cabinet's own size (when set), the others the unit's.
 const dimsFor = (view: FurnView, u: QuoteUnit, c: QuoteCabinet) => {
   const d = view === "carcass" ? carcassUnitFor(c, u) : u;
@@ -285,7 +289,10 @@ export function UnitsSection({
   // Carcass tab, laid out like the Purchase Order: one row per cabinet (Sr No, Cabinet Type, its unit, carcass W/D/H/Qty, Sq.ft, Amount and Auto
   // Populate), its components in a table under it. Cabinets are numbered through the quote (1, 2, 3 …), their components 1.1, 1.2 …
   // Everything stays editable as inside the cabinet. The search shows a cabinet whose type or unit matches, or only its matching components.
-  const [closedCabinets, setClosedCabinets] = useState<Set<string>>(new Set());
+  // Carcass tab: every cabinet starts collapsed; the ones opened here stay open while switching tabs.
+  const [openCabinets, setOpenCabinets] = useState<Set<string>>(new Set());
+  const cabinetNameKey = useLibKey("purchase-cabinet-type");
+  const cabinetNames = useMaterialItems(cabinetNameKey);
   // Rate Pending tab: a table per group (Carcass, Shutter, Other Panel, Hardware) of the lines that had no rate when the tab opened,
   // numbered by unit (1.1, 1.2 ... 2.1) and edited in place.
   const ratePending = () => {
@@ -366,47 +373,61 @@ export function UnitsSection({
     );
   };
   const carcassByCabinet = () => {
+    const ro = !!send;
+    const grid = ro ? CABINET_ROW_RO : CABINET_ROW;
     const q = query.trim().toLowerCase();
     let n = 0;
     const cabs = units.flatMap((u) => u.cabinets.map((c) => {
       const no = String(++n);
       const type = cabinetTypes.find((t) => t.id === c.cabinetTypeId);
-      const unitText = [nameOf(spaces, u.spaceId ?? ""), unitTypes.find((t) => t.id === u.unitTypeId)?.shortCode].filter(Boolean).join(" · ");
+      const ut = unitTypes.find((t) => t.id === u.unitTypeId);
+      // Requirement Order shows the whole unit name (Kitchen · BUSC2TD — Base Unit Cabinet With 2 Tandem Drawers), like its POs.
+      const unitText = [nameOf(spaces, u.spaceId ?? ""), ro ? [ut?.shortCode, ut?.name].filter(Boolean).join(" — ") : ut?.shortCode].filter(Boolean).join(" · ");
       const dims = dimsFor("carcass", u, c);
       const all = c.components.map((item, k) => ({ u, c, item, no: `${no}.${k + 1}` }));
       const values = (r: (typeof all)[number]) => furnValues(r.item, dims, r.no);
-      const headMatch = !q || `${type?.name ?? ""} ${unitText}`.toLowerCase().includes(q);
+      const headMatch = !q || `${type?.name ?? ""} ${unitText} ${c.cabinetName ?? ""}`.toLowerCase().includes(q);
       const lines = arrange(all, values, !headMatch).filter((r) => passes([r.item.id]));
       const sum = (k: "sqft" | "amount") => all.reduce((t, r) => t + values(r)[k], 0);
       return { u, c, no, type, unitText, dims, lines, values, show: (headMatch && lineFilter === "all") || lines.length > 0, sqft: sum("sqft"), amount: sum("amount"), qty: all.reduce((t, r) => t + r.item.qty, 0) };
     }));
     const shown = cabs.filter((x) => x.show);
     const num = "h-6 w-full bg-card px-1 text-center text-xs font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
-    const toggle = (id: string) => setClosedCabinets((s) => { const next = new Set(s); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+    const toggle = (id: string) => setOpenCabinets((s) => { const next = new Set(s); if (next.has(id)) next.delete(id); else next.add(id); return next; });
     if (shown.length === 0) return <p className="rounded-lg border border-dashed border-grey-100 py-6 text-center text-sm font-body text-grey-400">{cabs.length === 0 ? "No cabinets yet. Open a unit and use its Add Cabinet button." : "No lines match your search."}</p>;
     return (
       <div className="quote-dense">
         <div className="-mx-2 overflow-x-auto">
           <div className="min-w-[1100px]">
             {withTick(shown.flatMap((x) => x.lines.map((r) => r.item.id)), "every line shown", (
-            <div className="grid items-center gap-x-1.5 bg-[var(--table-head)] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: CABINET_ROW }}>
-              <span /><span>Sr No</span><span>Cabinet Type</span><span>Unit</span>
+            <div className="grid items-center gap-x-1.5 bg-[var(--table-head)] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: grid }}>
+              <span /><span>Sr No</span><span>Cabinet Type</span>{ro ? <><span>Cabinet Name</span><span>Unit Name</span></> : <span>Unit</span>}
               {["Width", "Depth", "Height", "Qty", "Sq.ft"].map((h) => <span key={h} className="text-center">{h}</span>)}
               <span className="text-right">Amount</span><span />
             </div>
             ))}
             {shown.map(({ u, c, no, type, unitText, dims, lines, values, sqft, amount }) => {
-              const open = !closedCabinets.has(c.id);
+              // While searching, every shown cabinet is open so its matching components can be seen.
+              const open = openCabinets.has(c.id) || q !== "";
               const size = carcassUnitFor(c, u);
               return (
                 <div key={c.id} className="border-b border-grey-100">
                   {withTick(lines.map((r) => r.item.id), `cabinet ${no}`, (
-                  <div className="grid items-center gap-x-1.5 bg-card px-2 py-0.5 text-xs" style={{ gridTemplateColumns: CABINET_ROW }}>
+                  <div className="grid items-center gap-x-1.5 bg-card px-2 py-0.5 text-xs" style={{ gridTemplateColumns: grid }}>
                     <button type="button" onClick={() => toggle(c.id)} aria-label={open ? `Collapse cabinet ${no}` : `Expand cabinet ${no}`} className="flex h-6 w-6 items-center justify-center rounded-md border border-grey-100 bg-light-600 text-grey-500 hover:text-grey-800">
                       {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                     </button>
                     <span className="num text-xs font-semibold text-grey-900">{no}</span>
                     <CabinetTypeSelect compact value={c.cabinetTypeId} onChange={(cabinetTypeId) => patchCabinet(u.id, c.id, { cabinetTypeId })} />
+                    {ro && (
+                      <MaterialReferenceSelect
+                        category={cabinetNameKey}
+                        nameOnly
+                        value={cabinetNames.find((m) => m.name === c.cabinetName)?.id ?? ""}
+                        triggerClassName="h-6 px-2 py-0 text-xs"
+                        onChange={(id) => patchCabinet(u.id, c.id, { cabinetName: materialSpecStore.getSnapshot().find((m) => m.id === id)?.name ?? "" })}
+                      />
+                    )}
                     <span className="truncate text-xs font-body text-grey-700" title={unitText}>{unitText || "—"}</span>
                     {(["carcassWidth", "carcassDepth", "carcassHeight", "carcassQty"] as const).map((k) => (
                       <Input key={k} type="number" min={k === "carcassQty" ? 1 : 0} aria-label={`${k.replace("carcass", "")} of cabinet ${no}`} value={k === "carcassQty" ? size.qty : k === "carcassWidth" ? size.width : k === "carcassDepth" ? size.depth : size.height} onChange={(e) => patchCabinet(u.id, c.id, { [k]: Number(e.target.value) })} className={num} />
@@ -419,6 +440,7 @@ export function UnitsSection({
                   </div>
                   ))}
                   {open && (
+                    <CabinetFormulasContext.Provider value={cabinetFormulas(type?.components)}>
                     <div className="mb-1.5 ml-7 mr-1 overflow-hidden rounded-md border border-grey-100">
                       {withTick(lines.map((r) => r.item.id), `every line of cabinet ${no}`, <FurnitureTableHeader showComponentName showLevelType={false} nameLabel="Component" withNo sort={sort} onSort={onSort} />)}
                       <DndContext sensors={sensors} collisionDetection={closestCenter}>
@@ -452,13 +474,14 @@ export function UnitsSection({
                         </Button>
                       </div>
                     </div>
+                    </CabinetFormulasContext.Provider>
                   )}
                 </div>
               );
             })}
             {withTick([], "", (
-            <div className="grid items-center gap-x-1.5 bg-[var(--table-head)] px-2 py-1 text-xs font-semibold text-grey-900" style={{ gridTemplateColumns: CABINET_ROW }}>
-              <span style={{ gridColumn: "1 / 8" }}>Total ({shown.length} {shown.length === 1 ? "cabinet" : "cabinets"})</span>
+            <div className="grid items-center gap-x-1.5 bg-[var(--table-head)] px-2 py-1 text-xs font-semibold text-grey-900" style={{ gridTemplateColumns: grid }}>
+              <span style={{ gridColumn: ro ? "1 / 9" : "1 / 8" }}>Total ({shown.length} {shown.length === 1 ? "cabinet" : "cabinets"})</span>
               <span className="num text-center">{shown.reduce((t, x) => t + x.qty, 0)} pcs</span>
               <span className="num text-center">{shown.reduce((t, x) => t + x.sqft, 0).toFixed(2)}</span>
               <span className="num text-right">₹{shown.reduce((t, x) => t + x.amount, 0).toFixed(2)}</span>
@@ -542,7 +565,8 @@ export function UnitsSection({
                 role="tab"
                 aria-selected={view === k}
                 onClick={() => changeView(k)}
-                className={`rounded-md px-3 py-1 text-sm font-body font-medium transition-colors ${view === k ? "bg-blush font-semibold text-grey-900" : "text-grey-600 hover:bg-light-600"}`}
+                // Rate Pending with lines still missing a rate: light red with black text, so it can't be missed.
+                className={`rounded-md px-3 py-1 text-sm font-body font-medium transition-colors ${k === "pending" && n > 0 ? `bg-error-200 text-grey-900 hover:bg-error-200 ${view === k ? "font-semibold" : ""}` : view === k ? "bg-blush font-semibold text-grey-900" : "text-grey-600 hover:bg-light-600"}`}
               >
                 {label} <span className="font-number">({n})</span>
               </button>

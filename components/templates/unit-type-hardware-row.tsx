@@ -542,7 +542,7 @@ function DescriptionCombobox({
           />
           <div className="flex max-h-52 flex-col overflow-y-auto">
             {filtered.map((d) => (
-              <button
+              <button data-opt
                 key={d}
                 type="button"
                 onClick={() => {

@@ -79,11 +79,24 @@ function AlertDialogHeader({
 
 function AlertDialogFooter({
   className,
+  onKeyDown,
   ...props
 }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="alert-dialog-footer"
+      // Arrow keys move between the buttons (Cancel / Confirm); Enter presses the focused one.
+      onKeyDown={(e) => {
+        onKeyDown?.(e)
+        const keys: Record<string, number> = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }
+        const step = keys[e.key]
+        if (!step) return
+        const buttons = [...e.currentTarget.querySelectorAll<HTMLElement>("button:not([disabled])")]
+        const at = buttons.indexOf(document.activeElement as HTMLElement)
+        if (at < 0) return
+        e.preventDefault()
+        buttons[(at + step + buttons.length) % buttons.length].focus()
+      }}
       className={cn(
         "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 group-data-[size=sm]/alert-dialog-content:grid group-data-[size=sm]/alert-dialog-content:grid-cols-2 sm:flex-row sm:justify-end",
         className

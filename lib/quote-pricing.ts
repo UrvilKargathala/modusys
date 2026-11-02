@@ -53,6 +53,17 @@ export function applyShutterFinishToUnits(units: QuoteUnit[], overrides: Shutter
 // Formulas only ever reference W/D/H plus +-*/() and numbers (see
 // furniture-line-item-row.tsx placeholders: "(W-95)/2", "H-20") — never
 // arbitrary code, so a whitelist-filtered `Function` eval is safe.
+// For a hover hint: "W-10" with W 645 → "W-10 = 645-10 = 635" (the formula, the same sum with the sizes put in, the answer);
+// a plain sum "875-30" → "875-30 = 845".
+// `shown` = the number in the box, used as the answer so the hint never disagrees with it after rounding.
+export function formulaWorking(formula: string, vars: { W: number; D: number; H: number }, shown?: number): string {
+  const f = formula.replace(/\s+/g, "").toUpperCase();
+  const sum = f.replace(/[WDH]/g, (k) => String(vars[k as "W" | "D" | "H"]));
+  const result = String(shown ?? Math.round(evaluateFormula(f, vars)));
+  // A bare size ("D") reads "D = 480", and a plain sum "875-30 = 845", without repeating a step.
+  return sum === result || sum === f ? `${f} = ${result}` : `${f} = ${sum} = ${result}`;
+}
+
 export function evaluateFormula(formula: string, vars: { W: number; D: number; H: number }): number {
   const trimmed = formula.trim().toUpperCase();
   if (!trimmed) return 0;
@@ -79,12 +90,16 @@ export function resolveLineItemDimensions<T extends { widthFormula: string; heig
   unit: { width: number; depth: number; height: number; qty: number }
 ): T {
   const vars = { W: unit.width, D: unit.depth, H: unit.height };
+  // A W/D/H formula is kept as a note, so hovering the number shows how it was worked out.
+  const note = (f: string) => (/[WDH]/i.test(f) ? f.replace(/\s+/g, "").toUpperCase() : undefined);
   return {
     ...item,
     widthFormula: String(Math.round(evaluateFormula(item.widthFormula, vars))),
     heightFormula: String(Math.round(evaluateFormula(item.heightFormula, vars))),
+    widthNote: note(item.widthFormula),
+    heightNote: note(item.heightFormula),
     qty: item.qty * unit.qty,
-  };
+  } as T;
 }
 
 // Same idea for Hardware — qtyFormula (a number or W/D/H formula) gets

@@ -139,11 +139,11 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
                 <tr key={e.id} className="hover:bg-light-600/50">
                   <td className="px-3 py-2">
                     <EmployeeHistoryDialog name={e.name} code={e.employeeNumber} period={`${p.from.split("-").reverse().join("/")} – ${p.to.split("-").reverse().join("/")}`}
-                      reportHref={`/attendance/reports/${e.id}?${reportQs}`}
+                      reportHref={`/attendance/reports/${e.id}?${reportQs}`} scheduleIn={e.scheduleStart} scheduleOut={e.scheduleEnd}
                       // Only days that say something: no plain weekly offs, days still to come or days before joining.
                       days={days.filter((d) => d.status !== "UPCOMING" && d.status !== "BEFORE_START" && !(d.status === "OFF" && d.offReason === "WEEKLY_OFF")).map((d) => {
                         const [label, cls] = statusOf(d);
-                        return { date: d.date, label, cls, recordId: d.recordId, realIn: d.realCheckIn?.toISOString() ?? null, realOut: d.realCheckOut?.toISOString() ?? null, checkIn: d.checkIn?.toISOString() ?? null, checkOut: d.checkOut?.toISOString() ?? null, editedIn: !!d.editCheckIn, editedOut: !!d.editCheckOut, actual: d.actualMinutes, breakMin: d.breakMinutes, payable: d.payableMinutes, late: d.lateMinutes, early: d.earlyMinutes, overtime: d.overtimeMinutes, overtimeApproved: d.overtimeApproved, rate: d.rate, earned: d.earned, overtimePay: d.overtimePay };
+                        return { date: d.date, label, cls, recordId: d.recordId, realIn: d.realCheckIn?.toISOString() ?? null, realOut: d.realCheckOut?.toISOString() ?? null, checkIn: d.checkIn?.toISOString() ?? null, checkOut: d.checkOut?.toISOString() ?? null, editedIn: !!d.editCheckIn, editedOut: !!d.editCheckOut, actual: d.actualMinutes, breakMin: d.breakMinutes, payable: d.payableMinutes, late: d.lateMinutes, early: d.earlyMinutes, overtime: d.overtimeMinutes, overtimeApproved: d.overtimeApproved, rate: d.rate, earned: d.earned, realEarned: d.realEarned, overtimePay: d.overtimePay };
                       })}
                       totals={{ present: s.presentDays, absent: s.absentDays, leave: s.leaveDays, expected: s.expectedMinutes, actual: s.actualMinutes, payable: s.payableMinutes, late: s.lateMinutes, early: s.earlyMinutes, overtime: s.overtimeMinutes, approvedOvertime: s.approvedOvertimeMinutes,
                         rate: s.hourlyRate != null ? `${formatInr(s.hourlyRate)}/h` : s.issues.includes("NO_RATE") ? "Not set" : "Varies by month",

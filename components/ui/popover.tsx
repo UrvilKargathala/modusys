@@ -4,13 +4,27 @@ import * as React from "react"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 
 import { cn } from "@/lib/utils"
+import { optionKeys } from "@/components/shared/option-keys"
 
 function Popover({ ...props }: PopoverPrimitive.Root.Props) {
   return <PopoverPrimitive.Root data-slot="popover" {...props} />
 }
 
-function PopoverTrigger({ ...props }: PopoverPrimitive.Trigger.Props) {
-  return <PopoverPrimitive.Trigger data-slot="popover-trigger" {...props} />
+function PopoverTrigger({ onKeyDown, ...props }: PopoverPrimitive.Trigger.Props) {
+  return (
+    <PopoverPrimitive.Trigger
+      data-slot="popover-trigger"
+      // Ctrl/Cmd + Down arrow opens the list from the keyboard (a closed dropdown that has focus).
+      onKeyDown={(e) => {
+        onKeyDown?.(e)
+        if (e.key === "ArrowDown" && (e.ctrlKey || e.metaKey) && e.currentTarget.getAttribute("aria-expanded") !== "true") {
+          e.preventDefault()
+          e.currentTarget.click()
+        }
+      }}
+      {...props}
+    />
+  )
 }
 
 function PopoverContent({
@@ -19,6 +33,7 @@ function PopoverContent({
   alignOffset = 0,
   side = "bottom",
   sideOffset = 4,
+  onKeyDown,
   ...props
 }: PopoverPrimitive.Popup.Props &
   Pick<
@@ -40,6 +55,10 @@ function PopoverContent({
             "z-50 flex w-72 origin-(--transform-origin) flex-col gap-2.5 rounded-lg bg-white/80 backdrop-blur-xl p-2.5 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
             className
           )}
+          onKeyDown={(e) => {
+            onKeyDown?.(e)
+            optionKeys(e)
+          }}
           {...props}
         />
       </PopoverPrimitive.Positioner>

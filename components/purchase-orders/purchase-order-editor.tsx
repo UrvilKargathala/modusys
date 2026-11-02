@@ -47,7 +47,7 @@ import { useConfirmChange } from "@/components/purchase-orders/po-confirm-change
 import { PoLibraryContext, libKey } from "@/components/purchase-orders/po-library-context";
 import { materialCategories, parseFinishRule, statusColourStyle } from "@/lib/mock/material-spec";
 import { MaterialItemFormDialog } from "@/components/templates/material-item-form-dialog";
-import { PO_GROUPS, asPoStatus, poStatusLabel, poStatusList, poStatusStyle, customerCode, lineAmount, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder, type PurchaseOrderLine, type WorkOrder } from "@/lib/purchase-order";
+import { PO_GROUPS, asPoStatus, buildPoNumber, poStatusLabel, poStatusList, poStatusStyle, customerCode, lineAmount, mostUsed, gstModeFor, poTotals, brandKey, type GstMode, type PoCabinet, type PurchaseOrder, type PurchaseOrderLine, type WorkOrder } from "@/lib/purchase-order";
 
 const NEW_VENDOR = "__new-vendor__";
 const field = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary";
@@ -277,6 +277,24 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const [deleteFinishId, setDeleteFinishId] = useState<string | null>(null);
   const [pendingApply, setPendingApply] = useState<{ scope: "shutter" | "cabinet"; run: () => void; cancel?: () => void; extra?: boolean } | null>(null);
   const fromQuote = useMemo(() => (draft?.quoteId ? quoteCabinetInfo(quotes.find((q) => q.id === draft.quoteId) ?? ({ units: [] } as never)) : new Map<number, { cabinetTypeId: string; unitQty: number }>()), [draft?.quoteId, quotes]);
+
+  // The automatic PO number (<running no>/<customer code>-<product type code>-NN, the same as a new PO). A purchase order opened without
+  // a number gets it, and so does the box when it is left empty; it can still be typed over. A proforma keeps its own PI numbering.
+  const autoPoNumber = (d: PurchaseOrder) => {
+    const c = customers.find((x) => x.id === d.customerId);
+    const type = materials.find((m) => m.id === d.material.productTypeId)?.description;
+    return buildPoNumber({ customer: c ? customerCode(c) : undefined, type }, orders.filter((o) => o.id !== d.id).map((o) => o.poNumber));
+  };
+  const autoNumbered = useRef<string | null>(null);
+  useEffect(() => {
+    if (!draft || isProforma || autoNumbered.current === draft.id) return;
+    // Only an order that opens with no number; clearing the box later is handled when it is left (onBlur below).
+    if (draft.poNumber.trim()) { autoNumbered.current = draft.id; return; }
+    if (!customers.length || !orders.length) return;
+    autoNumbered.current = draft.id;
+    const poNumber = autoPoNumber(draft);
+    setDraft((d) => (d && !d.poNumber.trim() ? { ...d, poNumber } : d));
+  });
 
   if (!draft || !totals) {
     return purchaseOrdersStore.isLoaded() && !saved ? (
@@ -984,6 +1002,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                       });
                     }}
                     className={field}
+                    confirmChange={{ title: isProforma ? "Change dealer?" : "Change vendor?", description: `Panel rows are re-rated from the new ${isProforma ? "dealer" : "vendor"}'s prices, and any cabinet or row that had its own ${isProforma ? "dealer" : "vendor"} goes back to following this one.` }}
                     addLabel={isProforma ? "Add new dealer" : "Add new vendor"}
                     searchPlaceholder={isProforma ? "Search dealer" : "Search vendor"}
                     onAddClick={() => setPartyOpen(true)}
@@ -1021,6 +1040,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                       <SelectField
                         aria-label="Customer"
                         className={field}
+                        confirmChange={{ title: "Change customer?", description: "This order will be linked to the other customer." }}
                         value={draft.customerId ?? ""}
                         onChange={(e) => {
                           const c = customers.find((x) => x.id === e.target.value);
@@ -1042,6 +1062,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                   <SelectField
                     id="e-ppt"
                     className={field}
+                    confirmChange={{ title: isProforma ? "Change proforma product type?" : "Change purchase product type?", description: "This changes the product type of this order." }}
                     value={draft.material.productTypeId ?? ""}
                     onChange={(e) => set({ material: { ...draft.material, productTypeId: e.target.value || undefined } })}
                     addLabel={isProforma ? "Add new proforma product type" : "Add new purchase product type"}
@@ -1063,7 +1084,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 required: true,
                 node: (
                   <>
-                    <Input id="e-po" value={draft.poNumber} onChange={(e) => set({ poNumber: e.target.value })} placeholder={isProforma ? "Type the PI number" : "Type the PO number"} className="bg-white font-number" />
+                    <Input id="e-po" value={draft.poNumber} onChange={(e) => set({ poNumber: e.target.value })} onBlur={() => { if (!isProforma && !draft.poNumber.trim()) set({ poNumber: autoPoNumber(draft) }); }} placeholder={isProforma ? "Type the PI number" : "Type the PO number"} className="bg-white font-number" />
                     {draft.poNumber.trim() && orders.some((o) => o.id !== draft.id && o.poNumber.trim().toLowerCase() === draft.poNumber.trim().toLowerCase()) && (
                       <span className="text-xs font-body text-error">{isProforma ? "Another proforma invoice already uses this number." : "Another purchase order already uses this number."}</span>
                     )}
@@ -1092,6 +1113,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                   <SelectField
                     id="e-otype"
                     className={field}
+                    confirmChange={{ title: isProforma ? "Change proforma type?" : "Change purchase order type?", description: "This changes the type of this order." }}
                     value={draft.material.orderType ?? ""}
                     onChange={(e) => setMaterial({ orderType: e.target.value || undefined })}
                     addLabel={isProforma ? "Add new proforma type" : "Add new purchase order type"}

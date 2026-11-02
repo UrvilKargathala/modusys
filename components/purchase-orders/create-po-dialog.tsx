@@ -16,7 +16,9 @@ import { toastStore } from "@/lib/store/toast-store";
 import { procurementStore } from "@/lib/store/procurement-store";
 import { buildPoFromQuote } from "@/lib/purchase-order-from-quote";
 import { sentLines } from "@/lib/requirement-progress";
-import { gstModeFor } from "@/lib/purchase-order";
+import { buildPoNumber, customerCode, gstModeFor } from "@/lib/purchase-order";
+import { useCustomers } from "@/lib/store/customers-store";
+import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
 import { addDaysIso } from "@/components/purchase-orders/po-dates";
 import type { Quote } from "@/lib/mock/quote";
 
@@ -28,7 +30,12 @@ export function CreatePoDialog({ quote, onOpenChange }: { quote: Quote | null; o
   const router = useRouter();
   const vendors = useVendors();
   const [vendorId, setVendorId] = useState("");
-  const [poNumber, setPoNumber] = useState("");
+  const customers = useCustomers();
+  const orders = usePurchaseOrders();
+  // The PO number is filled in automatically (<running no>/<customer code>-NN, as a new PO gets); it can be typed over.
+  const [typedNumber, setTypedNumber] = useState<string | null>(null);
+  const quoteCustomer = customers.find((c) => c.id === quote?.customerId);
+  const poNumber = typedNumber ?? (quote ? buildPoNumber({ customer: quoteCustomer ? customerCode(quoteCustomer) : undefined }, orders.map((o) => o.poNumber)) : "");
   const [poDate, setPoDate] = useState(today());
   const [requiredDate, setRequiredDate] = useState(addDaysIso(today(), 10));
   const [busy, setBusy] = useState(false);
@@ -36,7 +43,7 @@ export function CreatePoDialog({ quote, onOpenChange }: { quote: Quote | null; o
   useEffect(() => {
     if (!quote) return;
     setVendorId("");
-    setPoNumber("");
+    setTypedNumber(null);
     setPoDate(today());
     setRequiredDate(addDaysIso(today(), 10));
   }, [quote]);
@@ -125,7 +132,7 @@ export function CreatePoDialog({ quote, onOpenChange }: { quote: Quote | null; o
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="po-number">PO Number *</Label>
-            <Input id="po-number" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder="Type the PO number" className="font-number" />
+            <Input id="po-number" value={poNumber} onChange={(e) => setTypedNumber(e.target.value)} placeholder="Type the PO number" className="font-number" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">

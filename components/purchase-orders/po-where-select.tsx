@@ -19,7 +19,7 @@ export function PoWhereSelect({ value, options, onChange }: { value: string[]; o
           {options.map((o) => {
             const on = value.includes(o);
             return (
-              <button key={o} type="button" onClick={() => toggle(o)} className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body hover:bg-light-600 ${on ? "text-primary" : "text-grey-800"}`}>
+              <button data-opt key={o} type="button" onClick={() => toggle(o)} className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body hover:bg-light-600 ${on ? "text-primary" : "text-grey-800"}`}>
                 {o}
                 {on && <Check className="h-3.5 w-3.5 shrink-0" />}
               </button>

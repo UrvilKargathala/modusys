@@ -148,7 +148,7 @@ export function UnitTypeComponentsSection({
           </PopoverTrigger>
           <PopoverContent align="end" className="w-64 p-1.5">
             {cabinetTypes.map((c) => (
-              <button
+              <button data-opt
                 key={c.id}
                 type="button"
                 onClick={() => attachCabinetType(c.id)}

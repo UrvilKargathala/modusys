@@ -314,20 +314,21 @@ export function customerCode(c: { firstName?: string; lastName?: string; name: s
   return c.lastName?.trim() ? customerCodeFrom(c.firstName || words[0], c.lastName) : customerCodeFrom(words[0], words.length > 1 ? words[words.length - 1] : "");
 }
 
-// PO-<vendor code>-<purchase product type code>-<customer code>-<id>, e.g. PO-VEN01-KT-TEPA-01. Missing parts are
-// left out; the id counts up (01, 02 …) across POs that share the same parts.
-export function poNumberBase(parts: (string | undefined)[]) {
-  return ["PO", ...parts.map((p) => (p ?? "").trim().toUpperCase()).filter(Boolean)].join("-");
-}
-export function buildPoNumber(parts: (string | undefined)[], otherNumbers: string[]) {
-  const base = poNumberBase(parts);
-  const prefix = `${base}-`.toUpperCase();
-  const max = otherNumbers.reduce((m, n) => {
-    const u = n.toUpperCase();
-    const id = u.startsWith(prefix) ? Number(u.slice(prefix.length)) : NaN;
-    return Number.isInteger(id) ? Math.max(m, id) : m;
+// <running no>/<customer code>-<product type code>-<id>, e.g. 0016/MAPA-KT-01. The running number counts up across every PO
+// (0001, 0002 …); the id counts up (01, 02 …) across POs with the same customer and type. Missing parts are left out.
+export function buildPoNumber(parts: { customer?: string; type?: string }, otherNumbers: string[]) {
+  const running = otherNumbers.reduce((m, n) => {
+    const r = /^(\d+)\//.exec(n.trim());
+    return r ? Math.max(m, Number(r[1])) : m;
+  }, 0) + 1;
+  const mid = [parts.customer, parts.type].map((p) => (p ?? "").trim().toUpperCase()).filter(Boolean).join("-");
+  const lead = mid ? `${mid}-` : "";
+  const id = otherNumbers.reduce((m, n) => {
+    const rest = n.trim().toUpperCase().replace(/^\d+\//, "");
+    const k = rest.startsWith(lead) ? Number(rest.slice(lead.length)) : NaN;
+    return Number.isInteger(k) && /^\d+\//.test(n.trim()) ? Math.max(m, k) : m;
   }, 0);
-  return `${base}-${String(max + 1).padStart(2, "0")}`;
+  return `${String(running).padStart(4, "0")}/${lead}${String(id + 1).padStart(2, "0")}`;
 }
 
 // The number a copy gets: the original's number with its trailing -NN counted up past every number sharing that start

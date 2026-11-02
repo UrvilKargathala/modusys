@@ -102,6 +102,7 @@ export function MaterialReferenceSelect({
               <button
                 key={i.id}
                 type="button"
+                data-opt
                 onClick={() => {
                   onChange(i.id);
                   setOpen(false);

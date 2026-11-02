@@ -4,6 +4,7 @@ import { Children, Fragment, isValidElement, useState, type ReactNode } from "re
 import { Check, ChevronDown, Plus } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { cn } from "@/lib/utils";
 
 type Opt = { value: string; label: string; disabled?: boolean };
@@ -44,6 +45,7 @@ export function SelectField({
   onAddClick,
   searchPlaceholder,
   menuClassName,
+  confirmChange,
   "aria-label": ariaLabel,
 }: {
   value?: string | number;
@@ -68,18 +70,27 @@ export function SelectField({
   searchPlaceholder?: string;
   // Size of the open list (default w-72), e.g. "w-max" for a list as wide as its longest option.
   menuClassName?: string;
+  // Once a value is chosen, picking a different one first asks "are you sure" with this title / text (Change / Cancel).
+  confirmChange?: { title: string; description: string };
   "aria-label"?: string;
 }) {
   const [adding, setAdding] = useState("");
   const [addMode, setAddMode] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [pending, setPending] = useState<string | null>(null);
   const [inner, setInner] = useState(String(defaultValue ?? ""));
   const opts = options(children);
   const current = String(value ?? inner);
   const shown = opts.find((o) => o.value === current) ?? opts[0];
   const searchable = opts.length > 7 || !!onAdd || !!onAddClick;
   const results = searchable ? opts.filter((o) => o.label.toLowerCase().includes(query.toLowerCase())) : opts;
+  const choose = (v: string) => {
+    setInner(v);
+    const ev = { target: { value: v, name: name ?? "" }, currentTarget: { value: v, name: name ?? "" } };
+    onChange?.(ev);
+    onBlur?.(ev);
+  };
 
   return (
     <>
@@ -102,15 +113,14 @@ export function SelectField({
             <button
               key={o.value}
               type="button"
+              data-opt
               disabled={o.disabled}
               onClick={() => {
                 setOpen(false);
                 setQuery("");
                 if (o.value !== current) {
-                  setInner(o.value);
-                  const ev = { target: { value: o.value, name: name ?? "" }, currentTarget: { value: o.value, name: name ?? "" } };
-                  onChange?.(ev);
-                  onBlur?.(ev);
+                  if (confirmChange && current !== "") setPending(o.value);
+                  else choose(o.value);
                 }
               }}
               className={cn(
@@ -171,6 +181,16 @@ export function SelectField({
         )}
       </PopoverContent>
     </Popover>
+      {confirmChange && (
+        <ConfirmDialog
+          open={pending !== null}
+          onOpenChange={(v) => { if (!v) setPending(null); }}
+          title={confirmChange.title}
+          description={confirmChange.description}
+          confirmLabel="Change"
+          onConfirm={() => { if (pending !== null) choose(pending); }}
+        />
+      )}
     </>
   );
 }

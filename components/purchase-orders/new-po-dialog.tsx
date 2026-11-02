@@ -22,7 +22,7 @@ const select = "h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-
 const today = () => new Date().toISOString().slice(0, 10);
 
 // Manual purchase order, not tied to a quote: vendor, customer and product type are optional here (fill them in
-// later). The PO number is generated from them (PO-<vendor code>-<product type code>-<customer code>-NN), and the cabinets and rows are added by hand in the editor. It starts as Pending.
+// later). The PO number is generated from them (<running no>/<customer code>-<product type code>-NN, like 0016/MAPA-KT-01), and the cabinets and rows are added by hand in the editor. It starts as Pending.
 // fromPo (with proforma): the Proforma Invoice that follows a Purchase Order in the order flow. It copies the PO's customer, cabinets, rows and
 // material; the dealer and proforma product type are picked here. Its own progress (status log, work order, manufacturing, packing) starts empty.
 export function NewPoDialog({ open, onOpenChange, direct = false, proforma = false, fromPo }: { open: boolean; onOpenChange: (open: boolean) => void; direct?: boolean; proforma?: boolean; fromPo?: PurchaseOrder }) {
@@ -46,7 +46,7 @@ export function NewPoDialog({ open, onOpenChange, direct = false, proforma = fal
   const productType = productTypes.find((m) => m.id === productTypeId);
   const poNumberAuto =
     vendor || customer || productType
-      ? buildPoNumber([vendor?.code, productType?.description, customer ? customerCode(customer) : undefined], orders.map((o) => o.poNumber))
+      ? buildPoNumber({ customer: customer ? customerCode(customer) : undefined, type: productType?.description }, orders.map((o) => o.poNumber))
       : "";
   const [poDate, setPoDate] = useState(today());
   // Proforma Invoice number: PI-DDMMYY-<product type code>-NN, e.g. PI-171026-KT-01, then -02 ... for the same date and product type.
@@ -161,7 +161,7 @@ export function NewPoDialog({ open, onOpenChange, direct = false, proforma = fal
             <div id="np-number" className="flex h-9 items-center rounded-lg border border-grey-100 bg-light-600 px-3 font-number text-sm font-medium text-grey-700">
               {poNumber || "—"}
             </div>
-            <span className="text-xs font-body text-grey-400">{proforma ? "Auto-generated: PI-DDMMYY-Product type code-number (like PI-171026-KT-01)." : "Auto-generated: PO-Vendor code-Product type code-Customer code."}</span>
+            <span className="text-xs font-body text-grey-400">{proforma ? "Auto-generated: PI-DDMMYY-Product type code-number (like PI-171026-KT-01)." : "Auto-generated: running number / Customer code-Product type code-number (like 0016/MAPA-KT-01)."}</span>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">

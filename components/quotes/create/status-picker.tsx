@@ -61,7 +61,7 @@ export function StatusPicker({
         <div className="flex flex-col gap-1">
           {statusOptions.map((s) => {
             return (
-              <button
+              <button data-opt
                 key={s}
                 type="button"
                 disabled={!allowed.has(s)}

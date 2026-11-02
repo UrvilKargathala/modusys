@@ -67,6 +67,7 @@ export type PayrollDay = {
   // Not rounded, so the days add up exactly to the month's totals.
   rate: number | null;
   earned: number | null;
+  realEarned: number | null; // the same pay worked out on the real (as clocked) times, for comparing with an edit
   overtimePay: number | null;
 };
 export type PayrollIssue = "NO_SCHEDULE" | "NO_RATE";
@@ -117,6 +118,13 @@ export function eachDate(from: string, to: string): string[] {
 }
 const weekdayOf = (ymd: string) => new Date(`${ymd}T00:00:00Z`).getUTCDay();
 
+// The unpaid break only comes off a day long enough to have had one.
+const breakSplit = (e: PayrollEmployee, sch: { required: number } | null, span: number) => {
+  const brk = Math.max(0, e.breakMinutes ?? 0);
+  const deduct = brk > 0 && span > (sch ? sch.required / 2 : brk) ? Math.min(brk, span) : 0;
+  return { deduct, net: Math.max(0, span - deduct) };
+};
+
 export function scheduleOf(e: PayrollEmployee) {
   const start = parseClock(e.scheduleStart);
   const end = parseClock(e.scheduleEnd);
@@ -160,7 +168,7 @@ export function computePayroll(
     const beforeStart = !r && !!e.trackFrom && date < e.trackFrom;
     const scheduled = !offReason && !beforeStart;
     const leave = scheduled ? leaveOn(date) : null;
-    const day: PayrollDay = { date, weekday, scheduled, offReason, holidayName, status: "UPCOMING", leaveLabel: leave?.label ?? null, recordId: r?.id ?? null, checkIn: r?.checkIn ?? null, checkOut: r?.checkOut ?? null, realCheckIn: r ? (r.realCheckIn ?? r.checkIn) : null, realCheckOut: r ? (r.realCheckOut === undefined ? r.checkOut : r.realCheckOut) : null, editCheckIn: r?.editCheckIn ?? null, editCheckOut: r?.editCheckOut ?? null, actualMinutes: 0, breakMinutes: 0, payableMinutes: 0, lateMinutes: 0, earlyMinutes: 0, overtimeMinutes: 0, overtimeApproved: r?.overtimeApproved ?? false, rate: null, earned: null, overtimePay: null };
+    const day: PayrollDay = { date, weekday, scheduled, offReason, holidayName, status: "UPCOMING", leaveLabel: leave?.label ?? null, recordId: r?.id ?? null, checkIn: r?.checkIn ?? null, checkOut: r?.checkOut ?? null, realCheckIn: r ? (r.realCheckIn ?? r.checkIn) : null, realCheckOut: r ? (r.realCheckOut === undefined ? r.checkOut : r.realCheckOut) : null, editCheckIn: r?.editCheckIn ?? null, editCheckOut: r?.editCheckOut ?? null, actualMinutes: 0, breakMinutes: 0, payableMinutes: 0, lateMinutes: 0, earlyMinutes: 0, overtimeMinutes: 0, overtimeApproved: r?.overtimeApproved ?? false, rate: null, earned: null, realEarned: null, overtimePay: null };
     if (scheduled) s.scheduledDays++;
     else if (!beforeStart) s.offDays++;
 
@@ -175,9 +183,7 @@ export function computePayroll(
     } else if (r && r.checkOut) {
       // Actual is the plain check-in to check-out time. The unpaid break only comes off what is paid (payable and overtime).
       const span = Math.floor((r.checkOut.getTime() - r.checkIn.getTime()) / 60_000);
-      const brk = Math.max(0, e.breakMinutes ?? 0);
-      const deduct = brk > 0 && span > (sch ? sch.required / 2 : brk) ? Math.min(brk, span) : 0;
-      const net = Math.max(0, span - deduct);
+      const { deduct, net } = breakSplit(e, sch, span);
       day.actualMinutes = Math.max(0, span);
       day.breakMinutes = deduct;
       if (scheduled) {
@@ -219,6 +225,9 @@ export function computePayroll(
     const paid = rate != null && sch != null;
     day.rate = paid ? rate : null;
     day.earned = paid ? (day.payableMinutes / 60) * rate! : null;
+    // Same rule on the real times: only a scheduled day with both times counts, and overtime is paid separately.
+    const realSpan = day.realCheckIn && day.realCheckOut && day.realCheckOut > day.realCheckIn ? Math.floor((day.realCheckOut.getTime() - day.realCheckIn.getTime()) / 60_000) : 0;
+    day.realEarned = paid ? ((scheduled && sch && realSpan ? Math.min(breakSplit(e, sch, realSpan).net, sch.required) : 0) / 60) * rate! : null;
     day.overtimePay = paid ? (e.overtimeEnabled && day.overtimeApproved ? (day.overtimeMinutes / 60) * rate! * multiplier : 0) : null;
     days.push(day);
   }

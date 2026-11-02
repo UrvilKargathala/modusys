@@ -137,7 +137,7 @@ export function PoFinishMultiSelect({
             const on = value.includes(label);
             return (
               <div key={i.id} className="flex items-center gap-1">
-              <button
+              <button data-opt
                 type="button"
                 onClick={() => toggle(label)}
                 className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body hover:bg-light-600 ${on ? "text-primary" : "text-grey-800"}`}

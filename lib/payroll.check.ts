@@ -133,4 +133,13 @@ assert.equal(lateEarly({ ...base, lateGraceMinutes: 15 }, ist("2026-06-02", "10:
   assert.equal(sum("overtimePay"), summary.overtimePay);
   assert.equal(days[0].rate, 150);
 }
+// A super-admin edit: pay counts the edited 10:00-17:00 (6h30m after the break), realEarned stays on the real 11:00-18:00 (also 6h30m)
+// -> make the edit longer so the two differ: edited 09:30-18:30 caps at the 8h, real 11:00-18:00 stays 6h30m.
+{
+  const r = { ...rec("r9", "2026-06-02", "09:30", "18:30"), realCheckIn: ist("2026-06-02", "11:00"), realCheckOut: ist("2026-06-02", "18:00") };
+  const { days } = run(base, "2026-06-02", "2026-06-02", [r]);
+  assert.equal(days[0].payableMinutes, 480);
+  assert.equal(days[0].earned, 8 * 150);
+  assert.equal(days[0].realEarned, 6.5 * 150);
+}
 console.log("payroll ok");

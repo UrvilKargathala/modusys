@@ -20,6 +20,8 @@ import { QuotePoActions } from "@/components/purchase-orders/quote-po-actions";
 import { ClientDetailsSection } from "@/components/quotes/create/client-details-section";
 import { MaterialSpecificationSection } from "@/components/quotes/create/material-specification-section";
 import { UnitsSection } from "@/components/quotes/create/units-section";
+import { PanelCalculatorContext } from "@/components/shared/panel-calculator-context";
+import { PanelCalculatorForm } from "@/components/templates/panel-calculator-form";
 import { QuoteSummarySection } from "@/components/quotes/create/quote-summary-section";
 import { RemarkAndFinishesSection } from "@/components/quotes/create/remark-and-finishes-section";
 import { blankQuote, blankQuoteUnit, type Quote, type QuoteUnit } from "@/lib/mock/quote";
@@ -324,6 +326,8 @@ function CreateQuotePage() {
           )}
         >
           <div role="tabpanel" className={cn("flex-col gap-5", tab === "items" ? "flex" : "hidden")}>
+            {/* Each cabinet's Other Panel (and the Other Panel tab) gets the Calculator button, as in a Requirement Order. */}
+            <PanelCalculatorContext.Provider value={PanelCalculatorForm}>
             <UnitsSection
               bare
               units={quote.units}
@@ -337,6 +341,7 @@ function CreateQuotePage() {
               }}
               onChange={changeUnits}
             />
+            </PanelCalculatorContext.Provider>
             <QuoteTotalsBar quote={quote} />
           </div>
           <div role="tabpanel" className={panelCls("client")}>

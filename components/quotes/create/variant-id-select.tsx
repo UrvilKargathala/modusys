@@ -34,7 +34,9 @@ export function VariantIdSelect({
   const items = allItems.filter((i) => !i.deleted && i.variantId).sort((a, b) => a.variantId.localeCompare(b.variantId));
   const selected = items.find((i) => i.id === selectedId);
   const q = query.trim().toLowerCase();
-  const results = q ? items.filter((i) => i.variantId.toLowerCase().includes(q) || describe(i).toLowerCase().includes(q)) : items;
+  // Search the Variant ID first; only when no Variant ID has the text, look in the description (thickness, material, colours).
+  const byId = q ? items.filter((i) => i.variantId.toLowerCase().includes(q)) : items;
+  const results = q && !byId.length ? items.filter((i) => describe(i).toLowerCase().includes(q)) : byId;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -61,6 +63,7 @@ export function VariantIdSelect({
             <button
               key={i.id}
               type="button"
+              data-opt
               onClick={() => {
                 onSelect(i);
                 setOpen(false);

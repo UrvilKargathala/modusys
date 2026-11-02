@@ -39,7 +39,7 @@ export function CustomerPicker({ value, onChange }: { value: string; onChange: (
           <Input autoFocus placeholder="Search customers" value={query} onChange={(e) => setQuery(e.target.value)} className="mb-2" />
           <div className="flex max-h-52 flex-col overflow-y-auto">
             {results.map((c) => (
-              <button
+              <button data-opt
                 key={c.id}
                 type="button"
                 onClick={() => {

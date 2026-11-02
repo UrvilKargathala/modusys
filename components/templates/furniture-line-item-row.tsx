@@ -1,6 +1,6 @@
 "use client";
 
-import { evaluateFormula } from "@/lib/quote-pricing";
+import { evaluateFormula, formulaWorking } from "@/lib/quote-pricing";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -33,6 +33,12 @@ const materialFieldLabel: Record<string, string> = {
 
 // Column widths for the table layout (Quotes' cabinet groups): drag, [name], W, H, Qty, Thickness, sq.ft, Raw, External, Internal,
 // Rate, Amount, [Level Type], actions. The group's header row uses the same string so the columns line up.
+// The cabinet type's own W/D/H formulas per Furniture Component, for the hover hint on rows filled before formulas were kept
+// with the line (given by the cabinet around the rows).
+export const CabinetFormulasContext = createContext<Map<string, { w: string; h: string }> | null>(null);
+export const cabinetFormulas = (components: { componentTypeId: string; widthFormula: string; heightFormula: string }[] | undefined) =>
+  new Map((components ?? []).map((c) => [c.componentTypeId, { w: c.widthFormula, h: c.heightFormula }] as const));
+
 export function furnitureTableColumns(showComponentName: boolean, showLevelType: boolean, withNo = false) {
   return [
     withNo ? "44px" : "20px",
@@ -160,12 +166,21 @@ export function FurnitureLineItemRow({
     }
   };
 
-  // Quotes only: collapse a W/D/H formula ("w-10") to its number on blur.
+  // Quotes only: collapse a formula ("w-10", or a plain sum like "875-30") to its number on blur.
   // Invalid or non-positive results keep what was typed rather than wiping it.
   const resolveOnBlur = (field: "widthFormula" | "heightFormula") => {
-    if (!unitDims || !/[WDH]/i.test(value[field])) return;
+    // Only a formula: W / D / H or a sign (+ - * / brackets). A plain number is already the value.
+    if (!unitDims || !/[WDH+\-*/()]/i.test(value[field])) return;
     const n = Math.round(evaluateFormula(value[field], unitDims));
-    if (n > 0) handleFieldChange({ [field]: String(n) });
+    // The formula is kept as a note, so hovering the number shows how it was worked out.
+    if (n > 0) handleFieldChange({ [field]: String(n), [field === "widthFormula" ? "widthNote" : "heightNote"]: value[field].replace(/\s+/g, "").toUpperCase() });
+  };
+  // Hover text for Width / Height: the last formula and its working, while it still gives the number shown.
+  const typeFormulas = useContext(CabinetFormulasContext)?.get(value.componentTypeId ?? "");
+  const dimHint = (field: "widthFormula" | "heightFormula") => {
+    const note = (field === "widthFormula" ? value.widthNote : value.heightNote) || (field === "widthFormula" ? typeFormulas?.w : typeFormulas?.h);
+    if (!note || !/[WDH+\-*/()]/i.test(note) || !unitDims || Math.round(evaluateFormula(note, unitDims)) !== Number(value[field])) return undefined;
+    return formulaWorking(note, unitDims, Number(value[field]));
   };
 
   // Thickness/Raw Material/Internal/External Colour drive the price-list
@@ -271,8 +286,8 @@ export function FurnitureLineItemRow({
           {showComponentName && (
             <MaterialReferenceSelect category="furniture-component" wide sorted value={value.componentTypeId ?? ""} onChange={(id) => requestMaterialChange("componentTypeId", id)} />
           )}
-          <Input aria-label="Width" placeholder="W" value={value.widthFormula} onChange={(e) => handleFieldChange({ widthFormula: e.target.value })} onBlur={() => resolveOnBlur("widthFormula")} className="num px-1 text-center" />
-          <Input aria-label="Height" placeholder="H" value={value.heightFormula} onChange={(e) => handleFieldChange({ heightFormula: e.target.value })} onBlur={() => resolveOnBlur("heightFormula")} className="num px-1 text-center" />
+          <Input aria-label="Width" placeholder="W" value={value.widthFormula} onChange={(e) => handleFieldChange({ widthFormula: e.target.value })} onBlur={() => resolveOnBlur("widthFormula")} title={dimHint("widthFormula")} className="num px-1 text-center" />
+          <Input aria-label="Height" placeholder="H" value={value.heightFormula} onChange={(e) => handleFieldChange({ heightFormula: e.target.value })} onBlur={() => resolveOnBlur("heightFormula")} title={dimHint("heightFormula")} className="num px-1 text-center" />
           <Input aria-label="Qty" type="number" min={1} value={value.qty || ""} onChange={(e) => handleFieldChange({ qty: Number(e.target.value) })} className="num px-1 text-center" />
           <MaterialReferenceSelect category="thickness" value={value.thicknessId} onChange={(id) => requestMaterialChange("thicknessId", id)} triggerClassName="gap-1 px-1.5 font-number" />
           <span className="num text-center text-sm text-grey-700">{totalSqFt !== undefined ? totalSqFt.toFixed(2) : "—"}</span>
@@ -431,6 +446,7 @@ export function FurnitureLineItemRow({
             value={value.widthFormula}
             onChange={(e) => handleFieldChange({ widthFormula: e.target.value })}
             onBlur={() => resolveOnBlur("widthFormula")}
+            title={dimHint("widthFormula")}
             className="font-number bg-[var(--input-bg,#EAF7FC)]"
           />
         </div>
@@ -442,6 +458,7 @@ export function FurnitureLineItemRow({
             value={value.heightFormula}
             onChange={(e) => handleFieldChange({ heightFormula: e.target.value })}
             onBlur={() => resolveOnBlur("heightFormula")}
+            title={dimHint("heightFormula")}
             className="font-number bg-[var(--input-bg,#EAF7FC)]"
           />
         </div>

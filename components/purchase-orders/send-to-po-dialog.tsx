@@ -47,8 +47,8 @@ export function SendToPoDialog({ ro, lineIds, open, onOpenChange }: { ro: Procur
   }, [open]);
 
   const vendor = vendors.find((v) => v.id === vendorId);
-  // PO-<vendor code>-<customer code>-NN, as a new PO gets today; it can be typed over.
-  const suggested = vendor ? buildPoNumber([vendor.code, undefined, customer ? customerCode(customer) : undefined], orders.map((o) => o.poNumber)) : "";
+  // <running no>/<customer code>-NN, as a new PO gets today; it can be typed over.
+  const suggested = vendor ? buildPoNumber({ customer: customer ? customerCode(customer) : undefined }, orders.map((o) => o.poNumber)) : "";
   const poNumber = typedNumber ?? suggested;
   const canSend = !busy && lineIds.length > 0 && (target !== "new" || (!!vendor && poNumber.trim() !== ""));
 

@@ -40,6 +40,9 @@ export type FurnitureLineItem = {
   isCustomized?: boolean;
   widthFormula: string;
   heightFormula: string;
+  // Quotes: the last W/D/H formula typed in Width / Height (e.g. "W-10") before it became a number; shown on hover while it still gives the value.
+  widthNote?: string;
+  heightNote?: string;
   thicknessId: string;
   rawMaterialTypeId: string;
   internalColourId: string;

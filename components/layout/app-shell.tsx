@@ -8,6 +8,7 @@ import { ArchitectPanel } from "@/components/architects/architect-panel";
 import { AuthGuard } from "@/components/layout/auth-guard";
 import { ResizableTables } from "@/components/layout/resizable-tables";
 import { PaletteApplier } from "@/components/layout/palette-applier";
+import { NoNumberArrows } from "@/components/layout/no-number-arrows";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -18,6 +19,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div aria-hidden className="pointer-events-none absolute -bottom-28 -left-16 -z-10 h-[28rem] w-[28rem] rounded-full bg-[#FFD599]/22 blur-3xl" />
         <ResizableTables />
         <PaletteApplier />
+        <NoNumberArrows />
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopNavbar />

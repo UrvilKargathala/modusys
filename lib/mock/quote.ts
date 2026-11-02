@@ -21,6 +21,8 @@ export type QuoteCabinet = {
   carcassDepth?: number;
   carcassHeight?: number;
   carcassQty?: number;
+  // Requirement Order: the cabinet's name from Purchase Material Library > Cabinet Name (Carcass tab); a PO made from it keeps it.
+  cabinetName?: string;
 };
 
 export type QuoteUnit = {

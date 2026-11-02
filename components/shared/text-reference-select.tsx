@@ -146,8 +146,9 @@ export function TextReferenceSelect({
               <div key={o} className={cn("flex items-center rounded-md hover:bg-light-600", o === value ? "text-primary" : "text-grey-800")}>
                 <button
                   type="button"
+                  data-opt
                   onClick={() => select(o)}
-                  className={cn("flex min-w-0 flex-1 justify-between gap-2 px-2 py-1.5 text-left text-sm font-body", wide ? "items-start" : "items-center")}
+                  className={cn("flex min-w-0 flex-1 justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm font-body", wide ? "items-start" : "items-center")}
                 >
                   <span className={cn("min-w-0", wide ? "break-words" : "truncate")}>{o}</span>
                   {o === value && <Check className="h-3.5 w-3.5 shrink-0" />}

@@ -73,7 +73,7 @@ export function StatusMenu({
               />
             ) : (
               <div key={o.value} className={cn("group flex items-center rounded-md transition-colors hover:brightness-95", o.className)} style={o.style}>
-                <button
+                <button data-opt
                   type="button"
                   onClick={() => {
                     setOpen(false);

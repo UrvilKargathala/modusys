@@ -14,7 +14,7 @@ import { PoHardwareSelect } from "@/components/purchase-orders/po-hardware-selec
 import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
 import { useConfirmChange } from "@/components/purchase-orders/po-confirm-change";
 import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
-import { evaluateFormula } from "@/lib/quote-pricing";
+import { evaluateFormula, formulaWorking } from "@/lib/quote-pricing";
 import { toastStore } from "@/lib/store/toast-store";
 import { PurchaseFurniturePriceFormDialog } from "@/components/templates/purchase-furniture-price-form-dialog";
 import { purchasePriceFieldsFor } from "@/lib/purchase-order-rate";
@@ -126,7 +126,7 @@ function RateCell({ value, onCommit }: { value: number; onCommit: (n: number) =>
   );
 }
 
-// `note` = the last formula typed here (e.g. "W-10"), shown small under the result so the user can see what was taken off.
+// `note` = the last formula or sum typed here (e.g. "W-10", "725-429"), shown on hover with its working ("W-10 = 645-10 = 635").
 // It is saved with the PO; it hides itself once the value no longer matches it (typed over, or the cabinet size changed).
 function DimCell({ value, vars, note, onNote, onCommit }: { value: number; vars?: Vars; note?: string; onNote: (s: string) => void; onCommit: (n: number) => void }) {
   const [text, setText] = useState<string | null>(null); // null = not editing
@@ -140,7 +140,7 @@ function DimCell({ value, vars, note, onNote, onCommit }: { value: number; vars?
     // Plain arithmetic ("725-429", "(800-18)/2") is worked out straight away, with no cabinet size needed.
     if (/^[\d\s+\-*/().]+$/.test(t)) {
       const r = Math.round(evaluateFormula(t, { W: 0, D: 0, H: 0 }) * 100) / 100;
-      if (r > 0) return (onCommit(r), onNote(""));
+      if (r > 0) return (onCommit(r), onNote(t.replace(/\s+/g, "")));
       return toastStore.show(`Couldn't work out "${t}" — use numbers with + - * / and brackets.`, "error");
     }
     if (!vars) return toastStore.show("This purchase order has no cabinet size to use in a formula — type a number.", "error");
@@ -148,6 +148,14 @@ function DimCell({ value, vars, note, onNote, onCommit }: { value: number; vars?
     if (/[WDH]/i.test(t) && n > 0) return (onCommit(n), onNote(t.replace(/\s+/g, "").toUpperCase()));
     toastStore.show(`Couldn't read "${t}" — use numbers or W, D, H, like W-10, 725-429 or (D-20)/2.`, "error");
   };
+
+  // Hover: the last formula or sum and its working while it still gives the value (a sum needs no cabinet size), else how to type one.
+  const noteVars = vars ?? { W: 0, D: 0, H: 0 };
+  const noteValue = note && (vars || !/[WDH]/i.test(note)) ? evaluateFormula(note, noteVars) : NaN;
+  const hint =
+    note && (Math.round(noteValue) === value || Math.round(noteValue * 100) / 100 === value)
+      ? formulaWorking(note, noteVars, value)
+      : vars ? `W ${vars.W} · D ${vars.D} · H ${vars.H} — type e.g. W-10, then Tab` : undefined;
 
   return (
     <>
@@ -160,9 +168,8 @@ function DimCell({ value, vars, note, onNote, onCommit }: { value: number; vars?
       onChange={(e) => setText(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-      title={vars ? `W ${vars.W} · D ${vars.D} · H ${vars.H} — type e.g. W-10, then Tab` : undefined}
+      title={hint}
     />
-    {note && text === null && vars && Math.round(evaluateFormula(note, vars)) === value && <span className="block px-2 text-right font-number text-[10px] leading-3 text-grey-400" title="Last formula typed here">{note}</span>}
     </>
   );
 }
