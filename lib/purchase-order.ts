@@ -92,6 +92,8 @@ export const setPoStatusSettings = (s: { poStatusLabels?: Record<string, string>
 // Statuses the app's flow depends on (by key): renamed and deleted through the settings above, never in the library.
 export const isFixedPoStatus = (s: string) => DIRECT_PO_STATUSES.includes(s) || s.toLowerCase() === "packing";
 export const poStatusLabel = (s: string) => renamedStatuses[asPoStatus(s)] ?? PO_STATUS_LABEL[asPoStatus(s)] ?? asPoStatus(s);
+// The status named Delivery Done (one added in the library, or a fixed one renamed to it): a PO there gets its Invoice & Transport Details.
+export const isDeliveryDone = (s: string) => poStatusLabel(s).trim().toLowerCase().replace(/\s+/g, " ") === "delivery done";
 // The built-in statuses, then the ones added in Purchase Material Library > Purchase Order Status, then any other status name still in
 // use on these POs (for example one that was renamed or deleted in the library), in the order first seen.
 // A deleted status still shows while an order uses it.
@@ -258,8 +260,9 @@ export type PoMaterial = {
   edgeBandSides?: Record<string, Partial<{ top: boolean; bottom: boolean; lh: boolean; rh: boolean }>>;
   edgeBandColours?: { id: string; where: string; internal: string; external: string }[];
   // Proforma Packing page, Transport Details: one entry per transport (name from the Proforma Library list), its LR number and box count.
-  // Purchase Order (Delivery Done > Invoice & Transport Details): the same list, with the transport, labour and local transport costs.
-  transport?: { name: string; lr: string; date?: string; boxes: number; amount?: number; labour?: number; localName?: string; localAmount?: number }[];
+  // Purchase Order Transport Details (Purchase Order Details tab and the Delivery Done popup): the same list, each row also with its
+  // transport amount and invoice, and its local transport (name, boxes, amount; `labour` = Local Labour).
+  transport?: { name: string; lr: string; date?: string; boxes: number; amount?: number; invoiceNo?: string; invoiceDate?: string; localName?: string; localBoxes?: number; localAmount?: number; labour?: number }[];
   // Proforma Packing page: per cut-list row, one entry per piece (Qty): ticked as packed or not, with its own note.
   packing?: Record<string, { pieces: { done: boolean; note: string; seq?: number; tr?: number }[] }>;
   additionalColors?: { shutter?: Record<string, string>; cabinet?: Record<string, string> };

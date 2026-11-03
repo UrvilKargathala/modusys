@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { useColumnOrder } from "@/components/shared/use-column-order";
 import { useLocalStorage } from "@/lib/hooks/use-local-storage";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TablePagination, usePagination } from "@/components/shared/table-pagination";
 import { toastStore } from "@/lib/store/toast-store";
@@ -30,7 +31,7 @@ import { formatInr } from "@/lib/format";
 import { formatPoDate } from "@/components/purchase-orders/po-dates";
 import { useMaterialItems, materialSpecStore } from "@/lib/store/material-spec-store";
 import { DEFAULT_PO_STATUSES, statusColourStyle } from "@/lib/mock/material-spec";
-import { asPoStatus, isFixedPoStatus, PO_STATUS_LABEL, poStatusLabel, poStatusList, poTotals, type PoStatus, type PurchaseOrder } from "@/lib/purchase-order";
+import { asPoStatus, isDeliveryDone, isFixedPoStatus, PO_STATUS_LABEL, poStatusLabel, poStatusList, poTotals, type PoStatus, type PurchaseOrder } from "@/lib/purchase-order";
 
 // The same status colours as the Quotes picker.
 const PO_TO_QUOTE_TONE: Record<string, StatusKey> = { pending: "in-production", confirmed: "in-procurement", "in-production": "in-production", delivered: "completed" };
@@ -228,36 +229,46 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           key: "status",
           head: proforma ? "PI Status" : "PO Status",
           // Changeable here like the Quotes status. Completing needs the PO's required fields filled in.
-          // A Purchase Order at Delivery Done gets a button beside it for its Invoice & Transport Details.
           cell: ({ po }: Row) => (
-            <span className="flex items-center gap-1">
-              <StatusMenu
-                label={`Status of ${po.poNumber || "this PO"}`}
-                value={asPoStatus(po.status)}
-                options={statuses.map((st) => ({ value: st, label: poStatusLabel(st), className: colours[st] ? "border" : statusClass(st), style: statusColourStyle(colours[st]) }))}
-                onChange={(v) => askChange(po, v as PoStatus)}
-                onAdd={(name) => addStatus(po, name)}
-                editable={editableStatus}
-                onRename={(st, name) => void renameStatus(st, name)}
-                onDelete={deleteStatus}
-              />
-              {!proforma && asPoStatus(po.status) === "delivered" && (
-                <button
-                  type="button"
-                  aria-label={`Invoice & Transport Details of ${po.poNumber || "this PO"}`}
-                  title={`Invoice & Transport Details${po.material.transport?.length ? ` (${po.material.transport.length})` : ""}`}
-                  onClick={() => setDeliveryFor(po.id)}
-                  className={cn("rounded-md p-1 hover:bg-primary-transparent hover:text-primary", po.material.transport?.length ? "text-primary" : "text-grey-400")}
-                >
-                  <Truck className="h-4 w-4" />
-                </button>
-              )}
-            </span>
+            <StatusMenu
+              label={`Status of ${po.poNumber || "this PO"}`}
+              value={asPoStatus(po.status)}
+              options={statuses.map((st) => ({ value: st, label: poStatusLabel(st), className: colours[st] ? "border" : statusClass(st), style: statusColourStyle(colours[st]) }))}
+              onChange={(v) => askChange(po, v as PoStatus)}
+              onAdd={(name) => addStatus(po, name)}
+              editable={editableStatus}
+              onRename={(st, name) => void renameStatus(st, name)}
+              onDelete={deleteStatus}
+            />
           ),
         }]),
     // Purchase Order Details fields, shown when picked in "Columns" (kept in this browser per list).
     ...extraCols.filter((c) => extraShown.includes(c.key)),
-    { key: "actions", head: "Actions", right: true, cell: ({ po }) => <PoRowActions po={po} proforma={proforma} base={baseOf(po)} /> },
+    {
+      key: "actions",
+      head: "Actions",
+      right: true,
+      // Purchase Orders: Transport Details first (blue once the PO has some), opening the same details as its Purchase Order Details tab.
+      cell: ({ po }) => (
+        <PoRowActions
+          po={po}
+          proforma={proforma}
+          base={baseOf(po)}
+          extra={!proforma && (
+            <Tooltip>
+              <TooltipTrigger
+                aria-label={`Transport Details of ${po.poNumber || "this PO"}`}
+                onClick={() => setDeliveryFor(po.id)}
+                className={cn("rounded-md p-1.5 transition-colors hover:bg-light-600 hover:text-primary", po.material.transport?.length ? "text-primary" : "text-grey-400")}
+              >
+                <Truck className="h-4 w-4" />
+              </TooltipTrigger>
+              <TooltipContent>Transport Details{po.material.transport?.length ? ` (${po.material.transport.length})` : ""}</TooltipContent>
+            </Tooltip>
+          )}
+        />
+      ),
+    },
   ];
   const colDrag = useColumnOrder(`po-columns-${proforma ? "proforma" : mode}`, cols.map((c) => c.key));
   const shownCols = colDrag.order.map((k) => cols.find((c) => c.key === k)!);
@@ -282,7 +293,7 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
       await purchaseOrdersStore.update(po.id, { status });
       toastStore.show(`${po.poNumber || "PO"} marked ${poStatusLabel(status)}`, "success");
       // Delivery Done: straight on to its Invoice & Transport Details.
-      if (status === "delivered" && !proforma) setDeliveryFor(po.id);
+      if (isDeliveryDone(status) && !proforma) setDeliveryFor(po.id);
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not change status", "error");
     }

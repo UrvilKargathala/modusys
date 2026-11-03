@@ -195,8 +195,12 @@ export function PoCabinetCard({
 
   // A cabinet added by hand (not from a quote) has no unit or cabinet type: its name is typed in, and it has no Auto Populate.
   const proforma = useContext(PoLibraryContext) === "proforma";
+  // Direct Purchase Order: the cabinet line is all there is (no arrow, no component rows under it). Its carcass rows still count and
+  // print: Auto Populate sizes them, the line's colours / material go on them, and a missing rate shows in Rate Pending.
+  const rowsHidden = !!direct && !proforma;
   const isManual = !!cabinet && !cabinet.unitName && !cabinet.cabinetTypeId;
   const emptyGroups = PO_GROUPS.filter((g) => !mine.some((l) => l.group === g.key));
+  const groupsShown = PO_GROUPS.filter((g) => mine.some((l) => l.group === g.key));
 
   // This cabinet's internal / external brand & colour and material, applied to all its carcass rows (same as By component).
   const carcassRows = mine.filter((l) => l.group === "carcass");
@@ -221,15 +225,17 @@ export function PoCabinetCard({
       {/* One table line per cabinet, the columns named by the header row above the list (PoCabinetListHeader). */}
       <div className={cabinetRowGrid(proforma, !direct)}>
         <div className="cell justify-center">
-          <button
-            type="button"
-            onClick={() => setCollapsed((c) => !c)}
-            aria-label={`${collapsed ? "Expand" : "Collapse"} cabinet ${srNo}`}
-            aria-expanded={!collapsed}
-            className="flex h-6 w-6 items-center justify-center rounded-md text-grey-500 hover:bg-primary-transparent hover:text-grey-800"
-          >
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
+          {!rowsHidden && (
+            <button
+              type="button"
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label={`${collapsed ? "Expand" : "Collapse"} cabinet ${srNo}`}
+              aria-expanded={!collapsed}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-grey-500 hover:bg-primary-transparent hover:text-grey-800"
+            >
+              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+          )}
         </div>
         <div className="cell num justify-center font-semibold text-primary">{srNo}</div>
         {!direct && <PoUnitNameCell cabinet={cabinet} />}
@@ -315,9 +321,11 @@ export function PoCabinetCard({
       </div>
 
 
-      {!collapsed && (
+      {!collapsed && !rowsHidden && (
         <>
-          {PO_GROUPS.filter((g) => mine.some((l) => l.group === g.key)).map((g) => (
+          {/* Opening the cabinet shows its rows straight away. With one section there is no section bar at all; with several
+              (Carcass, Shutter, ...) each keeps its bar to tell them apart, open from the start. */}
+          {groupsShown.map((g) => (
             <PoLinesTable
               key={g.key}
               group={g.key}
@@ -325,8 +333,7 @@ export function PoCabinetCard({
               lines={lines}
               srNo={srNo}
               vars={cabinet ? { W: cabinet.width, D: cabinet.depth, H: cabinet.height } : undefined}
-              // Each section (Carcass, Shutter, ...) starts closed: open the ones you need.
-              defaultCollapsed
+              noBand={groupsShown.length === 1}
               onChange={onChange}
             />
           ))}

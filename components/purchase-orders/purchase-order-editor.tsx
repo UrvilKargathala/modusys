@@ -33,6 +33,7 @@ import { ColourPopover } from "@/components/shared/colour-popover";
 import { PoWhereSelect } from "@/components/purchase-orders/po-where-select";
 import { CabinetSortList, SortableCabinet } from "@/components/purchase-orders/po-sortable-cabinet";
 import { DEFAULT_HIGHLIGHT, PoAllowedColoursContext, PoFinishSelect, finishLabel } from "@/components/purchase-orders/po-finish-select";
+import { PoTransportEditor } from "@/components/purchase-orders/po-delivery-dialog";
 import { addDaysIso, formatPoDate } from "@/components/purchase-orders/po-dates";
 import { SpecTable, L, V } from "@/components/quotes/create/spec-table";
 import { StripCell } from "@/components/quotes/create/quote-info-strip";
@@ -1148,6 +1149,13 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               },
             ])}
           </SpecTable>
+          {/* Purchase Orders (not a Proforma Invoice, whose Packing page keeps its own transports in the same list). Saved with Save. */}
+          {!isProforma && (
+            <section className="mt-4 flex flex-col gap-2">
+              <h3 className="font-heading text-base font-semibold text-grey-900">Transport Details</h3>
+              <PoTransportEditor rows={draft.material.transport ?? []} onChange={(transport) => setMaterial({ transport })} />
+            </section>
+          )}
           </div>
           <div role="tabpanel" className={tab === "material" ? "block" : "hidden"}>
         <section className="po-card flex flex-col gap-4 rounded-xl border border-grey-100 bg-white p-4 shadow-sm">

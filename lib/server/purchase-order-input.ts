@@ -126,9 +126,12 @@ export function cleanMaterial(m: unknown) {
       date: str(t?.date).slice(0, 10),
       boxes: Math.max(0, Math.min(99999, Math.round(num(t?.boxes)))),
       amount: Math.max(0, num(t?.amount)),
-      labour: Math.max(0, num(t?.labour)),
+      invoiceNo: str(t?.invoiceNo).slice(0, 80),
+      invoiceDate: str(t?.invoiceDate).slice(0, 10),
       localName: str(t?.localName).slice(0, 120),
+      localBoxes: Math.max(0, Math.min(99999, Math.round(num(t?.localBoxes)))),
       localAmount: Math.max(0, num(t?.localAmount)),
+      labour: Math.max(0, num(t?.labour)),
     })),
     packing: Object.fromEntries(
       Object.entries((o.packing ?? {}) as Record<string, Record<string, unknown>>)

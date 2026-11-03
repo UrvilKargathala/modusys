@@ -187,6 +187,7 @@ export function PoLinesTable({
   subHeader,
   renderBand,
   defaultCollapsed = false,
+  noBand = false,
   only,
   newRowDefaults,
   sort,
@@ -207,6 +208,8 @@ export function PoLinesTable({
   subHeader?: ReactNode;
   // Replaces the whole heading band (arrow, title, total, Add Row) with the caller's own, e.g. a cabinet drawn as a table line.
   renderBand?: (ctx: { collapsed: boolean; toggle: () => void; total: number; totalSqft: number; add: () => void; canAdd: boolean }) => ReactNode;
+  // No heading band at all and always open: a cabinet's only table, shown as soon as the cabinet is opened.
+  noBand?: boolean;
   // Start closed; the user opens what they need.
   defaultCollapsed?: boolean;
   // Other Panel (all cabinets): sort by Description or Thk; click a heading to sort, again to reverse, a third time to clear.
@@ -218,7 +221,7 @@ export function PoLinesTable({
   newRowDefaults?: Partial<PurchaseOrderLine>;
   onChange: (lines: PurchaseOrderLine[]) => void;
 }) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed && !noBand);
   // Last W/D/H formula typed in each row's Width / Height. Key: group | cabinet | row no in that cabinet | column (row ids change on every save).
   const dim = useContext(PoDimNotesContext);
   const [localNotes, setLocalNotes] = useState<Record<string, string>>({});
@@ -290,7 +293,7 @@ export function PoLinesTable({
 
   return (
     <div className="flex flex-col gap-2">
-      {renderBand ? (
+      {noBand ? null : renderBand ? (
         renderBand({ collapsed, toggle: () => setCollapsed((c) => !c), total, totalSqft, add, canAdd: !only })
       ) : (
         <>

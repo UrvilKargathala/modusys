@@ -865,8 +865,8 @@
 .po-dense .cab-table:not(.cab-head) input,
 .po-dense .cab-table:not(.cab-head) select,
 .po-dense .cab-table:not(.cab-head) button[aria-haspopup] { height: 20px; }
-/* Line table headings: taller and centred. */
-.po-dense th { padding-block: 9px; text-align: center; vertical-align: middle; }
+/* Line table headings: centred, one short line. */
+.po-dense th { padding-block: 4px; text-align: center; vertical-align: middle; }
 /* Material Details tables: the highlight-colour swatch beside a colour picker is a small square. */
 .po-dense td button[aria-label^="Highlight colour"] { width: 24px; height: 24px; min-width: 24px; max-width: 24px; flex: none; padding: 3px; border-radius: 6px; }
 .po-dense td button[aria-label^="Highlight colour"] > span { display: block; width: 100%; height: 100%; border-radius: 3px; }
