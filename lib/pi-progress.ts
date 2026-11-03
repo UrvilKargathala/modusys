@@ -35,6 +35,46 @@ export function piProgress(po: PurchaseOrder, orders: PurchaseOrder[]): PiProgre
 // The PIs made from a PO (Send to PI, or the whole-PO Create PI).
 export const pisOf = (po: PurchaseOrder, orders: PurchaseOrder[]) => orders.filter((o) => !!o.material.proforma && o.material.fromPoId === po.id);
 
+// A Proforma Invoice takes its colours from the Purchase Order it was made from (material.fromPoId): every colour still empty on the PI
+// is filled from the PO, and nothing the PI already has is changed. Lines match by line key, cabinets by number. The Primary / Secondary
+// Color Selection is taken from the PO when the PI has no colour picked there yet (or no Material Details at all).
+// Returns the PI itself when there is nothing to fill (or no such PO).
+export function withPoColours(pi: PurchaseOrder, orders: PurchaseOrder[]): PurchaseOrder {
+  const po = pi.material.proforma && pi.material.fromPoId ? orders.find((o) => o.id === pi.material.fromPoId) : undefined;
+  if (!po) return pi;
+  let changed = false;
+  const fill = <T extends object>(to: T, from: Partial<T> | undefined, keys: (keyof T)[]): T => {
+    const add = Object.fromEntries(keys.filter((k) => !to[k] && from?.[k]).map((k) => [k, from![k]]));
+    if (Object.keys(add).length === 0) return to;
+    changed = true;
+    return { ...to, ...add };
+  };
+  const poLines = new Map(po.lines.map((l) => [l.lineKey ?? l.id, l]));
+  const lines = pi.lines.map((l) => fill(l, l.lineKey ? poLines.get(l.lineKey) : undefined, ["internalColour", "externalColour"]));
+  const cabinets = Object.fromEntries(Object.entries(pi.material.cabinets ?? {}).map(([k, c]) => [k, fill(c, po.material.cabinets?.[k], ["internalColour", "externalColour"])]));
+  const finishes = fill(pi.material.finishes ?? {}, po.material.finishes, ["shutterInternalColour", "shutterExternalColour", "cabinetInternalColour", "cabinetExternalColour"]);
+
+  type Entry = NonNullable<PoMaterial["finishEntries"]>[number];
+  const coloured = (e: Entry) => !!(e.internal || e.external);
+  // Secondary rows start s-; Primary rows p- (older rows with no prefix that carry colours count as Primary).
+  const inPart = (e: Entry, part: "p" | "s") => (part === "s" ? e.id.startsWith("s-") : e.id.startsWith("p-") || (!e.id.startsWith("r-") && !e.id.startsWith("s-") && coloured(e)));
+  let entries = pi.material.finishEntries;
+  if (!entries) {
+    if (po.material.finishEntries?.some(coloured)) [entries, changed] = [po.material.finishEntries, true];
+  } else {
+    for (const part of ["p", "s"] as const) {
+      const fromPo = (po.material.finishEntries ?? []).filter((e) => inPart(e, part) && coloured(e));
+      if (fromPo.length === 0 || entries.some((e) => inPart(e, part) && coloured(e))) continue;
+      // The PI's own rows of that part are all empty: the PO's rows take their place.
+      entries = [...entries.filter((e) => !e.id.startsWith(`${part}-`)), ...fromPo];
+      changed = true;
+    }
+  }
+  if (!changed) return pi;
+  const fc = (side: "shutter" | "cabinet") => ({ ...po.material.finishColors?.[side], ...pi.material.finishColors?.[side] });
+  return { ...pi, lines, material: { ...pi.material, cabinets, finishes, finishEntries: entries, finishColors: { shutter: fc("shutter"), cabinet: fc("cabinet") } } };
+}
+
 // Own factory: is a PO's part of the job finished? Every line is on a PI (an older whole-PO PI counts for all of them, see piProgress)
 // and every one of its PIs is Dispatched.
 export function poDoneByPis(po: PurchaseOrder, orders: PurchaseOrder[], delivered: (pi: PurchaseOrder) => boolean): boolean {

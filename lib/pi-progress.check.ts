@@ -1,6 +1,6 @@
 // Run: npx tsx lib/pi-progress.check.ts
 import assert from "node:assert/strict";
-import { nextWorkOrderNo, piProgress, poDoneByPis, withWorkOrder, woProgress, workOrderView, workOrdersOf } from "@/lib/pi-progress";
+import { nextWorkOrderNo, piProgress, poDoneByPis, withPoColours, withWorkOrder, woProgress, workOrderView, workOrdersOf } from "@/lib/pi-progress";
 import type { PurchaseOrder } from "@/lib/purchase-order";
 
 const line = (lineKey: string) => ({ id: `row-${lineKey}`, lineKey }) as PurchaseOrder["lines"][number];
@@ -60,3 +60,25 @@ assert.equal(nextWorkOrderNo("2026-10-31", "KT", []), "PWO-311026-KT-01");
 assert.equal(nextWorkOrderNo("2026-10-31", "KT", [order("x", [], { workOrders: [wo("1", "PWO-311026-KT-01", []), wo("2", "PWO-311026-KT-07", [])] }), order("y", [], { workOrderNo: "PWO-311026-WR-09" })]), "PWO-311026-KT-08");
 assert.equal(nextWorkOrderNo("2026-10-31", undefined, []), "PWO-311026-01");
 console.log("work order number ok");
+
+// A PI takes its empty colours from its PO; what the PI already has stays.
+{
+  const lineC = (lineKey: string, internalColour: string, externalColour: string) => ({ id: `row-${lineKey}`, lineKey, internalColour, externalColour });
+  const src = { id: "poC", lines: [lineC("a", "MM 926", "MM 926"), lineC("b", "VEER 17", "MM 926")], material: { cabinets: { "4": { internalColour: "MM 926", externalColour: "MM 926" } }, finishEntries: [{ id: "r-1", where: "Carcass", rawMaterial: "BWP", internal: "", external: "" }, { id: "p-1", where: "Carcass", rawMaterial: "", internal: "MM 926", external: "MM 926" }, { id: "s-1", where: "Carcass", rawMaterial: "", internal: "VEER 17", external: "MM 926" }] } } as unknown as PurchaseOrder;
+  const piC = { id: "piC", lines: [lineC("a", "", ""), lineC("b", "Own", "")], material: { proforma: true, fromPoId: "poC", cabinets: { "4": { internalColour: "", externalColour: "" } }, finishEntries: [{ id: "r-2", where: "Carcass", rawMaterial: "BWP", internal: "", external: "" }, { id: "p-2", where: "Carcass,Shutter", rawMaterial: "", internal: "", external: "" }, { id: "s-2", where: "Carcass", rawMaterial: "", internal: "Own S", external: "" }] } } as unknown as PurchaseOrder;
+  const out = withPoColours(piC, [src, piC]);
+  assert.deepEqual(out.lines.map((l) => [l.internalColour, l.externalColour]), [["MM 926", "MM 926"], ["Own", "MM 926"]]);
+  assert.deepEqual(out.material.cabinets["4"], { internalColour: "MM 926", externalColour: "MM 926" });
+  // Primary was empty: the PO's row replaces it. Secondary already had a colour: kept as it is. Raw Material untouched.
+  assert.deepEqual(out.material.finishEntries!.map((e) => e.id), ["r-2", "s-2", "p-1"]);
+  // Nothing left to fill: the same PI comes back.
+  assert.equal(withPoColours(out, [src, out]), out);
+  // A PO whose Material Details hold no colour gives the PI nothing.
+  const plainPo = { ...src, lines: [], material: { finishEntries: [src.material.finishEntries![0]] } } as unknown as PurchaseOrder;
+  const bare = { ...piC, lines: [], material: { proforma: true, fromPoId: "poC" } } as unknown as PurchaseOrder;
+  assert.equal(withPoColours(bare, [plainPo]), bare);
+  // Not made from a PO: unchanged.
+  const loose = { ...piC, material: { ...piC.material, fromPoId: undefined } } as unknown as PurchaseOrder;
+  assert.equal(withPoColours(loose, [src]), loose);
+}
+console.log("pi colours ok");

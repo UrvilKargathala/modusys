@@ -258,7 +258,8 @@ export type PoMaterial = {
   edgeBandSides?: Record<string, Partial<{ top: boolean; bottom: boolean; lh: boolean; rh: boolean }>>;
   edgeBandColours?: { id: string; where: string; internal: string; external: string }[];
   // Proforma Packing page, Transport Details: one entry per transport (name from the Proforma Library list), its LR number and box count.
-  transport?: { name: string; lr: string; date?: string; boxes: number }[];
+  // Purchase Order (Delivery Done > Invoice & Transport Details): the same list, with the transport, labour and local transport costs.
+  transport?: { name: string; lr: string; date?: string; boxes: number; amount?: number; labour?: number; localName?: string; localAmount?: number }[];
   // Proforma Packing page: per cut-list row, one entry per piece (Qty): ticked as packed or not, with its own note.
   packing?: Record<string, { pieces: { done: boolean; note: string; seq?: number; tr?: number }[] }>;
   additionalColors?: { shutter?: Record<string, string>; cabinet?: Record<string, string> };

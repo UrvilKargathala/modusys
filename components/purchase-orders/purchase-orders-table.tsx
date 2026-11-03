@@ -6,11 +6,12 @@ import { piProgress, woProgress } from "@/lib/pi-progress";
 import { REQUIREMENT_STATUS_LABEL, REQUIREMENT_STATUS_STYLE } from "@/lib/requirement-progress";
 import { downloadOrderTracker, printOrderTracker } from "@/lib/order-tracker-export";
 import { PoRowActions } from "@/components/purchase-orders/po-row-actions";
+import { PoDeliveryDialog } from "@/components/purchase-orders/po-delivery-dialog";
 import { useProformaStatusChange } from "@/components/purchase-orders/proforma-status-change";
 import { StatusMenu } from "@/components/shared/status-menu";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ShoppingCart, Plus, Trash2, Download, Columns3 } from "lucide-react";
+import { Search, ShoppingCart, Plus, Trash2, Download, Columns3, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -104,6 +105,8 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
   // Delete asks first in a window. A status still used anywhere (any Purchase Order, Direct PO or Proforma Invoice) can't be deleted:
   // the window lists those orders instead. Pending never (new orders start as Pending).
   const [deleteAsk, setDeleteAsk] = useState<{ st: string; using: PurchaseOrder[] } | null>(null);
+  // Delivery Done: the order whose Invoice & Transport Details popup is open.
+  const [deliveryFor, setDeliveryFor] = useState<string | null>(null);
   const deleteStatus = (st: string) => setDeleteAsk({ st, using: allOrders.filter((o) => asPoStatus(o.status) === st) });
   const confirmDelete = (st: string) => {
     const label = poStatusLabel(st);
@@ -218,23 +221,40 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           },
         }]
       : []),
-    {
-      key: "status",
-      head: proforma ? "PI Status" : "PO Status",
-      // Changeable here like the Quotes status. Completing needs the PO's required fields filled in.
-      cell: ({ po }) => (
-        <StatusMenu
-          label={`Status of ${po.poNumber || "this PO"}`}
-          value={asPoStatus(po.status)}
-          options={statuses.map((st) => ({ value: st, label: poStatusLabel(st), className: colours[st] ? "border" : statusClass(st), style: statusColourStyle(colours[st]) }))}
-          onChange={(v) => askChange(po, v as PoStatus)}
-          onAdd={(name) => addStatus(po, name)}
-          editable={editableStatus}
-          onRename={(st, name) => void renameStatus(st, name)}
-          onDelete={deleteStatus}
-        />
-      ),
-    },
+    // Own factory: Purchase Orders show only their PO Detail Status (the PI Status stays on Proforma Invoices).
+    ...(ownFactory && !proforma
+      ? []
+      : [{
+          key: "status",
+          head: proforma ? "PI Status" : "PO Status",
+          // Changeable here like the Quotes status. Completing needs the PO's required fields filled in.
+          // A Purchase Order at Delivery Done gets a button beside it for its Invoice & Transport Details.
+          cell: ({ po }: Row) => (
+            <span className="flex items-center gap-1">
+              <StatusMenu
+                label={`Status of ${po.poNumber || "this PO"}`}
+                value={asPoStatus(po.status)}
+                options={statuses.map((st) => ({ value: st, label: poStatusLabel(st), className: colours[st] ? "border" : statusClass(st), style: statusColourStyle(colours[st]) }))}
+                onChange={(v) => askChange(po, v as PoStatus)}
+                onAdd={(name) => addStatus(po, name)}
+                editable={editableStatus}
+                onRename={(st, name) => void renameStatus(st, name)}
+                onDelete={deleteStatus}
+              />
+              {!proforma && asPoStatus(po.status) === "delivered" && (
+                <button
+                  type="button"
+                  aria-label={`Invoice & Transport Details of ${po.poNumber || "this PO"}`}
+                  title={`Invoice & Transport Details${po.material.transport?.length ? ` (${po.material.transport.length})` : ""}`}
+                  onClick={() => setDeliveryFor(po.id)}
+                  className={cn("rounded-md p-1 hover:bg-primary-transparent hover:text-primary", po.material.transport?.length ? "text-primary" : "text-grey-400")}
+                >
+                  <Truck className="h-4 w-4" />
+                </button>
+              )}
+            </span>
+          ),
+        }]),
     // Purchase Order Details fields, shown when picked in "Columns" (kept in this browser per list).
     ...extraCols.filter((c) => extraShown.includes(c.key)),
     { key: "actions", head: "Actions", right: true, cell: ({ po }) => <PoRowActions po={po} proforma={proforma} base={baseOf(po)} /> },
@@ -252,8 +272,6 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
         [!po.material.productTypeId, "Purchase Product Type"],
         [!po.poNumber.trim(), "PO Number"],
         [!po.poDate, "PO Date"],
-        [!po.material.shutterRawMaterial, "Shutter Raw Material"],
-        [!po.material.cabinetRawMaterial, "Cabinet Raw Material"],
       ].filter(([m]) => m).map(([, l]) => l);
       if (missing.length) {
         toastStore.show(`Open the PO and fill in: ${missing.join(", ")}`, "error");
@@ -263,6 +281,8 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
     try {
       await purchaseOrdersStore.update(po.id, { status });
       toastStore.show(`${po.poNumber || "PO"} marked ${poStatusLabel(status)}`, "success");
+      // Delivery Done: straight on to its Invoice & Transport Details.
+      if (status === "delivered" && !proforma) setDeliveryFor(po.id);
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not change status", "error");
     }
@@ -407,6 +427,10 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
       )}
       </div>
       <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
+      {(() => {
+        const po = deliveryFor ? allOrders.find((o) => o.id === deliveryFor) : undefined;
+        return po ? <PoDeliveryDialog po={po} onClose={() => setDeliveryFor(null)} /> : null;
+      })()}
       {deleteAsk && (
         <Dialog open onOpenChange={(o) => !o && setDeleteAsk(null)}>
           <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">

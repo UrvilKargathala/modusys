@@ -15,7 +15,7 @@ import { useUnitTypes } from "@/lib/store/unit-type-store";
 import { useOwnFactory, usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
 import { PiSendContext } from "@/components/purchase-orders/pi-send-context";
 import { SendToPiDialog } from "@/components/purchase-orders/send-to-pi-dialog";
-import { nextWorkOrderNo, piProgress, woProgress, workOrdersOf } from "@/lib/pi-progress";
+import { nextWorkOrderNo, piProgress, withPoColours, woProgress, workOrdersOf } from "@/lib/pi-progress";
 import { REQUIREMENT_STATUS_LABEL, REQUIREMENT_STATUS_STYLE } from "@/lib/requirement-progress";
 import { GROUP_BAND, PoBrandVendorContext, PoDefaultVendorContext, PoDimNotesContext, PoLinesTable, PoVendorContext } from "@/components/purchase-orders/po-lines-table";
 import { applyPurchaseRates, purchaseRateFor } from "@/lib/purchase-order-rate";
@@ -32,7 +32,7 @@ import { exportLinesExcel, importLinesExcel, type LinesKind } from "@/lib/po-lin
 import { ColourPopover } from "@/components/shared/colour-popover";
 import { PoWhereSelect } from "@/components/purchase-orders/po-where-select";
 import { CabinetSortList, SortableCabinet } from "@/components/purchase-orders/po-sortable-cabinet";
-import { DEFAULT_HIGHLIGHT, PoAllowedColoursContext, PoFinishMultiSelect, PoFinishSelect, finishLabel } from "@/components/purchase-orders/po-finish-select";
+import { DEFAULT_HIGHLIGHT, PoAllowedColoursContext, PoFinishSelect, finishLabel } from "@/components/purchase-orders/po-finish-select";
 import { addDaysIso, formatPoDate } from "@/components/purchase-orders/po-dates";
 import { SpecTable, L, V } from "@/components/quotes/create/spec-table";
 import { StripCell } from "@/components/quotes/create/quote-info-strip";
@@ -187,9 +187,18 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
 
   // Seed the draft once the PO has loaded; later store updates (our own save)
   // re-seed through reset() below, not through this effect.
+  // A Proforma Invoice opens with the colours it is still missing filled in from its Purchase Order (withPoColours); Save keeps them.
+  const filledFromPo = useRef(false);
   useEffect(() => {
-    if (saved && !draft) setDraft(structuredClone(saved));
-  }, [saved, draft]);
+    if (!saved || draft) return;
+    const seeded = isProforma ? withPoColours(saved, orders) : saved;
+    setDraft(structuredClone(seeded));
+    if (seeded !== saved && !filledFromPo.current) {
+      filledFromPo.current = true;
+      const po = orders.find((o) => o.id === saved.material.fromPoId);
+      toastStore.show(`Colours filled in from ${po?.poNumber || "the purchase order"}. Press Save to keep them.`, "success");
+    }
+  }, [saved, draft, isProforma, orders]);
 
   // Rows still at rate 0 pick up a matching Purchase Furniture Price List rate as soon as the PO and prices are loaded.
   const materials = useSyncExternalStore(materialSpecStore.subscribe, materialSpecStore.getSnapshot, materialSpecStore.getServerSnapshot);
@@ -337,26 +346,18 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
   const productTypes = materials.filter((m) => m.category === libKey(lib, "purchase-product-type") && !m.deleted);
 
   // Saves the given draft (default: what's on screen). A blank vendor / PO number is fine while Pending.
-  // Required before saving: vendor, customer, product type, PO number and date, and every Shutter / Cabinet Details field.
-  const missingFields = (d: PurchaseOrder) => {
-    const fin = (scope: "shutter" | "cabinet", key: "internalColour" | "externalColour") =>
-      d.material.finishes?.[`${scope}${key === "internalColour" ? "Internal" : "External"}Colour`] ?? commonFinish(scope, key);
-    return [
+  // Required before saving: vendor, customer, product type, PO number and date. Raw Material and the Primary / Secondary colours
+  // are optional: a PO saves without them.
+  const missingFields = (d: PurchaseOrder) =>
+    [
       [!d.vendorId, isProforma ? "Dealer" : "Vendor"],
       ...(isProforma ? [] : [[!d.customerId, "Customer"]]),
       [!d.material.productTypeId, isProforma ? "Proforma Product Type" : "Purchase Product Type"],
       [!d.poNumber.trim(), isProforma ? "PI Number" : "PO Number"],
       [!d.poDate, isProforma ? "PI Date" : "PO Date"],
-      [!d.material.shutterRawMaterial, "Shutter Raw Material"],
-      [!fin("shutter", "internalColour"), "Shutter Internal Brand & Colour"],
-      [!fin("shutter", "externalColour"), "Shutter External Brand & Colour"],
-      [!d.material.cabinetRawMaterial, "Cabinet Raw Material"],
-      [!fin("cabinet", "internalColour"), "Cabinet Internal Brand & Colour"],
-      [!fin("cabinet", "externalColour"), "Cabinet External Brand & Colour"],
     ]
       .filter(([miss]) => miss)
       .map(([, label]) => label as string);
-  };
 
   // Resolves true when saved, false when it didn't go through (missing fields or an error).
   const save = async (d: PurchaseOrder = draft) => {
@@ -618,22 +619,13 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
               {colour ? (
                 <>
                   <td className="px-1 py-1">{whereSel}</td>
-                  {part === "secondary" ? (
-                    <>
-                      {/* Secondary: any number of internal / external colours in one row. */}
-                      <td className="px-1 py-1"><PoFinishMultiSelect kind="internal" placeholder="Select internal colours" value={labels(e.internal)} onChange={(v) => editFinishEntry(saved.id, { internal: v.join("||") }, part)} colors={finishPalette(scope, "internal")} onColorChange={(label, hex) => setFinishColour(scope, "internal", label, hex)} /></td>
-                      <td className="px-1 py-1"><PoFinishMultiSelect kind="external" placeholder="Select external colours" value={labels(e.external)} onChange={(v) => editFinishEntry(saved.id, { external: v.join("||") }, part)} colors={finishPalette(scope, "external")} onColorChange={(label, hex) => setFinishColour(scope, "external", label, hex)} /></td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="px-1 py-1"><PoFinishSelect free kind="internal" value={labels(e.internal)[0] ?? ""} onChange={(v) => editFinishEntry(saved.id, { internal: v }, part)} colors={finishPalette(scope, "internal")} onColor={(label, hex) => { setFinishColour(scope, "internal", label, hex); }} /></td>
-                      <td className="px-1 py-1"><PoFinishSelect free kind="external" value={labels(e.external)[0] ?? ""} onChange={(v) => editFinishEntry(saved.id, { external: v }, part)} colors={finishPalette(scope, "external")} onColor={(label, hex) => {
-                        // The same brand & colour already coloured on the internal side gives its colour to the external pick.
-                        const fromInternal = finishPalette(scope, "internal")[label];
-                        setFinishColour(scope, "external", label, hex === DEFAULT_HIGHLIGHT && fromInternal ? fromInternal : hex);
-                      }} /></td>
-                    </>
-                  )}
+                  {/* Primary and Secondary: one internal and one external colour per row. */}
+                  <td className="px-1 py-1"><PoFinishSelect free kind="internal" value={labels(e.internal)[0] ?? ""} onChange={(v) => editFinishEntry(saved.id, { internal: v }, part)} colors={finishPalette(scope, "internal")} onColor={(label, hex) => { setFinishColour(scope, "internal", label, hex); }} /></td>
+                  <td className="px-1 py-1"><PoFinishSelect free kind="external" value={labels(e.external)[0] ?? ""} onChange={(v) => editFinishEntry(saved.id, { external: v }, part)} colors={finishPalette(scope, "external")} onColor={(label, hex) => {
+                    // The same brand & colour already coloured on the internal side gives its colour to the external pick.
+                    const fromInternal = finishPalette(scope, "internal")[label];
+                    setFinishColour(scope, "external", label, hex === DEFAULT_HIGHLIGHT && fromInternal ? fromInternal : hex);
+                  }} /></td>
                 </>
               ) : (
                 <>

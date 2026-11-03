@@ -162,7 +162,6 @@ export function PoCabinetCard({
   const total = mine.reduce((s, l) => s + lineAmount(l), 0);
   const totalSqft = mine.filter((l) => l.group !== "hardware").reduce((s, l) => s + l.sqft, 0);
 
-  const unitTypes = useUnitTypes();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const { ask, dialog: changeDialog } = useConfirmChange();
   const cabinetType = useCabinetTypes().find((t) => t.id === cabinet?.cabinetTypeId);
@@ -215,22 +214,6 @@ export function PoCabinetCard({
   // A cabinet with no stored details (older PO, or rows added without them) still shows editable fields; the first edit saves them.
   const cab: PoCabinet = cabinet ?? { label: "", unitName: "", space: "", width: 0, depth: 0, height: 0, qty: 1, cabinetTypeId: "", unitQty: 1, designType };
   const showFinishes = direct || mine.some((l) => l.group === "carcass");
-  const stackedField = (label: string, node: React.ReactNode) => <Field key={label} label={label} stacked>{node}</Field>;
-  // The less-used fields of a cabinet, labels above the boxes, shown when it is opened.
-  const extras = cabinet && !direct && (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-grey-100 px-1 pb-1 pt-1.5 md:grid-cols-3">
-      {stackedField(
-        "Unit Type",
-        <SelectField aria-label={`Cabinet ${srNo} unit type`} className={fieldInput} value={cabinet.unitName ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, unitName: e.target.value })}>
-          <option value="">Select unit type</option>
-          {cabinet.unitName && !unitTypes.some((u) => u.name === cabinet.unitName) && <option value={cabinet.unitName}>{cabinet.unitName}</option>}
-          {unitTypes.map((u) => (
-            <option key={u.id} value={u.name}>{u.name}</option>
-          ))}
-        </SelectField>
-      )}
-    </div>
-  );
 
   return (
     <div className="unit-row border-b border-grey-100 bg-card px-2 py-0.5">
@@ -331,7 +314,6 @@ export function PoCabinetCard({
         </div>
       </div>
 
-      {!collapsed && extras}
 
       {!collapsed && (
         <>
