@@ -343,3 +343,15 @@ export function payrollRange(sp: { from?: string; to?: string; date?: string; va
 
 export const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 export const hoursText = (mins: number | null | undefined) => (mins == null ? "—" : `${Math.floor(mins / 60)}h ${String(Math.round(mins % 60)).padStart(2, "0")}m`);
+
+// Days in a row with the same description are one holiday (Start Date – End Date). Rows come sorted by date.
+export function holidayRanges(rows: { id: string; date: string; name: string }[]) {
+  const out: { ids: string[]; start: string; end: string; name: string }[] = [];
+  for (const h of rows) {
+    const last = out[out.length - 1];
+    const next = last && new Date(Date.parse(`${last.end}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+    if (last && last.name === h.name && next === h.date) Object.assign(last, { end: h.date, ids: [...last.ids, h.id] });
+    else out.push({ ids: [h.id], start: h.date, end: h.date, name: h.name });
+  }
+  return out;
+}

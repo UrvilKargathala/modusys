@@ -1,6 +1,6 @@
 // Run: npx tsx lib/payroll.check.ts
 import assert from "node:assert";
-import { computePayroll, eachDate, lateEarly, monthRange, monthsIn, rateForMonth, sumSummaries, workingDaysInMonth, type PayrollEmployee, type PayrollRecord } from "./payroll";
+import { computePayroll, eachDate, holidayRanges, lateEarly, monthRange, monthsIn, rateForMonth, sumSummaries, workingDaysInMonth, type PayrollEmployee, type PayrollRecord } from "./payroll";
 
 const base: PayrollEmployee = {
   id: "e1", name: "Vipul Bhai", employeeNumber: "EMP-001",
@@ -141,5 +141,11 @@ assert.equal(lateEarly({ ...base, lateGraceMinutes: 15 }, ist("2026-06-02", "10:
   assert.equal(days[0].payableMinutes, 480);
   assert.equal(days[0].earned, 8 * 150);
   assert.equal(days[0].realEarned, 6.5 * 150);
+}
+// Holidays: days in a row with the same description are one range; a gap or another description starts a new one.
+{
+  const h = (id: string, date: string, name: string) => ({ id, date, name });
+  const r = holidayRanges([h("a", "2026-10-30", "Diwali"), h("b", "2026-10-31", "Diwali"), h("c", "2026-11-01", "Diwali"), h("d", "2026-11-02", "New Year"), h("e", "2026-11-05", "New Year")]);
+  assert.deepEqual(r.map((x) => [x.start, x.end, x.name, x.ids.length]), [["2026-10-30", "2026-11-01", "Diwali", 3], ["2026-11-02", "2026-11-02", "New Year", 1], ["2026-11-05", "2026-11-05", "New Year", 1]]);
 }
 console.log("payroll ok");

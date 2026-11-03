@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, History } from "lucide-react";
+import { ArrowUpRight, FileDown, History } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +55,52 @@ function roundedColumn(values: (number | null)[], total: number | null): (number
     if (big >= 0) out[big] = Math.round((out[big]! + gap) * 100) / 100;
   }
   return out;
+}
+
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// "10:00" (schedule) → "10:00 am".
+const clock = (t: string | null) => {
+  if (!t) return "";
+  const [h, m] = t.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`;
+};
+
+// Monthly Attendance Salary Report: the same days and amounts as the table, as a print page (A4 landscape); choose "Save as PDF" in the
+// print window. In / Out are the times pay is counted on (edited if edited); OT is the approved overtime, the one that is paid.
+function printSalaryReport({ name, code, period, scheduleIn, scheduleOut, days, totals }: { name: string; code: string | null; period: string; scheduleIn: string | null; scheduleOut: string | null; days: HistoryDay[]; totals: HistoryTotals }) {
+  const w = window.open("", "_blank");
+  if (!w) return;
+  const date = (s: string) => `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)} ${new Date(`${s}T00:00:00Z`).toLocaleDateString("en-GB", { timeZone: "UTC", weekday: "short" })}`;
+  const dash = (v: string | false | null | 0) => (v ? esc(v) : "—");
+  const ot = (d: HistoryDay) => (d.overtimeApproved ? d.overtime : 0);
+  const heads = ["Date", "Status", "In-Time", "Out-Time", "Work Hour", "Late-In", "Early-Out", "Rate/Hour", "Payable Salary", "OT Time", "OT Amount"];
+  const rows = days
+    .map((d) => [date(d.date), d.label, d.checkIn && time(d.checkIn), d.checkOut && time(d.checkOut), d.actual && hm(d.actual), d.late && `${d.late}m`, d.early && `${d.early}m`, d.rate != null && inr(d.rate), d.earned && inr(d.earned), ot(d) && hm(ot(d)), d.overtimePay && inr(d.overtimePay)])
+    .map((cells) => `<tr>${cells.map((c, i) => `<td class="${i < 2 ? "l" : ""}">${dash(c)}</td>`).join("")}</tr>`)
+    .join("");
+  const total = ["", "", "", hm(totals.actual), `${totals.late}m`, `${totals.early}m`, "", inr(totals.earned), hm(totals.approvedOvertime), inr(totals.overtimePay)];
+  const working = scheduleIn && scheduleOut ? ` (Working Time ${clock(scheduleIn)} To ${clock(scheduleOut)})` : "";
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(`Salary Report - ${name} - ${period}`)}</title><style>
+    @page { size: A4 landscape; margin: 10mm; }
+    body { font-family: Arial, sans-serif; margin: 0; color: #182634; }
+    h1 { font-size: 16px; text-align: center; margin: 0 0 8px; }
+    p { font-size: 12px; margin: 2px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 8px; }
+    th { background: #e2e4e8; border: 1px solid #9aa5b1; padding: 4px; }
+    td { border: 1px solid #9aa5b1; padding: 3px 4px; text-align: right; }
+    td.l { text-align: left; }
+    tfoot td { font-weight: bold; background: #f4f4f4; }
+    thead { display: table-header-group; }
+    .sum { margin-top: 10px; font-size: 12px; }
+  </style></head><body>
+  <h1>Monthly Attendance Salary Report</h1>
+  <p><b>Employee Name :</b> ${esc(name)}${code ? ` (${esc(code)})` : ""}${esc(working)}</p>
+  <p><b>Period :</b> ${esc(period)} &nbsp; · &nbsp; Present ${totals.present} · Absent ${totals.absent} · Leave ${totals.leave} &nbsp; · &nbsp; <b>Rate :</b> ${esc(totals.rate)}</p>
+  <table><thead><tr>${heads.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows || `<tr><td class="l" colspan="${heads.length}">Nothing in this period yet.</td></tr>`}</tbody>
+  <tfoot><tr><td class="l">Total · ${days.length} days</td>${total.map((t) => `<td>${esc(t)}</td>`).join("")}</tr></tfoot></table>
+  <p class="sum">${esc(inr(totals.earned))} salary + ${esc(inr(totals.overtimePay))} OT + ${esc(inr(totals.additions))} additions − ${esc(inr(totals.deductions))} deductions = <b>Final Payable ${esc(inr(totals.final))}</b></p>
+  <script>window.onload = function () { window.print(); };</script></body></html>`);
+  w.document.close();
 }
 
 // One editable time (IST) for the Edit In / Edit Out columns. Starts as the real time; putting the real time back (or clearing it) removes the edit.
@@ -182,7 +228,10 @@ export function EmployeeHistoryDialog({ name, code, period, reportHref, schedule
             </p>
             <span className="text-[11px] text-grey-500">Additions and deductions are for the whole month, so they are added here.</span>
           </div>
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-4">
+            <button type="button" onClick={() => printSalaryReport({ name, code, period, scheduleIn, scheduleOut, days, totals })} className="inline-flex items-center gap-1 text-sm font-medium text-secondary hover:underline">
+              <FileDown className="h-4 w-4" /> PDF Report
+            </button>
             <Link href={reportHref} className="inline-flex items-center gap-1 text-sm font-medium text-secondary hover:underline">Open full report <ArrowUpRight className="h-4 w-4" /></Link>
           </div>
         </DialogContent>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toastStore } from "@/lib/store/toast-store";
 import { formatInr } from "@/lib/format";
+import { holidayRanges } from "@/lib/payroll";
 
 async function send(url: string, init: RequestInit, ok: string) {
   const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...init });
@@ -115,23 +116,27 @@ export function AdjustmentsPanel({ employeeId, period, rows, locked }: { employe
   );
 }
 
-// Company holidays: list with remove, and an add form.
+// Company holidays: list with remove, and an add form (Start Date, End Date and Description, all required).
 export function HolidaysPanel({ rows }: { rows: { id: string; date: string; name: string }[] }) {
   const router = useRouter();
-  const [date, setDate] = useState("");
-  const [name, setName] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [description, setDescription] = useState("");
+  const dmy = (d: string) => d.split("-").reverse().join("/");
+  const ranges = holidayRanges(rows);
   return (
     <div className="flex flex-col gap-3">
-      {rows.length === 0 ? (
+      {ranges.length === 0 ? (
         <p className="text-sm text-grey-500">No holidays added yet.</p>
       ) : (
         <ul className="flex flex-wrap gap-2">
-          {rows.map((h) => (
-            <li key={h.id} className="flex items-center gap-2 rounded-full border border-grey-200 bg-card py-1 pl-3 pr-1 text-xs">
-              <span className="font-number text-grey-900">{h.date.split("-").reverse().join("/")}</span>
+          {ranges.map((h) => (
+            <li key={h.ids[0]} className="flex items-center gap-2 rounded-full border border-grey-200 bg-card py-1 pl-3 pr-1 text-xs">
+              <span className="font-number text-grey-900">{h.start === h.end ? dmy(h.start) : `${dmy(h.start)} – ${dmy(h.end)}`}</span>
               <span className="text-grey-600">{h.name}</span>
+              {h.ids.length > 1 && <span className="font-number text-grey-400">{h.ids.length} days</span>}
               <button type="button" aria-label={`Remove ${h.name}`} className="rounded-full p-1 text-grey-400 hover:text-error"
-                onClick={async () => { if (await send(`/api/attendance/holidays?id=${h.id}`, { method: "DELETE" }, "Holiday removed")) router.refresh(); }}>
+                onClick={async () => { if (await send(`/api/attendance/holidays?id=${h.ids.join(",")}`, { method: "DELETE" }, "Holiday removed")) router.refresh(); }}>
                 <Trash2 className="h-3 w-3" />
               </button>
             </li>
@@ -139,10 +144,25 @@ export function HolidaysPanel({ rows }: { rows: { id: string; date: string; name
         </ul>
       )}
       <div className="flex flex-wrap items-end gap-2">
-        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9 w-44" aria-label="Holiday date" />
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Holiday name" className="h-9 min-w-48 flex-1" aria-label="Holiday name" />
-        <Button type="button" size="sm" disabled={!date || !name.trim()}
-          onClick={async () => { if (await send("/api/attendance/holidays", { method: "POST", body: JSON.stringify({ date, name }) }, "Holiday added")) { setDate(""); setName(""); router.refresh(); } }}>
+        <label className="flex flex-col gap-1 text-xs text-grey-600">
+          <span>Start Date <span className="text-error">*</span></span>
+          {/* A one-day holiday needs only the start date: the end date follows it until changed. */}
+          <Input type="date" required value={startDate} onChange={(e) => { const v = e.target.value; setStartDate(v); if (!endDate || endDate < v) setEndDate(v); }} className="h-9 w-44" aria-label="Holiday start date" />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-grey-600">
+          <span>End Date <span className="text-error">*</span></span>
+          <Input type="date" required min={startDate || undefined} value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-9 w-44" aria-label="Holiday end date" />
+        </label>
+        <label className="flex min-w-48 flex-1 flex-col gap-1 text-xs text-grey-600">
+          <span>Description <span className="text-error">*</span></span>
+          <Input required value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Diwali vacation" maxLength={200} className="h-9" aria-label="Holiday description" />
+        </label>
+        <Button type="button" size="sm" disabled={!startDate || !endDate || endDate < startDate || !description.trim()}
+          onClick={async () => {
+            if (await send("/api/attendance/holidays", { method: "POST", body: JSON.stringify({ startDate, endDate, description }) }, "Holiday added")) {
+              setStartDate(""); setEndDate(""); setDescription(""); router.refresh();
+            }
+          }}>
           <Plus className="h-3.5 w-3.5" /> Add holiday
         </Button>
       </div>

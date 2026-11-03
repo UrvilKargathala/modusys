@@ -69,7 +69,12 @@ export const adjustmentSchema = z.object({
   reason: z.string().trim().min(1, "Give a reason").max(200),
 });
 
-export const holidaySchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date"),
-  name: z.string().trim().min(1, "Name the holiday").max(80),
-});
+// A company holiday from Start Date to End Date (one day: the same date twice), with its description. Saved as one row per day.
+export const holidaySchema = z
+  .object({
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a start date"),
+    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick an end date"),
+    description: z.string().trim().min(1, "Add a description").max(200),
+  })
+  .refine((h) => h.endDate >= h.startDate, { message: "End date is before the start date" })
+  .refine((h) => (Date.parse(h.endDate) - Date.parse(h.startDate)) / 86_400_000 < 62, { message: "A holiday can be at most 62 days" });
