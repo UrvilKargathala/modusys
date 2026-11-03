@@ -196,9 +196,12 @@ export function QuoteUnitCard({
   onRemove,
   onDuplicate,
   tick,
+  striped,
 }: {
   // Requirement Order (Send to PO): the unit's tick box, shown right after the drag handle.
   tick?: React.ReactNode;
+  // Every second unit in the list gets a darker background, so rows are easy to follow across.
+  striped?: boolean;
   unit: QuoteUnit;
   index: number;
   shutterFinishId: string;
@@ -249,6 +252,7 @@ export function QuoteUnitCard({
   };
 
   const runAutoPopulate = (unitType: UnitType) => {
+    const withListRate = (f: FurnitureLineItem) => ({ ...f, rateOverride: findFurnitureMatch(f, furnitureItems)?.rate });
     const cabinets = buildCabinetsFromUnitType(unitType, cabinetTypeName, unit, hardwareItems, furnitureItems);
     const hasOverrides = shutterFinishId || (shutterFinishOverrides && Object.values(shutterFinishOverrides).some(Boolean));
     onChange({
@@ -256,10 +260,11 @@ export function QuoteUnitCard({
       cabinets: hasOverrides
         ? cabinets.map((c) => ({
             ...c,
+            // The rate goes with the new combination, not the Unit Type's original one.
             externalFinishes: c.externalFinishes.map((f) =>
               isAluminiumProfileRawMaterial(f.rawMaterialTypeId)
                 ? f
-                : {
+                : withListRate({
                     ...f,
                     ...(shutterFinishOverrides?.shutterFinishThicknessId && { thicknessId: shutterFinishOverrides.shutterFinishThicknessId }),
                     ...(shutterFinishOverrides?.shutterFinishRawMaterialId && { rawMaterialTypeId: shutterFinishOverrides.shutterFinishRawMaterialId }),
@@ -267,7 +272,7 @@ export function QuoteUnitCard({
                     ...((shutterFinishOverrides?.shutterFinishExternalColourId || shutterFinishId) && {
                       externalColourId: shutterFinishOverrides?.shutterFinishExternalColourId || shutterFinishId,
                     }),
-                  }
+                  })
             ),
           }))
         : cabinets,
@@ -290,7 +295,7 @@ export function QuoteUnitCard({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn("flex flex-col gap-2 px-2 py-0.5 hover:bg-light-600/60", isDragging && "opacity-50")}
+      className={cn("flex flex-col gap-2 px-2 py-0.5 hover:bg-light-600/60", striped && "bg-[var(--table-head)]/35", isDragging && "opacity-50")}
     >
       <div className={cn(tick ? UNIT_ROW_GRID_TICK : UNIT_ROW_GRID, "unit-row unit-top")}>
         <span className="flex items-center gap-0.5">

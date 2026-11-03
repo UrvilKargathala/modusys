@@ -317,7 +317,7 @@ export function UnitsSection({
           const def = FURN[v];
           return (
             <div key={v} className="-mx-2 overflow-x-auto">
-              <div className="min-w-[1060px]">
+              <div className="min-w-[1140px]">
                 {title({ carcass: "Carcass", shutter: "Shutter", panel: "Other Panel" }[v], rows.length)}
                 {withTick(rows.map((r) => r.item.id), `every ${v} line shown`, <FurnitureTableHeader showComponentName showLevelType={def.level} nameLabel={def.label} withNo sort={sort} onSort={onSort} />)}
                 <DndContext sensors={sensors} collisionDetection={closestCenter}>
@@ -390,7 +390,8 @@ export function UnitsSection({
       const lines = arrange(all, values, !headMatch).filter((r) => passes([r.item.id]));
       const sum = (k: "sqft" | "amount") => all.reduce((t, r) => t + values(r)[k], 0);
       return { u, c, no, type, unitText, dims, lines, values, show: (headMatch && lineFilter === "all") || lines.length > 0, sqft: sum("sqft"), amount: sum("amount"), qty: all.reduce((t, r) => t + r.item.qty, 0) };
-    }));
+    // A cabinet with no Cabinet Type and no carcass lines has nothing for this tab (its number stays, so it matches All Units).
+    })).filter((x) => x.type || x.c.components.length > 0);
     const shown = cabs.filter((x) => x.show);
     const num = "h-6 w-full bg-card px-1 text-center text-xs font-number [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
     const toggle = (id: string) => setOpenCabinets((s) => { const next = new Set(s); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -681,7 +682,7 @@ export function UnitsSection({
             const newId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             return (
               <div className="-mx-2 overflow-x-auto">
-                <div className="min-w-[1060px]">
+                <div className="min-w-[1140px]">
                   {withTick(shownIds, "every line shown", furn ? <FurnitureTableHeader showComponentName showLevelType={furn.level} nameLabel={furn.label} withNo sort={sort} onSort={onSort} /> : <HardwareTableHeader withNo sort={sort} onSort={onSort} />)}
                   {/* Dragging is off here (the number takes the handle's place); rows are reordered inside their unit. */}
                   <DndContext sensors={sensors} collisionDetection={closestCenter}>
@@ -743,9 +744,9 @@ export function UnitsSection({
                     <div className="grid items-center gap-x-1.5 border-t border-grey-100 bg-[var(--table-head)] px-2 py-1.5 text-sm font-semibold text-grey-900" style={{ gridTemplateColumns: furnitureTableColumns(true, furn.level, true) }}>
                       <span style={{ gridColumn: "1 / 5" }}>Total</span>
                       <span className="num text-center">{shownShutter.reduce((n, r) => n + r.item.qty, 0)}</span>
-                      <span />
+                      <span style={{ gridColumn: "6 / 8" }} />
                       <span className="num text-center">{shownShutter.reduce((n, r) => n + fv(r).sqft, 0).toFixed(2)}</span>
-                      <span style={{ gridColumn: "8 / 12" }} />
+                      <span style={{ gridColumn: "9 / 13" }} />
                       <span className="num text-right">₹{shownShutter.reduce((n, r) => n + fv(r).amount, 0).toFixed(2)}</span>
                       {furn.level && <span />}
                       <span />
@@ -790,9 +791,10 @@ export function UnitsSection({
                   <SortLabel label="Remarks" k="remarks" sort={sort} onSort={onSort} />
                 </div>
                 {shownUnits.length === 0 && <p className="px-3 py-6 text-center text-sm font-body text-grey-400">No units match your search.</p>}
-                {shownUnits.map(({ unit, index }) => (
+                {shownUnits.map(({ unit, index }, i) => (
                   <QuoteUnitCard
                     key={unit.id}
+                    striped={i % 2 === 1}
                     // Send to PO: one tick for every line of the unit that can still go to a PO (right after the drag handle).
                     tick={send ? tickInput(unit.cabinets.flatMap((c) => [...c.components, ...c.externalFinishes, ...c.panels, ...c.hardware].map((x) => x.id)).filter((id) => send.sendable.has(id)), `unit ${index + 1}`) : undefined}
                     unit={unit}

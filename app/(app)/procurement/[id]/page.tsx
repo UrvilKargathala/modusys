@@ -72,7 +72,10 @@ export default function ProcurementEditorPage({ params }: { params: Promise<{ id
     if (!quote) return;
     setSaving(true);
     try {
-      await procurementStore.update(id, { ...quote, updatedAt: new Date().toISOString() });
+      const saved = await procurementStore.update(id, { ...quote, updatedAt: new Date().toISOString() });
+      // Carry on from what was saved (its new updatedAt, and the key order the database gives back), so the page reads as saved
+      // again and Save Changes is disabled. Edits typed while saving are kept (still unsaved).
+      setQuote((q) => (q === quote ? structuredClone(saved.data) : q));
       toastStore.show("Requirement order saved", "success");
     } catch (e) {
       toastStore.show(e instanceof Error ? e.message : "Could not save", "error");
@@ -217,7 +220,7 @@ export default function ProcurementEditorPage({ params }: { params: Promise<{ id
             <MaterialSpecificationSection bare quote={quote} onChange={patchQuote} confirmChanges />
           </div>
           <div role="tabpanel" className={cn("flex-col gap-2", tab === "summary" ? "flex" : "hidden")}>
-            <QuoteSummarySection bare quote={quote} onChange={patchQuote} onSaveRemark={save} />
+            <QuoteSummarySection bare quote={quote} onChange={patchQuote} />
             <RemarkAndFinishesSection bare quote={quote} onChange={patchQuote} />
           </div>
         </div>

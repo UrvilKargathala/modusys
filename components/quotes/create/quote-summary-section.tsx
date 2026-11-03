@@ -16,7 +16,8 @@ export function QuoteSummarySection({
 }: {
   quote: Quote;
   onChange: (patch: Partial<Quote>) => void;
-  onSaveRemark: () => void;
+  // Leave out to keep the remark with the page's other unsaved changes (Requirement Order).
+  onSaveRemark?: () => void;
   // Shown inside a tab: no frame, no collapse header (the tab name is the title).
   bare?: boolean;
 }) {

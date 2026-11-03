@@ -7,6 +7,7 @@ import type { Quote } from "@/lib/mock/quote";
 // Only saves when the remark differs from what the page opened with (or last
 // saved), so opening the page — including React Strict Mode's second effect
 // run in dev — never re-persists an unchanged quote or shows a toast.
+// Without onSave (Requirement Order) nothing is saved here: the remark waits for the page's Save Changes.
 export function RemarkSection({
   quote,
   onChange,
@@ -14,12 +15,12 @@ export function RemarkSection({
 }: {
   quote: Quote;
   onChange: (patch: Partial<Quote>) => void;
-  onSave: () => void;
+  onSave?: () => void;
 }) {
   const saved = useRef(quote.remark);
 
   useEffect(() => {
-    if (quote.remark === saved.current) return;
+    if (!onSave || quote.remark === saved.current) return;
     const timeout = setTimeout(() => {
       saved.current = quote.remark;
       onSave();

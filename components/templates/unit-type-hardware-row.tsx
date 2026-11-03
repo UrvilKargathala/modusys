@@ -24,13 +24,15 @@ import type { UnitTypeHardware } from "@/lib/mock/unit-type";
 // Column widths for the table layout (Quotes' cabinet groups): drag, Article No., Category, Brand, Description, Level Type, Qty, Unit,
 // Rate, Amount, actions. The group's header row uses the same string so the columns line up.
 export const HARDWARE_TABLE_COLUMNS = "20px 104px minmax(100px,0.9fr) minmax(90px,0.8fr) minmax(140px,1.6fr) minmax(90px,0.8fr) 56px 44px 76px 84px 76px";
-export function HardwareTableHeader({ withNo = false, sort, onSort }: { withNo?: boolean; sort?: LineSort; onSort?: (key: string) => void }) {
+// The table's columns: a 44px first column for a row number (withNo), 36px for the drag handle plus a tick box (withTick).
+export const hardwareTableColumns = (withNo = false, withTick = false) => withNo ? HARDWARE_TABLE_COLUMNS.replace("20px", "44px") : withTick ? HARDWARE_TABLE_COLUMNS.replace("20px", "36px") : HARDWARE_TABLE_COLUMNS;
+export function HardwareTableHeader({ withNo = false, sort, onSort, tick }: { withNo?: boolean; sort?: LineSort; onSort?: (key: string) => void; tick?: ReactNode }) {
   const heads: [string, string?][] = [[withNo ? "No." : "", "no"], ["Article No.", "articleNo"], ["Category", "category"], ["Brand", "brand"], ["Description", "description"], ["Level Type", "levelType"], ["Qty", "qty"], ["Unit", "unit"], ["Rate", "rate"], ["Amount", "amount"], ["", undefined]];
   return (
-    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[var(--table-head)] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: withNo ? HARDWARE_TABLE_COLUMNS.replace("20px", "44px") : HARDWARE_TABLE_COLUMNS }}>
+    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[var(--table-head)] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: hardwareTableColumns(withNo, !!tick) }}>
       {heads.map(([h, k], i) => (
         <span key={i} className={["Qty", "Unit"].includes(h) ? "text-center" : ["Rate", "Amount"].includes(h) ? "text-right" : ""}>
-          <SortLabel label={h} k={k} sort={sort} onSort={onSort} />
+          {i === 0 && tick ? <span className="flex items-center gap-1"><span className="w-4" />{tick}</span> : <SortLabel label={h} k={k} sort={sort} onSort={onSort} />}
         </span>
       ))}
     </div>
@@ -39,11 +41,12 @@ export function HardwareTableHeader({ withNo = false, sort, onSort }: { withNo?:
 
 // The table of hardware rows (the quote's layout, also Unit Type): the header plus the rows passed as children, scrolling sideways
 // when the space is narrow. Rows use UnitTypeHardwareRow with `table`.
-export function HardwareTable({ children }: { children: ReactNode }) {
+// tick: a tick box in the header that selects every row (rows then get their own `tick`).
+export function HardwareTable({ tick, children }: { tick?: ReactNode; children: ReactNode }) {
   return (
     <div className="overflow-x-auto rounded-md border border-grey-100 bg-card">
       <div className="min-w-[1000px]">
-        <HardwareTableHeader />
+        <HardwareTableHeader tick={tick} />
         {children}
       </div>
     </div>
@@ -64,6 +67,7 @@ export function UnitTypeHardwareRow({
   collapsible,
   table,
   rowNo,
+  tick,
 }: {
   value: UnitTypeHardware;
   onChange: (patch: Partial<UnitTypeHardware>) => void;
@@ -77,6 +81,8 @@ export function UnitTypeHardwareRow({
   table?: boolean;
   // Table layout only: a row number (1.1, 1.2 ...) shown in place of the drag handle.
   rowNo?: string;
+  // Table layout only: a tick box after the drag handle (the table's header passes its own `tick` too).
+  tick?: ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   // On a Purchase Order already (Requirement Order editor): locked.
@@ -84,6 +90,7 @@ export function UnitTypeHardwareRow({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingChange, setPendingChange] = useState<{ label: string; patch: Partial<UnitTypeHardware> } | null>(null);
   const [collapsed, setCollapsed] = useState(!!collapsible);
+  const [rateFocused, setRateFocused] = useState(false);
 
   const commit = (label: string, patch: Partial<UnitTypeHardware>) => {
     const hasExisting = Object.keys(patch).some((k) => value[k as keyof UnitTypeHardware]);
@@ -223,6 +230,8 @@ export function UnitTypeHardwareRow({
   const resolvedQty = Number(value.qtyFormula);
   const priceListRate = matched ? rateAfterDiscount(matched) : undefined;
   const effectiveRate = value.rateOverride ?? priceListRate;
+  // Always two decimals (68.20), except while typing in the box.
+  const rateText = effectiveRate === undefined ? "" : rateFocused ? String(Math.round(effectiveRate * 100) / 100) : effectiveRate.toFixed(2);
   const amount = effectiveRate !== undefined && Number.isFinite(resolvedQty) ? effectiveRate * resolvedQty : undefined;
 
   const dialogs = (
@@ -257,13 +266,16 @@ export function UnitTypeHardwareRow({
         className={cn("unit-row border-b border-grey-100 bg-card px-2 py-0.5 last:border-b-0", isDragging && "opacity-50", sentPo && "bg-success-transparent")}
       >
         <fieldset disabled={!!sentPo} className="m-0 min-w-0 border-0 p-0">
-        <div className="grid items-center gap-x-1.5" style={{ gridTemplateColumns: rowNo ? HARDWARE_TABLE_COLUMNS.replace("20px", "44px") : HARDWARE_TABLE_COLUMNS }}>
+        <div className="grid items-center gap-x-1.5" style={{ gridTemplateColumns: hardwareTableColumns(!!rowNo, !!tick) }}>
           {rowNo ? (
             <span className="num text-xs font-semibold text-grey-700">{rowNo}</span>
           ) : (
-            <button type="button" {...attributes} {...listeners} className="cursor-grab touch-none text-grey-300 hover:text-grey-500 active:cursor-grabbing" aria-label="Drag to reorder">
-              <GripVertical className="h-4 w-4" />
-            </button>
+            <span className="flex items-center gap-1">
+              <button type="button" {...attributes} {...listeners} className="cursor-grab touch-none text-grey-300 hover:text-grey-500 active:cursor-grabbing" aria-label="Drag to reorder">
+                <GripVertical className="h-4 w-4" />
+              </button>
+              {tick}
+            </span>
           )}
           <Input aria-label="Article No." placeholder="Article No." value={value.articleNo ?? ""} onChange={(e) => handleArticleNoChange(e.target.value)} className="num" />
           <MaterialReferenceSelect category="category" wide sorted value={value.categoryId} onChange={handleCategoryChange} />
@@ -285,7 +297,9 @@ export function UnitTypeHardwareRow({
             step="0.01"
             min={0}
             placeholder="0.00"
-            value={value.rateOverride !== undefined ? Math.round(value.rateOverride * 100) / 100 : (priceListRate !== undefined ? priceListRate.toFixed(2) : "")}
+            value={rateText}
+            onFocus={() => setRateFocused(true)}
+            onBlur={() => setRateFocused(false)}
             readOnly={rateReadOnly}
             onChange={(e) => {
               if (rateReadOnly) return;
@@ -461,7 +475,9 @@ export function UnitTypeHardwareRow({
               step="0.01"
               min={0}
               placeholder="0.00"
-              value={value.rateOverride !== undefined ? Math.round(value.rateOverride * 100) / 100 : (priceListRate !== undefined ? priceListRate.toFixed(2) : "")}
+              value={rateText}
+              onFocus={() => setRateFocused(true)}
+              onBlur={() => setRateFocused(false)}
               readOnly={rateReadOnly}
               onChange={(e) => {
                 if (rateReadOnly) return;

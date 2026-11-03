@@ -15,9 +15,11 @@ import { cn } from "@/lib/utils";
 export function VariantIdSelect({
   selectedId,
   onSelect,
+  triggerClassName,
 }: {
   selectedId?: string;
   onSelect: (item: FurniturePriceItem) => void;
+  triggerClassName?: string;
 }) {
   const allItems = useFurniturePriceItems();
   const thicknesses = useMaterialItems("thickness");
@@ -40,7 +42,7 @@ export function VariantIdSelect({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary">
+      <PopoverTrigger className={cn("flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary", triggerClassName)}>
         {selected ? (
           <span title={describe(selected)} className="min-w-0 truncate font-number">
             {selected.variantId}

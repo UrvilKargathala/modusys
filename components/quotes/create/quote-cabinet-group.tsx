@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { CabinetFormulasContext, FurnitureLineItemRow, FurnitureTable, cabinetFormulas } from "@/components/templates/furniture-line-item-row";
 import { UnitTypeHardwareRow, HardwareTable } from "@/components/templates/unit-type-hardware-row";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { SentLinesContext } from "@/components/shared/sent-lines-context";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { groupTotal, groupSqFt, hardwareLineTotal, evaluateFormula, SQMM_PER_SQFT, resolveLineItemDimensions, carcassUnitFor } from "@/lib/quote-pricing";
@@ -68,6 +69,56 @@ function useRememberedCollapsed(key: string | undefined, initial: boolean) {
   return [collapsed, setCollapsed] as const;
 }
 
+// Tick boxes on a group's rows to delete several at once: one in the table header for every row, one per row, and a Delete button
+// on the group's bar while something is ticked. A line already on a Purchase Order can't be ticked (its row is locked).
+function useTickDelete<T extends { id: string }>(items: T[], onChange: (items: T[]) => void, noun: string, small: boolean) {
+  const sent = useContext(SentLinesContext);
+  const [ticked, setTicked] = useState<Set<string>>(new Set());
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  // The lines the open dialog will delete, kept as they were when it opened (its title must not change while it closes).
+  const [doomed, setDoomed] = useState<string[]>([]);
+  const free = items.filter((i) => !sent?.has(i.id)).map((i) => i.id);
+  const live = free.filter((id) => ticked.has(id));
+  const box = (ids: string[], label: string) => (
+    <input
+      type="checkbox"
+      aria-label={`Select ${label}`}
+      disabled={ids.length === 0}
+      checked={ids.length > 0 && ids.every((id) => ticked.has(id))}
+      onChange={(e) =>
+        setTicked((cur) => {
+          const next = new Set(cur);
+          for (const id of ids) if (e.target.checked) next.add(id); else next.delete(id);
+          return next;
+        })
+      }
+      className="h-3.5 w-3.5 cursor-pointer accent-primary disabled:cursor-default"
+    />
+  );
+  return {
+    headTick: box(free, `every ${noun}`),
+    rowTick: (id: string) => box([id], noun),
+    deleteButton: live.length > 0 && (
+      <Button type="button" size={small ? "xs" : "sm"} variant="destructive" className="text-xs" onClick={() => { setDoomed(live); setConfirmOpen(true); }}>
+        <Trash2 className="h-3.5 w-3.5" />
+        Delete <span className="font-number">{live.length}</span>
+      </Button>
+    ),
+    dialog: (
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Delete ${doomed.length} ${doomed.length === 1 ? noun : `${noun} lines`}?`}
+        description="This removes the ticked lines and their pricing from the quote."
+        onConfirm={() => {
+          onChange(items.filter((i) => !doomed.includes(i.id)));
+          setTicked(new Set());
+        }}
+      />
+    ),
+  };
+}
+
 // One accent per group so a scanning eye can immediately tell Carcass from
 // Shutter from Other Panel without reading the header.
 // Each colour can be changed in Templates > Colour Palette (--sec-* variables); the fallbacks are the built-in colours.
@@ -119,6 +170,7 @@ export function FurnitureGroup({
   // Requirement Order only: the Panel Calculator on Other Panel (see PanelCalculatorContext).
   const PanelCalculator = useContext(PanelCalculatorContext);
   const [calcOpen, setCalcOpen] = useState(false);
+  const tick = useTickDelete(items, onChange, label.toLowerCase(), !!alignTitle);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -153,6 +205,7 @@ export function FurnitureGroup({
         <div className="flex items-center gap-3">
           <span className="text-xs font-number text-grey-500">{totalSqFt.toFixed(2)} sq.ft</span>
           <span className="text-xs font-number font-semibold text-grey-700">₹{subtotal.toFixed(2)}</span>
+          {tick.deleteButton}
           {PanelCalculator && label === "Other Panel" && (
             <Button type="button" size={alignTitle ? "xs" : "sm"} className="text-xs" variant="outline" onClick={() => setCalcOpen(true)}>
               <Calculator className="h-3.5 w-3.5" />
@@ -191,7 +244,7 @@ export function FurnitureGroup({
       {!collapsed && items.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            <FurnitureTable showComponentName={showComponentName} showLevelType={!!showLevelType} nameLabel={label}>
+            <FurnitureTable showComponentName={showComponentName} showLevelType={!!showLevelType} nameLabel={label} tick={tick.headTick}>
               {items.map((item) => {
                 const w = evaluateFormula(item.widthFormula, { W: unit.width, D: unit.depth, H: unit.height });
                 const h = evaluateFormula(item.heightFormula, { W: unit.width, D: unit.depth, H: unit.height });
@@ -204,6 +257,7 @@ export function FurnitureGroup({
                     showComponentName={showComponentName}
                     showLevelType={showLevelType}
                     table
+                    tick={tick.rowTick(item.id)}
                     totalSqFt={totalSqFt}
                     unitDims={{ W: unit.width, D: unit.depth, H: unit.height }}
 
@@ -217,6 +271,7 @@ export function FurnitureGroup({
           </SortableContext>
         </DndContext>
       )}
+      {tick.dialog}
     </div>
   );
 }
@@ -243,6 +298,7 @@ export function HardwareGroup({
   const total = items.reduce((sum, h) => sum + hardwareLineTotal(h, unit, hardwareItems), 0);
   const isViewMode = useSearchParams().get("mode") === "view";
   const [collapsed, setCollapsed] = useRememberedCollapsed(stateKey, !defaultOpen);
+  const tick = useTickDelete(items, onChange, "hardware", !!alignTitle);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -276,6 +332,7 @@ export function HardwareGroup({
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs font-number font-semibold text-grey-700">₹{total.toFixed(2)}</span>
+          {tick.deleteButton}
           <Button type="button" size={alignTitle ? "xs" : "sm"} className="text-xs" variant="outline" onClick={() => onChange([...items, blankHardware()])}>
             <Plus className="h-3.5 w-3.5" />
             Add Hardware
@@ -286,11 +343,12 @@ export function HardwareGroup({
       {!collapsed && items.length > 0 && (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            <HardwareTable>
+            <HardwareTable tick={tick.headTick}>
               {items.map((item) => (
                 <UnitTypeHardwareRow
                   key={item.id}
                   table
+                  tick={tick.rowTick(item.id)}
                   value={item}
                   onChange={(patch) => onChange(items.map((i) => (i.id === item.id ? { ...i, ...patch } : i)))}
                   onRemove={() => onChange(items.filter((i) => i.id !== item.id))}
@@ -301,6 +359,7 @@ export function HardwareGroup({
           </SortableContext>
         </DndContext>
       )}
+      {tick.dialog}
     </div>
   );
 }

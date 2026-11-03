@@ -1,6 +1,6 @@
 "use client";
 
-import { evaluateFormula, formulaWorking } from "@/lib/quote-pricing";
+import { evaluateFormula, formulaWorking, findFurnitureMatch } from "@/lib/quote-pricing";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { MaterialReferenceSelect } from "@/components/templates/material-reference-select";
+import { VariantIdSelect } from "@/components/quotes/create/variant-id-select";
 import { FurniturePriceFormDialog } from "@/components/templates/furniture-price-form-dialog";
 import { useFinishColours } from "@/components/templates/finish-colours";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -31,7 +32,7 @@ const materialFieldLabel: Record<string, string> = {
 };
 
 
-// Column widths for the table layout (Quotes' cabinet groups): drag, [name], W, H, Qty, Thickness, sq.ft, Raw, External, Internal,
+// Column widths for the table layout (Quotes' cabinet groups): drag, [name], W, H, Qty, Variant ID, Thickness, sq.ft, Raw, External, Internal,
 // Rate, Amount, [Level Type], actions. The group's header row uses the same string so the columns line up.
 // The cabinet type's own W/D/H formulas per Furniture Component, for the hover hint on rows filled before formulas were kept
 // with the line (given by the cabinet around the rows).
@@ -39,11 +40,12 @@ export const CabinetFormulasContext = createContext<Map<string, { w: string; h: 
 export const cabinetFormulas = (components: { componentTypeId: string; widthFormula: string; heightFormula: string }[] | undefined) =>
   new Map((components ?? []).map((c) => [c.componentTypeId, { w: c.widthFormula, h: c.heightFormula }] as const));
 
-export function furnitureTableColumns(showComponentName: boolean, showLevelType: boolean, withNo = false) {
+// withTick: the first column also holds a tick box (select lines to delete several at once).
+export function furnitureTableColumns(showComponentName: boolean, showLevelType: boolean, withNo = false, withTick = false) {
   return [
-    withNo ? "44px" : "20px",
+    withNo ? "44px" : withTick ? "36px" : "20px",
     showComponentName && "minmax(110px,1.1fr)",
-    "56px", "56px", "40px", "72px", "52px",
+    "56px", "56px", "40px", "minmax(90px,0.8fr)", "72px", "52px",
     "minmax(100px,1fr)", "minmax(100px,1fr)", "minmax(100px,1fr)",
     "76px", "84px",
     showLevelType && "100px",
@@ -51,17 +53,17 @@ export function furnitureTableColumns(showComponentName: boolean, showLevelType:
   ].filter(Boolean).join(" ");
 }
 
-export function FurnitureTableHeader({ showComponentName, showLevelType, nameLabel, withNo = false, sort, onSort }: { showComponentName: boolean; showLevelType: boolean; nameLabel: string; withNo?: boolean; sort?: LineSort; onSort?: (key: string) => void }) {
+export function FurnitureTableHeader({ showComponentName, showLevelType, nameLabel, withNo = false, sort, onSort, tick }: { showComponentName: boolean; showLevelType: boolean; nameLabel: string; withNo?: boolean; sort?: LineSort; onSort?: (key: string) => void; tick?: ReactNode }) {
   const heads: [string, string?][] = [[withNo ? "No." : "", "no"]];
   if (showComponentName) heads.push([nameLabel, "name"]);
-  heads.push(["Width", "width"], ["Height", "height"], ["Qty", "qty"], ["Thk", "thk"], ["Sq.ft", "sqft"], ["Raw Material", "raw"], ["External Colour", "external"], ["Internal Colour", "internal"], ["Rate", "rate"], ["Amount", "amount"]);
+  heads.push(["Width", "width"], ["Height", "height"], ["Qty", "qty"], ["Variant ID", "variant"], ["Thk", "thk"], ["Sq.ft", "sqft"], ["Raw Material", "raw"], ["External Colour", "external"], ["Internal Colour", "internal"], ["Rate", "rate"], ["Amount", "amount"]);
   if (showLevelType) heads.push(["Level Type", "level"]);
   heads.push(["", undefined]);
   return (
-    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[var(--table-head)] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: furnitureTableColumns(showComponentName, showLevelType, withNo) }}>
+    <div className="table-head grid items-center gap-x-1.5 border-b border-grey-100 bg-[var(--table-head)] px-2 py-1 text-xs font-medium text-grey-900" style={{ gridTemplateColumns: furnitureTableColumns(showComponentName, showLevelType, withNo, !!tick) }}>
       {heads.map(([h, k], i) => (
         <span key={i} className={["Width", "Height", "Qty", "Sq.ft"].includes(h) ? "text-center" : ["Amount", "Rate"].includes(h) ? "text-right" : ""}>
-          <SortLabel label={h} k={k} sort={sort} onSort={onSort} />
+          {i === 0 && tick ? <span className="flex items-center gap-1"><span className="w-4" />{tick}</span> : <SortLabel label={h} k={k} sort={sort} onSort={onSort} />}
         </span>
       ))}
     </div>
@@ -70,11 +72,12 @@ export function FurnitureTableHeader({ showComponentName, showLevelType, nameLab
 
 // The table of furniture rows (the quote's layout, also Unit Type and Cabinet Type): the header plus the rows passed as children,
 // scrolling sideways when the space is narrow. Rows use FurnitureLineItemRow with `table`.
-export function FurnitureTable({ showComponentName, showLevelType = false, nameLabel, children }: { showComponentName: boolean; showLevelType?: boolean; nameLabel: string; children: ReactNode }) {
+// tick: a tick box in the header that selects every row (rows then get their own `tick`).
+export function FurnitureTable({ showComponentName, showLevelType = false, nameLabel, tick, children }: { showComponentName: boolean; showLevelType?: boolean; nameLabel: string; tick?: ReactNode; children: ReactNode }) {
   return (
     <div className="overflow-x-auto rounded-md border border-grey-100 bg-card">
-      <div className={showLevelType ? "min-w-[1130px]" : "min-w-[1020px]"}>
-        <FurnitureTableHeader showComponentName={showComponentName} showLevelType={showLevelType} nameLabel={nameLabel} />
+      <div className={showLevelType ? "min-w-[1230px]" : "min-w-[1120px]"}>
+        <FurnitureTableHeader showComponentName={showComponentName} showLevelType={showLevelType} nameLabel={nameLabel} tick={tick} />
         {children}
       </div>
     </div>
@@ -102,6 +105,7 @@ export function FurnitureLineItemRow({
   unitDims,
   table,
   rowNo,
+  tick,
 }: {
   value: FurnitureLineItem;
   onChange: (patch: Partial<FurnitureLineItem>) => void;
@@ -133,6 +137,8 @@ export function FurnitureLineItemRow({
   table?: boolean;
   // Table layout only: a row number (1.1, 1.2 ...) shown in place of the drag handle.
   rowNo?: string;
+  // Table layout only: a tick box after the drag handle (the table's header passes its own `tick` too).
+  tick?: ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   // On a Purchase Order already (Requirement Order editor): locked.
@@ -153,6 +159,7 @@ export function FurnitureLineItemRow({
   const furnitureItems = useFurniturePriceItems();
   const followPriceList = useContext(FollowPriceListContext);
   const [typedRate, setTypedRate] = useState(false);
+  const [rateFocused, setRateFocused] = useState(false);
   const combinationComplete =
     !!value.thicknessId && !!value.rawMaterialTypeId && !!value.internalColourId && !!value.externalColourId;
 
@@ -191,9 +198,17 @@ export function FurnitureLineItemRow({
     if (current) {
       setPendingMaterialChange({ field, id });
     } else {
-      handleFieldChange({ [field]: id });
+      applyMaterialChange(field, id);
     }
   };
+  // A new Thickness / Raw Material / colour (or Variant ID) reprices the line: a rate kept on the line (Auto Populate, a saved
+  // quote, a typed rate) becomes the price-list rate of the new combination; with none kept it follows the list already.
+  const reprice = (patch: Partial<FurnitureLineItem>) => {
+    setTypedRate(false);
+    handleFieldChange(value.rateOverride === undefined ? patch : { ...patch, rateOverride: findFurnitureMatch({ ...value, ...patch }, furnitureItems)?.rate });
+  };
+  const applyMaterialChange = (field: string, id: string) =>
+    field === "componentTypeId" ? handleFieldChange({ componentTypeId: id }) : reprice({ [field]: id });
 
   const match = useMemo(() => {
     if (!combinationComplete) return null;
@@ -214,6 +229,8 @@ export function FurnitureLineItemRow({
   const useListRate = followPriceList && !typedRate && !!match;
   const canReset = !rateReadOnly && !followPriceList && value.rateOverride !== undefined && !!match && value.rateOverride !== match.rate;
   const effectiveRate = useListRate ? match!.rate : (value.rateOverride ?? match?.rate);
+  // Always two decimals (350.00), except while typing in the box.
+  const rateText = effectiveRate === undefined ? "" : rateFocused ? String(Math.round(effectiveRate * 100) / 100) : effectiveRate.toFixed(2);
 
   // New Quote: keep the saved rate (used for Amount and totals) equal to the price-list rate, so nothing is left to reset.
   useEffect(() => {
@@ -250,7 +267,7 @@ export function FurnitureLineItemRow({
         description="This changes the price-list match for this line item, which updates its Rate and Amount."
         confirmLabel="Change"
         onConfirm={() => {
-          if (pendingMaterialChange) handleFieldChange({ [pendingMaterialChange.field]: pendingMaterialChange.id });
+          if (pendingMaterialChange) applyMaterialChange(pendingMaterialChange.field, pendingMaterialChange.id);
         }}
       />
     </>
@@ -275,13 +292,16 @@ export function FurnitureLineItemRow({
         className={cn("unit-row border-b border-grey-100 bg-card px-2 py-0.5 last:border-b-0", isDragging && "opacity-50", sentPo && "bg-success-transparent")}
       >
         <fieldset disabled={!!sentPo} className="m-0 min-w-0 border-0 p-0">
-        <div className="grid items-center gap-x-1.5" style={{ gridTemplateColumns: furnitureTableColumns(!!showComponentName, !!showLevelType, !!rowNo) }}>
+        <div className="grid items-center gap-x-1.5" style={{ gridTemplateColumns: furnitureTableColumns(!!showComponentName, !!showLevelType, !!rowNo, !!tick) }}>
           {rowNo ? (
             <span className="num text-xs font-semibold text-grey-700">{rowNo}</span>
           ) : (
-            <button type="button" {...attributes} {...listeners} className="cursor-grab touch-none text-grey-300 hover:text-grey-500 active:cursor-grabbing" aria-label="Drag to reorder">
-              <GripVertical className="h-4 w-4" />
-            </button>
+            <span className="flex items-center gap-1">
+              <button type="button" {...attributes} {...listeners} className="cursor-grab touch-none text-grey-300 hover:text-grey-500 active:cursor-grabbing" aria-label="Drag to reorder">
+                <GripVertical className="h-4 w-4" />
+              </button>
+              {tick}
+            </span>
           )}
           {showComponentName && (
             <MaterialReferenceSelect category="furniture-component" wide sorted value={value.componentTypeId ?? ""} onChange={(id) => requestMaterialChange("componentTypeId", id)} />
@@ -289,6 +309,8 @@ export function FurnitureLineItemRow({
           <Input aria-label="Width" placeholder="W" value={value.widthFormula} onChange={(e) => handleFieldChange({ widthFormula: e.target.value })} onBlur={() => resolveOnBlur("widthFormula")} title={dimHint("widthFormula")} className="num px-1 text-center" />
           <Input aria-label="Height" placeholder="H" value={value.heightFormula} onChange={(e) => handleFieldChange({ heightFormula: e.target.value })} onBlur={() => resolveOnBlur("heightFormula")} title={dimHint("heightFormula")} className="num px-1 text-center" />
           <Input aria-label="Qty" type="number" min={1} value={value.qty || ""} onChange={(e) => handleFieldChange({ qty: Number(e.target.value) })} className="num px-1 text-center" />
+          {/* Variant ID: the price-list row of this combination; picking one fills Thickness, Raw Material and both colours. */}
+          <VariantIdSelect selectedId={match?.id} triggerClassName="gap-1 px-1.5" onSelect={(v) => reprice({ thicknessId: v.thicknessId, rawMaterialTypeId: v.rawMaterialTypeId, internalColourId: v.internalColourId, externalColourId: v.externalColourId })} />
           <MaterialReferenceSelect category="thickness" value={value.thicknessId} onChange={(id) => requestMaterialChange("thicknessId", id)} triggerClassName="gap-1 px-1.5 font-number" />
           <span className="num text-center text-sm text-grey-700">{totalSqFt !== undefined ? totalSqFt.toFixed(2) : "—"}</span>
           <MaterialReferenceSelect category="raw-material-type" wide sorted value={value.rawMaterialTypeId} onChange={(id) => requestMaterialChange("rawMaterialTypeId", id)} />
@@ -300,7 +322,9 @@ export function FurnitureLineItemRow({
             step="0.01"
             min={0}
             placeholder="0.00"
-            value={useListRate ? match!.rate.toFixed(2) : (value.rateOverride !== undefined ? Math.round(value.rateOverride * 100) / 100 : (match ? match.rate.toFixed(2) : ""))}
+            value={rateText}
+            onFocus={() => setRateFocused(true)}
+            onBlur={() => setRateFocused(false)}
             readOnly={rateReadOnly}
             onChange={(e) => {
               if (rateReadOnly) return;
@@ -536,7 +560,9 @@ export function FurnitureLineItemRow({
               step="0.01"
               min={0}
               placeholder="0.00"
-              value={useListRate ? match!.rate.toFixed(2) : (value.rateOverride !== undefined ? Math.round(value.rateOverride * 100) / 100 : (match ? match.rate.toFixed(2) : ""))}
+              value={rateText}
+              onFocus={() => setRateFocused(true)}
+              onBlur={() => setRateFocused(false)}
               readOnly={rateReadOnly}
               onChange={(e) => {
                 if (rateReadOnly) return;
