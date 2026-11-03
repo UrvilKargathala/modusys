@@ -68,6 +68,7 @@ export function UnitTypeHardwareRow({
   table,
   rowNo,
   tick,
+  qtyHint,
 }: {
   value: UnitTypeHardware;
   onChange: (patch: Partial<UnitTypeHardware>) => void;
@@ -83,6 +84,8 @@ export function UnitTypeHardwareRow({
   rowNo?: string;
   // Table layout only: a tick box after the drag handle (the table's header passes its own `tick` too).
   tick?: ReactNode;
+  // Quotes: how the Qty was worked out from its formula (hardwareQtyHint), shown when hovering the Qty box.
+  qtyHint?: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: value.id });
   // On a Purchase Order already (Requirement Order editor): locked.
@@ -289,7 +292,7 @@ export function UnitTypeHardwareRow({
           </SelectField>
           <DescriptionCombobox value={value.description ?? ""} options={descriptionOptions} onChange={handleDescriptionChange} />
           <MaterialReferenceSelect category="level-type" value={value.levelTypeId ?? ""} onChange={(id) => commit("Level Type", { levelTypeId: id })} />
-          <Input aria-label="Qty" placeholder="Qty" value={value.qtyFormula} onChange={(e) => onChange({ qtyFormula: e.target.value })} className="num px-1 text-center" />
+          <Input aria-label="Qty" placeholder="Qty" value={value.qtyFormula} onChange={(e) => onChange({ qtyFormula: e.target.value })} title={qtyHint} className="num px-1 text-center" />
           <span className="text-center text-sm font-number text-grey-700">{matched ? unitName(matched.unitId) : "—"}</span>
           <Input
             aria-label="Rate"

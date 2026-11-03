@@ -100,3 +100,14 @@ export function quoteChanges(before: Quote, after: Quote, nameOf: (id: string) =
   if (Math.abs(a - b) >= 0.005) out.push(`Final Amount: ${inr(a)} → ${inr(b)}`);
   return out;
 }
+
+// The unit an edit changed (its fields, cabinets or lines; a new unit counts too), for highlighting the last edited one. Opening or
+// folding a unit (collapsed) and moving one are not changes. Undefined when nothing changed.
+export function changedUnitId(before: QuoteUnit[], next: QuoteUnit[]): string | undefined {
+  const prev = new Map(before.map((u) => [u.id, u]));
+  const plain = (u: QuoteUnit) => JSON.stringify({ ...u, collapsed: undefined });
+  return next.find((u) => {
+    const b = prev.get(u.id);
+    return !b || (b !== u && plain(b) !== plain(u));
+  })?.id;
+}

@@ -16,7 +16,8 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { SentLinesContext } from "@/components/shared/sent-lines-context";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
-import { groupTotal, groupSqFt, hardwareLineTotal, evaluateFormula, SQMM_PER_SQFT, resolveLineItemDimensions, carcassUnitFor } from "@/lib/quote-pricing";
+import { useUnitTypes } from "@/lib/store/unit-type-store";
+import { groupTotal, groupSqFt, hardwareLineTotal, hardwareQtyHint, evaluateFormula, SQMM_PER_SQFT, resolveLineItemDimensions, carcassUnitFor } from "@/lib/quote-pricing";
 import type { QuoteCabinet } from "@/lib/mock/quote";
 import type { FurnitureLineItem, UnitTypeHardware } from "@/lib/mock/unit-type";
 import { cn } from "@/lib/utils";
@@ -279,6 +280,7 @@ export function FurnitureGroup({
 export function HardwareGroup({
   items,
   unit,
+  typeHardware,
   onChange,
   hideWhenEmpty,
   defaultOpen,
@@ -287,6 +289,8 @@ export function HardwareGroup({
 }: {
   items: UnitTypeHardware[];
   unit: { width: number; depth: number; height: number; qty: number };
+  // The unit's Unit Type hardware: its qty formulas for the Qty hover on rows filled before formulas were kept.
+  typeHardware?: UnitTypeHardware[];
   onChange: (items: UnitTypeHardware[]) => void;
   hideWhenEmpty?: boolean;
   defaultOpen?: boolean;
@@ -349,6 +353,7 @@ export function HardwareGroup({
                   key={item.id}
                   table
                   tick={tick.rowTick(item.id)}
+                  qtyHint={hardwareQtyHint(item, unit, typeHardware)}
                   value={item}
                   onChange={(patch) => onChange(items.map((i) => (i.id === item.id ? { ...i, ...patch } : i)))}
                   onRemove={() => onChange(items.filter((i) => i.id !== item.id))}
@@ -424,7 +429,7 @@ export function QuoteCabinetGroup({
 }: {
   cabinet: QuoteCabinet;
   index: string;
-  unit: { width: number; depth: number; height: number; qty: number };
+  unit: { width: number; depth: number; height: number; qty: number; unitTypeId?: string | null };
   total: number;
   onChange: (patch: Partial<QuoteCabinet>) => void;
   onRemove: () => void;
@@ -436,6 +441,8 @@ export function QuoteCabinetGroup({
   const [collapsed, setCollapsed] = useRememberedCollapsed(`${cabinet.id}:cabinet`, isViewMode);
   const cabinetTypes = useCabinetTypes();
   const selectedCabinetType = cabinetTypes.find((c) => c.id === cabinet.cabinetTypeId);
+  // The unit's Unit Type: its Shutter / Other Panel / Hardware formulas for the formula hover (Carcass uses the cabinet type's).
+  const unitType = useUnitTypes().find((u) => u.id === unit.unitTypeId);
   const carcassUnit = carcassUnitFor(cabinet, unit);
 
   const runAutoPopulate = () => {
@@ -565,6 +572,7 @@ export function QuoteCabinetGroup({
           />
           </CabinetFormulasContext.Provider>
           )}
+          <CabinetFormulasContext.Provider value={cabinetFormulas(unitType?.externalFinishes)}>
           <FurnitureGroup
             title="Shutter"
             alignTitle
@@ -579,6 +587,8 @@ export function QuoteCabinetGroup({
             hideWhenEmpty
 
           />
+          </CabinetFormulasContext.Provider>
+          <CabinetFormulasContext.Provider value={cabinetFormulas(unitType?.otherPanels)}>
           <FurnitureGroup
             title="Other Panel"
             alignTitle
@@ -594,11 +604,13 @@ export function QuoteCabinetGroup({
             hideWhenEmpty
 
           />
+          </CabinetFormulasContext.Provider>
           <HardwareGroup
             alignTitle
             stateKey={`${cabinet.id}:hardware`}
             items={cabinet.hardware}
             unit={unit}
+            typeHardware={unitType?.hardware}
             onChange={(hardware) => onChange({ hardware })}
             hideWhenEmpty
 

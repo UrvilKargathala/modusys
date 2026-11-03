@@ -1,5 +1,6 @@
 "use client";
 
+import { changedUnitId } from "@/lib/quote-changes";
 import { useContext, useState } from "react";
 import { Plus, ChevronsDown, ChevronsUp, Boxes, ChevronDown, ChevronRight, Search, Send, Sparkles, Calculator } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { QuoteUnitCard, UNIT_ROW_GRID, UNIT_ROW_GRID_TICK } from "@/components/quotes/create/quote-unit-card";
 import { CabinetFormulasContext, FurnitureLineItemRow, FurnitureTableHeader, cabinetFormulas, furnitureTableColumns } from "@/components/templates/furniture-line-item-row";
 import { UnitTypeHardwareRow, HardwareTableHeader, HARDWARE_TABLE_COLUMNS } from "@/components/templates/unit-type-hardware-row";
-import { carcassUnitFor, effectiveFurnitureRate, effectiveHardwareRate, evaluateFormula, SQMM_PER_SQFT, unitSqFt, unitTotal } from "@/lib/quote-pricing";
+import { carcassUnitFor, effectiveFurnitureRate, effectiveHardwareRate, evaluateFormula, hardwareQtyHint, SQMM_PER_SQFT, unitSqFt, unitTotal } from "@/lib/quote-pricing";
 import { useUnitTypes } from "@/lib/store/unit-type-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
@@ -72,7 +73,7 @@ export function UnitsSection({
   units,
   shutterFinishId,
   shutterFinishOverrides,
-  onChange,
+  onChange: onUnitsChange,
   bare = false,
   send,
 }: {
@@ -86,6 +87,14 @@ export function UnitsSection({
   // possible right now (e.g. unsaved changes) and what Send to PO does with the ticked ids. Adds a tick box to every line of the line tabs.
   send?: { sendable: Set<string>; sent: Map<string, string>; blocked?: string; onSend: (ids: string[]) => void };
 }) {
+  // The unit changed last (its fields, cabinets or lines, from any tab) shows highlighted until another unit changes. Opening or folding
+  // a unit is not a change; neither is moving one.
+  const [lastEdited, setLastEdited] = useState<string | null>(null);
+  const onChange = (next: QuoteUnit[]) => {
+    const changed = changedUnitId(units, next);
+    if (changed) setLastEdited(changed);
+    onUnitsChange(next);
+  };
   const setAllCollapsed = (collapsed: boolean) => onChange(units.map((u) => ({ ...u, collapsed })));
   const [collapsedState, setSectionCollapsed] = useState(true);
   const sectionCollapsed = !bare && collapsedState;
@@ -135,6 +144,11 @@ export function UnitsSection({
   const spaces = useMaterialItems("space");
   const unitTypes = useUnitTypes();
   const cabinetTypes = useCabinetTypes();
+  // Formula hover for lines filled before formulas were kept with them: Carcass uses its cabinet type's formulas, Shutter / Other
+  // Panel / Hardware the unit's Unit Type's.
+  const unitTypeOf = (u: QuoteUnit) => unitTypes.find((t) => t.id === u.unitTypeId);
+  const typeFormulas = (v: FurnView, u: QuoteUnit, c: QuoteCabinet) =>
+    cabinetFormulas(v === "carcass" ? cabinetTypes.find((t) => t.id === c.cabinetTypeId)?.components : v === "shutter" ? unitTypeOf(u)?.externalFinishes : unitTypeOf(u)?.otherPanels);
   const components = useMaterialItems("furniture-component");
   const thicknesses = useMaterialItems("thickness");
   const rawMaterials = useMaterialItems("raw-material-type");
@@ -326,8 +340,8 @@ export function UnitsSection({
                       const { u, c, item, no } = r;
                       const list = def.pick(c);
                       return withTick([item.id], `line ${no}`, (
+                        <CabinetFormulasContext.Provider key={item.id} value={typeFormulas(v, u, c)}>
                         <FurnitureLineItemRow
-                          key={item.id}
                           table
                           rowNo={no}
                           value={item}
@@ -339,6 +353,7 @@ export function UnitsSection({
                           onChange={(patch) => patchCabinet(u.id, c.id, def.put(list.map((x) => (x.id === item.id ? { ...x, ...patch } : x))))}
                           onRemove={() => patchCabinet(u.id, c.id, def.put(list.filter((x) => x.id !== item.id)))}
                         />
+                        </CabinetFormulasContext.Provider>
                       ), item.id);
                     })}
                   </SortableContext>
@@ -360,6 +375,7 @@ export function UnitsSection({
                       table
                       rowNo={no}
                       value={item}
+                      qtyHint={hardwareQtyHint(item, u, unitTypeOf(u)?.hardware)}
                       onChange={(patch) => patchCabinet(u.id, c.id, { hardware: c.hardware.map((x) => (x.id === item.id ? { ...x, ...patch } : x)) })}
                       onRemove={() => patchCabinet(u.id, c.id, { hardware: c.hardware.filter((x) => x.id !== item.id) })}
                     />
@@ -692,8 +708,8 @@ export function UnitsSection({
                           const list = furn.pick(c);
                           const dims = dimsFor(view as FurnView, u, c);
                           return withTick([item.id], `line ${no}`, (
+                          <CabinetFormulasContext.Provider key={item.id} value={typeFormulas(view as FurnView, u, c)}>
                           <FurnitureLineItemRow
-                            key={item.id}
                             table
                             rowNo={no}
                             value={item}
@@ -711,6 +727,7 @@ export function UnitsSection({
                               patchCabinet(u.id, c.id, furn.put(next));
                             }}
                           />
+                          </CabinetFormulasContext.Provider>
                           ), item.id);
                         })}
                       {shownHardware.map(({ u, c, item, no }) => withTick([item.id], `line ${no}`, (
@@ -719,6 +736,7 @@ export function UnitsSection({
                             table
                             rowNo={no}
                             value={item}
+                            qtyHint={hardwareQtyHint(item, u, unitTypeOf(u)?.hardware)}
                             onChange={(patch) => patchCabinet(u.id, c.id, { hardware: c.hardware.map((x) => (x.id === item.id ? { ...x, ...patch } : x)) })}
                             onRemove={() => patchCabinet(u.id, c.id, { hardware: c.hardware.filter((x) => x.id !== item.id) })}
                             onCopy={() => {
@@ -795,6 +813,7 @@ export function UnitsSection({
                   <QuoteUnitCard
                     key={unit.id}
                     striped={i % 2 === 1}
+                    highlighted={unit.id === lastEdited}
                     // Send to PO: one tick for every line of the unit that can still go to a PO (right after the drag handle).
                     tick={send ? tickInput(unit.cabinets.flatMap((c) => [...c.components, ...c.externalFinishes, ...c.panels, ...c.hardware].map((x) => x.id)).filter((id) => send.sendable.has(id)), `unit ${index + 1}`) : undefined}
                     unit={unit}

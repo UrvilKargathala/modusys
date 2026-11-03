@@ -1,7 +1,7 @@
 // Run: npx tsx lib/quote-changes.check.ts
 import assert from "node:assert/strict";
 import { blankQuote, type Quote, type QuoteUnit } from "@/lib/mock/quote";
-import { quoteChanges } from "@/lib/quote-changes";
+import { changedUnitId, quoteChanges } from "@/lib/quote-changes";
 
 const names: Record<string, string> = { h1: "Hettich", h2: "Blum", sp: "Kitchen", ut: "BUD3TD" };
 const nameOf = (id: string) => names[id] ?? "";
@@ -43,5 +43,15 @@ const withHw = (rows: ReturnType<typeof row>[]): Quote => ({
 });
 assert.deepEqual(quoteChanges(withHw([row("a")]), withHw([row("b")]), nameOf, finalOf), []);
 assert.deepEqual(quoteChanges(withHw([row("a")]), withHw([row("b", 99)]), nameOf, finalOf), ["Unit 1. Kitchen — BUD3TD: Hardware changed"]);
+
+// Last edited unit: a real change counts, opening / folding and moving don't, a new unit does.
+{
+  const a = { id: "a", collapsed: true, remark: "" } as unknown as QuoteUnit;
+  const b = { id: "b", collapsed: true, remark: "" } as unknown as QuoteUnit;
+  assert.equal(changedUnitId([a, b], [a, { ...b, remark: "Check hinge" }]), "b");
+  assert.equal(changedUnitId([a, b], [{ ...a, collapsed: false }, b]), undefined);
+  assert.equal(changedUnitId([a, b], [b, a]), undefined);
+  assert.equal(changedUnitId([a, b], [a, b, { id: "c" } as unknown as QuoteUnit]), "c");
+}
 
 console.log("quote changes ok");

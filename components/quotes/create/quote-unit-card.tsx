@@ -197,11 +197,14 @@ export function QuoteUnitCard({
   onDuplicate,
   tick,
   striped,
+  highlighted,
 }: {
   // Requirement Order (Send to PO): the unit's tick box, shown right after the drag handle.
   tick?: React.ReactNode;
   // Every second unit in the list gets a darker background, so rows are easy to follow across.
   striped?: boolean;
+  // The unit edited last: its line is shown in a different colour.
+  highlighted?: boolean;
   unit: QuoteUnit;
   index: number;
   shutterFinishId: string;
@@ -297,7 +300,7 @@ export function QuoteUnitCard({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn("flex flex-col gap-2 px-2 py-0.5 hover:bg-light-600/60", striped && "bg-[var(--table-head)]/35", isDragging && "opacity-50")}
     >
-      <div className={cn(tick ? UNIT_ROW_GRID_TICK : UNIT_ROW_GRID, "unit-row unit-top")}>
+      <div className={cn(tick ? UNIT_ROW_GRID_TICK : UNIT_ROW_GRID, "unit-row unit-top", highlighted && "rounded-md bg-warning-200 shadow-[inset_3px_0_0_var(--color-warning)]")}>
         <span className="flex items-center gap-0.5">
           <button
             type="button"

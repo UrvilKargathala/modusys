@@ -110,7 +110,21 @@ export function resolveHardwareForUnit(
 ): UnitTypeHardware {
   const vars = { W: unit.width, D: unit.depth, H: unit.height };
   const resolvedQty = evaluateFormula(item.qtyFormula, vars) * unit.qty;
-  return { ...item, qtyFormula: String(Math.round(resolvedQty)) };
+  // A W/D/H formula is kept as a note, so hovering the qty shows how it was worked out.
+  const qtyNote = /[WDH]/i.test(item.qtyFormula) ? item.qtyFormula.replace(/\s+/g, "").toUpperCase() : undefined;
+  return { ...item, qtyFormula: String(Math.round(resolvedQty)), qtyNote };
+}
+
+// Hover text for a hardware row's Qty: its formula worked out for this unit ("H/450 = 750/450 = 2", then "× 2" when the unit's qty is
+// more than 1), while it still gives the qty shown. Rows filled before formulas were kept use the Unit Type's formula for that item.
+export function hardwareQtyHint(item: UnitTypeHardware, unit: { width: number; depth: number; height: number; qty: number }, typeHardware?: UnitTypeHardware[]): string | undefined {
+  const note = item.qtyNote ?? (item.hardwareItemId ? typeHardware?.find((h) => h.hardwareItemId === item.hardwareItemId)?.qtyFormula : undefined);
+  if (!note || !/[WDH]/i.test(note)) return undefined;
+  const vars = { W: unit.width, D: unit.depth, H: unit.height };
+  const each = evaluateFormula(note, vars);
+  const shown = Number(item.qtyFormula);
+  if (Math.round(each * unit.qty) !== shown) return undefined;
+  return unit.qty === 1 ? formulaWorking(note, vars, shown) : `${formulaWorking(note, vars, Math.round(each * 100) / 100)} × ${unit.qty} = ${shown}`;
 }
 
 export function findFurnitureMatch(item: FurnitureLineItem, furnitureItems: FurniturePriceItem[]): FurniturePriceItem | null {

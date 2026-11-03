@@ -37,8 +37,9 @@ const materialFieldLabel: Record<string, string> = {
 // The cabinet type's own W/D/H formulas per Furniture Component, for the hover hint on rows filled before formulas were kept
 // with the line (given by the cabinet around the rows).
 export const CabinetFormulasContext = createContext<Map<string, { w: string; h: string }> | null>(null);
-export const cabinetFormulas = (components: { componentTypeId: string; widthFormula: string; heightFormula: string }[] | undefined) =>
-  new Map((components ?? []).map((c) => [c.componentTypeId, { w: c.widthFormula, h: c.heightFormula }] as const));
+// Also used with a Unit Type's External Finish / Other Panel rows for those groups.
+export const cabinetFormulas = (components: { componentTypeId?: string; widthFormula: string; heightFormula: string }[] | undefined) =>
+  new Map((components ?? []).map((c) => [c.componentTypeId ?? "", { w: c.widthFormula, h: c.heightFormula }] as const));
 
 // withTick: the first column also holds a tick box (select lines to delete several at once).
 export function furnitureTableColumns(showComponentName: boolean, showLevelType: boolean, withNo = false, withTick = false) {

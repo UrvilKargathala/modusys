@@ -73,6 +73,8 @@ export type UnitTypeHardware = {
   categoryId: string; // Material Library → Category
   hardwareItemId: string; // Hardware Price List item id (used to derive Unit/Rate)
   qtyFormula: string; // number or formula, e.g. "2" or "H/450"
+  // Quotes: the Unit Type's qty formula ("H/450") kept when Auto Populate turns qtyFormula into a number, for the Qty hover.
+  qtyNote?: string;
   // User-editable overrides (Phase B4): Article No. is free-typed, Brand and
   // Description are picked directly from Hardware Price List (no Category
   // gate), Level Type comes from Material Library.
