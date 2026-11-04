@@ -29,7 +29,7 @@ export function ProformaPackingList({ mode = "packing", proforma = true }: { mod
   const title = isProd ? "Production Work Order" : isMfg ? "Manufacturing" : "Packing";
   const orders = usePurchaseOrders();
   const [search, setSearch] = useState("");
-  // Production Work Order list: All / Pending / Send to Manufacturing tabs.
+  // Production Work Order list: All / Pending / Material Procurement / Send to Manufacturing tabs (from WO_STATUSES).
   const [woTab, setWoTab] = useState<"all" | WorkOrderStatus>("all");
   const user = useCurrentUser();
   // Packing & Dispatch: Delete takes a Work Order off Packing and back to Manufacturing: its Packing ticks (and dates) come off, so the

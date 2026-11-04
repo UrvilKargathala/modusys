@@ -10,7 +10,7 @@ import { ArrowLeft, Calendar, CheckCircle2, ChevronDown, ChevronRight, Download,
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { PoCabinetCard, PoCabinetListHeader, PoCabinetTick, poUnitParts } from "@/components/purchase-orders/po-cabinet-card";
+import { PoCabinetCard, PoCabinetListHeader, PoCabinetTick, cabinetListMinWidth, poUnitParts } from "@/components/purchase-orders/po-cabinet-card";
 import { useUnitTypes } from "@/lib/store/unit-type-store";
 import { useOwnFactory, usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
 import { PiSendContext } from "@/components/purchase-orders/pi-send-context";
@@ -1510,7 +1510,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
                 </div>
                 {carcassOpen && (
                   <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
-<div className="overflow-x-auto"><div className="min-w-[1540px]">
+<div className="overflow-x-auto"><div className={cabinetListMinWidth(isProforma, !isDirect)}>
                 <PoCabinetListHeader proforma={isProforma} unit={!isDirect} tick lines={draft.lines.filter((l) => l.group === g.key)} />
                 {cabinetNos
                   .filter((no) => draft.lines.some((l) => l.group === g.key && l.srNo === no))
@@ -1539,7 +1539,7 @@ export function PurchaseOrderEditor({ id }: { id: string }) {
           })
           : (
             <CabinetSortList nos={cabinetNos} onReorder={reorderCabinets}>
-<div className="overflow-x-auto"><div className="min-w-[1540px]">
+<div className="overflow-x-auto"><div className={cabinetListMinWidth(isProforma, !isDirect)}>
               <PoCabinetListHeader proforma={isProforma} unit={!isDirect} tick lines={draft.lines} />
               {cabinetNos.map((no) => (
               <SortableCabinet key={no} no={no} lead={<PoCabinetTick srNo={no} lines={draft.lines} />}>

@@ -65,6 +65,10 @@ const GRID_NO_VENDOR =
 const GRID_WITH_UNIT =
   "cab-table grid grid-cols-[32px_48px_minmax(220px,1.6fr)_minmax(200px,1.6fr)_minmax(130px,1.1fr)_minmax(70px,0.8fr)_minmax(90px,1fr)_56px_56px_56px_40px_minmax(125px,1.2fr)_minmax(125px,1.2fr)_minmax(90px,1fr)_86px_minmax(110px,0.8fr)_150px] items-stretch";
 export const cabinetRowGrid = (proforma: boolean, unit = false) => (proforma ? GRID_NO_VENDOR : unit ? GRID_WITH_UNIT : GRID_WITH_VENDOR);
+// The least width a cabinet list needs: its grid's narrowest columns plus the drag / tick gutter, the line's padding and border (the
+// Unit Name grid: 1684 + 46 + 8 + 2). With less, the lines spill past their own box: the header band and borders stop short, a gap
+// opens before Action, and the rows opened under a cabinet end before its line.
+export const cabinetListMinWidth = (proforma: boolean, unit = false) => (!proforma && unit ? "min-w-[1740px]" : "min-w-[1540px]");
 // "Kitchen · BUD3TD — Base Unit Divider Panels With 3 Tandem Drawers", as the cabinet was snapshotted from its RO unit.
 export function poUnitParts(cabinet: PoCabinet | undefined, unitTypes: { name: string; shortCode: string; deleted?: boolean }[]) {
   const code = unitTypes.find((u) => !u.deleted && u.name === cabinet?.unitName)?.shortCode ?? "";

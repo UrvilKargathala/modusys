@@ -222,12 +222,13 @@ export function PurchaseOrdersTable({ onNew, quoteId, onClearQuote, direct = fal
           },
         }]
       : []),
-    // Own factory: Purchase Orders show only their PO Detail Status (the PI Status stays on Proforma Invoices).
-    ...(ownFactory && !proforma
+    // PO Status: on Purchase Orders only, and not with own factory (they show only their PO Detail Status). Proforma Invoices have
+    // no status column; a PI's status is changed on its own page.
+    ...(proforma || ownFactory
       ? []
       : [{
           key: "status",
-          head: proforma ? "PI Status" : "PO Status",
+          head: "PO Status",
           // Changeable here like the Quotes status. Completing needs the PO's required fields filled in.
           cell: ({ po }: Row) => (
             <StatusMenu

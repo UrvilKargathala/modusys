@@ -204,7 +204,7 @@ export function cleanMaterial(m: unknown) {
             no: str(w?.no).slice(0, 80),
             date: str(w?.date).slice(0, 10),
             lines: list(w?.lines).slice(0, 5000).map((x) => x.slice(0, 80)),
-            status: w?.status === "manufacturing" ? ("manufacturing" as const) : ("pending" as const),
+            status: w?.status === "manufacturing" || w?.status === "procurement" ? w.status : ("pending" as const),
             mfgStart: str(w?.mfgStart).slice(0, 10) || undefined,
             state: cleanWoState(w?.state),
           };

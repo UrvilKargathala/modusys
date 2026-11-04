@@ -401,9 +401,11 @@ export type ExtraHardware = { id: string; kind: "cabinet" | "misc"; brand: strin
 export type WorkOrderState = Partial<Pick<PoMaterial, (typeof WO_STATE_KEYS)[number]>>;
 // mfgStart: the day it was set to Send to Manufacturing (Pressing's start date).
 export type WorkOrder = { id: string; no: string; date: string; lines: string[]; status?: WorkOrderStatus; mfgStart?: string; state?: WorkOrderState };
-// Production Work Order Status: Pending until it is sent on to Manufacturing.
-export type WorkOrderStatus = "pending" | "manufacturing";
+// Production Work Order Status: Pending, then Material Procurement (buying what it needs), then Send to Manufacturing. The list's tabs
+// and the status menu follow this order.
+export type WorkOrderStatus = "pending" | "procurement" | "manufacturing";
 export const WO_STATUSES: { value: WorkOrderStatus; label: string; className: string }[] = [
   { value: "pending", label: "Pending", className: PO_STATUS_STYLES.pending },
+  { value: "procurement", label: "Material Procurement", className: "border border-orange bg-orange-200 font-semibold text-grey-900" },
   { value: "manufacturing", label: "Send to Manufacturing", className: "border border-indigo bg-indigo-200 font-semibold text-grey-900" },
 ];
