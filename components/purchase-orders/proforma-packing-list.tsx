@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { PackageCheck, Search } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, PackageCheck, Search } from "lucide-react";
+import { ProcurementLedger } from "@/components/purchase-orders/procurement-ledger";
 import { ProformaStatusCell } from "@/components/purchase-orders/proforma-status-cell";
 import { PoRowActions } from "@/components/purchase-orders/po-row-actions";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -31,6 +32,8 @@ export function ProformaPackingList({ mode = "packing", proforma = true }: { mod
   const [search, setSearch] = useState("");
   // Production Work Order list: All / Pending / Material Procurement / Send to Manufacturing tabs (from WO_STATUSES).
   const [woTab, setWoTab] = useState<"all" | WorkOrderStatus>("all");
+  // Work orders sent to procurement: their ledger opens under the row (the arrow by the Work Order No).
+  const [ledgerOpen, setLedgerOpen] = useState<Set<string>>(new Set());
   const user = useCurrentUser();
   // Packing & Dispatch: Delete takes a Work Order off Packing and back to Manufacturing: its Packing ticks (and dates) come off, so the
   // pieces can be sent to Packing again. The packed ticks and transport stay on it (nothing typed is lost). It goes in the history.
@@ -213,9 +216,19 @@ export function ProformaPackingList({ mode = "packing", proforma = true }: { mod
             <tbody>
               {rows.map(({ po, wo, total, packed, steps, lastDay, dates, sent }) => {
                 const qcDone = total > 0 && steps.qc >= total;
+                const rowKey = `${po.id}|${wo?.id ?? ""}`;
                 const href = `${proforma ? "/proforma-invoices" : "/purchase-orders"}/${mode}/${po.id}${wo ? `?wo=${encodeURIComponent(wo.id)}` : ""}`;
                 const cells: Record<string, React.ReactNode> = {
-                  wo: <td key="wo" className="px-2 py-0.5 font-number text-primary">{wo?.no || "—"}</td>,
+                  wo: (
+                    <td key="wo" className="px-2 py-0.5 font-number text-primary">
+                      {wo?.procurement?.length && isProd ? (
+                        <button type="button" aria-expanded={ledgerOpen.has(rowKey)} aria-label={`Procurement ledger of ${wo.no || po.poNumber}`} title="Procurement ledger" onClick={() => setLedgerOpen((s) => { const n = new Set(s); if (n.has(rowKey)) n.delete(rowKey); else n.add(rowKey); return n; })} className="inline-flex items-center gap-1 hover:underline">
+                          {ledgerOpen.has(rowKey) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                          {wo.no || "—"}
+                        </button>
+                      ) : (wo?.no || "—")}
+                    </td>
+                  ),
                   woDate: <td key="woDate" className="px-2 py-0.5 font-number">{wo?.date ? formatPoDate(wo.date) : "—"}</td>,
                   mfg: (
                     <td key="mfg" className="w-px whitespace-nowrap px-2 py-0.5">
@@ -300,9 +313,26 @@ export function ProformaPackingList({ mode = "packing", proforma = true }: { mod
                   ),
                 };
                 return (
-                  <tr key={`${po.id}|${wo?.id ?? ""}`} className="text-grey-800 hover:bg-light-600/60">
-                    {listCols.order.map((k) => cells[k])}
-                  </tr>
+                  <Fragment key={rowKey}>
+                    <tr className="text-grey-800 hover:bg-light-600/60">
+                      {listCols.order.map((k) => cells[k])}
+                    </tr>
+                    {wo?.procurement && isProd && ledgerOpen.has(rowKey) && (
+                      <tr>
+                        <td colSpan={listCols.order.length} className="border-y border-grey-100 p-0">
+                          <ProcurementLedger key={JSON.stringify(wo.procurement)} items={wo.procurement} onSave={async (items) => {
+                            try {
+                              await purchaseOrdersStore.update(po.id, { material: withWorkOrder(po, wo.id, { procurement: items }) });
+                              toastStore.show("Procurement saved", "success");
+                            } catch (e) {
+                              toastStore.show(e instanceof Error ? e.message : "Could not save procurement", "error");
+                              throw e;
+                            }
+                          }} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

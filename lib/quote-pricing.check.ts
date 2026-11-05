@@ -1,6 +1,6 @@
 // Run: npx tsx lib/quote-pricing.check.ts
 import assert from "node:assert/strict";
-import { hardwareQtyHint, resolveHardwareForUnit } from "@/lib/quote-pricing";
+import { hardwareQtyHint, resolveHardwareForUnit, unitQtyFactor } from "@/lib/quote-pricing";
 import type { UnitTypeHardware } from "@/lib/mock/unit-type";
 
 const unit = { width: 900, depth: 600, height: 750, qty: 1 };
@@ -19,5 +19,10 @@ assert.equal(resolveHardwareForUnit(hw("4"), unit).qtyNote, undefined);
 assert.equal(hardwareQtyHint({ ...resolved, qtyFormula: "5" }, unit), undefined);
 // An older row (no note) uses the Unit Type's formula for the same item.
 assert.equal(hardwareQtyHint(hw("2"), unit, [hw("H/450")]), "H/450 = 750/450 = 2");
+
+// Auto Populate already put the unit Qty into the lines, so it counts once; hand-built lines count Qty times.
+assert.equal(unitQtyFactor({ qty: 3, autoPopulated: true }), 1);
+assert.equal(unitQtyFactor({ qty: 3, autoPopulated: false }), 3);
+assert.equal(unitQtyFactor({ qty: 0 }), 1);
 
 console.log("quote pricing ok");

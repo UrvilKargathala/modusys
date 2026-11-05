@@ -207,6 +207,28 @@ export function cleanMaterial(m: unknown) {
             status: w?.status === "manufacturing" || w?.status === "procurement" ? w.status : ("pending" as const),
             mfgStart: str(w?.mfgStart).slice(0, 10) || undefined,
             state: cleanWoState(w?.state),
+            procurement: !Array.isArray(w?.procurement)
+              ? undefined
+              : (w.procurement as Record<string, unknown>[]).slice(0, 2000).map((x) => ({
+                  key: str(x?.key).slice(0, 300),
+                  kind: x?.kind === "board" || x?.kind === "band" ? x.kind : ("hardware" as const),
+                  brand: str(x?.brand).slice(0, 120),
+                  category: str(x?.category).slice(0, 120),
+                  articleNo: str(x?.articleNo).slice(0, 120),
+                  name: str(x?.name).slice(0, 300),
+                  unit: str(x?.unit).slice(0, 30),
+                  req: num(x?.req),
+                  stock: num(x?.stock),
+                  receipts: (Array.isArray(x?.receipts) ? (x.receipts as Record<string, unknown>[]) : []).slice(0, 100).map((r, j) => ({
+                    id: str(r?.id).slice(0, 60) || `r-${j}`,
+                    billNo: str(r?.billNo).slice(0, 80),
+                    billDate: /^\d{4}-\d{2}-\d{2}$/.test(str(r?.billDate)) ? str(r?.billDate) : "",
+                    qty: num(r?.qty),
+                    amount: num(r?.amount),
+                    vendor: str(r?.vendor).slice(0, 160),
+                    remark: str(r?.remark).slice(0, 300),
+                  })),
+                })),
           };
         }),
     fromRequirement: (() => {

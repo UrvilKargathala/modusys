@@ -4,7 +4,7 @@ import { nextWorkOrderNo, withWorkOrder, workOrderView, workOrdersOf } from "@/l
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Boxes, Check, Download, FileText, History, Pencil, Layers, Plus, Printer, Ruler, RotateCcw, Save, Scissors, Store, Tag, Trash2, X } from "lucide-react";
+import { ArrowLeft, Boxes, Check, Download, FileText, History, Pencil, Layers, Plus, Printer, Ruler, RotateCcw, Save, Scissors, Send, Store, Tag, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -23,7 +23,7 @@ import { useCustomers } from "@/lib/store/customers-store";
 import { useQuotes } from "@/lib/store/quotes-store";
 import { usePurchaseTemplateSettings } from "@/lib/store/quote-template-store";
 import { useCurrentUser } from "@/lib/session";
-import { MFG_STEPS, asPoStatus, mostUsed, poStatusLabel, type ExtraHardware, type MfgStep, type PoMaterial, type PurchaseOrder } from "@/lib/purchase-order";
+import { MFG_STEPS, asPoStatus, mergeProcurement, mostUsed, poStatusLabel, type ExtraHardware, type ProcItem, type MfgStep, type PoMaterial, type PurchaseOrder } from "@/lib/purchase-order";
 import { PoHardwareSelect } from "@/components/purchase-orders/po-hardware-select";
 import { formatPoDate } from "@/components/purchase-orders/po-dates";
 import { MfgHistoryDialog, componentRows, pieceLabelOf } from "@/components/purchase-orders/mfg-history-dialog";
@@ -132,8 +132,9 @@ function MaterialDetailsLocked({ po }: { po: PurchaseOrder }) {
 // cabinet are Misc Hardware. Nothing here is saved: it follows the order, the work order edits and the Edge Band tab; except extra: hardware
 // added by hand (Add on the Hardware / Misc Hardware lists), saved with the Work Order.
 type BandNeed = { code: string; width: string; len: number; pct: number; total: number; bandWidth: string; bandThk: string };
-function MaterialProcurement({ po, cutRows, bands, branding, extra }: { po: PurchaseOrder; cutRows: CutRow[]; bands: BandNeed[]; branding: { companyName: string; logoDataUrl?: string }; extra?: { rows: ExtraHardware[]; onChange: (rows: ExtraHardware[]) => void } }) {
+function MaterialProcurement({ po, cutRows, bands, branding, extra, onSend }: { po: PurchaseOrder; cutRows: CutRow[]; bands: BandNeed[]; branding: { companyName: string; logoDataUrl?: string }; extra?: { rows: ExtraHardware[]; onChange: (rows: ExtraHardware[]) => void }; onSend?: (items: Omit<ProcItem, "stock" | "receipts">[]) => Promise<void> }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [sending, setSending] = useState(false);
   const editExtra = (id: string, patch: Partial<ExtraHardware>) => extra?.onChange(extra.rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const addExtra = (kind: ExtraHardware["kind"]) => extra?.onChange([...extra.rows, { id: `xh-${Date.now()}`, kind, brand: "", category: "", description: "", articleNo: "", unit: "", qty: 1 }]);
   const boards = useMemo(
@@ -221,7 +222,27 @@ function MaterialProcurement({ po, cutRows, bands, branding, extra }: { po: Purc
   };
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {/* Send to Procurement: everything listed below becomes this Work Order's procurement ledger (status Material Procurement); sent
+            again, the quantities update and what was received stays. */}
+        {onSend && (
+          <Button type="button" size="sm" disabled={sending} onClick={async () => {
+            const items: Omit<ProcItem, "stock" | "receipts">[] = [
+              ...boards.map((b) => ({ key: `board|${b.key}`, kind: "board" as const, brand: "", category: "Board", articleNo: "", name: [b.first.material, b.first.thk ? `${b.first.thk} mm` : "", [b.first.internal, b.first.external].filter(Boolean).join(" / ")].filter(Boolean).join(" · "), unit: "Sheet", req: b.sheets })),
+              ...bands.map((b) => ({ key: `band|${b.code}|${b.width}`, kind: "band" as const, brand: "", category: "Edge Band", articleNo: b.code, name: [b.code, b.bandWidth && b.bandThk ? `${b.bandWidth} x ${b.bandThk} mm` : "", b.width ? `for ${b.width} mm panel` : ""].filter(Boolean).join(" · "), unit: "Mtr", req: Math.round(b.total * 100) / 100 })),
+              ...[...hardware.cabinet, ...hardware.misc, ...(extra?.rows ?? []).filter((r) => r.description || r.articleNo)].reduce((m, h) => {
+                const key = `hw|${h.brand}|${h.articleNo}|${h.description}`;
+                const e = m.get(key);
+                m.set(key, e ? { ...e, req: e.req + h.qty } : { key, kind: "hardware" as const, brand: h.brand, category: h.category, articleNo: h.articleNo, name: h.description, unit: h.unit, req: h.qty });
+                return m;
+              }, new Map<string, Omit<ProcItem, "stock" | "receipts">>()).values(),
+            ];
+            setSending(true);
+            try { await onSend(items); } finally { setSending(false); }
+          }}>
+            <Send className="h-4 w-4" /> Send to Procurement
+          </Button>
+        )}
         <Button type="button" size="sm" variant="outline" onClick={() => ref.current && printWithLetterhead(ref.current, `Material Procurement ${po.poNumber}`, branding, po.poNumber, "Material Procurement")}>
           <Download className="h-4 w-4" /> PDF
         </Button>
@@ -1093,7 +1114,14 @@ export function ProformaPackingPage({ id, mode = "packing", woId }: { id: string
             <div role="tabpanel"><ProformaCutList rows={cutRows} title={po.poNumber} branding={{ companyName: settings.branding.companyName, logoDataUrl: settings.branding.logoDataUrl ?? undefined }} /></div>
           )}
           {isProd && tab === "procurement" && (
-            <div role="tabpanel"><MaterialProcurement po={po} cutRows={cutRows} extra={isProd ? { rows: extraHw, onChange: (rows) => { setExtraHw(rows); setDirty(true); } } : undefined} branding={{ companyName: settings.branding.companyName, logoDataUrl: settings.branding.logoDataUrl ?? undefined }} bands={usedBands().map((b) => {
+            <div role="tabpanel"><MaterialProcurement po={po} cutRows={cutRows} onSend={stored && wo ? async (items) => {
+              try {
+                await purchaseOrdersStore.update(po.id, { material: withWorkOrder(stored, wo.id, { status: wo.status === "manufacturing" ? "manufacturing" : "procurement", procurement: mergeProcurement(wo.procurement, items) }) });
+                toastStore.show(`Sent to Material Procurement (${items.length} items)`, "success");
+              } catch (e) {
+                toastStore.show(e instanceof Error ? e.message : "Could not send to procurement", "error");
+              }
+            } : undefined} extra={isProd ? { rows: extraHw, onChange: (rows) => { setExtraHw(rows); setDirty(true); } } : undefined} branding={{ companyName: settings.branding.companyName, logoDataUrl: settings.branding.logoDataUrl ?? undefined }} bands={usedBands().map((b) => {
               const k = `${b.code}|${b.width}`;
               const pct = bandWidths[k]?.wastage === undefined || bandWidths[k]?.wastage === "" ? 20 : Math.max(0, Number(bandWidths[k]?.wastage) || 0);
               return { ...b, pct, total: (b.len / 1000) * (1 + pct / 100), bandWidth: bandWidths[k]?.width ?? "", bandThk: bandWidths[k]?.thickness ?? "" };

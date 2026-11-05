@@ -227,15 +227,17 @@ export function cabinetTotal(
   );
 }
 
+// How many times a unit's lines count: Auto Populate already multiplied every line's qty by the unit's Qty, so an auto-populated unit
+// counts once; a unit built by hand has per-unit lines, so they count Qty times.
+export const unitQtyFactor = (u: { qty: number; autoPopulated?: boolean }) => (u.autoPopulated ? 1 : Math.max(1, u.qty || 1));
+
 export function unitTotal(
   unit: QuoteUnit,
   furnitureItems: FurniturePriceItem[],
   hardwareItems: HardwarePriceItem[]
 ): number {
   const perUnit = unit.cabinets.reduce((sum, c) => sum + cabinetTotal(c, unit, furnitureItems, hardwareItems), 0);
-  // A unit's Qty means "this many identical units in the quote", so its
-  // cost has to scale by qty for the raw total to match Combined Total.
-  return perUnit * Math.max(1, unit.qty || 1);
+  return perUnit * unitQtyFactor(unit);
 }
 
 export function cabinetSqFt(cabinet: QuoteCabinet, unit: { width: number; depth: number; height: number; qty: number }): number {
@@ -249,7 +251,7 @@ export function cabinetSqFt(cabinet: QuoteCabinet, unit: { width: number; depth:
 
 export function unitSqFt(unit: QuoteUnit): number {
   const perUnit = unit.cabinets.reduce((sum, c) => sum + cabinetSqFt(c, unit), 0);
-  return perUnit * Math.max(1, unit.qty || 1);
+  return perUnit * unitQtyFactor(unit);
 }
 
 export function quoteRawTotal(

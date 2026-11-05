@@ -3,7 +3,7 @@ import type { MaterialItem } from "@/lib/mock/material-spec";
 import type { HardwarePriceItem } from "@/lib/mock/pricing-list";
 import type { UnitType, FurnitureLineItem } from "@/lib/mock/unit-type";
 import type { CabinetType } from "@/lib/mock/cabinet-type";
-import { carcassUnitFor, evaluateFormula } from "@/lib/quote-pricing";
+import { carcassUnitFor, evaluateFormula, unitQtyFactor } from "@/lib/quote-pricing";
 import { panelSqft, type PoCabinet, type PoGroup, type PoMaterial, type PurchaseOrderLine } from "@/lib/purchase-order";
 
 // sourceId: the quote / Requirement Order line it was built from (only buildPoFromQuote sets it; it is not saved on the line).
@@ -11,7 +11,8 @@ export type PoLineDraft = Omit<PurchaseOrderLine, "id"> & { sourceId?: string };
 
 type Ctx = { materials: MaterialItem[]; unitTypes: UnitType[]; hardwareItems: HardwarePriceItem[] };
 
-const unitQty = (u: { qty: number }) => Math.max(1, u.qty || 1);
+// Auto-populated lines already hold the unit's Qty, so it counts once (see unitQtyFactor).
+const unitQty = (u: { qty: number; autoPopulated?: boolean }) => unitQtyFactor(u);
 
 // Snapshot of a quote's cut-list as PO lines (one row per panel, grouped
 // A Carcass / B Shutter / C Other Panel / D Hardware). Each row already holds

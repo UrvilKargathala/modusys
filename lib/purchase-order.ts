@@ -400,7 +400,22 @@ export const WO_STATE_KEYS = ["production", "edgeBandCombos", "edgeBandColours",
 export type ExtraHardware = { id: string; kind: "cabinet" | "misc"; brand: string; category: string; description: string; articleNo: string; unit: string; qty: number };
 export type WorkOrderState = Partial<Pick<PoMaterial, (typeof WO_STATE_KEYS)[number]>>;
 // mfgStart: the day it was set to Send to Manufacturing (Pressing's start date).
-export type WorkOrder = { id: string; no: string; date: string; lines: string[]; status?: WorkOrderStatus; mfgStart?: string; state?: WorkOrderState };
+// procurement: the material ledger made by Send to Procurement (Work Order > Material Procurement), edited on the list's Material Procurement tab.
+export type WorkOrder = { id: string; no: string; date: string; lines: string[]; status?: WorkOrderStatus; mfgStart?: string; state?: WorkOrderState; procurement?: ProcItem[] };
+// One thing to buy: boards (Req = sheets), edge band (metres) or hardware (its unit). Stock Qty is what is already in stock; each receipt is
+// one bill (an item can arrive in parts). Balance = Req - Stock - all received.
+export type ProcReceipt = { id: string; billNo: string; billDate: string; qty: number; amount: number; vendor: string; remark: string };
+export type ProcItem = { key: string; kind: "board" | "band" | "hardware"; brand: string; category: string; articleNo: string; name: string; unit: string; req: number; stock: number; receipts: ProcReceipt[] };
+export const procBalance = (i: ProcItem) => i.req - i.stock - i.receipts.reduce((n, r) => n + r.qty, 0);
+// Send to Procurement again: the new required list, keeping what was typed (stock, receipts) per item; an item no longer required but with
+// receipts stays (Req 0) so no bill is lost.
+export function mergeProcurement(old: ProcItem[] | undefined, fresh: Omit<ProcItem, "stock" | "receipts">[]): ProcItem[] {
+  const prev = new Map((old ?? []).map((i) => [i.key, i]));
+  const out: ProcItem[] = fresh.map((f) => ({ ...f, stock: prev.get(f.key)?.stock ?? 0, receipts: prev.get(f.key)?.receipts ?? [] }));
+  const keys = new Set(fresh.map((f) => f.key));
+  for (const i of old ?? []) if (!keys.has(i.key) && i.receipts.length) out.push({ ...i, req: 0 });
+  return out;
+}
 // Production Work Order Status: Pending, then Material Procurement (buying what it needs), then Send to Manufacturing. The list's tabs
 // and the status menu follow this order.
 export type WorkOrderStatus = "pending" | "procurement" | "manufacturing";

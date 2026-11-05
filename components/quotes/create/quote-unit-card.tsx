@@ -219,6 +219,14 @@ export function QuoteUnitCard({
   const hardwareItems = useHardwarePriceItems();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingUnitTypeId, setPendingUnitTypeId] = useState<string | null>(null);
+  // Qty is typed into a draft and asked about on Enter / leaving the box: the price changes only after Yes.
+  const [qtyDraft, setQtyDraft] = useState<string | null>(null);
+  const [qtyAsk, setQtyAsk] = useState<number | null>(null);
+  const commitQty = () => {
+    const n = Math.max(1, Math.round(Number(qtyDraft) || 0));
+    if (qtyDraft === null || n === unit.qty) return setQtyDraft(null);
+    setQtyAsk(n);
+  };
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: unit.id });
 
   const cabinetTypeName = (id: string) => cabinetTypes.find((c) => c.id === id)?.name ?? "Cabinet";
@@ -254,11 +262,13 @@ export function QuoteUnitCard({
     onChange({ cabinets: [...unit.cabinets, blank] });
   };
 
-  const runAutoPopulate = (unitType: UnitType) => {
+  const runAutoPopulate = (unitType: UnitType, qty = unit.qty) => {
+    const sized = { ...unit, qty };
     const withListRate = (f: FurnitureLineItem) => ({ ...f, rateOverride: findFurnitureMatch(f, furnitureItems)?.rate });
-    const cabinets = buildCabinetsFromUnitType(unitType, cabinetTypeName, unit, hardwareItems, furnitureItems);
+    const cabinets = buildCabinetsFromUnitType(unitType, cabinetTypeName, sized, hardwareItems, furnitureItems);
     const hasOverrides = shutterFinishId || (shutterFinishOverrides && Object.values(shutterFinishOverrides).some(Boolean));
     onChange({
+      qty,
       unitTypeId: unitType.id,
       cabinets: hasOverrides
         ? cabinets.map((c) => ({
@@ -340,7 +350,7 @@ export function QuoteUnitCard({
         <Input aria-label="Width" className={NUM_INPUT} type="number" value={unit.width || ""} onChange={(e) => onChange({ width: Number(e.target.value) })} />
         <Input aria-label="Depth" className={NUM_INPUT} type="number" value={unit.depth || ""} onChange={(e) => onChange({ depth: Number(e.target.value) })} />
         <Input aria-label="Height" className={NUM_INPUT} type="number" value={unit.height || ""} onChange={(e) => onChange({ height: Number(e.target.value) })} />
-        <Input aria-label="Quantity" className={NUM_INPUT} type="number" min={1} value={unit.qty || ""} onChange={(e) => onChange({ qty: Number(e.target.value) })} />
+        <Input aria-label="Quantity" className={NUM_INPUT} type="number" min={1} value={qtyDraft ?? (unit.qty || "")} onChange={(e) => setQtyDraft(e.target.value)} onBlur={commitQty} onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()} />
 
         <span className="num text-right text-sm text-grey-600">{totalSqFt.toFixed(2)}</span>
         <span className="num text-right text-sm font-semibold text-grey-900">₹{total.toFixed(2)}</span>
@@ -445,6 +455,37 @@ export function QuoteUnitCard({
               }}
             >
               Replace with new defaults
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Qty change: asked first. An auto-populated unit runs Auto Populate again with the new Qty (so every line and the price follow it);
+          Cancel puts the old Qty back and nothing changes. */}
+      <AlertDialog open={qtyAsk !== null} onOpenChange={(o) => { if (!o) { setQtyAsk(null); setQtyDraft(null); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change Qty from {unit.qty} to {qtyAsk}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {unit.autoPopulated && selectedUnitType
+                ? "Auto Populate runs again with the new Qty and the price updates. Changes made by hand to this unit's cabinets and components are replaced."
+                : "The unit's price updates to the new Qty."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setQtyAsk(null); setQtyDraft(null); }}>Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              onClick={() => {
+                if (qtyAsk !== null) {
+                  if (unit.autoPopulated && selectedUnitType) runAutoPopulate(selectedUnitType, qtyAsk);
+                  else onChange({ qty: qtyAsk });
+                }
+                setQtyAsk(null);
+                setQtyDraft(null);
+              }}
+            >
+              {unit.autoPopulated && selectedUnitType ? "Change and Auto Populate" : "Change Qty"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,7 +1,7 @@
 // Run: npx tsx lib/pi-progress.check.ts
 import assert from "node:assert/strict";
 import { nextWorkOrderNo, piProgress, poDoneByPis, withPoColours, withWorkOrder, woProgress, workOrderView, workOrdersOf } from "@/lib/pi-progress";
-import type { PurchaseOrder } from "@/lib/purchase-order";
+import { mergeProcurement, procBalance, type PurchaseOrder } from "@/lib/purchase-order";
 
 const line = (lineKey: string) => ({ id: `row-${lineKey}`, lineKey }) as PurchaseOrder["lines"][number];
 const order = (id: string, keys: string[], extra: Partial<PurchaseOrder["material"]> = {}, status = "pending") =>
@@ -82,3 +82,15 @@ console.log("work order number ok");
   assert.equal(withPoColours(loose, [src]), loose);
 }
 console.log("pi colours ok");
+
+// Procurement ledger: Send to Procurement again keeps typed stock/receipts, keeps a dropped item that has bills, and Balance subtracts all.
+{
+
+  const base = { kind: "hardware" as const, brand: "Blum", category: "Hinges", articleNo: "1", name: "Hinge", unit: "Nos" };
+  const r = { id: "r", billNo: "B1", billDate: "2026-11-05", qty: 4, amount: 100, vendor: "V", remark: "" };
+  const old = [{ ...base, key: "a", req: 9, stock: 2, receipts: [r, { ...r, id: "r2", qty: 1 }] }, { ...base, key: "b", req: 3, stock: 0, receipts: [r] }, { ...base, key: "c", req: 1, stock: 0, receipts: [] }];
+  const out = mergeProcurement(old, [{ ...base, key: "a", req: 10 }]);
+  assert.equal(out.map((i) => `${i.key}:${i.req}:${i.stock}:${i.receipts.length}`).join(","), "a:10:2:2,b:0:0:1");
+  assert.equal(procBalance(out[0]), 3);
+  assert.equal(procBalance(out[1]), -4);
+}

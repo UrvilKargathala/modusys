@@ -7,13 +7,14 @@ import {
   furnitureLineTotal,
   hardwareLineTotal,
   SQMM_PER_SQFT,
+  unitQtyFactor,
 } from "@/lib/quote-pricing";
 import { formatInr } from "@/lib/format";
 import type { Quote } from "@/lib/mock/quote";
 import type { FurnitureLineItem } from "@/lib/mock/unit-type";
 
 // Grand totals per line-item kind across every unit/cabinet in the quote.
-// Amounts scale by unit.qty so multi-quantity units contribute correctly.
+// Amounts scale by the unit's Qty factor (once: auto-populated lines already hold it).
 function computeTotals(
   quote: Quote,
   furnitureItems: ReturnType<typeof useFurniturePriceItems>,
@@ -24,8 +25,8 @@ function computeTotals(
   const addFurniture = (item: FurnitureLineItem, unit: Quote["units"][number], target: "carcass" | "shutter" | "panel") => {
     const w = evaluateFormula(item.widthFormula, { W: unit.width, D: unit.depth, H: unit.height });
     const h = evaluateFormula(item.heightFormula, { W: unit.width, D: unit.depth, H: unit.height });
-    const sqft = ((w * h) / SQMM_PER_SQFT) * item.qty * unit.qty;
-    const amt = furnitureLineTotal(item, unit, furnitureItems) * unit.qty;
+    const sqft = ((w * h) / SQMM_PER_SQFT) * item.qty * unitQtyFactor(unit);
+    const amt = furnitureLineTotal(item, unit, furnitureItems) * unitQtyFactor(unit);
     if (target === "carcass") { acc.carcassSqft += sqft; acc.carcassAmt += amt; }
     else if (target === "shutter") { acc.shutterSqft += sqft; acc.shutterAmt += amt; }
     else { acc.panelSqft += sqft; acc.panelAmt += amt; }
@@ -37,7 +38,7 @@ function computeTotals(
       cabinet.externalFinishes.forEach((c) => addFurniture(c, unit, "shutter"));
       cabinet.panels.forEach((c) => addFurniture(c, unit, "panel"));
       for (const hw of cabinet.hardware) {
-        acc.hardwareAmt += hardwareLineTotal(hw, unit, hardwareItems) * unit.qty;
+        acc.hardwareAmt += hardwareLineTotal(hw, unit, hardwareItems) * unitQtyFactor(unit);
       }
     }
   }
