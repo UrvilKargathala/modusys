@@ -42,8 +42,13 @@ const PLACEHOLDER = { day: "dd / mm / yyyy", month: "mm / yyyy", year: "yyyy" };
 
 // A date box you can type in (digits only, the slashes are added) with a calendar behind its icon: pick a day, a month or a year. Sends its value under
 // `name` when the form is submitted. A half-typed or impossible date is put back to the last good one when you leave the box.
-export function DatePicker({ name, defaultValue, mode, id, className }: { name: string; defaultValue: string; mode: Mode; id?: string; className?: string }) {
-  const [value, setValue] = useState(defaultValue);
+// `onChange` hears every new good value, for forms that keep the date in their own state.
+export function DatePicker({ name, defaultValue, mode, id, className, onChange }: { name: string; defaultValue: string; mode: Mode; id?: string; className?: string; onChange?: (value: string) => void }) {
+  const [value, setValueState] = useState(defaultValue);
+  const setValue = (v: string) => {
+    setValueState(v);
+    onChange?.(v);
+  };
   const [digits, setDigits] = useState(toDigits(defaultValue, mode));
   const [open, setOpen] = useState(false);
   const now = new Date();

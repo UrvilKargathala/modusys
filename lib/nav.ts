@@ -28,6 +28,10 @@ import {
   CircleX,
   FilePen,
   Store,
+  Landmark,
+  BookOpen,
+  Tags,
+  PieChart,
 } from "lucide-react";
 
 // `roles` is an explicit whitelist. Undefined = visible to everyone.
@@ -73,6 +77,12 @@ export const navigationItems: NavItem[] = [
   // The Vendors / Dealers tabs of Purchase Orders and Proforma Invoices, as their own pages too.
   { label: "Vendor Master", href: "/vendors", icon: Store, roles: ADMIN_UP, group: "Masters" },
   { label: "Dealer Master", href: "/dealers", icon: Store, roles: ADMIN_UP, group: "Masters", factory: true },
+  // Daily income & expense book (super admin only; the /accounts layout guards the pages).
+  { label: "Dashboard", href: "/accounts", icon: Landmark, roles: SUPER, group: "Accounts" },
+  { label: "Entries", href: "/accounts/entries", icon: BookOpen, roles: SUPER, group: "Accounts" },
+  { label: "Reports", href: "/accounts/reports", icon: PieChart, roles: SUPER, group: "Accounts" },
+  { label: "Account Heads", href: "/accounts/heads", icon: Tags, roles: SUPER, group: "Accounts" },
+  { label: "Payment Accounts", href: "/accounts/payment-accounts", icon: Wallet, roles: SUPER, group: "Accounts" },
   { label: "Templates", href: "/templates", icon: LayoutTemplate, roles: ADMIN_UP },
 ];
 

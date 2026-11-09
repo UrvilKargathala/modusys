@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Contact, Download, DraftingCompass, Factory, FileText, IndianRupee, KeyRound, LogOut, UserRound, ScanLine, ShoppingCart, UserCog, Wallet, type LucideIcon } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Contact, Download, DraftingCompass, Factory, FileText, IndianRupee, KeyRound, Landmark, LogOut, UserRound, ScanLine, ShoppingCart, UserCog, Wallet, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatInr } from "@/lib/format";
 import { MOCK_CREDITS_BALANCE, MOCK_CREDITS_TOTAL } from "@/lib/mock/credits";
@@ -23,7 +23,7 @@ import { useNotificationRows } from "@/components/layout/use-notification-rows";
 // as a list when expanded, and as a pop-out menu beside the icon when collapsed. The mobile bottom bar is separate.
 type Entry = { kind: "link"; item: NavItem } | { kind: "group"; label: string; icon: LucideIcon; items: NavItem[] };
 
-const GROUP_ICON: Record<string, LucideIcon> = { Quotes: FileText, Purchase: ShoppingCart, "Production Planning": DraftingCompass, "Manufacturing & Dispatch": Factory, Masters: Contact };
+const GROUP_ICON: Record<string, LucideIcon> = { Quotes: FileText, Purchase: ShoppingCart, "Production Planning": DraftingCompass, "Manufacturing & Dispatch": Factory, Masters: Contact, Accounts: Landmark };
 const STORAGE_KEY = "sidebar-collapsed";
 
 export function Sidebar() {

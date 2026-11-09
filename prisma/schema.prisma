@@ -896,3 +896,72 @@ model ProcurementQuote {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ---------------------------------------------------------------------------
+// Accounts: the daily income & expense book (Super Admin only).
+// Balances are never stored: closing = openingBalance + income - expense + transfers in - transfers out,
+// worked out from posted entries. Heads and accounts with entries cannot be deleted (Restrict), only deactivated.
+
+// Income or expense category, e.g. Customer Advance, Staff Salary.
+model AccountHead {
+  id        String         @id @default(cuid())
+  name      String
+  type      String // income | expense
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  entries   AccountEntry[]
+
+  @@unique([type, name])
+}
+
+// Where money sits: Office Cash, Petty Cash, HDFC Current Account. openingBalance = balance before the first entry.
+model PaymentAccount {
+  id             String         @id @default(cuid())
+  name           String         @unique
+  kind           String // cash | bank | petty-cash | card | other
+  openingBalance Decimal        @default(0) @db.Decimal(14, 2)
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  entries        AccountEntry[] @relation("EntryAccount")
+  transfersIn    AccountEntry[] @relation("EntryToAccount")
+}
+
+// One receipt, payment or transfer. entryNo shows as TXN-000125. A transfer moves money from accountId to toAccountId
+// and has no head. Posted entries are cancelled (status), never deleted. Party is a Customer / Vendor (or dealer) / Employee id
+// (plain String, like PurchaseOrder.vendorId) or just a typed name; partyName keeps the name as it was entered.
+model AccountEntry {
+  id             String          @id @default(cuid())
+  entryNo        Int             @unique @default(autoincrement())
+  date           DateTime        @db.Date
+  type           String // income | expense | transfer
+  headId         String?
+  head           AccountHead?    @relation(fields: [headId], references: [id], onDelete: Restrict)
+  accountId      String
+  account        PaymentAccount  @relation("EntryAccount", fields: [accountId], references: [id], onDelete: Restrict)
+  toAccountId    String?
+  toAccount      PaymentAccount? @relation("EntryToAccount", fields: [toAccountId], references: [id], onDelete: Restrict)
+  amount         Decimal         @db.Decimal(14, 2)
+  paymentMode    String          @default("")
+  partyType      String          @default("") // customer | vendor | dealer | employee | "" (typed name)
+  partyId        String?
+  partyName      String          @default("")
+  remarks        String          @default("")
+  attachmentKey  String?
+  attachmentName String?
+  status         String          @default("posted") // posted | cancelled
+  cancelReason   String          @default("")
+  cancelledAt    DateTime?
+  cancelledById  String?
+  createdById    String?
+  createdByName  String          @default("")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([date])
+  @@index([accountId, date])
+  @@index([toAccountId, date])
+  @@index([headId, date])
+  @@index([partyType, partyId])
+}

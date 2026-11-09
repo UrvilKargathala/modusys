@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 //   /api/files/msg_<messageId>[?i=<n>]         chat image (nth) | pdf | voice note
 //   /api/files/media_<mediaId>                 customer gallery item
 //   /api/files/att_<recordId>?side=checkIn|checkOut   attendance selfie
+//   /api/files/acc_<entryId>                   receipt on an account entry
 //   ...add ?download=1 to force "Save as" with the original filename.
 // Bytes are streamed from the private Garage bucket; Range/206 is implemented here
 // because Vercel Blob used to serve it for free.
@@ -69,6 +70,14 @@ async function resolve(ref: string, sp: URLSearchParams): Promise<Target | Denie
     const key = side === "checkOut" ? rec.checkOutPhotoKey : rec.checkInPhotoKey;
     if (!key) return notFound();
     return { key, name: key.split("/").pop() ?? `attendance-${id}.jpg` };
+  }
+
+  if (kind === "acc") {
+    // Receipt on an account entry: Accounts is super-admin only.
+    if (user.role !== "super-admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const e = await prisma.accountEntry.findUnique({ where: { id }, select: { attachmentKey: true, attachmentName: true } });
+    if (!e?.attachmentKey) return notFound();
+    return { key: e.attachmentKey, name: e.attachmentName ?? "attachment" };
   }
 
   return NextResponse.json({ error: "Bad ref" }, { status: 400 });

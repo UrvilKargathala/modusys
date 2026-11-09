@@ -81,6 +81,13 @@ const ACTION_LABELS: Record<string, string> = {
   PRICE_LIST_ENTRY_UPDATED: "Updated a price",
   PRICE_LIST_ENTRY_DELETED: "Removed a price list entry",
   QUOTE_TEMPLATE_SETTING_UPDATED: "Updated a quote template setting",
+  ACCOUNT_ENTRY_CREATED: "Added an account entry",
+  ACCOUNT_ENTRY_UPDATED: "Edited an account entry",
+  ACCOUNT_ENTRY_CANCELLED: "Cancelled an account entry",
+  ACCOUNT_HEAD_CREATED: "Added an account head",
+  ACCOUNT_HEAD_UPDATED: "Updated an account head",
+  PAYMENT_ACCOUNT_CREATED: "Added a payment account",
+  PAYMENT_ACCOUNT_UPDATED: "Updated a payment account",
 };
 
 const ACTION_GROUPS = [
@@ -93,6 +100,7 @@ const ACTION_GROUPS = [
   { label: "Leaves", actions: ["LEAVE_REQUESTED", "LEAVE_APPROVED", "LEAVE_REJECTED", "LEAVE_CANCELLED"] },
   { label: "Templates / Pricing", actions: ["CABINET_TYPE_UPDATED", "UNIT_TYPE_UPDATED", "MATERIAL_LIBRARY_ENTRY_CREATED", "MATERIAL_LIBRARY_ENTRY_UPDATED", "MATERIAL_LIBRARY_ENTRY_DELETED", "PRICE_LIST_ENTRY_CREATED", "PRICE_LIST_ENTRY_UPDATED", "PRICE_LIST_ENTRY_DELETED", "QUOTE_TEMPLATE_SETTING_UPDATED"] },
   { label: "Integrations", actions: ["UNIFI_SYNC_LOGS", "UNIFI_SYNC_USERS", "UNIFI_WEBHOOK_RESET"] },
+  { label: "Accounts", actions: ["ACCOUNT_ENTRY_CREATED", "ACCOUNT_ENTRY_UPDATED", "ACCOUNT_ENTRY_CANCELLED", "ACCOUNT_HEAD_CREATED", "ACCOUNT_HEAD_UPDATED", "PAYMENT_ACCOUNT_CREATED", "PAYMENT_ACCOUNT_UPDATED"] },
 ];
 
 const TARGET_ICONS: Record<string, typeof User> = {
@@ -108,6 +116,9 @@ const TARGET_ICONS: Record<string, typeof User> = {
   MATERIAL_LIBRARY_ENTRY: LayoutTemplate,
   PRICE_LIST_ENTRY: DollarSign,
   QUOTE_TEMPLATE_SETTING: LayoutTemplate,
+  ACCOUNT_ENTRY: DollarSign,
+  ACCOUNT_HEAD: DollarSign,
+  PAYMENT_ACCOUNT: DollarSign,
   SESSION: Shield,
 };
 

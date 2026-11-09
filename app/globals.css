@@ -918,3 +918,32 @@ table.col-fixed td, table.col-fixed th { overflow: hidden; text-overflow: ellips
 [data-opt][data-active="true"] {
   background-color: var(--color-primary-300);
 }
+
+/* Accounts pages print only their content (no sidebar, top bar or bottom tabs), across as many sheets as needed.
+   The app shell is a fixed-height scroll box on screen, which would otherwise clip the printout to one page. */
+@media print {
+  html:has(.accounts-print) .glass-app {
+    display: block;
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+  html:has(.accounts-print) .glass-app > :not(:has(main)),
+  html:has(.accounts-print) .glass-app > :has(main) > :not(main) {
+    display: none !important;
+  }
+  html:has(.accounts-print) main {
+    overflow: visible;
+    padding: 0;
+  }
+  .accounts-print .overflow-x-auto {
+    overflow: visible;
+  }
+  .accounts-print table {
+    min-width: 0 !important;
+    font-size: 11px;
+  }
+  .accounts-print tr {
+    break-inside: avoid;
+  }
+}
