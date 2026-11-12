@@ -11,7 +11,8 @@ export type NotificationType =
   | "leave-requested"
   | "leave-approved"
   | "leave-rejected"
-  | "attendance-correction";
+  | "attendance-correction"
+  | "app-error";
 
 export type AppNotification = {
   id: string;

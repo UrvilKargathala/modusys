@@ -5,9 +5,16 @@ import "server-only";
 // ponytail: in-memory, per-instance. Vercel spins up many function instances
 // so this is soft; upgrade to Upstash/Redis if abuse becomes a real problem.
 const hits = new Map<string, number[]>();
+const MAX_WINDOW_MS = 60 * 60 * 1000; // longest window any caller uses
+let lastSweep = 0;
 
 export function rateLimit(key: string, limit: number, windowMs: number): { ok: boolean; retryAfterMs: number } {
   const now = Date.now();
+  // Keys can come from outside (client IPs, error fingerprints): drop ones unused for an hour.
+  if (now - lastSweep > 10 * 60_000) {
+    lastSweep = now;
+    for (const [k, v] of hits) if (!v.length || v[v.length - 1] < now - MAX_WINDOW_MS) hits.delete(k);
+  }
   const cutoff = now - windowMs;
   const arr = (hits.get(key) ?? []).filter((t) => t > cutoff);
   if (arr.length >= limit) {

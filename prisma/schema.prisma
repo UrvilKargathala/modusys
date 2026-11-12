@@ -503,6 +503,32 @@ model AuditLog {
   @@index([targetType, targetId, createdAt])
 }
 
+// One row per error (server or browser), written by lib/server/report-error.ts.
+// Grouped by fingerprint when read (Admin → Logs → Errors). Never holds request
+// bodies, cookies or query strings. Rows older than 90 days are deleted.
+model ErrorLog {
+  id          String   @id @default(cuid())
+  code        String
+  fingerprint String
+  source      String // "server" | "browser"
+  message     String
+  stack       String?
+  path        String?
+  method      String?
+  routeType   String?
+  userId      String?
+  userEmail   String?
+  userRole    String?
+  commit      String?
+  userAgent   String?
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([fingerprint, createdAt])
+  @@index([code])
+}
+
 // ---------------------------------------------------------------------------
 // Attendance (UniFi Access integration)
 

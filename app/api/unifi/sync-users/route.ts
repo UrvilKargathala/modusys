@@ -3,6 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { fetchUnifiUsers } from "@/lib/unifi";
 import { getSessionUser } from "@/lib/server/require-user";
 import { logAudit } from "@/lib/server/audit";
+import { reportRouteError } from "@/lib/server/report-error";
 
 export async function POST(req: Request) {
   try {
@@ -78,6 +79,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, total: unifiUsers.length, created, updated, skipped });
   } catch (error) {
     console.error("[Modusys] User sync error:", error);
+    await reportRouteError(req, error);
 
     await prisma.unifiSyncLog.create({
       data: { syncType: "users", status: "error", details: String(error) },

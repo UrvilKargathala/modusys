@@ -4,6 +4,7 @@ import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/require-user";
 import { getCurrentEmployee } from "@/lib/server/current-employee";
 import { getObject, headObject } from "@/lib/server/s3";
+import { reportRouteError } from "@/lib/server/report-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -157,6 +158,7 @@ async function handle(req: Request, ctx: { params: Promise<{ ref: string }> }, h
     }
     // Log the ref and outcome only — never keys or URLs (§8.7 step 9).
     console.error("[files] broker failure", ref, (e as { name?: string })?.name);
+    await reportRouteError(req, new Error(`Storage error: ${(e as { name?: string })?.name ?? "unknown"}`));
     return NextResponse.json({ error: "Storage error" }, { status: 502 });
   }
 }

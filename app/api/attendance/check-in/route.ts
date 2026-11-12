@@ -7,6 +7,7 @@ import { istMidnight, computeLateMinutes } from "@/lib/attendance-config";
 import { headObject } from "@/lib/server/s3";
 import { withAttendancePhotos } from "@/lib/server/serialize";
 import { scheduledLateEarly } from "@/lib/server/payroll-data";
+import { reportRouteError } from "@/lib/server/report-error";
 
 export async function POST(req: NextRequest) {
   try {
@@ -94,6 +95,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, record: withAttendancePhotos(record) });
   } catch (error) {
     console.error("[Modusys] check-in error:", error);
+    await reportRouteError(req, error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

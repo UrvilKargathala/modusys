@@ -46,7 +46,8 @@ export function useNotificationRows() {
   // kind's own icon/color/urgency and click behavior.
   const notificationRows: NotificationRow[] = [
     ...myNotifications.map((n) => {
-      const style = notificationStyle[n.type];
+      // A type this build doesn't know (e.g. after rolling back a release) must not crash the layout.
+      const style = notificationStyle[n.type] ?? notificationStyle.completed;
       return {
         id: n.id,
         message: n.message,
@@ -63,6 +64,7 @@ export function useNotificationRows() {
           else if (n.type === "leave-approved" || n.type === "leave-rejected") router.push("/leaves");
           // Time-fix requests keep the calendar day to open in relatedTaskId.
           else if (n.type === "attendance-correction") router.push(n.relatedTaskId || "/attendance/calendar");
+          else if (n.type === "app-error") router.push(n.relatedTaskId || "/admin/logs?tab=errors");
           else taskPanelStore.open(n.relatedTaskId);
         },
       };

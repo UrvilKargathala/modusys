@@ -3,6 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { istMidnight } from "@/lib/attendance-config";
 import { getSessionUser } from "@/lib/server/require-user";
 import { logAudit } from "@/lib/server/audit";
+import { reportRouteError } from "@/lib/server/report-error";
 
 export async function POST(req: NextRequest) {
   try {
@@ -128,6 +129,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("[Modusys] Log sync error:", error);
+    await reportRouteError(req, error);
     return NextResponse.json({ error: "Sync failed", details: String(error) }, { status: 500 });
   }
 }

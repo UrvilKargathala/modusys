@@ -38,6 +38,12 @@ export const notificationStyle: Record<
     bgClass: "bg-info-transparent",
     actionNeeded: true,
   },
+  "app-error": {
+    icon: AlertTriangle,
+    iconClass: "text-error",
+    bgClass: "bg-error-transparent",
+    actionNeeded: true,
+  },
 };
 
 export const virtualNotificationStyle: Record<

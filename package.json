@@ -7,7 +7,7 @@
     "postinstall": "prisma generate",
     "build": "prisma generate && next build",
     "check": "npm run build",
-    "start": "next start",
+    "start": "NODE_OPTIONS=\"--enable-source-maps $NODE_OPTIONS\" next start",
     "lint": "eslint",
     "create-super-admin": "tsx scripts/create-super-admin.ts",
     "seed-team-users": "tsx scripts/seed-team-users.ts",

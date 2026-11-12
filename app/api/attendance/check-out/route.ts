@@ -12,6 +12,7 @@ import {
   computeDayStatus,
   computeEarlyExitMinutes,
 } from "@/lib/attendance-config";
+import { reportRouteError } from "@/lib/server/report-error";
 
 export async function POST(req: NextRequest) {
   try {
@@ -99,6 +100,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, record: withAttendancePhotos(record) });
   } catch (error) {
     console.error("[Modusys] check-out error:", error);
+    await reportRouteError(req, error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

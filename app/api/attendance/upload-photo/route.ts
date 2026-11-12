@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentEmployee } from "@/lib/server/current-employee";
 import { istDateString } from "@/lib/attendance-config";
 import { newKey, putServerFile } from "@/lib/server/s3";
+import { reportRouteError } from "@/lib/server/report-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,6 +48,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ key });
   } catch (e) {
     console.error("[Modusys] attendance photo upload failed", (e as { name?: string })?.name);
+    // Name only: storage errors can carry object keys.
+    await reportRouteError(req, new Error(`Photo upload failed: ${(e as { name?: string })?.name ?? "unknown"}`));
     return NextResponse.json({ error: "Photo upload failed" }, { status: 500 });
   }
 }

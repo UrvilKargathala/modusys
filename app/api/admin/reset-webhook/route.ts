@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/server/require-user";
 import { logAudit } from "@/lib/server/audit";
+import { reportRouteError } from "@/lib/server/report-error";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -135,9 +136,9 @@ export async function POST(req: Request) {
       message: "Webhook reset successfully",
     });
   } catch (e) {
-    return NextResponse.json(
-      { success: false, error: friendlyError(e) },
-      { status: 502 }
-    );
+    const error = friendlyError(e);
+    // Off the office network the CloudKey is unreachable: expected, not a bug. Save anything else.
+    if (error === (e instanceof Error ? e.message : String(e))) await reportRouteError(req, e);
+    return NextResponse.json({ success: false, error }, { status: 502 });
   }
 }

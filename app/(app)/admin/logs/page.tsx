@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useTableColumnOrder } from "@/components/shared/use-column-order";
 import { cn } from "@/lib/utils";
+import { timeAgo } from "@/lib/time-ago";
+import { ErrorLogs } from "@/components/admin/error-logs";
 import { useCurrentUser } from "@/lib/session";
-import { redirect } from "next/navigation";
+import { redirect, usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useReactTable,
   getCoreRowModel,
@@ -122,18 +124,6 @@ const TARGET_ICONS: Record<string, typeof User> = {
   SESSION: Shield,
 };
 
-function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.round(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return `${Math.round(days / 30)}mo ago`;
-}
-
 function formatDetails(details: Record<string, unknown> | null): string {
   if (!details) return "";
   if (details.field && details.from !== undefined && details.to !== undefined) {
@@ -145,10 +135,25 @@ function formatDetails(details: Record<string, unknown> | null): string {
 }
 
 type DatePreset = "7d" | "30d" | "custom";
+type Tab = "activity" | "errors";
 
+// useSearchParams needs a Suspense boundary for the production prerender (same as crm/page.tsx).
 export default function AdminLogsPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminLogsContent />
+    </Suspense>
+  );
+}
+
+function AdminLogsContent() {
   const currentUser = useCurrentUser();
   if (currentUser.role !== "super-admin") redirect("/dashboard");
+  const router = useRouter();
+  const pathname = usePathname();
+  // The tab lives in the URL, so ?tab=errors (the new-error notification) works
+  // even when this page is already open.
+  const tab: Tab = useSearchParams().get("tab") === "errors" ? "errors" : "activity";
 
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -161,6 +166,7 @@ export default function AdminLogsPage() {
   const [customTo, setCustomTo] = useState("");
   const [users, setUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
   const [actorFilter, setActorFilter] = useState("");
+  const switchTab = (t: Tab) => router.replace(t === "errors" ? `${pathname}?tab=errors` : pathname, { scroll: false });
 
   useEffect(() => {
     fetch("/api/users").then((r) => r.json()).then((u) => setUsers(u)).catch(() => {});
@@ -294,14 +300,46 @@ export default function AdminLogsPage() {
     getCoreRowModel: getCoreRowModel(),
   });
 
-  return (
-    <div className="flex flex-col gap-6 p-4 md:p-6">
+  const header = (
+    <div className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-heading font-semibold text-grey-900">Activity Logs</h1>
+        <h1 className="text-2xl font-heading font-semibold text-grey-900">{tab === "errors" ? "Error Logs" : "Activity Logs"}</h1>
         <p className="mt-1 text-sm font-body text-grey-500">
-          Every important change across modusys, with who, what, and when.
+          {tab === "errors"
+            ? "Every error people hit in modusys: where it broke, who saw it, and how often."
+            : "Every important change across modusys, with who, what, and when."}
         </p>
       </div>
+      <div className="inline-flex rounded-lg border border-grey-100 bg-card p-0.5">
+        {(["activity", "errors"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => switchTab(t)}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm font-body transition-colors",
+              tab === t ? "bg-primary-transparent font-semibold text-primary" : "text-grey-500 hover:text-grey-800"
+            )}
+          >
+            {t === "activity" ? "Activity" : "Errors"}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  if (tab === "errors") {
+    return (
+      <div className="flex flex-col gap-6 p-4 md:p-6">
+        {header}
+        <ErrorLogs />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6 p-4 md:p-6">
+      {header}
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-48">

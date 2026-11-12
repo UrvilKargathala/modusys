@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
+import { reportRouteError } from "@/lib/server/report-error";
 
 // UniFi door-tap webhook. Since the attendance system was unified around
 // GPS+selfie, face scans no longer count as attendance — every event is
@@ -64,6 +65,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, logged: true });
   } catch (error) {
     console.error("[Modusys] UniFi webhook error:", error);
+    await reportRouteError(req, error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
