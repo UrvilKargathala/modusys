@@ -1,7 +1,7 @@
 # Modusys Mobile App: Plan (React Native, local only)
 
 Status: **planning only, no code yet.** Written 12/11/2026 after reading this repo, updated with your answers.
-Goal: one React Native codebase that runs on the iOS Simulator, an Android emulator and real phones from this MacBook, talking to the existing modusys backend. No store publishing, no production deploy.
+Goal: one React Native codebase that runs on the iOS Simulator, an Android emulator and real phones from the MacBook M5, talking to the existing modusys backend. No store publishing, no production deploy.
 
 **Decisions so far**
 
@@ -11,6 +11,7 @@ Goal: one React Native codebase that runs on the iOS Simulator, an Android emula
 | Android Studio | **Not used.** Android builds and emulator through command-line tools only. |
 | Code location | **Separate repo** `~/modusys-mobile` |
 | v1 screens | Field staff + Attendance + Owner/Admin (see §1) |
+| Dev machine | **MacBook M5** (the M4 has too little disk for Xcode). Setup in §4b |
 | App name / bundle id | Explained in §3; waiting for your pick |
 
 ---
@@ -132,7 +133,7 @@ Rules: lowercase letters, digits and dots only, no spaces or hyphens, same id on
 
 ---
 
-## 4. Development environment (this MacBook, checked 12/11/2026)
+## 4. Development environment (the M4, checked 12/11/2026)
 
 | Tool | Status | Action |
 |---|---|---|
@@ -149,6 +150,68 @@ Rules: lowercase letters, digits and dots only, no spaces or hyphens, same id on
 | PATH | `ANDROID_HOME` set | add `$ANDROID_HOME/emulator`, `$ANDROID_HOME/platform-tools`, `$ANDROID_HOME/cmdline-tools/latest/bin` in `~/.zshrc` |
 
 **Lightest Android option:** skip the emulator and use a real Android phone over USB. `adb` is already installed, so that works today with nothing extra. The emulator is only worth it for testing different screen sizes.
+
+---
+
+## 4b. Setting up the MacBook M5 (where we develop), step by step
+
+§4 above describes the M4. Everything is built on the **M5**. Claude Code's memory is per machine, so on the M5 Claude knows only what is in this repo. This file is the hand-over.
+
+### Step 1: get the modusys repo from GitHub
+
+The repo (`UrvilKargathala/modusys`) is public, so cloning needs no login:
+
+```bash
+git clone https://github.com/UrvilKargathala/modusys.git ~/modusys
+cd ~/modusys && git checkout mobile-plan-docs
+```
+
+The mobile docs are on branch `mobile-plan-docs` until it's merged into `garage-migration`. Pushing from the M5 needs a login. Do it once with `brew install gh && gh auth login` (browser sign-in, no password typed in the terminal), or use GitHub Desktop.
+
+### Step 2: install the tools
+
+1. **Xcode** from the App Store (about 40–60 GB, check `df -h /` first). Open it once, accept the licence, and add an iOS Simulator runtime (Settings → Components). Then run:
+   ```bash
+   sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+   ```
+   **Xcode is required even though Claude has an iOS Simulator tool.** That tool drives Apple's Simulator, which comes with Xcode. Building the iOS app (`xcodebuild`) also needs Xcode. After setup, Xcode stays closed. It builds in the background.
+2. Homebrew packages:
+   ```bash
+   brew install node watchman cocoapods gh
+   ```
+3. Android (no Android Studio):
+   - **Easiest:** a real Android phone over USB. `brew install --cask zulu@17 android-platform-tools`, then turn on USB debugging (see §7).
+   - **Emulator:** JDK 17 + Android command-line tools + emulator image, as listed in §4. Claude can do this when asked.
+4. **VS Code** (code.visualstudio.com). It's only for reading or tweaking files yourself.
+
+### Step 3: run the web backend on the M5 (the app talks to it)
+
+This is how the M4 runs it now, so copy the same setup:
+- `.env.local` points to the **staging** database (`127.0.0.1:5433`, `modusys_staging`) and the **staging** bucket (`127.0.0.1:3900`). Both are on the office server and reached through an SSH tunnel. There's no local Postgres and nothing touches production.
+- On the M5:
+  1. Install **Tailscale** and sign in to the same Tailscale network.
+  2. Add the M5's SSH key to `thefurn@` on the server (port **2222**, OpenSSH, not Tailscale SSH).
+  3. Start the tunnel and leave it running:
+     ```bash
+     ssh -N -p 2222 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -L 3900:127.0.0.1:3900 -L 5433:127.0.0.1:5433 thefurn@100.71.140.64
+     ```
+  4. Copy `.env.local` from the M4 to `~/modusys/.env.local` by **AirDrop or USB**. Never through chat, GitHub or email.
+  5. `cd ~/modusys && npm install && npm run dev`. The web app then answers on http://localhost:3001.
+
+### Step 4: where you write code (not in Xcode)
+
+- **Not in Xcode.** The app is TypeScript (`.tsx`). Xcode only opens the `ios/` shell. Recent Xcode has a Claude sign-in (Settings → Intelligence), but it only sees that shell and not Android, so we don't use it.
+- **Claude desktop app → Code tab**, folder `~/modusys-mobile` (or `~/modusys` for backend work). Claude writes the code, runs the builds and opens the Simulator or phone.
+- **VS Code**, same folder, when you want to read or change a file yourself.
+- **Daily loop:** ask Claude for one screen → Claude writes `src/screens/...tsx`, starts Metro (`npm start`) and runs `npx react-native run-ios` / `run-android` → the app opens. After that, every saved file (yours or Claude's) shows up within a second (Fast Refresh). Two things run at the same time: the backend (`npm run dev` in `modusys`) and Metro (`npm start` in `modusys-mobile`). The SSH tunnel also has to stay up.
+
+### Step 5: first message to Claude on the M5
+
+Open the Claude app, start a Code session in `~/modusys`, and paste:
+
+> Read docs/MOBILE_APP_PLAN.md and docs/MOBILE_DESIGN_PROMPTS.md. We're on the MacBook M5. Check §4b steps 2–3 are done, then start M0: create ~/modusys-mobile with the React Native CLI (no Expo) and get the blank app running on the iOS Simulator.
+
+Before M0, decide the **app name and bundle id** (§3, suggested `Modusys` / `com.thefurn.modusys`) and which **test phones** you have.
 
 ---
 
@@ -289,6 +352,7 @@ Reloading: save a file and the app updates instantly (Fast Refresh). Developer m
 
 ## Manual steps checklist (things only you can do)
 
+- [ ] On the M5: clone the repo, tools, backend + tunnel, `.env.local` by AirDrop (§4b)
 - [ ] Install **Xcode** from the App Store, open it once, accept licence, add an iOS Simulator runtime
 - [ ] Run `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer` (password)
 - [ ] Android: either plug in a real Android phone with USB debugging on (works today), **or** OK me to download the Android command-line tools and set up an emulator
