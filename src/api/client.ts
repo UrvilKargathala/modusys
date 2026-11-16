@@ -24,6 +24,8 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
 type Options = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
+  /** multipart/form-data upload (e.g. a selfie); fetch sets the boundary header. */
+  form?: FormData;
   /** Sign-in and similar: a 401 means "wrong details", not "signed out". */
   skipAuthRedirect?: boolean;
 };
@@ -32,13 +34,14 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
+  const hasBody = opts.body !== undefined || opts.form !== undefined;
 
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
-      method: opts.method ?? (opts.body !== undefined ? 'POST' : 'GET'),
+      method: opts.method ?? (hasBody ? 'POST' : 'GET'),
       headers,
-      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      body: opts.form ?? (opts.body !== undefined ? JSON.stringify(opts.body) : undefined),
     });
   } catch {
     throw new ApiError(0, "Can't reach the server. Check your connection and try again.");
@@ -56,4 +59,12 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
     throw new ApiError(res.status, message);
   }
   return data as T;
+}
+
+/**
+ * An <Image source> for a login-gated file on the server (e.g. an attendance
+ * selfie at /api/files/...). The token travels in a header, never in the URL.
+ */
+export function imageSource(path: string): { uri: string; headers?: Record<string, string> } {
+  return { uri: `${API_URL}${path}`, headers: token ? { Authorization: `Bearer ${token}` } : undefined };
 }

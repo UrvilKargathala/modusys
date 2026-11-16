@@ -33,8 +33,10 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Modusys uses the camera for the selfie when you check in or out.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string/>
+	<string>Modusys records where you are when you check in or out.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

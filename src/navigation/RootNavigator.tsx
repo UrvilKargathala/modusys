@@ -11,8 +11,9 @@ import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { MoreScreen } from '../screens/MoreScreen';
 import { SignInScreen } from '../screens/SignInScreen';
+import { AttendanceScreen } from '../screens/attendance/AttendanceScreen';
+import { CheckFlowScreen } from '../screens/attendance/CheckFlowScreen';
 import {
-  AttendanceScreen,
   CustomersScreen,
   DashboardScreen,
   NotificationsScreen,
@@ -81,6 +82,7 @@ export function RootNavigator() {
     >
       <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordPushed} options={{ title: 'Change Password' }} />
+      <Stack.Screen name="CheckFlow" component={CheckFlowScreen} options={{ title: 'Check in' }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       {canSee('Dashboard', role) ? <Stack.Screen name="Dashboard" component={DashboardScreen} /> : null}
       {canSee('Quotes', role) ? <Stack.Screen name="Quotes" component={QuotesScreen} /> : null}

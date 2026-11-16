@@ -3,6 +3,7 @@ import React from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,17 +15,28 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { LucideIcon } from 'lucide-react-native';
 import { colors, radius, shadow, space, touch, type } from '../theme/tokens';
-import { statusConfig, isStatusKey } from '../lib/status';
+import { attendanceConfig, isAttendanceKey, statusConfig, isStatusKey } from '../lib/status';
 
-export function Screen({ children, scroll = true, edges }: {
+export function Screen({ children, scroll = true, edges, refreshing, onRefresh }: {
   children: React.ReactNode;
   scroll?: boolean;
   edges?: ('top' | 'bottom' | 'left' | 'right')[];
+  /** Pull to refresh (scrolling screens only). */
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }) {
   return (
     <SafeAreaView style={styles.screen} edges={edges ?? ['top', 'left', 'right']}>
       {scroll ? (
-        <ScrollView contentContainerStyle={styles.screenBody} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.screenBody}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
+            ) : undefined
+          }
+        >
           {children}
         </ScrollView>
       ) : (
@@ -109,8 +121,14 @@ export function Notice({ text, tone = 'error' }: { text: string; tone?: 'error' 
   );
 }
 
-export function StatusBadge({ status }: { status: string }) {
-  const cfg = isStatusKey(status) ? statusConfig[status] : { label: status, color: colors.grey, bg: colors.greyTint };
+/** Quote/order statuses and attendance day states, from the one map in lib/status.ts. */
+export function StatusBadge({ status, label }: { status: string; label?: string }) {
+  const base = isStatusKey(status)
+    ? statusConfig[status]
+    : isAttendanceKey(status)
+      ? attendanceConfig[status]
+      : { label: status, color: colors.grey, bg: colors.greyTint };
+  const cfg = label ? { ...base, label } : base;
   return (
     <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
       <Text style={[styles.badgeText, { color: cfg.color }]}>{cfg.label}</Text>

@@ -34,6 +34,7 @@ export const colors = {
   tealTint: '#E9F5F4',
   grey: '#45505C',
   greyTint: '#F4F4F4',
+  backdrop: 'rgba(5, 16, 33, 0.4)', // behind bottom sheets
 } as const;
 
 // Raleway, the same two .ttf files as the web, is linked from assets/fonts

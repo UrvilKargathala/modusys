@@ -30,5 +30,16 @@ target 'Modusys' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Some pods (react-native-image-picker's privacy bundle) still say iOS 9.0,
+    # which current Xcode refuses. Lift any pod target below the app's minimum.
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |cfg|
+        current = cfg.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+        if current && Gem::Version.new(current) < Gem::Version.new(min_ios_version_supported)
+          cfg.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = min_ios_version_supported
+        end
+      end
+    end
   end
 end

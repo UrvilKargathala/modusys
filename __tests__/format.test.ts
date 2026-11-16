@@ -1,4 +1,4 @@
-import { formatDate, formatInr, formatInrShort, formatTime } from '../src/lib/format';
+import { formatDate, formatDay, formatHours, formatInr, formatInrShort, formatTime, istMonth, istToday } from '../src/lib/format';
 import { isStatusKey, statusConfig } from '../src/lib/status';
 import { passwordMeetsAllRequirements } from '../src/lib/password';
 import { canSee } from '../src/navigation/access';
@@ -35,4 +35,21 @@ test('owner screens follow the web nav roles', () => {
   expect(canSee('Dashboard', 'admin')).toBe(false);
   expect(canSee('Quotes', 'admin')).toBe(true);
   expect(canSee('Quotes', 'staff')).toBe(false);
+});
+
+test('attendance hours and days match the web', () => {
+  expect(formatHours(492)).toBe('8h 12m');
+  expect(formatHours(65)).toBe('1h 5m');
+  expect(formatHours(null)).toBe('0h 0m');
+  expect(formatDay('2026-11-16T00:00:00.000Z')).toBe('Mon, 16/11/2026');
+  expect(formatDay('2026-11-01')).toBe('Sun, 01/11/2026');
+});
+
+test('IST dates do not depend on the phone timezone', () => {
+  // 20:00 UTC on 15 Nov is already 01:30 on 16 Nov in India.
+  const late = new Date(Date.UTC(2026, 10, 15, 20, 0));
+  expect(istToday(late)).toBe('2026-11-16');
+  expect(istMonth(0, late)).toEqual({ from: '2026-11-01', to: '2026-11-16', label: 'November 2026' });
+  expect(istMonth(-1, late)).toEqual({ from: '2026-10-01', to: '2026-10-31', label: 'October 2026' });
+  expect(istMonth(-11, late).label).toBe('December 2025');
 });

@@ -22,7 +22,7 @@ React Native (plain CLI, **no Expo**) phone app for The Furn Enterprise's Modusy
 - Money ₹ with Indian grouping (`₹2,15,200`, `₹12.5 L`, `₹1.2 Cr`) and dates DD/MM/YYYY via `src/lib/format.ts`.
 - Token only in the Keychain (`react-native-keychain`), never AsyncStorage, never logged.
 - No secrets in this repo: anything inside an app can be read by whoever has it.
-- **Ask before adding a dependency.** Approved so far: React Navigation (native, native-stack, bottom-tabs, screens, safe-area-context), TanStack Query, React Hook Form, Zod, @hookform/resolvers, react-native-keychain, react-native-svg, lucide-react-native, react-native-asset (dev, links `assets/fonts`: run `npx react-native-asset` after changing fonts).
+- **Ask before adding a dependency.** Approved so far: React Navigation (native, native-stack, bottom-tabs, screens, safe-area-context), TanStack Query, React Hook Form, Zod, @hookform/resolvers, react-native-keychain, react-native-svg, lucide-react-native, react-native-asset (dev, links `assets/fonts`: run `npx react-native-asset` after changing fonts), react-native-image-picker (selfie camera), @react-native-community/geolocation (GPS; background updates switched off in `src/lib/device.ts`).
 - Never invent business logic (new statuses, roles, flows): ask.
 
 ## Commands
@@ -31,9 +31,9 @@ React Native (plain CLI, **no Expo**) phone app for The Furn Enterprise's Modusy
 |---|---|
 | Typecheck + lint + tests | `npm run check` (must pass before every commit) |
 | Metro bundler | `npm start` |
-| iOS Simulator | `cd ios && pod install` after adding native packages, then `npm run ios` |
+| iOS Simulator | `cd ios && LANG=en_US.UTF-8 pod install` after adding native packages (CocoaPods fails without a UTF-8 locale), then `npm run ios` |
 | Android phone (USB) | `npm run android:phone` (forwards the backend port 3001 to the phone, then builds and launches; `run-android` forwards Metro's 8081 itself). After a replug, run it again or just `adb reverse tcp:3001 tcp:3001` |
 
 Android setup on this Mac: Zulu JDK 17, SDK in `~/Library/Android/sdk` (`JAVA_HOME`/`ANDROID_HOME` in `~/.zshrc`, `sdk.dir` in the git-ignored `android/local.properties`). Test phone: OPPO CPH2001 (Android 11) over USB. With `adb reverse` the phone reaches the backend at `localhost:3001`, so no `config.local.ts` is needed.
 
-The web backend must be running (`npm run dev` in `~/modusys`, port 3001) for the app to sign in.
+The web backend must be running on port 3001 for the app to sign in: `PORT=3001 npm run dev`. Until the mobile backend branches are merged, run it from the branch that has every endpoint the app uses: today that is `mobile-attendance-history` (built on M1's `mobile-bearer-auth`), checked out as a worktree in `~/modusys-worktrees/attendance-history` so the main `~/modusys` checkout is left alone. It adds `GET /api/attendance/me/history` (own days, leaves, month counts) for My Attendance.

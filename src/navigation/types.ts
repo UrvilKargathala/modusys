@@ -1,6 +1,7 @@
 export type RootStackParamList = {
   Tabs: undefined;
   ChangePassword: undefined;
+  CheckFlow: { side: 'checkIn' | 'checkOut' };
   Notifications: undefined;
   Dashboard: undefined;
   Quotes: undefined;

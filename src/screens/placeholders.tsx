@@ -1,7 +1,7 @@
-// Screens built in later phases (M3–M5). Each shows what is coming so the
+// Screens built in later phases (M4–M5). Each shows what is coming so the
 // navigation can be tried end to end now.
 import React from 'react';
-import { BarChart3, Bell, CalendarCheck, CheckSquare, FileText, ShoppingCart, Users } from 'lucide-react-native';
+import { BarChart3, Bell, CheckSquare, FileText, ShoppingCart, Users } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { EmptyState, Screen, Title } from '../components/ui';
 
@@ -20,9 +20,6 @@ function Placeholder({ title, icon, phase, text, hideTitle }: {
   );
 }
 
-export const AttendanceScreen = () => (
-  <Placeholder title="Attendance" icon={CalendarCheck} phase="M3" text="Selfie and location check-in and check-out, today's status and your history." />
-);
 export const CustomersScreen = () => (
   <Placeholder title="Customers" icon={Users} phase="M4" text="Search customers, open details, add notes and site photos." />
 );
