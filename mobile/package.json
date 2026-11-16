@@ -6,10 +6,10 @@
     "android": "react-native run-android",
     "android:phone": "sh scripts/android-phone.sh",
     "ios": "react-native run-ios",
-    "lint": "eslint .",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint .",
     "start": "react-native start",
     "test": "jest",
-    "check": "tsc --noEmit && eslint . && jest"
+    "check": "tsc --noEmit && npm run lint && jest"
   },
   "dependencies": {
     "@hookform/resolvers": "^7.0.6",

@@ -1,35 +1,26 @@
-// The one status map, copied from the web (~/modusys/lib/status.ts: keys and
-// labels). Badge colours are the mobile ones from MOBILE_DESIGN_PROMPTS.md
-// (Prompt 0). Keep keys and labels in sync with the web.
+// The one status map. Keys and labels come from shared/status.ts, the same file
+// the web uses, so the phone can't drift from the website. Badge colours are the
+// mobile ones from MOBILE_DESIGN_PROMPTS.md (Prompt 0).
+import { statusConfig as sharedStatus, type StatusKey } from '@shared/status';
 import { colors } from '../theme/tokens';
 
-export type StatusKey =
-  | 'draft'
-  | 'approved'
-  | 'in-procurement'
-  | 'in-production'
-  | 'manufacturing'
-  | 'dispatched'
-  | 'installation'
-  | 'completed'
-  | 'cancelled';
+export type { StatusKey };
 
-export const statusConfig: Record<StatusKey, { label: string; color: string; bg: string }> = {
-  draft: { label: 'Draft', color: colors.grey, bg: colors.greyTint },
-  // Saved value stays "approved"; shown as Confirmed.
-  approved: { label: 'Confirmed', color: colors.success, bg: colors.successTint },
-  // Saved value "in-procurement": its Requirement Order is made.
-  'in-procurement': { label: 'Requirement Order', color: colors.indigo, bg: colors.indigoTint },
-  // Saved value "in-production"; shown as In Purchase.
-  'in-production': { label: 'In Purchase', color: colors.warningText, bg: colors.warningTint },
-  // Own factory only.
-  manufacturing: { label: 'In Production', color: colors.orange, bg: colors.orangeTint },
-  dispatched: { label: 'Dispatched', color: colors.cyan, bg: colors.cyanTint },
-  // Retired step; old quotes keep it.
-  installation: { label: 'Installation', color: colors.cyan, bg: colors.cyanTint },
-  completed: { label: 'Completed', color: colors.teal, bg: colors.tealTint },
-  cancelled: { label: 'Cancelled', color: colors.error, bg: colors.errorTint },
+const badgeColours: Record<StatusKey, { color: string; bg: string }> = {
+  draft: { color: colors.grey, bg: colors.greyTint },
+  approved: { color: colors.success, bg: colors.successTint }, // shown as Confirmed
+  'in-procurement': { color: colors.indigo, bg: colors.indigoTint }, // Requirement Order
+  'in-production': { color: colors.warningText, bg: colors.warningTint }, // In Purchase
+  manufacturing: { color: colors.orange, bg: colors.orangeTint }, // own factory only
+  dispatched: { color: colors.cyan, bg: colors.cyanTint },
+  installation: { color: colors.cyan, bg: colors.cyanTint }, // retired step; old quotes keep it
+  completed: { color: colors.teal, bg: colors.tealTint },
+  cancelled: { color: colors.error, bg: colors.errorTint },
 };
+
+export const statusConfig = Object.fromEntries(
+  (Object.keys(badgeColours) as StatusKey[]).map((key) => [key, { label: sharedStatus[key].label, ...badgeColours[key] }]),
+) as Record<StatusKey, { label: string; color: string; bg: string }>;
 
 export function isStatusKey(value: string): value is StatusKey {
   return value in statusConfig;
