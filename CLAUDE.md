@@ -32,6 +32,8 @@ React Native (plain CLI, **no Expo**) phone app for The Furn Enterprise's Modusy
 | Typecheck + lint + tests | `npm run check` (must pass before every commit) |
 | Metro bundler | `npm start` |
 | iOS Simulator | `cd ios && pod install` after adding native packages, then `npm run ios` |
-| Android | `npm run android` (Android tools not set up yet) |
+| Android phone (USB) | `adb reverse tcp:3001 tcp:3001 && adb reverse tcp:8081 tcp:8081` (after every replug), then `npm run android` |
+
+Android setup on this Mac: Zulu JDK 17, SDK in `~/Library/Android/sdk` (`JAVA_HOME`/`ANDROID_HOME` in `~/.zshrc`, `sdk.dir` in the git-ignored `android/local.properties`). Test phone: OPPO CPH2001 (Android 11) over USB. With `adb reverse` the phone reaches the backend at `localhost:3001`, so no `config.local.ts` is needed.
 
 The web backend must be running (`npm run dev` in `~/modusys`, port 3001) for the app to sign in.
