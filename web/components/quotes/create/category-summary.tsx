@@ -1,0 +1,118 @@
+"use client";
+
+import { useMemo } from "react";
+import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
+import {
+  evaluateFormula,
+  furnitureLineTotal,
+  hardwareLineTotal,
+  SQMM_PER_SQFT,
+  unitQtyFactor,
+} from "@/lib/quote-pricing";
+import { formatInr } from "@/lib/format";
+import type { Quote } from "@shared/mock/quote";
+import type { FurnitureLineItem } from "@shared/mock/unit-type";
+
+// Grand totals per line-item kind across every unit/cabinet in the quote.
+// Amounts scale by the unit's Qty factor (once: auto-populated lines already hold it).
+function computeTotals(
+  quote: Quote,
+  furnitureItems: ReturnType<typeof useFurniturePriceItems>,
+  hardwareItems: ReturnType<typeof useHardwarePriceItems>
+) {
+  const acc = { carcassSqft: 0, carcassAmt: 0, shutterSqft: 0, shutterAmt: 0, panelSqft: 0, panelAmt: 0, hardwareAmt: 0 };
+
+  const addFurniture = (item: FurnitureLineItem, unit: Quote["units"][number], target: "carcass" | "shutter" | "panel") => {
+    const w = evaluateFormula(item.widthFormula, { W: unit.width, D: unit.depth, H: unit.height });
+    const h = evaluateFormula(item.heightFormula, { W: unit.width, D: unit.depth, H: unit.height });
+    const sqft = ((w * h) / SQMM_PER_SQFT) * item.qty * unitQtyFactor(unit);
+    const amt = furnitureLineTotal(item, unit, furnitureItems) * unitQtyFactor(unit);
+    if (target === "carcass") { acc.carcassSqft += sqft; acc.carcassAmt += amt; }
+    else if (target === "shutter") { acc.shutterSqft += sqft; acc.shutterAmt += amt; }
+    else { acc.panelSqft += sqft; acc.panelAmt += amt; }
+  };
+
+  for (const unit of quote.units) {
+    for (const cabinet of unit.cabinets) {
+      cabinet.components.forEach((c) => addFurniture(c, unit, "carcass"));
+      cabinet.externalFinishes.forEach((c) => addFurniture(c, unit, "shutter"));
+      cabinet.panels.forEach((c) => addFurniture(c, unit, "panel"));
+      for (const hw of cabinet.hardware) {
+        acc.hardwareAmt += hardwareLineTotal(hw, unit, hardwareItems) * unitQtyFactor(unit);
+      }
+    }
+  }
+  return acc;
+}
+
+export function CategorySummary({ quote }: { quote: Quote }) {
+  const furnitureItems = useFurniturePriceItems();
+  const hardwareItems = useHardwarePriceItems();
+  const totals = useMemo(
+    () => computeTotals(quote, furnitureItems, hardwareItems),
+    [quote, furnitureItems, hardwareItems]
+  );
+
+  const combined = totals.carcassAmt + totals.shutterAmt + totals.panelAmt + totals.hardwareAmt;
+  const fmtSqft = (n: number) => (n ? n.toFixed(3) : "—");
+
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className="text-xs font-body font-semibold uppercase tracking-wide text-grey-900">Category Summary</h3>
+      <div className="overflow-x-auto rounded-lg border border-grey-100 bg-white">
+        <table className="w-full text-left">
+          <thead className="bg-primary">
+            <tr>
+              <th className="whitespace-nowrap px-3 py-1 text-xs font-body font-bold uppercase tracking-wide text-white">
+                Category
+              </th>
+              <th className="whitespace-nowrap px-3 py-1 text-right text-xs font-body font-bold uppercase tracking-wide text-white">
+                Sq.ft
+              </th>
+              <th className="whitespace-nowrap px-3 py-1 text-right text-xs font-body font-bold uppercase tracking-wide text-white">
+                Amount
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-t border-grey-100">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-number text-grey-900">Carcass Total</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm [font-family:var(--font-manrope)] text-grey-500">{fmtSqft(totals.carcassSqft)}</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm [font-family:var(--font-manrope)] text-grey-800">
+                {formatInr(totals.carcassAmt)}
+              </td>
+            </tr>
+            <tr className="border-t border-grey-100">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-number text-grey-900">Shutter Total</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm [font-family:var(--font-manrope)] text-grey-500">{fmtSqft(totals.shutterSqft)}</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm [font-family:var(--font-manrope)] text-grey-800">
+                {formatInr(totals.shutterAmt)}
+              </td>
+            </tr>
+            <tr className="border-t border-grey-100">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-number text-grey-900">Other Panel Total</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm [font-family:var(--font-manrope)] text-grey-500">{fmtSqft(totals.panelSqft)}</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm [font-family:var(--font-manrope)] text-grey-800">
+                {formatInr(totals.panelAmt)}
+              </td>
+            </tr>
+            <tr className="border-t border-grey-100">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-number text-grey-900">Hardware Total</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-body text-grey-500">—</td>
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm [font-family:var(--font-manrope)] text-grey-800">
+                {formatInr(totals.hardwareAmt)}
+              </td>
+            </tr>
+            <tr className="border-t-2 border-grey-100 bg-light-600/40">
+              <td className="whitespace-nowrap px-3 py-1 text-sm font-number font-semibold text-grey-900">Combined Total</td>
+              <td className="whitespace-nowrap px-3 py-1" />
+              <td className="whitespace-nowrap px-3 py-1 text-right text-sm font-semibold [font-family:var(--font-manrope)] text-grey-900">
+                {formatInr(combined)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

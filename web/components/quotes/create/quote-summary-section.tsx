@@ -1,0 +1,50 @@
+"use client";
+
+import { useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { CategorySummary } from "@/components/quotes/create/category-summary";
+import { PricingSummary } from "@/components/quotes/create/pricing-summary";
+import { RemarkSection } from "@/components/quotes/create/remark-section";
+import type { Quote } from "@shared/mock/quote";
+import { cn } from "@/lib/utils";
+
+export function QuoteSummarySection({
+  quote,
+  onChange,
+  onSaveRemark,
+  bare = false,
+}: {
+  quote: Quote;
+  onChange: (patch: Partial<Quote>) => void;
+  // Leave out to keep the remark with the page's other unsaved changes (Requirement Order).
+  onSaveRemark?: () => void;
+  // Shown inside a tab: no frame, no collapse header (the tab name is the title).
+  bare?: boolean;
+}) {
+  const [collapsedState, setCollapsed] = useState(true);
+  const collapsed = !bare && collapsedState;
+
+  return (
+    <section className={cn("flex flex-col gap-4 quote-form", !bare && "rounded-xl border border-blush bg-blush", !bare && (collapsed ? "p-4" : "p-6"))}>
+      {!bare && (
+        <button
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          className="flex items-center gap-2 text-left"
+          aria-label={collapsed ? "Expand Quote Summary" : "Collapse Quote Summary"}
+        >
+          {collapsed ? <ChevronRight className="h-4 w-4 text-grey-400" /> : <ChevronDown className="h-4 w-4 text-grey-400" />}
+          <h2 className="font-heading text-lg font-semibold text-grey-900">Quote Summary</h2>
+        </button>
+      )}
+
+      <div className={cn("grid grid-cols-1 gap-3 lg:grid-cols-2", collapsed && "hidden")}>
+        <div className="flex flex-col gap-3">
+          <CategorySummary quote={quote} />
+          <RemarkSection quote={quote} onChange={onChange} onSave={onSaveRemark} />
+        </div>
+        <PricingSummary quote={quote} onChange={onChange} />
+      </div>
+    </section>
+  );
+}

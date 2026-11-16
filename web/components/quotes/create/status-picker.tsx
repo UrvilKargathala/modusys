@@ -1,0 +1,149 @@
+"use client";
+
+import { useState } from "react";
+import { Check, ChevronDown, ClipboardList } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useOwnFactory } from "@/lib/store/quote-template-store";
+import { nextStatuses, statusConfig, statusPickerClass, type StatusKey, type StatusNote } from "@shared/status";
+import { cn } from "@/lib/utils";
+
+// Native <select><option> can't reliably show a background color across
+// browsers, so unlike other pickers in this app the trigger AND the options
+// need real DOM elements — same Popover + button-list pattern as
+// CustomerPicker/MaterialReferenceSelect, just with each row showing its
+// statusConfig badge colors instead of plain text.
+export function StatusPicker({
+  value,
+  onChange,
+  className,
+}: {
+  value: StatusKey;
+  // Every status change comes with the date and remark typed in the popup.
+  onChange: (status: StatusKey, note?: StatusNote) => void;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  // Changing the status asks for a date (default today) and a remark (required).
+  const [noteFor, setNoteFor] = useState<StatusKey | null>(null);
+  const [noteDate, setNoteDate] = useState("");
+  const [reason, setReason] = useState("");
+  const cfg = statusConfig[value] ?? statusConfig.draft;
+  // Only Draft, Confirmed and Cancelled are picked here (the flow's back / next rules still apply). Requirement Order has its own button
+  // on a Confirmed quote; the later steps (In Purchase … Dispatched) follow the orders by themselves.
+  const ownFactory = useOwnFactory();
+  const statusOptions: StatusKey[] = ["draft", "approved", "cancelled"];
+  const allowed = new Set<StatusKey>([value, ...nextStatuses(value, ownFactory)]);
+  const askFor = (s: StatusKey) => {
+    setReason("");
+    setNoteDate(new Date().toLocaleDateString("en-CA"));
+    setNoteFor(s);
+  };
+  // Requirement Order makes the quote's Requirement Order (quotesStore.saveQuote); In Purchase follows once a PO is made from it.
+  const makesRo = (s: StatusKey | null) => s === "in-procurement";
+
+  return (
+    <>
+    <span className="flex w-full items-center gap-1">
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        className={cn(
+          "flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-grey-100 px-3 text-sm font-body font-medium outline-none focus:border-primary",
+          statusPickerClass[(value in statusConfig ? value : "draft") as StatusKey],
+          className
+        )}
+      >
+        {cfg.label}
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-56 p-1.5">
+        <div className="flex flex-col gap-1">
+          {statusOptions.map((s) => {
+            return (
+              <button data-opt
+                key={s}
+                type="button"
+                disabled={!allowed.has(s)}
+                title={allowed.has(s) ? undefined : "Statuses go one step at a time"}
+                onClick={() => {
+                  setOpen(false);
+                  // Every change, forward or back, asks for the date and a remark.
+                  if (s !== value) askFor(s);
+                }}
+                className={cn(
+                  "flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-sm font-body font-medium transition-colors",
+                  // Steps not reachable yet: plain grey (readable), not a faded colour.
+                  allowed.has(s) ? [statusPickerClass[s], "hover:brightness-95"] : "cursor-not-allowed bg-light-600 text-grey-500"
+                )}
+              >
+                {statusConfig[s].label}
+                {s === value && <Check className="h-3.5 w-3.5 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+    {/* A Confirmed quote becomes a Requirement Order here (same date + remark popup); that makes its Requirement Order. */}
+    {value === "approved" && (
+      <button
+        type="button"
+        onClick={() => askFor("in-procurement")}
+        title="Make Requirement Order"
+        aria-label="Make Requirement Order"
+        className="flex h-7 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-grey-100 bg-card px-2 text-xs font-body font-medium text-primary hover:bg-primary-transparent"
+      >
+        <ClipboardList className="h-3.5 w-3.5" /> Make RO
+      </button>
+    )}
+    </span>
+    <Dialog open={!!noteFor} onOpenChange={(o) => !o && setNoteFor(null)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{noteFor === "cancelled" ? "Cancel this quote?" : `Move this quote to ${noteFor ? statusConfig[noteFor].label : ""}?`}</DialogTitle>
+          <DialogDescription>
+            {makesRo(noteFor) ? "Its Requirement Order is made, ready to send its lines to purchase orders. It moves to In Purchase once the first purchase order is made. " : ""}The date and remark are kept in the quote&apos;s Remark.
+          </DialogDescription>
+        </DialogHeader>
+        <label className="flex flex-col gap-1 text-sm font-body text-grey-700">
+          {noteFor ? `${statusConfig[noteFor].label} on` : ""}
+          <input
+            type="date"
+            className="h-9 rounded-lg border border-grey-100 bg-card px-3 text-sm font-body text-grey-900 outline-none focus:border-primary"
+            value={noteDate}
+            onChange={(e) => setNoteDate(e.target.value)}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-body text-grey-700">
+          {noteFor === "cancelled" ? "Reason" : "Remark"}
+          <textarea
+            autoFocus
+            rows={3}
+            placeholder={noteFor === "cancelled" ? "Reason for cancelling" : "e.g. confirmed by client on call"}
+            className="w-full rounded-lg border border-grey-100 bg-card px-3 py-2 text-sm font-body text-grey-900 outline-none focus:border-primary"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+        </label>
+        <DialogFooter className="gap-2">
+          <Button type="button" variant="outline" onClick={() => setNoteFor(null)}>
+            Back
+          </Button>
+          <Button
+            type="button"
+            variant={noteFor === "cancelled" ? "destructive" : "default"}
+            disabled={!noteDate || !reason.trim()}
+            onClick={() => {
+              if (noteFor) onChange(noteFor, { date: noteDate, remark: reason.trim() });
+              setNoteFor(null);
+            }}
+          >
+            {noteFor === "cancelled" ? "Cancel quote" : `Mark ${noteFor ? statusConfig[noteFor].label : ""}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
+  );
+}

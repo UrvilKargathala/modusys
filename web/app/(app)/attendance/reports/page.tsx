@@ -1,0 +1,347 @@
+import { SelectField } from "@/components/shared/select-field";
+import { getManagedEmployeeIds } from "@backend/server/managed-employees";
+import { redirect } from "next/navigation";
+import { prisma } from "@backend/server/prisma";
+import { getSessionUser } from "@backend/server/require-user";
+import { getCurrentEmployee } from "@backend/server/current-employee";
+import {
+  workingMinutes,
+  weekdaysBetween,
+  istMidnight,
+  istDateString,
+  REPORT_HIDDEN_NAMES,
+} from "@shared/attendance-config";
+import { loadPayroll, payrollEmployeeSelect } from "@backend/server/payroll-data";
+import { Card } from "@/components/ui/card";
+import { Download } from "lucide-react";
+
+export const dynamic = "force-dynamic";
+
+function toYmd(d: Date) {
+  return d.toISOString().split("T")[0];
+}
+
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string; employeeId?: string; department?: string; preset?: string }>;
+}) {
+  const user = await getSessionUser();
+  if (!user) redirect("/sign-in");
+  const isSuper = user.role === "super-admin";
+  // Non-super-admins see only their own row. Resolve their Employee once and
+  // pin every filter to that id — the dept/employee dropdowns won't render.
+  const selfEmployee = isSuper ? null : (await getCurrentEmployee()).employee;
+
+  const sp = await searchParams;
+
+  // All ranges expressed in the IST calendar so a Vercel (UTC) request lands
+  // on the same day the user sees at their desk.
+  const today = istMidnight();
+  const todayYmd = istDateString();
+  const [y, m, d] = todayYmd.split("-").map(Number);
+  let fromDate: Date;
+  let toDate: Date;
+  if (sp.preset === "week") {
+    // Monday-of-this-week in the IST calendar.
+    const dayOfWeek = new Date(`${todayYmd}T00:00:00Z`).getUTCDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    fromDate = new Date(today);
+    fromDate.setUTCDate(fromDate.getUTCDate() + mondayOffset);
+    toDate = today;
+  } else if (sp.preset === "last-month") {
+    const prev = new Date(Date.UTC(y, m - 2, 1));
+    const lastOfPrev = new Date(Date.UTC(y, m - 1, 0));
+    fromDate = istMidnight(prev.toISOString().slice(0, 10));
+    toDate = istMidnight(lastOfPrev.toISOString().slice(0, 10));
+  } else if (sp.from && sp.to) {
+    fromDate = istMidnight(sp.from);
+    toDate = istMidnight(sp.to);
+  } else {
+    fromDate = istMidnight(`${y}-${String(m).padStart(2, "0")}-01`);
+    toDate = today;
+  }
+  void d;
+
+  const workingDays = weekdaysBetween(fromDate, toDate);
+
+  const managedIds = await getManagedEmployeeIds();
+  const employees = await prisma.employee.findMany({
+    where: isSuper
+      ? {
+          isActive: true,
+          name: { notIn: REPORT_HIDDEN_NAMES },
+          id: { in: sp.employeeId ? managedIds.filter((id) => id === sp.employeeId) : managedIds },
+          ...(sp.department ? { department: sp.department } : {}),
+        }
+      : { id: selfEmployee?.id ?? "__none__" },
+    select: { id: true, name: true, department: true, employeeNumber: true },
+    orderBy: { name: "asc" },
+  });
+  const employeeIds = employees.map((e) => e.id);
+  const departments = isSuper
+    ? Array.from(
+        new Set(
+          (await prisma.employee.findMany({
+            where: { isActive: true, name: { notIn: REPORT_HIDDEN_NAMES }, id: { in: managedIds } },
+            select: { department: true },
+          }))
+            .map((e) => e.department)
+            .filter((d): d is string => !!d)
+        )
+      ).sort()
+    : [];
+
+  const records = await prisma.attendanceRecord.findMany({
+    where: { employeeId: { in: employeeIds }, date: { gte: fromDate, lte: toDate } },
+  });
+
+  type Row = {
+    id: string;
+    name: string;
+    employeeNumber: string | null;
+    department: string | null;
+    daysPresent: number;
+    workingDays: number;
+    fullDays: number;
+    halfDays: number;
+    totalMinutes: number;
+    lateCount: number;
+    earlyExitCount: number;
+    leaveDays: number;
+    absences: number;
+  };
+  const rows: Row[] = employees.map((e) => ({
+    id: e.id,
+    name: e.name,
+    employeeNumber: e.employeeNumber,
+    department: e.department,
+    daysPresent: 0,
+    workingDays,
+    fullDays: 0,
+    halfDays: 0,
+    totalMinutes: 0,
+    lateCount: 0,
+    earlyExitCount: 0,
+    leaveDays: 0,
+    absences: 0,
+  }));
+  const byId = new Map(rows.map((r) => [r.id, r]));
+
+  for (const r of records) {
+    const row = byId.get(r.employeeId);
+    if (!row) continue;
+    row.daysPresent++;
+    row.totalMinutes += r.workingMinutes ?? workingMinutes(r.checkIn, r.checkOut);
+    if (r.dayStatus === "FULL_DAY") row.fullDays++;
+    else if (r.dayStatus === "HALF_DAY") row.halfDays++;
+    if (r.isLate) row.lateCount++;
+    if (r.isEarlyExit) row.earlyExitCount++;
+  }
+  // Leave and absence from the payroll engine: each employee's own weekly offs and holidays, the same numbers as Payroll.
+  // Late / early counts too, once the employee has a schedule (otherwise the stored company-policy flags stay).
+  const pay = await loadPayroll(toYmd(fromDate), toYmd(toDate), await prisma.employee.findMany({ where: { id: { in: employeeIds } }, select: payrollEmployeeSelect }));
+  for (const p of pay) {
+    const row = byId.get(p.employee.id);
+    if (!row) continue;
+    row.leaveDays = p.summary.leaveDays;
+    row.absences = p.summary.absentDays;
+    row.workingDays = p.summary.scheduledDays;
+    row.totalMinutes = p.summary.actualMinutes;
+    if (!p.summary.issues.includes("NO_SCHEDULE")) {
+      row.lateCount = p.summary.lateDays;
+      row.earlyExitCount = p.summary.earlyDays;
+    }
+  }
+
+  const totalMinutes = rows.reduce((s, r) => s + r.totalMinutes, 0);
+  const fullDays = rows.reduce((s, r) => s + r.fullDays, 0);
+  const halfDays = rows.reduce((s, r) => s + r.halfDays, 0);
+  const lateArrivals = rows.reduce((s, r) => s + r.lateCount, 0);
+  const earlyExits = rows.reduce((s, r) => s + r.earlyExitCount, 0);
+  const absences = rows.reduce((s, r) => s + r.absences, 0);
+  const onLeaveTotal = rows.reduce((s, r) => s + r.leaveDays, 0);
+  const scheduledTotal = rows.reduce((s, r) => s + r.workingDays, 0);
+  const avgHoursPerEmp = scheduledTotal ? totalMinutes / 60 / scheduledTotal : 0;
+
+  const csvHref = `/api/attendance/reports?format=csv&from=${toYmd(fromDate)}&to=${toYmd(toDate)}${sp.employeeId ? `&employeeId=${sp.employeeId}` : ""}${sp.department ? `&department=${encodeURIComponent(sp.department)}` : ""}`;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold text-grey-900">Attendance Reports</h1>
+          <p className="text-sm font-body text-grey-500">
+            Attendance is captured via app GPS + selfie check-in. Standard hours 10:00 AM – 6:30 PM IST; late = check-in after 10:15 AM (informational only). Absence follows each employee's own weekly offs and holidays (set on Employees).
+          </p>
+        </div>
+        <a
+          href={csvHref}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-body font-medium text-white hover:bg-primary/90"
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </a>
+      </div>
+
+      {/* Filters */}
+      <Card className="p-4">
+        <form className={`grid grid-cols-1 gap-3 ${isSuper ? "md:grid-cols-5" : "md:grid-cols-3"}`}>
+          <input type="hidden" name="preset" value="custom" />
+          <label className="flex flex-col gap-1 text-xs font-body font-medium text-grey-500">
+            From
+            <input
+              type="date"
+              name="from"
+              defaultValue={toYmd(fromDate)}
+              className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-body font-medium text-grey-500">
+            To
+            <input
+              type="date"
+              name="to"
+              defaultValue={toYmd(toDate)}
+              className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900"
+            />
+          </label>
+          {isSuper && (
+            <>
+              <label className="flex flex-col gap-1 text-xs font-body font-medium text-grey-500">
+                Department
+                <SelectField
+                  name="department"
+                  defaultValue={sp.department || ""}
+                  className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900"
+                >
+                  <option value="">All</option>
+                  {departments.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </SelectField>
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-body font-medium text-grey-500">
+                Employee
+                <SelectField
+                  name="employeeId"
+                  defaultValue={sp.employeeId || ""}
+                  className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900"
+                >
+                  <option value="">All</option>
+                  {employees.map((e) => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
+                </SelectField>
+              </label>
+            </>
+          )}
+          <div className="flex items-end">
+            <button
+              type="submit"
+              className="h-9 w-full rounded-md bg-primary text-sm font-body font-medium text-white hover:bg-primary/90"
+            >
+              Apply
+            </button>
+          </div>
+        </form>
+        <div className="mt-3 flex gap-2 text-xs">
+          <a href="/attendance/reports?preset=week" className="rounded-full border border-grey-200 px-3 py-1 text-grey-600 hover:bg-grey-50">This Week</a>
+          <a href="/attendance/reports" className="rounded-full border border-grey-200 px-3 py-1 text-grey-600 hover:bg-grey-50">This Month</a>
+          <a href="/attendance/reports?preset=last-month" className="rounded-full border border-grey-200 px-3 py-1 text-grey-600 hover:bg-grey-50">Last Month</a>
+        </div>
+      </Card>
+
+      {/* Summary */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-8">
+        <SummaryCard label="Total Hours" value={(totalMinutes / 60).toFixed(1)} />
+        <SummaryCard label="Avg / Emp / Day" value={avgHoursPerEmp.toFixed(1)} />
+        <SummaryCard label="Full Days" value={fullDays.toString()} tone="success" />
+        <SummaryCard label="Half Days" value={halfDays.toString()} tone="orange" />
+        <SummaryCard label="Late" value={lateArrivals.toString()} tone="warning" />
+        <SummaryCard label="Early Exits" value={earlyExits.toString()} tone="warning" />
+        <SummaryCard label="On Leave" value={onLeaveTotal.toString()} tone="warning" />
+        <SummaryCard label="Absences" value={absences.toString()} tone="error" />
+      </div>
+
+      {/* Per-employee table */}
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-light-600 text-left text-xs font-heading font-medium uppercase tracking-wider text-grey-500">
+                <th className="px-6 py-3">Employee</th>
+                <th className="px-6 py-3">Emp No</th>
+                <th className="px-6 py-3">Dept</th>
+                <th className="px-6 py-3">Days Present</th>
+                <th className="px-6 py-3">Working Days</th>
+                <th className="px-6 py-3">Full Days</th>
+                <th className="px-6 py-3">Half Days</th>
+                <th className="px-6 py-3">Total Hours</th>
+                <th className="px-6 py-3">Avg / Day</th>
+                <th className="px-6 py-3">Late</th>
+                <th className="px-6 py-3">Early Exit</th>
+                <th className="px-6 py-3">Leave</th>
+                <th className="px-6 py-3">Absent</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-grey-100">
+              {rows.map((r) => (
+                <tr key={r.id} className="hover:bg-light-600/50">
+                  <td className="px-6 py-3 text-sm font-body font-medium text-grey-900">
+                    <a href={`/attendance/reports/${r.id}?from=${toYmd(fromDate)}&to=${toYmd(toDate)}`} className="text-primary hover:underline">{r.name}</a>
+                  </td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-500">{r.employeeNumber || "-"}</td>
+                  <td className="px-6 py-3 text-sm font-body text-grey-500">{r.department || "-"}</td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-700">{r.daysPresent}</td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-500">{r.workingDays}</td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-success">{r.fullDays}</td>
+                  <td
+                    className={`px-6 py-3 text-sm font-number font-light ${r.halfDays > 3 ? "text-orange font-medium" : "text-grey-700"}`}
+                  >
+                    {r.halfDays}
+                  </td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-700">{(r.totalMinutes / 60).toFixed(1)}</td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-700">
+                    {r.daysPresent > 0 ? (r.totalMinutes / 60 / r.daysPresent).toFixed(1) : "0.0"}
+                  </td>
+                  <td
+                    className={`px-6 py-3 text-sm font-number font-light ${r.lateCount > 5 ? "text-error font-medium" : "text-grey-700"}`}
+                  >
+                    {r.lateCount}
+                  </td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-700">{r.earlyExitCount}</td>
+                  <td className="px-6 py-3 text-sm font-number font-light text-grey-700">{r.leaveDays}</td>
+                  <td
+                    className={`px-6 py-3 text-sm font-number font-light ${r.absences > 2 ? "text-error font-medium" : "text-grey-700"}`}
+                  >
+                    {r.absences}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, tone }: { label: string; value: string; tone?: "warning" | "error" | "success" | "orange" }) {
+  const valueColor =
+    tone === "error"
+      ? "text-error"
+      : tone === "warning"
+      ? "text-warning-900"
+      : tone === "success"
+      ? "text-success"
+      : tone === "orange"
+      ? "text-orange"
+      : "text-grey-900";
+  return (
+    <Card className="p-4">
+      <p className="text-xs font-body text-grey-500">{label}</p>
+      <p className={`mt-1 font-number font-light text-2xl font-light ${valueColor}`}>{value}</p>
+    </Card>
+  );
+}

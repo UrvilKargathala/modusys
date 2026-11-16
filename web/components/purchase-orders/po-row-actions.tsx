@@ -1,0 +1,151 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Eye, PackageCheck, Copy, Download, FileText, FileSpreadsheet, ReceiptText, Trash2 } from "lucide-react";
+import { NewPoDialog } from "@/components/purchase-orders/new-po-dialog";
+import { useOwnFactory } from "@/lib/store/quote-template-store";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { PACKING_PDF_PARTS, PO_EXCEL_PARTS, PO_PDF_PARTS, partLabel } from "@/lib/purchase-order-export";
+import { purchaseOrdersStore, usePurchaseOrders } from "@/lib/store/purchase-orders-store";
+import { toastStore } from "@/lib/store/toast-store";
+import { nextCopyNumber, type PurchaseOrder } from "@shared/purchase-order";
+
+// The row action icons shared by the PO lists and the Packing tab: View, (Packing), Download menu, Copy, Delete.
+// viewHref: where the eye icon goes (default: the PO / invoice editor). packingSlips: a proforma's Download menu lists the three Packing Slip PDFs
+// only on the Packing tab. workOrder: the Production tab adds a Production Work Order PDF after Proforma Invoice With Components.
+// wo: a row of the Work Order list stands for one Work Order of the PI: its downloads are of that Work Order, there is no Copy, and Delete
+// removes only that Work Order (its lines go back to Pending on the PI).
+// extra: more buttons shown first (e.g. the Manufacturing list's History).
+export function PoRowActions({ po, proforma, base, showPacking = false, viewHref, packingSlips = false, workOrder = false, wo, extra }: { po: PurchaseOrder; proforma: boolean; base: string; showPacking?: boolean; viewHref?: string; packingSlips?: boolean; workOrder?: boolean; wo?: { id: string; no: string; onDelete: () => Promise<void>; title?: string; description?: string; done?: string }; extra?: React.ReactNode }) {
+  const woQuery = wo ? `wo=${encodeURIComponent(wo.id)}` : "";
+  const router = useRouter();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  // Purchase Order → Proforma Invoice (one chain): opens the PO's invoice when it has one, otherwise makes it.
+  const [piOpen, setPiOpen] = useState(false);
+  const pi = usePurchaseOrders().find((o) => !!o.material.proforma && o.material.fromPoId === po.id);
+  // Only a company with its own factory goes on from the PO to a Proforma Invoice.
+  const ownFactory = useOwnFactory();
+  // Copy = a new Pending PO with the same vendor, material and rows; its number is the next one after the original's (editable before saving).
+  const copyPo = async () => {
+    const { id: _id, createdAt: _c, vendorName: _v, status: _s, lines, ...rest } = po;
+    try {
+      // A copied invoice is not the one that follows the PO, so it drops the link.
+      const created = await purchaseOrdersStore.create({ ...rest, material: { ...rest.material, fromPoId: undefined }, poNumber: nextCopyNumber(po.poNumber, purchaseOrdersStore.getSnapshot().map((o) => o.poNumber)), lines: lines.map(({ id: _l, ...l }) => l) });
+      toastStore.show("Purchase order copied", "success");
+      router.push(`${base}/${created.id}?copy=1`);
+    } catch (e) {
+      toastStore.show(e instanceof Error ? e.message : "Could not copy", "error");
+    }
+  };
+  return (
+    <div className="flex items-center justify-end">
+                      {extra}
+                      <Tooltip>
+                        <TooltipTrigger
+                          aria-label="View"
+                          onClick={() => router.push(viewHref ?? `${base}/${po.id}`)}
+                          className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </TooltipTrigger>
+                        <TooltipContent>View</TooltipContent>
+                      </Tooltip>
+                      {showPacking && proforma && (
+                        <Tooltip>
+                          <TooltipTrigger
+                            aria-label="Packing"
+                            onClick={() => router.push(`/proforma-invoices/packing/${po.id}`)}
+                            className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                          >
+                            <PackageCheck className="h-4 w-4" />
+                          </TooltipTrigger>
+                          <TooltipContent>Packing</TooltipContent>
+                        </Tooltip>
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          aria-label="Download"
+                          title="Download"
+                          className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                        >
+                          <Download className="h-4 w-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-max min-w-72">
+                          <DropdownMenuGroup>
+                          <DropdownMenuLabel>PDF</DropdownMenuLabel>
+                          {(proforma ? [...PO_PDF_PARTS.filter((p) => p.key !== "full" && p.key !== "ledger" && (packingSlips || p.key !== "components")).flatMap((p) => (p.key === "components" ? [p, ...PACKING_PDF_PARTS] : p.key === "cabinets" && workOrder ? [p, { key: "work-order" as const, label: "Production Work Order" }] : [p])), { key: "cutlist" as const, label: "Cut List" }] : PO_PDF_PARTS).map((p) => (
+                            <DropdownMenuItem key={`pdf-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?${[p.key === "full" ? "" : `part=${p.key}`, woQuery].filter(Boolean).join("&")}`, "_blank")}>
+                              <FileText className="h-4 w-4 text-grey-400" />
+                              {p.key === "work-order" ? p.label : partLabel(p.label, proforma)}
+                            </DropdownMenuItem>
+                          ))}
+                          </DropdownMenuGroup>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuGroup>
+                          <DropdownMenuLabel>Excel</DropdownMenuLabel>
+                          {PO_EXCEL_PARTS.filter((p) => !proforma || p.key !== "full" && p.key !== "ledger").map((p) => (
+                            <DropdownMenuItem key={`xls-${p.key}`} className="gap-2 whitespace-nowrap" onClick={() => window.open(`/purchase-orders/${po.id}/pdf?format=excel${p.key === "full" ? "" : `&part=${p.key}`}${woQuery ? `&${woQuery}` : ""}`, "_blank")}>
+                              <FileSpreadsheet className="h-4 w-4 text-grey-400" />
+                              {partLabel(p.label, proforma)}
+                            </DropdownMenuItem>
+                          ))}
+                          </DropdownMenuGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      {!wo && (
+                      <Tooltip>
+                        <TooltipTrigger
+                          aria-label="Copy"
+                          onClick={() => void copyPo()}
+                          className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </TooltipTrigger>
+                        <TooltipContent>Copy</TooltipContent>
+                      </Tooltip>
+                      )}
+                      {!proforma && ownFactory && (
+                        <Tooltip>
+                          <TooltipTrigger
+                            aria-label={pi ? "Open Proforma Invoice" : "Make Proforma Invoice"}
+                            onClick={() => (pi ? router.push(`/proforma-invoices/${pi.id}`) : setPiOpen(true))}
+                            className={`rounded-md p-1.5 transition-colors hover:bg-light-600 hover:text-primary ${pi ? "text-primary" : "text-grey-400"}`}
+                          >
+                            <ReceiptText className="h-4 w-4" />
+                          </TooltipTrigger>
+                          <TooltipContent>{pi ? `Open Proforma Invoice ${pi.poNumber}` : "Make Proforma Invoice"}</TooltipContent>
+                        </Tooltip>
+                      )}
+                      <Tooltip>
+                        <TooltipTrigger
+                          aria-label="Delete"
+                          onClick={() => setConfirmDelete(true)}
+                          className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </TooltipTrigger>
+                        <TooltipContent>Delete</TooltipContent>
+                      </Tooltip>
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={wo ? wo.title ?? `Delete Work Order ${wo.no || "(no number)"}?` : `Delete ${proforma ? "proforma invoice" : "PO"} ${po.poNumber || "(no number)"}?`}
+        description={wo ? wo.description ?? `Only this Work Order goes: its lines go back to Pending on ${po.poNumber || "the proforma invoice"}, which stays as it is.` : "This removes it and its lines. The quote it came from is not affected."}
+        onConfirm={async () => {
+          try {
+            if (wo) await wo.onDelete();
+            else await purchaseOrdersStore.remove(po.id);
+            toastStore.show(wo?.done ?? "Deleted", "success");
+          } catch (e) {
+            toastStore.show(e instanceof Error ? e.message : "Could not delete", "error");
+          }
+          setConfirmDelete(false);
+        }}
+      />
+      {piOpen && <NewPoDialog proforma fromPo={po} open={piOpen} onOpenChange={setPiOpen} />}
+    </div>
+  );
+}

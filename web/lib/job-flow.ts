@@ -1,0 +1,48 @@
+"use client";
+
+import { asPoStatus, type PurchaseOrder } from "@shared/purchase-order";
+import { requirementState } from "@/lib/requirement-state";
+import { poDoneByPis } from "@/lib/pi-progress";
+import { jobMoveFor, remarkWithStatusNote, statusConfig } from "@shared/status";
+import { materialSpecStore } from "@/lib/store/material-spec-store";
+import { pricingListStore } from "@/lib/store/pricing-list-store";
+import { procurementStore } from "@/lib/store/procurement-store";
+import { purchaseOrdersStore } from "@/lib/store/purchase-orders-store";
+import { quoteTemplateStore } from "@/lib/store/quote-template-store";
+import { quotesStore } from "@/lib/store/quotes-store";
+import { toastStore } from "@/lib/store/toast-store";
+import { unitTypeStore } from "@/lib/store/unit-type-store";
+
+// The job (its quote) follows its orders, forward only:
+// - the first Purchase Order made for the job (Send to PO, Create Purchase Order) → In Purchase (from Confirmed or Requirement Order).
+// - own factory: a Proforma Invoice made from one of the job's POs → In Production. Dispatched once its Requirement Order is Full
+//   Complete and every line of each of the job's POs is on a Proforma Invoice, all of them Dispatched.
+// - no factory: Dispatched once its Requirement Order is Full Complete and every one of the job's POs is Dispatched (the vendors sent them).
+//   A Purchase Order's status change no longer runs this (only the order moves to its status tab); a PI's still does.
+// A cancelled or completed job, or one already at or past the step, is left alone. Each move writes a status note in the Remark.
+export async function advanceJobFromOrder(po: PurchaseOrder, created: boolean) {
+  const ownFactory = (await quoteTemplateStore.ready()).layout.ownFactory !== false;
+  const orders = purchaseOrdersStore.getSnapshot();
+  const isPi = !!po.material.proforma;
+  const quoteId = isPi ? orders.find((o) => o.id === po.material.fromPoId)?.quoteId : po.quoteId;
+  if (!quoteId) return;
+  const quote = (await quotesStore.ready()).find((q) => q.id === quoteId);
+  if (!quote) return;
+  const delivered = (o: PurchaseOrder) => asPoStatus(o.status) === "delivered";
+  let dispatched = delivered(po);
+  if (dispatched) {
+    const jobPos = orders.filter((o) => !o.material.proforma && o.quoteId === quoteId);
+    const ro = await procurementStore.forQuote(quoteId);
+    const progress = ro && requirementState(ro, orders, { materials: materialSpecStore.getSnapshot(), unitTypes: unitTypeStore.getSnapshot(), hardwareItems: pricingListStore.getHardwareSnapshot() }).progress;
+    // No Requirement Order (a PO made straight from the quote), or one with nothing to send, counts as complete.
+    const roFull = !progress || progress.total === 0 || progress.status === "full";
+    // Own factory: every line of the PO is on a Proforma Invoice and each of those PIs is Dispatched (see poDoneByPis).
+    const allDone = jobPos.length > 0 && jobPos.every((p) => (ownFactory ? poDoneByPis(p, orders, delivered) : delivered(p)));
+    dispatched = roFull && allDone;
+  }
+  const target = jobMoveFor({ ownFactory, isPi, created, dispatched, current: quote.status });
+  if (!target) return;
+  const why = target === "in-production" ? `Purchase Order ${po.poNumber || "(no number yet)"} made` : target === "manufacturing" ? `Proforma Invoice ${po.poNumber} made` : `every ${ownFactory ? "Proforma Invoice" : "Purchase Order"} of the job dispatched (last: ${po.poNumber})`;
+  quotesStore.saveQuote({ ...quote, status: target, remark: remarkWithStatusNote(quote.remark, target, { date: new Date().toISOString().slice(0, 10), remark: why }) });
+  toastStore.show(`${quote.quoteNumber} is now ${statusConfig[target].label}`, "success");
+}

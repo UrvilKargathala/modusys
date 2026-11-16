@@ -1,0 +1,685 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { Fragment, useMemo, useRef, useState } from "react";
+import { Plus, FileStack, Search, Eye, Pencil, Copy, Trash2, Download, FileDown, Printer, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, ChevronRight, Upload, FileArchive, ListOrdered, LayoutList, LayoutGrid, Layers, ClipboardList, ShoppingCart, History } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/shared/empty-state";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { useQuotes, quotesStore } from "@/lib/store/quotes-store";
+import { useCustomers } from "@/lib/store/customers-store";
+import { useMaterialItems } from "@/lib/store/material-spec-store";
+import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
+import { useUnitTypes } from "@/lib/store/unit-type-store";
+import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
+import { quoteRawTotal, quoteWaterfall } from "@/lib/quote-pricing";
+import { downloadQuoteExportZip } from "@/lib/quote-export-zip";
+import { formatInr } from "@/lib/format";
+import { toastStore } from "@/lib/store/toast-store";
+import { remarkWithStatusNote, statusConfig, statusRemarkOf, type StatusKey } from "@shared/status";
+import { printQuotesReport } from "@/lib/quotes-report";
+import { useArchitects } from "@/lib/store/architects-store";
+import { fullName } from "@shared/mock/architects";
+import { StatusPicker } from "@/components/quotes/create/status-picker";
+import { QuoteHistoryDialog } from "@/components/quotes/quote-history-dialog";
+import { CreatePoDialog } from "@/components/purchase-orders/create-po-dialog";
+import { usePurchaseOrders } from "@/lib/store/purchase-orders-store";
+import { getCurrentUser } from "@/lib/session";
+import type { Quote } from "@shared/mock/quote";
+import { cn } from "@/lib/utils";
+import { useColumnOrder } from "@/components/shared/use-column-order";
+import { TablePagination, usePagination } from "@/components/shared/table-pagination";
+
+// All Quotes columns, in their normal order (drag a heading to move one).
+const Q_HEADS: Record<string, string> = {
+  quoteNumber: "Quote No.", customer: "Customer", date: "Date", productType: "Product Type", finalAmount: "Final Amount",
+  revision: "Revision", status: "Status", actions: "Actions",
+};
+
+function PdfIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 2v6h6" />
+      <text x="12" y="17" textAnchor="middle" fill="currentColor" stroke="none" fontSize="5.5" fontWeight="700" fontFamily="system-ui">PDF</text>
+    </svg>
+  );
+}
+
+function formatDate(d: string) {
+  if (!d) return "—";
+  const parsed = new Date(d);
+  return Number.isNaN(parsed.getTime()) ? d : parsed.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function downloadCsv(filename: string, rows: (string | number)[][]) {
+  const csv = rows
+    .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// The sidebar's Quotes group: /quotes lists every quote; /quotes/confirmed and /quotes/cancelled (this same page) list only the quotes with that status.
+const VIEWS = {
+  all: { title: "All Quotes", text: "Every priced quotation across your customers", status: null },
+  draft: { title: "Draft Quotes", text: "Quotes still being prepared, not yet confirmed", status: "draft" },
+  confirmed: { title: "Confirmed Quotes", text: "Quotes the customer has confirmed", status: "approved" },
+  cancelled: { title: "Cancelled Quotes", text: "Quotes that were cancelled", status: "cancelled" },
+} as const;
+
+export default function QuotesPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const view: keyof typeof VIEWS = pathname.endsWith("/draft") ? "draft" : pathname.endsWith("/confirmed") ? "confirmed" : pathname.endsWith("/cancelled") ? "cancelled" : "all";
+  const quotes = useQuotes();
+  const customers = useCustomers();
+  const architects = useArchitects();
+  const productTypes = useMaterialItems("product-type");
+  const furnitureItems = useFurniturePriceItems();
+  const hardwareItems = useHardwarePriceItems();
+  const unitTypes = useUnitTypes();
+  const cabinetTypes = useCabinetTypes();
+  const brands = useMaterialItems("brand");
+  const hardwareCategories = useMaterialItems("category");
+  const unitOfMeasures = useMaterialItems("unit");
+  const rawMaterialTypes = useMaterialItems("raw-material-type");
+  const internalColours = useMaterialItems("internal-colour");
+  const externalColours = useMaterialItems("external-colour");
+  const tandemDrawerTypes = useMaterialItems("tandem-drawer-type");
+  const furnitureComponents = useMaterialItems("furniture-component");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusKey | "all">("all");
+  const [deleteTarget, setDeleteTarget] = useState<Quote | null>(null);
+  const [historyFor, setHistoryFor] = useState<Quote | null>(null);
+  const [poQuote, setPoQuote] = useState<Quote | null>(null);
+  const poList = usePurchaseOrders();
+  const poCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of poList) if (p.quoteId) m.set(p.quoteId, (m.get(p.quoteId) ?? 0) + 1);
+    return m;
+  }, [poList]);
+  const role = getCurrentUser().role;
+  const canCreatePo = role === "super-admin" || role === "admin";
+  type SortKey = "quoteNumber" | "customer" | "date" | "productType" | "finalAmount" | "revision" | "status";
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" } | null>(null);
+  const toggleSort = (key: SortKey) =>
+    setSort((s) => (s?.key !== key ? { key, dir: "asc" } : s.dir === "asc" ? { key, dir: "desc" } : null));
+
+  const customerName = (id: string | null) => (id ? customers.find((c) => c.id === id)?.name ?? "—" : "—");
+  const productTypeName = (id: string) => productTypes.find((p) => p.id === id)?.name ?? "—";
+  const productTypeLabel = (q: Quote) => {
+    const base = productTypeName(q.productTypeId);
+    // In brackets: the Tandem Drawer Type and the External Colour (the Shutter Finish); the Product Type itself stays as picked.
+    const tandem = tandemDrawerTypes.find((t) => t.id === q.tandemDrawerTypeId)?.name;
+    const shutter = externalColours.find((c) => c.id === q.shutterFinishId)?.name;
+    const parts = [tandem, shutter].filter(Boolean);
+    return parts.length > 0 ? `${base} (${parts.join(" + ")})` : base;
+  };
+  // PDF report of the quotes now listed (the search and status filter apply): Quote No, Date, Customer, Architect, Product Type, Final Amount, Status and its remark.
+  const pdfReport = () => {
+    const statusName = statusFilter === "all" ? "All statuses" : statusConfig[statusFilter as StatusKey]?.label ?? String(statusFilter);
+    printQuotesReport(
+      filtered.map((q) => ({
+        quoteNo: q.quoteNumber,
+        date: formatDate(q.date),
+        customer: customerName(q.customerId),
+        architect: q.architectId ? (() => { const a = architects.find((x) => x.id === q.architectId); return a ? fullName(a) : "—"; })() : "—",
+        productType: productTypeLabel(q),
+        amount: finalAmount(q),
+        status: statusConfig[q.status as StatusKey]?.label ?? q.status,
+        statusRemark: statusRemarkOf(q.remark, q.status as StatusKey),
+      })),
+      search.trim() ? `${statusName} · search "${search.trim()}"` : statusName
+    );
+  };
+  const finalAmount = (q: Quote) =>
+    quoteWaterfall(
+      quoteRawTotal(q.units, furnitureItems, hardwareItems),
+      q.markupMultiplier,
+      q.specialDiscountPct,
+      q.installationFreightIncluded
+    ).finalOffer;
+
+  const duplicateQuote = (q: Quote) => {
+    const now = new Date().toISOString();
+    const copy: Quote = {
+      ...q,
+      id: `q-${Date.now()}`,
+      quoteNumber: quotesStore.nextQuoteNumber(),
+      date: now.slice(0, 10),
+      status: "draft",
+      revision: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const saved = quotesStore.saveQuote(quotesStore.assignSubQuoteNumber(copy));
+    toastStore.show(`Duplicated as ${saved.quoteNumber}`, "success");
+  };
+
+  const exportZip = (q: Quote) => {
+    void downloadQuoteExportZip({
+      quote: q,
+      customer: q.customerId ? customers.find((c) => c.id === q.customerId) : null,
+      unitTypes, cabinetTypes, furnitureItems, hardwareItems,
+      brands, hardwareCategories, unitOfMeasures, rawMaterialTypes, internalColours, externalColours, furnitureComponents,
+    });
+  };
+
+  const openPdf = (q: Quote, mode: "download" | "print" | "unit-wise" | "unit-details" | "space-pricing" | "space-details" | "space-summary") => {
+    const url =
+      mode === "download" ? `/quotes/${q.id}/pdf?download=1`
+      : mode === "unit-wise" ? `/quotes/${q.id}/pdf?view=unit-wise&download=1`
+      : mode === "unit-details" ? `/quotes/${q.id}/pdf?view=unit-details&download=1`
+      : mode === "space-pricing" ? `/quotes/${q.id}/pdf?view=space-pricing&download=1`
+      : mode === "space-details" ? `/quotes/${q.id}/pdf?view=space-details&download=1`
+      : mode === "space-summary" ? `/quotes/${q.id}/pdf?view=space-summary&download=1`
+      : `/quotes/${q.id}/pdf`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const importRef = useRef<HTMLInputElement>(null);
+  const exportAllExcel = () => {
+    const rows = filtered.length > 0 ? filtered : quotes;
+    const stamp = new Date().toISOString().split("T")[0];
+    downloadCsv(`modusys-quotes-${stamp}.csv`, [
+      ["Quote No.", "Customer", "Date", "Product Type", "Final Amount", "Status", "Revision"],
+      ...rows.map((q) => [
+        q.quoteNumber,
+        customerName(q.customerId),
+        formatDate(q.date),
+        productTypeName(q.productTypeId),
+        finalAmount(q),
+        statusConfig[q.status as StatusKey]?.label ?? q.status,
+        q.revision,
+      ]),
+    ]);
+    toastStore.show(`Exported ${rows.length} quote${rows.length === 1 ? "" : "s"}`);
+  };
+  const onImportFile = async (file: File) => {
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const list: Quote[] = Array.isArray(parsed) ? parsed : parsed?.quotes;
+      if (!Array.isArray(list)) throw new Error("Expected a JSON array of quotes or { quotes: [...] }");
+      let added = 0;
+      for (const q of list) {
+        if (!q || typeof q !== "object" || !q.id || !q.quoteNumber) continue;
+        // ponytail: id collisions overwrite in the store — this is a restore/merge, not a diff-import.
+        quotesStore.saveQuote(q);
+        added++;
+      }
+      toastStore.show(`Imported ${added} quote${added === 1 ? "" : "s"}`);
+    } catch (e) {
+      toastStore.show(e instanceof Error ? e.message : "Import failed", "error");
+    }
+  };
+
+  const deleteQuote = (q: Quote) => {
+    quotesStore.deleteQuote(q.id);
+    toastStore.show(`${q.quoteNumber} deleted`, "success", {
+      durationMs: 10000,
+      action: { label: "Undo", onClick: () => quotesStore.saveQuote(q) },
+    });
+  };
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const base = quotes
+      .filter((quote) => !VIEWS[view].status || quote.status === VIEWS[view].status)
+      .filter((quote) => statusFilter === "all" || quote.status === statusFilter)
+      .filter(
+        (quote) =>
+          !q ||
+          quote.quoteNumber.toLowerCase().includes(q) ||
+          customerName(quote.customerId).toLowerCase().includes(q)
+      );
+    if (!sort) return base;
+    const dir = sort.dir === "asc" ? 1 : -1;
+    const val = (q: Quote): string | number => {
+      switch (sort.key) {
+        case "quoteNumber": return q.quoteNumber.toLowerCase();
+        case "customer": return customerName(q.customerId).toLowerCase();
+        case "date": return q.date ? new Date(q.date).getTime() : 0;
+        case "productType": return productTypeName(q.productTypeId).toLowerCase();
+        case "finalAmount": return finalAmount(q);
+        case "revision": return q.revision;
+        case "status": return (statusConfig[q.status as StatusKey]?.label ?? q.status).toLowerCase();
+      }
+    };
+    return [...base].sort((a, b) => {
+      const av = val(a); const bv = val(b);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quotes, customers, search, statusFilter, sort, productTypes, furnitureItems, hardwareItems, view]);
+
+  // One entry per customer: all quotes under the same customer name merge into one row (latest quote first); a customer with one quote is a plain row.
+  const entries = useMemo(() => {
+    const out: { key: string; quotes: Quote[] }[] = [];
+    const groups = new Map<string, (typeof out)[number]>();
+    for (const q of filtered) {
+      const name = customerName(q.customerId).trim().toLowerCase();
+      if (!q.customerId || name === "—") {
+        out.push({ key: q.id, quotes: [q] });
+        continue;
+      }
+      let g = groups.get(name);
+      if (!g) {
+        g = { key: name, quotes: [] };
+        groups.set(name, g);
+        out.push(g);
+      }
+      g.quotes.push(q);
+    }
+    // Latest = newest date, then newest created, then highest quote number.
+    const latestFirst = (a: Quote, b: Quote) =>
+      b.date.localeCompare(a.date) || (b.createdAt ?? "").localeCompare(a.createdAt ?? "") || b.quoteNumber.localeCompare(a.quoteNumber, undefined, { numeric: true });
+    for (const g of groups.values()) g.quotes.sort(latestFirst);
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered]);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  const { page, setPage, pageCount, paged, totalItems, pageSize } = usePagination(entries);
+  // Drag a heading to move its column (kept in this browser).
+  const qCols = useColumnOrder("quote-columns", Object.keys(Q_HEADS));
+
+  const SortHeader = ({ label, k, align = "left" }: { label: string; k: SortKey; align?: "left" | "right" }) => {
+    const active = sort?.key === k;
+    const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
+    return (
+      <th {...qCols.thProps(k)} className={cn("whitespace-nowrap px-2 py-1", align === "right" && "text-right", qCols.thClass(k))}>
+        <button
+          type="button"
+          onClick={() => toggleSort(k)}
+          className={cn(
+            "inline-flex items-center gap-1 hover:text-primary",
+            align === "right" && "ml-auto",
+            active && "text-primary"
+          )}
+        >
+          {label}
+          <Icon className={cn("h-3.5 w-3.5", !active && "text-grey-400")} />
+        </button>
+      </th>
+    );
+  };
+
+  const renderRow = (quote: Quote, sub = false) => {
+    const status = quote.status as StatusKey;
+    const cells: Record<string, React.ReactNode> = {
+      quoteNumber: (
+                        <td key="quoteNumber" className={cn("whitespace-nowrap px-2 py-0.5 font-number font-medium text-grey-800", sub && "pl-8")}>{quote.quoteNumber}</td>
+      ),
+      customer: (
+                        <td key="customer" className="whitespace-nowrap px-2 py-0.5 text-grey-700">{customerName(quote.customerId)}</td>
+      ),
+      date: (
+                        <td key="date" className="whitespace-nowrap px-2 py-0.5 font-number text-grey-500">{formatDate(quote.date)}</td>
+      ),
+      productType: (
+                        <td key="productType" className="px-2 py-0.5 text-grey-700">{productTypeLabel(quote)}</td>
+      ),
+      finalAmount: (
+                        <td key="finalAmount" className="whitespace-nowrap px-2 py-0.5 font-number font-medium text-grey-800">{formatInr(finalAmount(quote))}</td>
+      ),
+      revision: (
+                        <td key="revision" className="whitespace-nowrap px-2 py-0.5 font-number text-grey-500">{quote.revision}</td>
+      ),
+      status: (
+                        <td key="status" className="whitespace-nowrap px-2 py-0.5">
+                          <StatusPicker
+                            value={status}
+                            onChange={(next, note) => {
+                              quotesStore.saveQuote({ ...quote, status: next, ...(note ? { remark: remarkWithStatusNote(quote.remark, next, note) } : {}) });
+                              toastStore.show(`${quote.quoteNumber} marked ${statusConfig[next].label}`, "success");
+                            }}
+                            className="h-7 w-auto px-2 py-0 text-xs"
+                          />
+                        </td>
+      ),
+      actions: (
+                        <td key="actions" className="whitespace-nowrap px-2 py-0.5">
+                          <div className="flex items-center justify-end gap-1">
+                            <Tooltip>
+                              <TooltipTrigger
+                                aria-label="View"
+                                onClick={() => router.push(`/quotes/new?id=${quote.id}&mode=view`)}
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent>View</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger
+                                aria-label="Edit"
+                                onClick={() => router.push(`/quotes/new?id=${quote.id}`)}
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent>Edit</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger
+                                aria-label="History"
+                                onClick={() => setHistoryFor(quote)}
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                              >
+                                <History className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent>History</TooltipContent>
+                            </Tooltip>
+                            {canCreatePo && (
+                              <Tooltip>
+                                <TooltipTrigger
+                                  aria-label="Create Purchase Order"
+                                  onClick={() => setPoQuote(quote)}
+                                  className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                                >
+                                  <span className="relative inline-flex">
+                                    <ShoppingCart className="h-4 w-4" />
+                                    {(poCounts.get(quote.id) ?? 0) > 0 && (
+                                      <span className="absolute -right-2 -top-2 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-0.5 font-number text-[9px] leading-none text-white">
+                                        {poCounts.get(quote.id)}
+                                      </span>
+                                    )}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {(poCounts.get(quote.id) ?? 0) > 0 ? `Create Purchase Order (${poCounts.get(quote.id)} already made)` : "Create Purchase Order"}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            <Tooltip>
+                              <TooltipTrigger
+                                aria-label="Duplicate"
+                                onClick={() => duplicateQuote(quote)}
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent>Duplicate</TooltipContent>
+                            </Tooltip>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                aria-label="Export PDF"
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                              >
+                                <PdfIcon className="h-4 w-4" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-auto min-w-52">
+                                <DropdownMenuItem
+                                  onClick={() => openPdf(quote, "download")}
+                                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                                >
+                                  <Download className="h-4 w-4 shrink-0 text-grey-400" />
+                                  Download
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openPdf(quote, "print")}
+                                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                                >
+                                  <Printer className="h-4 w-4 shrink-0 text-grey-400" />
+                                  Print
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openPdf(quote, "unit-wise")}
+                                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                                >
+                                  <ListOrdered className="h-4 w-4 shrink-0 text-grey-400" />
+                                  Unit Wise Pricing
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openPdf(quote, "unit-details")}
+                                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                                >
+                                  <LayoutList className="h-4 w-4 shrink-0 text-grey-400" />
+                                  Unit Wise Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openPdf(quote, "space-pricing")}
+                                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                                >
+                                  <LayoutGrid className="h-4 w-4 shrink-0 text-grey-400" />
+                                  Space Wise Pricing
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openPdf(quote, "space-details")}
+                                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                                >
+                                  <Layers className="h-4 w-4 shrink-0 text-grey-400" />
+                                  Space Wise Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openPdf(quote, "space-summary")}
+                                  className="flex items-center gap-2.5 whitespace-nowrap px-2.5 py-2 text-sm"
+                                >
+                                  <ClipboardList className="h-4 w-4 shrink-0 text-grey-400" />
+                                  Space Details Summary
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                            <Tooltip>
+                              <TooltipTrigger
+                                aria-label="Download Manufacturing/PO/Hardware ZIP"
+                                onClick={() => exportZip(quote)}
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
+                              >
+                                <FileArchive className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent>Manufacturing / PO / Hardware (ZIP)</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger
+                                aria-label="Delete"
+                                onClick={() => setDeleteTarget(quote)}
+                                className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-error"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </TooltipTrigger>
+                              <TooltipContent>Delete</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </td>
+      ),
+    };
+    return (
+      <tr key={quote.id} className={cn("hover:bg-light-600/60", sub && "bg-light-600/40")}>{qCols.order.map((k) => cells[k])}</tr>
+    );
+  };
+
+  return (
+    <div className="-mx-2 flex flex-col gap-2 lg:-mx-4">
+      <div className="flex items-center justify-between gap-4 px-2">
+        <div className="flex flex-col gap-1">
+          <h1 className="font-heading text-2xl font-semibold text-grey-900">{VIEWS[view].title}</h1>
+          <p className="text-sm font-body text-grey-400">{VIEWS[view].text}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* A customer's quotes from quote to packing and dispatch. */}
+          <Button type="button" size="sm" variant="outline" onClick={() => router.push("/quotes/customer-history")} className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3">
+            <History className="h-4 w-4" />
+            Customer History
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={pdfReport} disabled={filtered.length === 0} className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3">
+            <FileDown className="h-4 w-4" />
+            Quote Report
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={exportAllExcel} className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3">
+            <Download className="h-4 w-4" />
+            Export
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => importRef.current?.click()} className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3">
+            <Upload className="h-4 w-4" />
+            Import
+          </Button>
+          <input
+            ref={importRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onImportFile(f);
+              e.target.value = "";
+            }}
+          />
+          <Link href="/quotes/new">
+            <Button type="button" size="sm" className="h-6 gap-1 rounded-md px-2 text-[11px] [&_svg]:h-3 [&_svg]:w-3">
+              <Plus className="h-3 w-3" />
+              Create New Quote
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {quotes.length === 0 ? (
+        <EmptyState icon={FileStack} message='No quotes yet. Click "Create New Quote" to price your first quote.' />
+      ) : (
+        <div className="flex flex-col gap-2">
+          {/* No frame, and full width: the page's side padding is cancelled (-mx) so the table runs edge to edge. */}
+          <div className="overflow-hidden">
+          <div className="flex flex-col gap-2 py-1 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative w-full lg:max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by quote no. or customer"
+                className="w-full rounded-lg border border-grey-100 bg-card py-2 pl-9 pr-3 text-sm font-body text-grey-700 outline-none placeholder:text-grey-300 focus:border-primary"
+              />
+            </div>
+            {/* Status pills only on All Quotes (Confirmed and Cancelled lists hold one status). */}
+            {view === "all" && (
+            <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setStatusFilter("all")}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-body font-medium transition-colors",
+                statusFilter === "all"
+                  ? "border-primary bg-primary-transparent text-primary"
+                  : "border-grey-100 text-grey-500 hover:bg-light-600"
+              )}
+            >
+              All
+            </button>
+            {/* Only the statuses picked on a quote: Draft, Confirmed, Cancelled (All covers the rest). */}
+            {(["draft", "approved", "cancelled"] as StatusKey[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setStatusFilter(key)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-body font-medium transition-colors",
+                  statusFilter === key
+                    ? cn(statusConfig[key].bg, statusConfig[key].color, "border-current")
+                    : "border-grey-100 text-grey-500 hover:bg-light-600"
+                )}
+              >
+                {statusConfig[key].label}
+              </button>
+            ))}
+            </div>
+            )}
+          </div>
+          {qCols.customized && (
+            <div className="flex justify-end px-2">
+              <button type="button" onClick={qCols.reset} className="text-xs font-body text-primary hover:underline">Reset columns</button>
+            </div>
+          )}
+          <div className="overflow-x-auto [&_tr>*:first-child]:pl-2 [&_tr>*:last-child]:pr-2 [&_tbody_tr]:h-8 [&_td]:align-middle">
+            <table className="w-full text-xs font-body">
+              <thead>
+                <tr className="bg-[var(--table-head)] text-left text-xs font-medium text-grey-900">
+                  {qCols.order.map((k) =>
+                    k === "actions" ? (
+                      <th key={k} {...qCols.thProps(k)} className={cn("whitespace-nowrap px-2 py-0.5 text-right", qCols.thClass(k))}>Actions</th>
+                    ) : (
+                      <SortHeader key={k} label={Q_HEADS[k]} k={k as SortKey} />
+                    )
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-8 text-center text-grey-400">
+                      {view === "all" || search.trim() ? "No quotes match your filters." : `No ${view} quotes yet.`}
+                    </td>
+                  </tr>
+                ) : (
+                  paged.map((entry) => {
+                    // A customer's quotes sit under one main row showing their latest quote; click it to open all of them.
+                    if (entry.quotes.length < 2) return renderRow(entry.quotes[0]);
+                    const isOpen = openGroups.has(entry.key);
+                    const latest = entry.quotes[0];
+                    return (
+                      <Fragment key={entry.key}>
+                        <tr
+                          onClick={() => setOpenGroups((s) => { const n = new Set(s); if (n.has(entry.key)) n.delete(entry.key); else n.add(entry.key); return n; })}
+                          className="cursor-pointer bg-primary-transparent hover:bg-light-600/60"
+                        >
+                          {qCols.order.map((k) =>
+                            k === "quoteNumber" ? (
+                              <td key={k} className="whitespace-nowrap px-2 py-0.5 font-number font-semibold text-grey-900">
+                                <span className="inline-flex items-center gap-1.5">
+                                  {isOpen ? <ChevronDown className="h-4 w-4 text-grey-500" /> : <ChevronRight className="h-4 w-4 text-grey-500" />}
+                                  {latest.quoteNumber}
+                                  <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{entry.quotes.length} quotes</span>
+                                </span>
+                              </td>
+                            ) : k === "customer" ? (
+                              <td key={k} className="whitespace-nowrap px-2 py-0.5 text-grey-700">{customerName(latest.customerId)}</td>
+                            ) : k === "date" ? (
+                              <td key={k} className="whitespace-nowrap px-2 py-0.5 font-number text-grey-500">{formatDate(latest.date)}</td>
+                            ) : k === "productType" ? (
+                              <td key={k} className="px-2 py-0.5 text-grey-700">{productTypeLabel(latest)}</td>
+                            ) : k === "finalAmount" ? (
+                              <td key={k} className="whitespace-nowrap px-2 py-0.5 font-number font-medium text-grey-800">{formatInr(finalAmount(latest))}</td>
+                            ) : (
+                              <td key={k} />
+                            )
+                          )}
+                        </tr>
+                        {isOpen && entry.quotes.map((q) => renderRow(q, true))}
+                      </Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          </div>
+
+          <TablePagination page={page} pageCount={pageCount} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
+        </div>
+      )}
+
+      {historyFor && <QuoteHistoryDialog quote={historyFor} onClose={() => setHistoryFor(null)} />}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete this quote?"
+        description={
+          deleteTarget ? `This removes ${deleteTarget.quoteNumber} and all its line items. This can be undone right after.` : ""
+        }
+        onConfirm={() => {
+          if (deleteTarget) deleteQuote(deleteTarget);
+        }}
+      />
+      <CreatePoDialog quote={poQuote} onOpenChange={(o) => !o && setPoQuote(null)} />
+    </div>
+  );
+}

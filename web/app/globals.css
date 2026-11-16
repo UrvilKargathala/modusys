@@ -1,0 +1,952 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* Status badges and a few colours live in shared/ (used by web and backend). */
+@source "../../shared";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-heading);
+  --font-body: var(--font-body);
+  --font-number: var(--font-number);
+
+}
+
+/* Colour tokens as plain theme variables so utilities reference var(--color-*): the Colour Palette can then override them at runtime. */
+@theme {
+  /* Brand */
+  --color-white: #ffffff;
+  --color-dark: #262626;
+  --color-secondary: #3f88fe;
+  --color-light: #f7f8f9;
+
+  /* Grey scale */
+  --color-grey-900: #051021;
+  --color-grey-800: #182634;
+  --color-grey-700: #2e3648;
+  --color-grey-600: #45505c;
+  --color-grey-500: #5d6772;
+  --color-grey-400: #90878f;
+  --color-grey-300: #aab0b6;
+  --color-grey-200: #c6cace;
+  --color-grey-100: #e2e4e8;
+
+  /* Light scale */
+  --color-light-900: #fefefe;
+  --color-light-800: #f9f9fa;
+  --color-light-700: #f9f9fa;
+  --color-light-600: #f9fafb;
+  --color-light-500: #faf8fb;
+  --color-light-400: #f8f9fc;
+  --color-light-300: #fcfcfd;
+  --color-light-200: #fdfdfd;
+  --color-light-100: #fdfefe;
+
+  /* System colors */
+  /* Purchase order palette (sand, taupe, stone, slate): the four detail cards at the top of a PO */
+  --color-sand: #c7c4bd;
+  --color-taupe: #716453;
+  --color-stone: #9c988f;
+  --color-slate: #3b4b5a;
+  /* Ice blue: the cabinet cards in By Component / By Unit */
+  --color-ice: #e4f1fb;
+  /* Blush: the frame of each cabinet card in By Component / By Unit, like a unit on the quote page */
+  --color-blush: #D6EFFA;
+  --color-ice-200: #bcd8ee;
+  --color-ice-300: #cfe3f4;
+  --color-success: #27ae60;
+  --color-orange: #e04f16;
+  --color-purple: #800080;
+  --color-pink: #dd2590;
+  --color-info: #2f80ed;
+  --color-error: #ef1e1e;
+  --color-warning: #e2b93b;
+  --color-indigo: #3538c0;
+  --color-cyan: #06aed4;
+  --color-teal: #a3d6fa;
+  /* Fixed working hours on the attendance calendar. */
+  --color-shift: #4C9EC8;
+  /* Attendance calendar day: worked 5+ min over the fixed hours / 10+ min under. */
+  --color-day-over: #B2BD7E;
+  --color-day-short: #FFD38B;
+  --color-day-very-short: #DE7272; /* 30+ min under */
+
+  /* Transparent variants */
+  --color-grey-transparent: #f4f4f4;
+  --color-primary-transparent: #EAF7FC;
+  --color-secondary-transparent: #eef4ff;
+  --color-success-transparent: #f4f8f7;
+  --color-warning-transparent: #fef3f5;
+  --color-error-transparent: #fef4f4;
+  --color-info-transparent: #f4f9fe;
+  --color-pink-transparent: #fdf4f9;
+  --color-purple-transparent: #f9f2f9;
+  --color-orange-transparent: #fdf8f3;
+  --color-indigo-transparent: #ededf8;
+  --color-cyan-transparent: #e9f8fb;
+  --color-teal-transparent: #eaf4fe;
+  --color-light-transparent: #fdfdfe;
+
+  /* Primary shades — tonal scale of #288AB8 (cyan) toward white */
+  --color-primary-900: #288AB8;
+  --color-primary-800: #2D9CCF;
+  --color-primary-700: #32ADE6;
+  --color-primary-600: #47B5E8;
+  --color-primary-500: #5BBDEB;
+  --color-primary-400: #84CEF0;
+  --color-primary-300: #ADDEF5;
+  --color-primary-200: #D6EFFA;
+  --color-primary-100: #EAF7FC;
+
+  /* Secondary shades */
+  --color-secondary-900: #5297fe;
+  --color-secondary-800: #65a2fe;
+  --color-secondary-700: #79aefe;
+  --color-secondary-600: #8cb9fe;
+  --color-secondary-500: #9fc5ff;
+  --color-secondary-400: #b2d1ff;
+  --color-secondary-300: #c5dcff;
+  --color-secondary-200: #d9e8ff;
+  --color-secondary-100: #ecf3ff;
+
+  /* Success shades */
+  --color-success-900: #3d6670;
+  --color-success-800: #52be80;
+  --color-success-700: #68c890;
+  --color-success-600: #7dcea0;
+  --color-success-500: #93d7b0;
+  --color-success-400: #a9dfbf;
+  --color-success-300: #beeacf;
+  --color-success-200: #d4efdf;
+  --color-success-100: #e9f7ef;
+
+  /* Warning shades */
+  --color-warning-900: #e5c04f;
+  --color-warning-800: #e8c762;
+  --color-warning-700: #ebce76;
+  --color-warning-600: #eed589;
+  --color-warning-500: #f1dc9d;
+  --color-warning-400: #f3e3b1;
+  --color-warning-300: #f6eac4;
+  --color-warning-200: #f9f1d8;
+  --color-warning-100: #fcf8eb;
+
+  /* Error shades */
+  --color-error-900: #f13535;
+  --color-error-800: #f24d48;
+  --color-error-700: #f4625e;
+  --color-error-600: #f57878;
+  --color-error-500: #f78f8f;
+  --color-error-400: #f9a5a5;
+  --color-error-300: #fabcbc;
+  --color-error-200: #fcd2d2;
+  --color-error-100: #fde9e9;
+
+  /* Info shades */
+  --color-info-900: #4f8def;
+  --color-info-800: #6999f1;
+  --color-info-700: #7da6f2;
+  --color-info-600: #8fb3f4;
+  --color-info-500: #a2c0f6;
+  --color-info-400: #b5cdf8;
+  --color-info-300: #c8dafa;
+  --color-info-200: #dbe7fb;
+  --color-info-100: #eaf2fd;
+
+  /* Pink shades */
+  --color-pink-900: #e44798;
+  --color-pink-800: #e980a5;
+  --color-pink-700: #ef76b0;
+  --color-pink-600: #f388bb;
+  --color-pink-500: #f79fc6;
+  --color-pink-400: #fab2d2;
+  --color-pink-300: #fcc6dd;
+  --color-pink-200: #fed9e8;
+  --color-pink-100: #ffecf4;
+
+  /* Purple shades */
+  --color-purple-900: #8d1a8d;
+  --color-purple-800: #993399;
+  --color-purple-700: #a64da6;
+  --color-purple-600: #b366b3;
+  --color-purple-500: #c080c0;
+  --color-purple-400: #cc99cc;
+  --color-purple-300: #d9b3d9;
+  --color-purple-200: #e6cce6;
+  --color-purple-100: #f2e6f2;
+
+  /* Orange shades */
+  --color-orange-900: #e96438;
+  --color-orange-800: #ec7752;
+  --color-orange-700: #ef9f68;
+  --color-orange-600: #f4a67e;
+  --color-orange-500: #f7ac94;
+  --color-orange-400: #fac0a9;
+  --color-orange-300: #fccdbe;
+  --color-orange-200: #feded4;
+  --color-orange-100: #ffeee9;
+
+  /* Indigo shades */
+  --color-indigo-900: #435dc4;
+  --color-indigo-800: #5467db;
+  --color-indigo-700: #6b7be1;
+  --color-indigo-600: #7b93e7;
+  --color-indigo-500: #8ea2ec;
+  --color-indigo-400: #a0b0f1;
+  --color-indigo-300: #bac7f5;
+  --color-indigo-200: #d0daf9;
+  --color-indigo-100: #e7ecfc;
+
+  /* Cyan shades */
+  --color-cyan-900: #3f86d9;
+  --color-cyan-800: #5d8fdd;
+  --color-cyan-700: #75c7e2;
+  --color-cyan-600: #88cfe6;
+  --color-cyan-500: #9fd7ea;
+  --color-cyan-400: #b2dfef;
+  --color-cyan-300: #c6e7f3;
+  --color-cyan-200: #daeff7;
+  --color-cyan-100: #ecf7fb;
+
+  /* Teal shades */
+  --color-teal-900: #3b8e90;
+  --color-teal-800: #4e9ea0;
+  --color-teal-700: #6bafb0;
+  --color-teal-600: #83bfc0;
+  --color-teal-500: #9bcfd0;
+  --color-teal-400: #acd3cd;
+  --color-teal-300: #c0e2de;
+  --color-teal-200: #d5ede9;
+  --color-teal-100: #e9f7f4;
+}
+
+@theme inline {
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  /* NOTE: --color-secondary intentionally NOT aliased to the shadcn
+     --secondary slot below — brand "secondary" (#3f88fe) is a distinct
+     accent color (links, chart series), while the muted button/badge
+     variant uses --shadcn-muted-btn (grey scale) instead. See CLAUDE.md §3.3. */
+  --color-shadcn-muted-btn: var(--shadcn-muted-btn);
+  --color-shadcn-muted-btn-foreground: var(--shadcn-muted-btn-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --animate-wave-slow: wave-slide 8s linear infinite;
+  --animate-wave-fast: wave-slide 5s linear infinite;
+
+  @keyframes wave-slide {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+}
+
+:root {
+  --background: #f7f8f9;
+  --foreground: #262626;
+  --card: #ffffff;
+  --card-foreground: #262626;
+  --popover: #ffffff;
+  --popover-foreground: #262626;
+  --primary: #288AB8;
+  /* Colour Palette defaults (Templates > Colour Palette can override them): table headings, sidebar, page. */
+  --table-head: #ADDEF5;
+  --sb-1: #288AB8;
+  --sb-2: #2D9CCF;
+  --sb-3: #32ADE6;
+  --sb-accent: #ADDEF5;
+  --page-1: #DEDDF7;
+  --page-2: #D6EFFA;
+  --page-3: #EAF7FC;
+  --primary-foreground: #ffffff;
+  --shadcn-muted-btn: #e2e4e8;
+  --shadcn-muted-btn-foreground: #262626;
+  --muted: #f4f4f4;
+  --muted-foreground: #5d6772;
+  --accent: #EAF7FC;
+  --accent-foreground: #288AB8;
+  --destructive: #ef1e1e;
+  --border: #e2e4e8;
+  --input: #e2e4e8;
+  --ring: #288AB8;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --shadcn-muted-btn: oklch(0.269 0 0);
+  --shadcn-muted-btn-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* Quote PDF print pagination — Chrome's default print margin is close to
+   1 inch per side, which is most of what reads as "too much blank space
+   around each page." This shrinks it to something the content actually
+   needs. Doesn't affect on-screen viewing (only applies inside an actual
+   print/PDF render), and can't remove the browser's own headers/footers
+   text (a print-dialog setting, not something page CSS can touch). */
+@page {
+  margin: 10mm 12mm;
+}
+
+/* Keep quote table rows and section blocks intact across page breaks so
+   the browser's native print engine (Save as PDF) never splits a row's
+   text mid-sentence. Also flood html/body with the sheet's mauve so any
+   trailing whitespace at the end of the final page reads as background
+   instead of a blank white block — A4 sheet size can't be shrunk from
+   `window.print()`, this is the closest visual fix without JS. */
+@media print {
+  /* Flood the page background so any trailing whitespace at the end of the
+     last page reads as the sheet's own color instead of a blank white
+     block. Two variants because the sheet has two themes:
+     - default (Download flow, mauve)
+     - .pdf-print-mode (Print flow, white). */
+  html:has(.quote-pdf-sheet:not(.pdf-print-mode)),
+  body:has(.quote-pdf-sheet:not(.pdf-print-mode)) {
+    background-color: var(--pdf-quote, #9E7676) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  html:has(.quote-pdf-sheet.pdf-print-mode),
+  body:has(.quote-pdf-sheet.pdf-print-mode) {
+    background-color: #ffffff !important;
+  }
+  .quote-pdf-sheet tr,
+  .quote-pdf-sheet li,
+  .quote-pdf-sheet .break-inside-avoid-page {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .quote-pdf-sheet thead {
+    display: table-header-group;
+  }
+  /* Stretch the sheet to fill each page so no visible seam appears between
+     the sheet's mauve and the body's flood-mauve on the final page — even
+     when actual content ends early. */
+  .quote-pdf-sheet {
+    min-height: 100vh;
+    box-sizing: border-box;
+  }
+}
+
+/* Quote PDF — mauve theme for Download, white+black for Print. */
+.quote-pdf-sheet {
+  background-color: var(--pdf-quote, #9E7676);
+  color: #FFF8EA;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+/* NOTE: previously forced a fixed 960px width here for print, trying to
+   stop a phone's print/"Save as PDF" from inheriting the tiny mobile
+   viewport. That backfired — 960px is wider than the actual print page
+   canvas, so instead of scaling to fit, the print engine cropped/paginated
+   the overflow (text cut off mid-word on every page, an extra near-empty
+   trailing page for the signature block). The print canvas is comfortably
+   wider than Tailwind's `sm:` breakpoint (640px) on any real paper size, so
+   the sm:flex-row / sm:w-80 responsive classes on the page itself already
+   apply correctly under print without needing this override. */
+.pdf-cream { color: #FFF8EA; }
+.pdf-cream-muted { color: rgba(255,248,234,0.7); }
+.pdf-cream-dim { color: rgba(255,248,234,0.6); }
+.pdf-cream-body { color: rgba(255,248,234,0.85); }
+.pdf-border { border-color: rgba(255,248,234,0.3); }
+.pdf-rule { border-top: 2px solid #FFF8EA; }
+
+/* Print route: white bg + black text on screen AND in print */
+.quote-pdf-sheet.pdf-print-mode,
+.quote-pdf-sheet.pdf-print-mode * {
+  background-color: #fff;
+  color: #262626;
+}
+.pdf-print-mode .pdf-cream-muted,
+.pdf-print-mode .pdf-cream-dim {
+  color: #5d6772;
+}
+.quote-pdf-sheet.pdf-print-mode th {
+  background-color: var(--pdf-quote, #9E7676);
+  color: #fff;
+}
+.quote-pdf-sheet.pdf-print-mode .pdf-heading,
+.quote-pdf-sheet.pdf-print-mode .pdf-heading td,
+.quote-pdf-sheet.pdf-print-mode .pdf-heading span {
+  color: var(--pdf-quote, #9E7676);
+  font-weight: 700;
+}
+.pdf-print-mode .pdf-border,
+.pdf-print-mode td,
+.pdf-print-mode tr {
+  border-color: #e2e4e8;
+}
+.quote-pdf-sheet.pdf-print-mode .pdf-rule {
+  border-top-color: var(--pdf-quote, #9E7676);
+}
+.quote-pdf-sheet.pdf-print-mode .pdf-rule td {
+  color: var(--pdf-quote, #9E7676);
+  font-weight: 700;
+}
+.pdf-print-mode svg rect,
+.pdf-print-mode svg path {
+  fill: var(--pdf-logo, #9E7676);
+}
+.quote-pdf-sheet.pdf-print-mode .font-number {
+  font-weight: 400;
+}
+
+/* Purchase order cards are tinted, so the light grey borders of the boxes inside them would vanish: give them a visible one. */
+/* ...and their light grey labels, icons and placeholders would be hard to read on the tint: make them darker. */
+.po-card label,
+.po-card .text-grey-400,
+.po-card .text-grey-500 {
+  color: var(--color-grey-700);
+}
+.po-card input::placeholder {
+  color: var(--color-grey-500);
+}
+.po-card [class~="border-grey-100"] {
+  border-color: color-mix(in srgb, var(--color-slate) 40%, white);
+}
+
+/* The cabinet cards (By Component / By Unit) use the brand colour for the borders of the boxes inside. */
+.po-brand [class~="border-grey-100"] {
+  border-color: color-mix(in srgb, var(--color-primary) 45%, white);
+}
+
+/* Quote form sections: the field titles are bold and near-black. */
+.quote-form [data-slot="label"] {
+  color: var(--color-grey-900);
+  font-weight: 600;
+}
+
+/* Numbers in the purchase order PDFs are set in Manrope. */
+.po-sheet .po-num {
+  font-family: var(--font-manrope), system-ui, sans-serif !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cabinet table in the PDFs: text centred up and down in each row. */
+.po-sheet .po-mid td { vertical-align: middle; overflow-wrap: anywhere; }
+
+/* A bold row in the PDFs (the cabinet rows): same thickening as the title bar, a little lighter. */
+.po-sheet .po-row-bold td,
+.po-sheet .po-row-bold td * {
+  font-weight: 700;
+  -webkit-text-stroke: 0.2px currentColor;
+}
+
+/* The app fonts have no bold file, so the PDF title bar is thickened with a thin outline of its own colour. */
+.po-sheet .po-title-bold,
+.po-sheet .po-title-bold * {
+  font-weight: 700;
+  -webkit-text-stroke: 0.7px currentColor;
+}
+
+/* Ordered-list markers in Outfit Light (font-number) for the PDF sheet. */
+.marker-number::marker {
+  font-family: var(--font-number);
+}
+
+/* Scrollable but no visible scrollbar — for compact dashboard-style lists. */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+/* Thin scrollbar for wide horizontally-scrolling rows (e.g. the Kanban
+   board), hidden until hover — scrollbar-hide left desktop users with no
+   visual cue at all that there was more to scroll to, but an always-on
+   bar was noisier than needed once you know it's there. */
+.scrollbar-thin {
+  scrollbar-width: none;
+}
+.scrollbar-thin:hover {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-grey-200) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  height: 8px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+}
+.scrollbar-thin:hover::-webkit-scrollbar-thumb {
+  background-color: var(--color-grey-200);
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-grey-300);
+}
+/* Horizontal scrollbar that takes its own strip under the content (only when it overflows) instead of the Mac overlay bar floating over the last row. */
+.scrollbar-below::-webkit-scrollbar {
+  height: 10px;
+}
+.scrollbar-below::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-below::-webkit-scrollbar-thumb {
+  background-color: var(--color-grey-200);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.scrollbar-below::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-grey-300);
+}
+/* Templates page: tables with tighter rows (cells were py-3 and icon buttons p-1.5, heads py-2.5). */
+.templates-dense thead th { padding-block: 6px; }
+.templates-dense tbody td { padding-block: 3px; }
+.templates-dense tbody td button[aria-label] { padding-block: 3px; }
+/* iOS Safari zooms into any focused input whose computed font-size is
+   < 16px. Enforcing a 16px floor on the touch breakpoint kills the
+   zoom-on-focus without shrinking the text on desktop, where we still
+   want the compact sizes the design system uses. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Quote form sections sit on blush: every read-only box and the date field show a solid white background, helper text is darker. */
+.quote-form .bg-light-600,
+.quote-form input[type="date"] {
+  background-color: #fff;
+}
+.quote-form .text-grey-400 {
+  color: var(--color-grey-600);
+}
+
+/* No up / down arrows on number boxes (Direct Purchase Orders). */
+.no-spin input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.no-spin input[type="number"]::-webkit-inner-spin-button,
+.no-spin input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Toasts: slide in from the right; the bar at the bottom runs down over the toast's lifetime. */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(1.5rem); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes toast-bar {
+  from { width: 100%; }
+  to { width: 0; }
+}
+.toast-in {
+  animation: toast-in 0.2s ease-out;
+}
+.toast-bar {
+  animation-name: toast-bar;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+/* Expanded quote units: tighter cards, labels and gaps so more of a unit fits on screen. */
+.quote-dense .p-3 { padding: 8px; }
+.quote-dense .-mx-3 { margin-inline: -8px; }
+.quote-dense .-mt-3 { margin-top: -8px; }
+.quote-dense .mb-3 { margin-bottom: 6px; }
+.quote-dense [data-slot="label"] { font-size: 12px; line-height: 1.1; }
+.quote-dense .grid.gap-y-3 { column-gap: 8px; row-gap: 6px; }
+.quote-dense .grid.gap-y-3 > div { gap: 3px; }
+
+/* Expanded quote units: the number fields (Width, Height, Qty, Thickness, Total sq.ft, Amount, Rate) are small boxes sized to what they hold;
+   the name / material pickers keep a fixed medium width, and everything flows left to right instead of six equal columns. */
+.quote-dense .grid.gap-y-3 { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 8px; }
+.quote-dense .grid.gap-y-3 > div { flex: none; width: 200px; }
+.quote-dense .grid.gap-y-3 > [data-narrow] { width: auto; }
+.quote-dense .grid.gap-y-3 > [data-narrow] input { width: auto; min-width: 44px; field-sizing: content; }
+.quote-dense .grid.gap-y-3 > [data-narrow] .h-9,
+.quote-dense .grid.gap-y-3 > [data-narrow] button[aria-haspopup] { min-width: 56px; }
+.quote-dense .grid.gap-y-3 input,
+.quote-dense .grid.gap-y-3 button[aria-haspopup],
+.quote-dense .grid.gap-y-3 .h-9 { height: 32px; padding-block: 0; }
+
+/* Customer Details / Material Specification tables: every picker, box and date field is 32px tall. */
+.spec-table button[aria-haspopup],
+.spec-table input { height: 32px; padding-block: 0; }
+
+/* Unit rows in the Units table: no rectangle round the fields; a border appears on hover and focus. */
+.unit-row input,
+.unit-row button[aria-haspopup] { border-color: transparent; background-color: transparent; }
+.unit-row input:hover,
+.unit-row button[aria-haspopup]:hover { border-color: var(--color-grey-100); }
+.unit-row input:focus,
+.unit-row button[aria-haspopup]:focus-visible,
+.unit-row button[aria-haspopup][aria-expanded="true"] { border-color: var(--color-primary); background-color: var(--color-card); }
+.unit-row input,
+.unit-row button[aria-haspopup] { height: 28px; padding-block: 0; }
+
+/* Native selects (the Brand pick in a hardware table line) follow the same rule as the other fields in a table line. */
+.unit-row select { border-color: transparent; background-color: transparent; height: 28px; padding-block: 0; }
+.unit-row select:hover { border-color: var(--color-grey-100); }
+.unit-row select:focus { border-color: var(--color-primary); background-color: var(--color-card); }
+
+/* No up / down arrows on number boxes in a table line (Qty, Rate, W, D, H). */
+.unit-row input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+.unit-row input[type="number"]::-webkit-inner-spin-button,
+.unit-row input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Component / hardware table lines in an expanded unit: text in Outfit Light, numbers in Manrope. */
+.quote-dense .table-head,
+.quote-dense .unit-row button[aria-haspopup],
+.quote-dense .unit-row select,
+.quote-dense .unit-row input { font-family: var(--font-number), system-ui, sans-serif; }
+.quote-dense .unit-row .num { font-family: var(--font-manrope), system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+/* Component / hardware table lines and their headers: 11px text, tight rows. */
+.quote-dense .table-head,
+.quote-dense .table-head *,
+.quote-dense .unit-row,
+.quote-dense .unit-row input,
+.quote-dense .unit-row select,
+.quote-dense .unit-row button,
+.quote-dense .unit-row span { font-size: 11px; line-height: 1.3; }
+
+.quote-dense .unit-row { padding-block: 0; }
+.quote-dense .unit-row input,
+.quote-dense .unit-row select,
+.quote-dense .unit-row button[aria-haspopup] { height: 24px; }
+
+/* The Units table (one line per unit): 12px, text in Outfit Light, numbers in Manrope. */
+.unit-top,
+.unit-top input,
+.unit-top select,
+.unit-top button,
+.unit-top span { font-size: 12px; line-height: 1.3; }
+.unit-top,
+.unit-top input,
+.unit-top select,
+.unit-top button[aria-haspopup] { font-family: var(--font-number), system-ui, sans-serif; }
+.unit-top .num { font-family: var(--font-manrope), system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+/* Units table lines: Space, Unit Type, Remarks, Sq.Ft and Amount use the same text colour as W, D, H and Qty (the inherited one). */
+.unit-top:not(.unit-head) button[aria-haspopup],
+.unit-top:not(.unit-head) button[aria-haspopup] span,
+.unit-top:not(.unit-head) select,
+.unit-top:not(.unit-head) .num:not(.text-primary) { color: inherit; }
+
+/* Lines on a purchase order / direct PO / proforma invoice: 11px, text in Outfit Light, numbers in Manrope, tight rows. */
+.po-dense table { font-size: 11px; }
+.po-dense th { padding-block: 4px; font-size: 10px; text-transform: capitalize; letter-spacing: 0; font-weight: 600; }
+.po-dense td { padding-block: 0; }
+.po-dense td input,
+.po-dense td select,
+.po-dense td button[aria-haspopup] { height: 24px; font-size: 11px; font-family: var(--font-number), system-ui, sans-serif; }
+.po-dense td span,
+.po-dense td .font-number { font-size: 11px; }
+.po-dense .font-number { font-family: var(--font-manrope), system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+/* The cabinet blocks and line groups around the PO lines (blush cards, field rows, group bands): same tight 11px look. */
+.po-dense.p-5 { padding: 10px; }
+.po-dense.gap-4 { gap: 8px; }
+.po-dense .p-3 { padding: 6px; }
+.po-dense .rounded-2xl,
+.po-dense .rounded-xl { border-radius: 8px; }
+.po-dense .gap-3 { gap: 6px; }
+.po-dense .gap-2 { gap: 4px; }
+.po-dense .py-2 { padding-block: 4px; }
+.po-dense input:not([type="checkbox"]),
+.po-dense select,
+.po-dense button[aria-haspopup],
+.po-dense .h-9,
+.po-dense .h-8 { height: 24px; font-size: 11px; font-family: var(--font-number), system-ui, sans-serif; }
+.po-dense label span,
+.po-dense label,
+.po-dense button,
+.po-dense p { font-size: 11px; }
+.po-dense h2,
+.po-dense h3 { font-size: 11px; line-height: 1.3; }
+.po-dense .font-number { font-size: 11px; }
+.po-dense input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+.po-dense input[type="number"]::-webkit-inner-spin-button,
+.po-dense input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* The two nested blush cards of a cabinet block share one thin frame. */
+.po-dense .rounded-2xl.bg-blush { padding: 3px; }
+.po-dense .rounded-xl.bg-blush { padding: 4px 6px 4px 30px; }
+.po-dense .pl-8 { padding-left: 0; }
+
+/* Everything in the PO lines area is 11px; cabinet rows leave room between the drag handle and the expand arrow. */
+.po-dense,
+.po-dense * { font-size: 11px; }
+.po-dense .unit-row { padding-left: 8px; }
+/* Only rows with a drag handle (inside a sortable cabinet) leave room for it. */
+.po-dense .relative > .unit-row { padding-left: 40px; }
+/* By Unit with Send to PI: a tick box sits right after the drag handle. */
+.po-dense .relative.has-lead > .unit-row { padding-left: 46px; }
+
+/* Tighter spacing in the cabinet list: no gap between cabinet lines (they carry their own divider), 24px buttons, thin group bands. */
+.po-dense .relative:has(> .unit-row) + .relative:has(> .unit-row) { margin-top: -8px; }
+.po-dense .h-7 { height: 24px; }
+.po-dense .border-l-4 { padding-block: 1px; }
+.po-dense .unit-row { padding-block: 2px; }
+
+/* By Unit cabinet list drawn as a table: a line between every cell, the header row and each cabinet line share one grid. */
+.po-dense .cab-table { column-gap: 0; }
+.po-dense .cab-table > .cell { display: flex; align-items: center; gap: 2px; min-width: 0; min-height: 28px; padding-inline: 4px; border-right: 1px solid var(--color-grey-100); }
+.po-dense .cab-table > .cell:last-child { border-right: 0; }
+.po-dense .cab-head > .cell { border-right-color: var(--color-grey-200); padding-block: 4px; }
+.po-dense .cab-table input,
+.po-dense .cab-table select,
+.po-dense .cab-table button[aria-haspopup] { width: 100%; }
+.po-dense .relative > .unit-row { border: 1px solid var(--color-grey-100); border-top: 0; padding-block: 0; }
+
+/* PO line tables: light grey header with small capitals and a line between every cell; numbers in Manrope. */
+.po-dense table { border-collapse: collapse; }
+.po-dense thead,
+.po-dense thead th { background-color: #F4F4F5; color: var(--color-grey-600); }
+.po-dense th,
+.po-dense td { border: 1px solid #ECECEE; }
+.po-dense td input.font-number,
+.po-dense td input[type="number"],
+.po-dense td .font-number { font-family: var(--font-manrope), system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+/* Every number in the PO lines area (cabinet table amounts, W/D/H/Qty, line amounts and sq.ft) is Manrope. */
+.po-dense .num,
+.po-dense .font-number,
+.po-dense input[type="number"],
+.po-dense td input.font-number,
+.po-dense .cab-table .cell.num { font-family: var(--font-manrope), system-ui, sans-serif !important; font-variant-numeric: tabular-nums; }
+
+/* By Component cabinet lines (no table grid inside): a little room above and below each line. */
+.po-dense .relative > .unit-row:not(:has(.cab-table)) { padding-block: 7px; }
+
+/* An opened cabinet: some room between its table line and its rows, and below it before the next cabinet. */
+.po-dense .relative > .unit-row > .flex.flex-col:has(table) { gap: 10px; padding-block: 2px 12px; }
+
+/* PO line tables: each column is as wide as its text (instead of a fixed width), so the table is not cut at the right edge. */
+.po-dense table { table-layout: auto; }
+.po-dense thead th { width: auto; }
+.po-dense td input:not([type="checkbox"]) { width: auto; min-width: 44px; field-sizing: content; }
+.po-dense td button[aria-haspopup] { width: 100%; max-width: 22rem; }
+.po-dense td { white-space: nowrap; }
+.po-dense td input.text-right { display: block; margin-left: auto; }
+/* The Description column stays wide (the other columns follow their text). */
+.po-dense thead th.w-72 { width: 13rem; min-width: 13rem; }
+/* The Material column is a short code: keep it small. */
+.po-dense th[data-col="material"] { width: 6.5rem; min-width: 0; }
+.po-dense td[data-col="material"] > *,
+.po-dense td[data-col="material"] > button[aria-haspopup] { max-width: 6.5rem; overflow: hidden; text-overflow: ellipsis; }
+/* Vendor too. */
+.po-dense th[data-col="vendor"] { width: 8rem; min-width: 0; }
+.po-dense td[data-col="vendor"] > *,
+.po-dense td[data-col="vendor"] > button[aria-haspopup] { max-width: 8rem; overflow: hidden; text-overflow: ellipsis; }
+
+/* Cabinet table lines (By Unit / By Component, Direct PO Cabinet tab included): a little more room between lines. */
+.po-dense .relative > .unit-row:has(.cab-table) { padding-block: 5px; }
+
+/* A field inside a table line: a thin border when you click into it, no thick focus ring spilling out of the cell. */
+.unit-row input:focus,
+.unit-row input:focus-visible,
+.unit-row select:focus-visible,
+.unit-row button[aria-haspopup]:focus-visible { box-shadow: none; outline: none; }
+
+/* PO line tables: no rectangle round the fields; a thin border shows on hover and when you click in. */
+.po-dense td input:not([type="checkbox"]),
+.po-dense td select,
+.po-dense td button[aria-haspopup] { border-color: transparent; background-color: transparent; box-shadow: none; }
+.po-dense td input:not([type="checkbox"]):hover,
+.po-dense td select:hover,
+.po-dense td button[aria-haspopup]:hover { border-color: var(--color-grey-100); }
+.po-dense td input:not([type="checkbox"]):focus,
+.po-dense td select:focus-visible,
+.po-dense td button[aria-haspopup]:focus-visible,
+.po-dense td button[aria-haspopup][aria-expanded="true"] { border-color: var(--color-primary); background-color: var(--color-card); }
+
+/* The Action cell stays at the right edge while the cabinet table scrolls sideways. */
+.po-dense .cab-table > .cell:last-child { position: sticky; right: 0; z-index: 2; background-color: var(--color-card); box-shadow: -6px 0 6px -6px rgba(0, 0, 0, 0.18); }
+.po-dense .cab-head > .cell:last-child { background-color: var(--table-head); }
+
+/* Proforma Invoices keep the brand colour behind the line table headings (the other PO pages use the light grey). */
+.po-proforma .po-dense thead,
+.po-proforma .po-dense thead th { background-color: var(--table-head); color: var(--color-grey-900); }
+
+/* Remarks: a wide column, the field fills it. */
+.po-dense th[data-col="remarks"] { width: 18rem; min-width: 18rem; }
+.po-dense td[data-col="remarks"] input:not([type="checkbox"]) { width: 100%; min-width: 16rem; }
+.po-dense th button { text-transform: capitalize; }
+/* Cabinet table: shorter rows and fields. */
+.po-dense .cab-table > .cell { min-height: 24px; }
+.po-dense .cab-table:not(.cab-head) input,
+.po-dense .cab-table:not(.cab-head) select,
+.po-dense .cab-table:not(.cab-head) button[aria-haspopup] { height: 20px; }
+/* Line table headings: centred, one short line. */
+.po-dense th { padding-block: 4px; text-align: center; vertical-align: middle; }
+/* Material Details tables: the highlight-colour swatch beside a colour picker is a small square. */
+.po-dense td button[aria-label^="Highlight colour"] { width: 24px; height: 24px; min-width: 24px; max-width: 24px; flex: none; padding: 3px; border-radius: 6px; }
+.po-dense td button[aria-label^="Highlight colour"] > span { display: block; width: 100%; height: 100%; border-radius: 3px; }
+/* Material Details tables: dropdowns as short as the other tables' fields (they still grow to fit several chosen colours). */
+.po-dense.finish-table td button[aria-haspopup]:not([aria-label^="Highlight colour"]) { height: auto; min-height: 24px; padding-block: 2px; }
+.po-dense.finish-table th { text-align: left; }
+.po-dense.finish-table th:last-child { text-align: center; }
+/* Hardware line tables: heading row in peach. */
+.po-dense thead.hw-head,
+.po-dense thead.hw-head th { background-color: rgb(255 213 153 / 0.5); }
+
+/* Glassmorphism: inside the app shell, cards and panels are frosted glass over the soft Cyan page. */
+.glass-app :is(.rounded-xl, .rounded-2xl, .rounded-lg):is(.bg-white, .bg-card):not(input, select, textarea, button, td, th, tr) {
+  background-color: rgb(255 255 255 / 0.5);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+  border-color: rgb(255 255 255 / 0.7);
+  box-shadow: 0 8px 32px rgb(40 138 184 / 0.12), inset 0 1px 0 rgb(255 255 255 / 0.6);
+}
+/* Fields stay readable: a lighter frost. */
+.glass-app :is(input, select, textarea):not([type="checkbox"], [type="radio"], [class*="bg-[#"]) { background-color: rgb(255 255 255 / 0.65); }
+/* Material Details tables: Cyan 100 heading row. */
+.po-dense.finish-table thead,
+.po-dense.finish-table thead th { background-color: var(--table-head); color: var(--color-grey-900); }
+/* Detail tabs (Vendor / Purchase Order / Proforma Details) and the Material Details tables: 12px text. */
+.spec-table th,
+.spec-table td,
+.spec-table input,
+.spec-table select,
+.spec-table textarea,
+.spec-table button,
+.spec-table label,
+.spec-table span { font-size: 12px; }
+.po-dense.finish-table th,
+.po-dense.finish-table td,
+.po-dense.finish-table input,
+.po-dense.finish-table button,
+.po-dense.finish-table span { font-size: 12px; }
+.po-dense.finish-table td button[aria-haspopup] { font-size: 12px; }
+
+/* Resizable table columns (components/layout/resizable-tables.tsx). */
+.col-resizer { position: absolute; top: 0; right: 0; z-index: 5; width: 6px; height: 100%; cursor: col-resize; user-select: none; touch-action: none; }
+.col-resizer:hover { background: rgb(40 138 184 / 0.45); }
+.col-order-reset { position: absolute; top: 2px; right: 10px; z-index: 6; cursor: pointer; font-size: 12px; line-height: 1; padding: 2px 4px; border-radius: 4px; color: var(--color-primary); background: var(--color-primary-transparent); font-weight: 600; }
+.col-order-reset::before { content: "\21BA"; }
+table.col-fixed td, table.col-fixed th { overflow: hidden; text-overflow: ellipsis; }
+
+/* Option highlighted with the arrow keys in an open dropdown list (see components/shared/option-keys.ts). */
+[data-opt][data-active="true"] {
+  background-color: var(--color-primary-300);
+}
+
+/* Accounts pages print only their content (no sidebar, top bar or bottom tabs), across as many sheets as needed.
+   The app shell is a fixed-height scroll box on screen, which would otherwise clip the printout to one page. */
+@media print {
+  html:has(.accounts-print) .glass-app {
+    display: block;
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+  html:has(.accounts-print) .glass-app > :not(:has(main)),
+  html:has(.accounts-print) .glass-app > :has(main) > :not(main) {
+    display: none !important;
+  }
+  html:has(.accounts-print) main {
+    overflow: visible;
+    padding: 0;
+  }
+  .accounts-print .overflow-x-auto {
+    overflow: visible;
+  }
+  .accounts-print table {
+    min-width: 0 !important;
+    font-size: 11px;
+  }
+  .accounts-print tr {
+    break-inside: avoid;
+  }
+}

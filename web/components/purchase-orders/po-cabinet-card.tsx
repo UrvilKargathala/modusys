@@ -1,0 +1,371 @@
+"use client";
+
+import { SelectField } from "@/components/shared/select-field";
+import { useUnitTypes } from "@/lib/store/unit-type-store";
+import { useContext, useState } from "react";
+import { PoLibraryContext } from "@/components/purchase-orders/po-library-context";
+import { PiSendContext } from "@/components/purchase-orders/pi-send-context";
+import { ChevronDown, ChevronRight, Copy, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { useConfirmChange } from "@/components/purchase-orders/po-confirm-change";
+import { Button } from "@/components/ui/button";
+import { PoCabinetNameField, PoCabinetNameSelect } from "@/components/purchase-orders/po-design-select";
+import { PoFinishSelect } from "@/components/purchase-orders/po-finish-select";
+import { PoRawMaterialSelect } from "@/components/purchase-orders/po-raw-material-select";
+import { PoDefaultVendorContext, PoLinesTable, newBlankLine } from "@/components/purchase-orders/po-lines-table";
+import { formatInr } from "@/lib/format";
+import { buildCarcassFromType, recalcCarcass } from "@/lib/purchase-order-from-quote";
+import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
+import { useVendors } from "@/lib/store/vendors-store";
+import { materialSpecStore } from "@/lib/store/material-spec-store";
+import { toastStore } from "@/lib/store/toast-store";
+import { PO_GROUPS, lineAmount, mostUsed, type PoCabinet, type PurchaseOrderLine } from "@shared/purchase-order";
+
+// One cabinet of the quote: header (number, unit/cabinet name, W/D/H/Qty) and its components
+// underneath, grouped Carcass / Shutter / Other Panel / Hardware — the same flow as the quote.
+// W/D/H/Qty start as the quote's cabinet size and are editable; the rows are snapshots, so they only
+// change when you press Auto Populate (same as the quote: carcass rows only, from the cabinet type's formulas).
+// A form field with its label beside it (one line per field, so a cabinet's fields take few lines).
+export { selectOnClick } from "@/components/shared/select-on-click";
+import { selectOnClick } from "@/components/shared/select-on-click";
+export const fieldInput = "h-9 w-full rounded-lg border border-grey-100 bg-card px-2 text-[13px] font-body text-grey-900 outline-none focus:border-primary";
+export function Field({ label, children, stacked }: { label: string; children: React.ReactNode; stacked?: boolean }) {
+  return (
+    <label className={stacked ? "flex min-w-0 flex-col gap-0.5 text-xs" : "flex min-w-0 items-center gap-1.5 text-xs"}>
+      <span className={stacked ? "font-body font-medium text-grey-600" : "shrink-0 whitespace-nowrap font-semibold text-grey-900"}>{label}</span>
+      <span className="min-w-0 flex-1">{children}</span>
+    </label>
+  );
+}
+
+// A cabinet's own vendor (blank = the PO's vendor). Used in By cabinet and By component.
+export function PoCabinetVendorSelect({ srNo, cabinet, onCabinetChange, className = fieldInput }: { srNo: number; cabinet: PoCabinet; onCabinetChange: (cabinet: PoCabinet) => void; className?: string }) {
+  const vendors = useVendors();
+  const poVendorId = useContext(PoDefaultVendorContext);
+  return (
+    <SelectField aria-label={`Cabinet ${srNo} vendor`} className={className} value={cabinet.vendorId ?? ""} onChange={(e) => onCabinetChange({ ...cabinet, vendorId: e.target.value || undefined })}>
+      {/* Blank = follows the PO's vendor: shown by name. */}
+      <option value="">{vendors.find((v) => v.id === poVendorId)?.name ?? "Select vendor"}</option>
+      {vendors.filter((v) => v.id !== poVendorId).map((v) => (
+        <option key={v.id} value={v.id}>{v.name}</option>
+      ))}
+    </SelectField>
+  );
+}
+
+// One grid for a cabinet's line and the header row above the list, drawn as a table with a line between cells:
+// expand, no., cabinet type, cabinet name, design, vendor (not on a proforma), W, D, H, Qty, internal / external brand & colour,
+// material, total, buttons, remark.
+// (Whole class names, so Tailwind sees them.)
+const GRID_WITH_VENDOR =
+  "cab-table grid grid-cols-[32px_48px_minmax(200px,1.6fr)_minmax(130px,1.1fr)_minmax(70px,0.8fr)_minmax(90px,1fr)_56px_56px_56px_40px_minmax(125px,1.2fr)_minmax(125px,1.2fr)_minmax(90px,1fr)_86px_minmax(110px,0.8fr)_150px] items-stretch";
+const GRID_NO_VENDOR =
+  "cab-table grid grid-cols-[32px_48px_minmax(200px,1.6fr)_minmax(130px,1.1fr)_minmax(70px,0.8fr)_56px_56px_56px_40px_minmax(125px,1.2fr)_minmax(125px,1.2fr)_minmax(90px,1fr)_64px_100px_minmax(110px,0.8fr)_150px] items-stretch";
+// A PO made from a Requirement Order: a Unit Name column (the RO unit's space and unit type) after Sr No.
+const GRID_WITH_UNIT =
+  "cab-table grid grid-cols-[32px_48px_minmax(220px,1.6fr)_minmax(200px,1.6fr)_minmax(130px,1.1fr)_minmax(70px,0.8fr)_minmax(90px,1fr)_56px_56px_56px_40px_minmax(125px,1.2fr)_minmax(125px,1.2fr)_minmax(90px,1fr)_86px_minmax(110px,0.8fr)_150px] items-stretch";
+export const cabinetRowGrid = (proforma: boolean, unit = false) => (proforma ? GRID_NO_VENDOR : unit ? GRID_WITH_UNIT : GRID_WITH_VENDOR);
+// The least width a cabinet list needs: its grid's narrowest columns plus the drag / tick gutter, the line's padding and border (the
+// Unit Name grid: 1684 + 46 + 8 + 2). With less, the lines spill past their own box: the header band and borders stop short, a gap
+// opens before Action, and the rows opened under a cabinet end before its line.
+export const cabinetListMinWidth = (proforma: boolean, unit = false) => (!proforma && unit ? "min-w-[1740px]" : "min-w-[1540px]");
+// "Kitchen · BUD3TD — Base Unit Divider Panels With 3 Tandem Drawers", as the cabinet was snapshotted from its RO unit.
+export function poUnitParts(cabinet: PoCabinet | undefined, unitTypes: { name: string; shortCode: string; deleted?: boolean }[]) {
+  const code = unitTypes.find((u) => !u.deleted && u.name === cabinet?.unitName)?.shortCode ?? "";
+  return { space: cabinet?.space ?? "", code, name: cabinet?.unitName ?? "" };
+}
+export function poUnitText(cabinet: PoCabinet | undefined, unitTypes: { name: string; shortCode: string; deleted?: boolean }[]) {
+  const { space, code, name } = poUnitParts(cabinet, unitTypes);
+  return [space, [code, name].filter(Boolean).join(" — ")].filter(Boolean).join(" · ");
+}
+export function PoUnitNameCell({ cabinet }: { cabinet?: PoCabinet }) {
+  const text = poUnitText(cabinet, useUnitTypes());
+  return (
+    <div className="cell" title={text}>
+      <span className="line-clamp-2 text-sm font-body leading-snug text-grey-900">{text || "—"}</span>
+    </div>
+  );
+}
+// Send to PI (own factory, By Unit): one tick for every line of a cabinet not yet on a Proforma Invoice, shown after its drag handle.
+export function PoCabinetTick({ srNo, lines }: { srNo: number; lines: PurchaseOrderLine[] }) {
+  const piSend = useContext(PiSendContext);
+  const mine = lines.filter((l) => l.srNo === srNo);
+  if (!piSend || mine.length === 0) return <span className="w-3.5" />;
+  const keys = mine.map((l) => l.lineKey ?? l.id);
+  const live = keys.filter((k) => !piSend.sent.has(k));
+  const allSent = live.length === 0;
+  return (
+    <input
+      type="checkbox"
+      aria-label={`Tick cabinet ${srNo}`}
+      title={allSent ? `Every line is on ${piSend.sent.get(keys[0])}` : `Tick the ${live.length} line${live.length === 1 ? "" : "s"} of this cabinet not yet on ${piSend.takeOff ? "a Work Order" : "a PI"}`}
+      disabled={allSent}
+      checked={allSent || live.every((k) => piSend.picked.has(k))}
+      onChange={(e) => piSend.pick(live, e.target.checked)}
+      className="h-3.5 w-3.5 cursor-pointer accent-primary disabled:cursor-default"
+    />
+  );
+}
+// tick: the rows below have a Send to PI tick box after their drag handle (By Unit), so the left gutter is a little wider; with lines it
+// also holds a select-all for them, in line with the rows' tick boxes.
+export function PoCabinetListHeader({ proforma = false, unit = false, tick = false, lines }: { proforma?: boolean; unit?: boolean; tick?: boolean; lines?: PurchaseOrderLine[] }) {
+  const piSend = useContext(PiSendContext);
+  const tickGutter = tick && !!piSend;
+  const live = piSend && lines ? lines.map((l) => l.lineKey ?? l.id).filter((k) => !piSend.sent.has(k)) : [];
+  const heads = ["", "Sr No", ...(unit ? ["Unit Name"] : []), "Cabinet Type", "Cabinet Name", "Design", ...(proforma ? [] : ["Vendor"]), "Width", "Depth", "Height", "Qty", "Internal Colour", "External Colour", "Material", ...(proforma ? ["Sq.Ft"] : []), "Total", "Remarks", "Action"];
+  return (
+    // The pink band runs the full width of the list; the grid inside lines up with the cabinet lines below it.
+    <div className={`relative rounded-t-md border border-grey-200 bg-[var(--table-head)] pr-2 ${tickGutter ? "pl-[46px]" : "pl-[40px]"}`}>
+      {tickGutter && lines && (
+        <input
+          type="checkbox"
+          aria-label={`Tick every line not yet on ${piSend.takeOff ? "the work order" : "a proforma invoice"}`}
+          disabled={live.length === 0}
+          checked={live.length > 0 && live.every((k) => piSend.picked.has(k))}
+          onChange={(e) => piSend.pick(live, e.target.checked)}
+          className="absolute left-[27px] top-1/2 h-3.5 w-3.5 -translate-y-1/2 cursor-pointer accent-primary disabled:cursor-default"
+        />
+      )}
+      <div className={`${cabinetRowGrid(proforma, unit)} cab-head whitespace-nowrap text-sm font-body font-bold text-grey-900`}>
+        {heads.map((h, i) => (
+          <div key={i} className="cell justify-center text-center">{h}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function PoCabinetCard({
+  srNo,
+  lines,
+  cabinet,
+  onCabinetChange,
+  onChange,
+  onRemove,
+  onCopyCabinet,
+  direct,
+  detailDefaults,
+}: {
+  srNo: number;
+  lines: PurchaseOrderLine[];
+  cabinet?: PoCabinet;
+  onCabinetChange: (cabinet: PoCabinet) => void;
+  onChange: (lines: PurchaseOrderLine[]) => void;
+  onRemove: () => void;
+  onCopyCabinet?: () => void;
+  // Direct Purchase Order: no Unit Type and no Add rows buttons (its Shutter and Other Panel have their own tabs).
+  direct?: boolean;
+  // Direct PO: the Cabinet Details card's values, used while this cabinet has none of its own.
+  detailDefaults?: { internalColour: string; externalColour: string; material: string };
+}) {
+  const mine = lines.filter((l) => l.srNo === srNo);
+  // Collapsed by default: a PO can have dozens of cabinets, so open only the ones you need.
+  // A cabinet with no rows yet (just added by hand) starts open so you can fill it.
+  const [collapsed, setCollapsed] = useState(mine.length > 0);
+  const designType = mine[0]?.designType ?? "";
+  const total = mine.reduce((s, l) => s + lineAmount(l), 0);
+  const totalSqft = mine.filter((l) => l.group !== "hardware").reduce((s, l) => s + l.sqft, 0);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const { ask, dialog: changeDialog } = useConfirmChange();
+  const cabinetType = useCabinetTypes().find((t) => t.id === cabinet?.cabinetTypeId);
+
+  // Recalculate the sizes of this cabinet's existing carcass rows for the W/D/H/Qty in the header.
+  // Rows are never added or removed, and rate / remarks / finishes stay as typed.
+  const autoPopulate = () => {
+    if (!cabinet || !cabinetType) return;
+    const mineCarcass = lines.filter((l) => l.srNo === srNo && l.group === "carcass");
+    // A cabinet with no carcass rows yet, or only a blank one (added by hand): fill it with all the components of its cabinet type.
+    // Blank starter rows (nothing typed) don't count: they are replaced.
+    if (mineCarcass.every((l) => !l.description && !l.width && !l.height)) {
+      const rows = buildCarcassFromType({ cabinetType, cabinet: { ...cabinet, internalColour: cabinet.internalColour || detailDefaults?.internalColour, externalColour: cabinet.externalColour || detailDefaults?.externalColour, material: cabinet.material || detailDefaults?.material }, srNo, materials: materialSpecStore.getSnapshot() });
+      if (rows.length === 0) {
+        toastStore.show("This cabinet type has no components to add.", "error");
+        return;
+      }
+      onChange([...lines.filter((l) => !mineCarcass.includes(l)), ...rows.map((r, i) => { const id = `new-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`; return { ...r, id, lineKey: id }; })].map((l, i) => ({ ...l, position: i })));
+      toastStore.show(`Cabinet ${srNo}: ${rows.length} carcass row${rows.length === 1 ? "" : "s"} added from ${cabinetType.name}`, "success");
+      return;
+    }
+    const { lines: next, recalculated } = recalcCarcass({ cabinetType, cabinet, lines: mineCarcass, materials: materialSpecStore.getSnapshot() });
+    const byId = new Map(next.map((l) => [l.id, l]));
+    onChange(lines.map((l) => byId.get(l.id) ?? l));
+    const skipped = mineCarcass.length - recalculated;
+    toastStore.show(
+      `Cabinet ${srNo}: ${recalculated} carcass row${recalculated === 1 ? "" : "s"} recalculated${skipped > 0 ? `, ${skipped} not in the cabinet type left as they are` : ""}`,
+      "success"
+    );
+  };
+
+  // A cabinet added by hand (not from a quote) has no unit or cabinet type: its name is typed in, and it has no Auto Populate.
+  const proforma = useContext(PoLibraryContext) === "proforma";
+  // Direct Purchase Order: the cabinet line is all there is (no arrow, no component rows under it). Its carcass rows still count and
+  // print: Auto Populate sizes them, the line's colours / material go on them, and a missing rate shows in Rate Pending.
+  const rowsHidden = !!direct && !proforma;
+  const isManual = !!cabinet && !cabinet.unitName && !cabinet.cabinetTypeId;
+  const emptyGroups = PO_GROUPS.filter((g) => !mine.some((l) => l.group === g.key));
+  const groupsShown = PO_GROUPS.filter((g) => mine.some((l) => l.group === g.key));
+
+  // This cabinet's internal / external brand & colour and material, applied to all its carcass rows (same as By component).
+  const carcassRows = mine.filter((l) => l.group === "carcass");
+  const commonCarcass = (k: "internalColour" | "externalColour" | "material") =>
+    mostUsed(carcassRows.map((l) => l[k])) || (cabinet?.[k] ?? "") || (detailDefaults?.[k] ?? "");
+  // Also remembered on the cabinet, so a cabinet without rows yet gives them to the rows Auto Populate adds.
+  // Direct PO: changing a value this cabinet already has asks first (it changes its Carcass rows too). The Cabinet Details card is not touched.
+  const askCarcass = (k: "internalColour" | "externalColour" | "material", v: string) =>
+    ask(k === "internalColour" ? "internal colour" : k === "externalColour" ? "external colour" : "material", !!commonCarcass(k) && commonCarcass(k) !== v, () => applyCarcass({ [k]: v }));
+  const applyCarcass = (fields: Partial<PurchaseOrderLine>) => {
+    if (cabinet && carcassRows.length === 0) onCabinetChange({ ...cabinet, ...fields } as PoCabinet);
+    else onChange(lines.map((l) => (l.srNo === srNo && l.group === "carcass" ? { ...l, ...fields } : l)));
+  };
+
+  // A cabinet with no stored details (older PO, or rows added without them) still shows editable fields; the first edit saves them.
+  const cab: PoCabinet = cabinet ?? { label: "", unitName: "", space: "", width: 0, depth: 0, height: 0, qty: 1, cabinetTypeId: "", unitQty: 1, designType };
+  const showFinishes = direct || mine.some((l) => l.group === "carcass");
+
+  return (
+    <div className="unit-row border-b border-grey-100 bg-card px-2 py-0.5">
+    <div className="flex flex-col gap-1">
+      {/* One table line per cabinet, the columns named by the header row above the list (PoCabinetListHeader). */}
+      <div className={cabinetRowGrid(proforma, !direct)}>
+        <div className="cell justify-center">
+          {!rowsHidden && (
+            <button
+              type="button"
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label={`${collapsed ? "Expand" : "Collapse"} cabinet ${srNo}`}
+              aria-expanded={!collapsed}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-grey-500 hover:bg-primary-transparent hover:text-grey-800"
+            >
+              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+          )}
+        </div>
+        <div className="cell num justify-center font-semibold text-primary">{srNo}</div>
+        {!direct && <PoUnitNameCell cabinet={cabinet} />}
+        <div className="cell">
+          <PoCabinetNameSelect field value={cab.designType ?? ""} fallback={cab.label} onChange={(v, cabinetTypeId) => ask("cabinet type", !!cab.designType && v !== cab.designType, () => onCabinetChange({ ...cab, designType: v, cabinetTypeId }))} />
+        </div>
+        <div className="cell">
+          <PoCabinetNameField stacked value={cab.cabinetName ?? ""} onChange={(v) => ask("cabinet name", !!cab.cabinetName && v !== cab.cabinetName, () => onCabinetChange({ ...cab, cabinetName: v }))} />
+        </div>
+        <div className="cell">
+          <input aria-label={`Cabinet ${srNo} design`} {...selectOnClick} placeholder="Design" value={cab.design ?? ""} onChange={(e) => onCabinetChange({ ...cab, design: e.target.value })} />
+        </div>
+        {/* A Proforma Invoice has a dealer for the whole invoice, so no vendor is picked per cabinet. */}
+        {!proforma && (
+          <div className="cell">
+            <PoCabinetVendorSelect srNo={srNo} cabinet={cab} onCabinetChange={(c) => ask("vendor", !!cab.vendorId && c.vendorId !== cab.vendorId, () => onCabinetChange(c))} />
+          </div>
+        )}
+        {(["width", "depth", "height", "qty"] as const).map((k) => (
+          <div key={k} className="cell">
+            <input
+              type="number"
+              min={k === "qty" ? 1 : 0}
+              aria-label={`Cabinet ${srNo} ${k}`}
+              {...selectOnClick}
+              className="num text-center"
+              value={cab[k]}
+              onChange={(e) => onCabinetChange({ ...cab, [k]: e.target.value === "" ? 0 : Number(e.target.value) })}
+            />
+          </div>
+        ))}
+        {/* The cabinet's carcass finishes and material, applied to all its carcass rows. */}
+        {showFinishes ? (
+          <>
+            <div className="cell">
+              <PoFinishSelect kind="internal" value={commonCarcass("internalColour")} onChange={(v) => askCarcass("internalColour", v)} />
+            </div>
+            <div className="cell">
+              <PoFinishSelect kind="external" value={commonCarcass("externalColour")} onChange={(v) => askCarcass("externalColour", v)} />
+            </div>
+            <div className="cell">
+              <PoRawMaterialSelect value={commonCarcass("material")} onChange={(v) => askCarcass("material", v)} />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="cell justify-center text-grey-400">—</div>
+            <div className="cell justify-center text-grey-400">—</div>
+            <div className="cell justify-center text-grey-400">—</div>
+          </>
+        )}
+        {/* A Proforma Invoice shows the cabinet's total sq.ft in its own column before the amount. */}
+        {proforma && <div className="cell num justify-end text-grey-700">{totalSqft.toFixed(2)}</div>}
+        <div className="cell num justify-end font-semibold text-grey-900">{formatInr(total)}</div>
+        <div className="cell">
+          <input aria-label={`Cabinet ${srNo} remark`} {...selectOnClick} placeholder="Remark" value={cab.remark ?? ""} onChange={(e) => onCabinetChange({ ...cab, remark: e.target.value })} />
+        </div>
+        <div className="cell justify-center gap-0.5">
+          {onCopyCabinet && (
+            <button type="button" className="rounded-md p-1 text-grey-400 hover:bg-primary-transparent hover:text-primary" aria-label="Copy cabinet" title="Copy this whole cabinet with all its rows" onClick={onCopyCabinet}>
+              <Copy className="h-4 w-4" />
+            </button>
+          )}
+          <button type="button" className="rounded-md p-1 text-grey-400 hover:bg-primary-transparent hover:text-primary" aria-label={`${collapsed ? "Open" : "Close"} cabinet ${srNo} to edit`} title={collapsed ? "Open to edit" : "Close"} onClick={() => setCollapsed((x) => !x)}>
+            <Pencil className="h-4 w-4" />
+          </button>
+          <button type="button" className="rounded-md p-1 text-grey-400 hover:bg-error-transparent hover:text-error" aria-label="Delete cabinet" title="Delete this cabinet and all its rows" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="h-4 w-4" />
+          </button>
+          {!isManual && (
+            <Button
+              type="button"
+              size="icon-sm"
+              aria-label="Auto Populate"
+              disabled={!cabinetType}
+              title={cabinetType ? "Auto Populate: recalculate this cabinet's carcass sizes from its W / D / H" : "This cabinet's type isn't available (older PO or deleted type)"}
+              onClick={autoPopulate}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+
+      {!collapsed && !rowsHidden && (
+        <>
+          {/* Opening the cabinet shows its rows straight away. With one section there is no section bar at all; with several
+              (Carcass, Shutter, ...) each keeps its bar to tell them apart, open from the start. */}
+          {groupsShown.map((g) => (
+            <PoLinesTable
+              key={g.key}
+              group={g.key}
+              title={g.label}
+              lines={lines}
+              srNo={srNo}
+              vars={cabinet ? { W: cabinet.width, D: cabinet.depth, H: cabinet.height } : undefined}
+              noBand={groupsShown.length === 1}
+              onChange={onChange}
+            />
+          ))}
+          <div className="flex flex-wrap items-center gap-2">
+            {!direct && emptyGroups.length > 0 && <span className="text-xs font-body text-grey-500">Add rows:</span>}
+            {!direct && emptyGroups.map((g) => (
+              <Button key={g.key} type="button" variant="outline" size="sm" onClick={() => onChange([...lines, newBlankLine(g.key, srNo, designType, lines.length)])}>
+                <Plus className="h-3.5 w-3.5" />
+                {g.label}
+              </Button>
+            ))}
+            {mine.length === 0 && (
+              <Button type="button" variant="outline" size="sm" className="ml-auto text-error" onClick={onRemove}>
+                Remove cabinet
+              </Button>
+            )}
+          </div>
+        </>
+      )}
+    {changeDialog}
+    <ConfirmDialog
+      open={deleteOpen}
+      onOpenChange={setDeleteOpen}
+      title={`Delete cabinet ${srNo}?`}
+      description={mine.length ? `This removes the cabinet and its ${mine.length} row${mine.length === 1 ? "" : "s"}. It can't be undone until you Cancel the PO without saving.` : "This removes the empty cabinet."}
+      onConfirm={onRemove}
+    />
+    </div>
+    </div>
+  );
+}

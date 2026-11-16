@@ -1,0 +1,136 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@backend/server/prisma";
+import { serializeMessage } from "@backend/server/serialize";
+import { requireUser } from "@backend/server/require-user";
+import { headObject } from "@backend/server/s3";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function GET(_req: Request, { params }: Ctx) {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
+  const { id: customerId } = await params;
+  const messages = await prisma.message.findMany({
+    where: { customerId, NOT: { deletedForUserIds: { has: auth.user.id } } },
+    orderBy: { createdAt: "asc" },
+    include: { reactions: true },
+  });
+  return NextResponse.json(messages.map((m) => serializeMessage(m, auth.user.id)));
+}
+
+// Handles every message kind — kind defaults to "chat" for the normal text
+// composer, "system" for stage-change events, and "voice" | "image" | "pdf"
+// once the attachment has already been uploaded to Garage via ./presign.
+export async function POST(req: Request, { params }: Ctx) {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
+  const { id: customerId } = await params;
+  const b = await req.json();
+  const kind = ["chat", "system", "voice", "image", "pdf"].includes(b.kind) ? b.kind : "chat";
+
+  // Attachments arrive as storage keys (audioKey / imageKeys[] / pdfKey), never URLs.
+  // Display names stay in imageNames[] / pdfName — they are not parsed from keys.
+  const imageKeys: string[] = Array.isArray(b.imageKeys)
+    ? b.imageKeys.filter((s: unknown): s is string => typeof s === "string" && s.length > 0)
+    : [];
+  const imageNames: string[] = Array.isArray(b.imageNames)
+    ? b.imageNames.filter((s: unknown): s is string => typeof s === "string")
+    : [];
+  const audioKey = typeof b.audioKey === "string" && b.audioKey ? b.audioKey : undefined;
+  const pdfKey = typeof b.pdfKey === "string" && b.pdfKey ? b.pdfKey : undefined;
+
+  // Keys are minted server-side under crm/<customerId>/, and every one must really exist (E3, E4).
+  const keys = [...imageKeys, ...(audioKey ? [audioKey] : []), ...(pdfKey ? [pdfKey] : [])];
+  if (keys.some((k) => !k.startsWith(`crm/${customerId}/`))) {
+    return NextResponse.json({ error: "Invalid attachment key" }, { status: 400 });
+  }
+  const found = await Promise.all(keys.map((k) => headObject(k).then(() => true, () => false)));
+  if (found.includes(false)) {
+    return NextResponse.json({ error: "Attachment not found in storage" }, { status: 400 });
+  }
+
+  const message = await prisma.message.create({
+    data: {
+      customerId,
+      kind,
+      senderId: kind === "system" ? null : auth.user.id,
+      text: b.text ?? undefined,
+      mentionedUserIds: Array.isArray(b.mentionedUserIds) ? b.mentionedUserIds : [],
+      audioKey,
+      durationSec: b.durationSec ?? undefined,
+      imageKeys,
+      imageName: imageNames[0] ?? undefined,
+      imageNames,
+      pdfKey,
+      pdfName: b.pdfName ?? undefined,
+      pdfSize: b.pdfSize ?? undefined,
+      replyToMessageId: typeof b.replyToMessageId === "string" ? b.replyToMessageId : undefined,
+      replyToImageIndex: typeof b.replyToImageIndex === "number" ? b.replyToImageIndex : undefined,
+      forwardedFromId: typeof b.forwardedFromId === "string" ? b.forwardedFromId : undefined,
+    },
+  });
+
+  // @-mentions in a real chat message auto-create a follow-up task for each
+  // mentioned user, plus a bell notification so they see it immediately.
+  // Self-mentions and system messages are skipped.
+  if (
+    message.kind !== "system" &&
+    message.mentionedUserIds.length > 0
+  ) {
+    const uniqueMentions = Array.from(new Set(message.mentionedUserIds)).filter(
+      (id) => id !== auth.user.id
+    );
+    if (uniqueMentions.length > 0) {
+      const customer = await prisma.customer.findUnique({
+        where: { id: customerId },
+        select: { name: true },
+      });
+      const rawTitle = (message.text ?? "").trim();
+      const title = rawTitle
+        ? rawTitle.slice(0, 120)
+        : message.kind === "image"
+        ? "Follow up on shared image"
+        : message.kind === "pdf"
+        ? "Follow up on shared PDF"
+        : message.kind === "voice"
+        ? "Follow up on voice note"
+        : "Follow up from chat";
+      const preview = rawTitle ? rawTitle.slice(0, 60) : title;
+      const customerLabel = customer?.name ? ` in ${customer.name}` : "";
+
+      // Sequential inside a Promise.all — each mention gets its own task +
+      // notification pair; failures don't roll back the message itself since
+      // it's already been sent to the customer.
+      await Promise.all(
+        uniqueMentions.map(async (mentionedId) => {
+          const task = await prisma.task.create({
+            data: {
+              title,
+              description: "",
+              dueDate: "",
+              priority: "normal",
+              status: "pending",
+              assigneeId: mentionedId,
+              createdById: auth.user.id,
+              linkedCustomerId: customerId,
+            },
+          });
+          await prisma.notification.create({
+            data: {
+              userId: mentionedId,
+              type: "mentioned",
+              relatedTaskId: task.id,
+              message: `${auth.user.name} mentioned you${customerLabel}: "${preview}"`,
+              read: false,
+            },
+          });
+        })
+      );
+    }
+  }
+
+  return NextResponse.json(serializeMessage(message, auth.user.id), { status: 201 });
+}
