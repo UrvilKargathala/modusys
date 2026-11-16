@@ -83,7 +83,10 @@ export async function reportError(r: ErrorReport): Promise<string> {
     const fingerprint = fingerprintOf(r.source, message, stack);
 
     // Signature check only (no database): enough to sort reports into budgets.
-    const session = verifySessionToken(cookie(r.headers, SESSION_COOKIE_NAME));
+    // Mobile app sends the token as "Authorization: Bearer", the web as a cookie.
+    const auth = header(r.headers, "authorization");
+    const bearer = auth?.startsWith("Bearer ") ? auth.slice(7).trim() : undefined;
+    const session = verifySessionToken(bearer || cookie(r.headers, SESSION_COOKIE_NAME));
     const bucket = r.source === "server" ? "server" : session ? "browser" : "anon";
 
     // Flood guards: one bug in a loop saves at most 20 rows an hour, and each kind

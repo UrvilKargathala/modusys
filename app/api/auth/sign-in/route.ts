@@ -35,17 +35,24 @@ export async function POST(req: Request) {
     req,
   });
 
-  const res = NextResponse.json({
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      mustChangePassword: user.mustChangePassword,
-    },
-  });
-  res.cookies.set(SESSION_COOKIE_NAME, createSessionToken(user.id, user.sessionVersion), {
+  const token = createSessionToken(user.id, user.sessionVersion);
+  const sessionUser = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+    mustChangePassword: user.mustChangePassword,
+  };
+
+  // The mobile app has no cookie jar: it gets the token in the body and sends
+  // it back as "Authorization: Bearer". The web keeps the httpOnly cookie only.
+  if (body?.client === "mobile") {
+    return NextResponse.json({ user: sessionUser, token });
+  }
+
+  const res = NextResponse.json({ user: sessionUser });
+  res.cookies.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

@@ -1,5 +1,5 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/server/session-token";
@@ -13,12 +13,16 @@ export type SessionUser = {
   mustChangePassword: boolean;
 };
 
-// Resolves the caller from the signed session cookie, re-checking the DB
+// Resolves the caller from the signed session token, re-checking the DB
 // each time (not just trusting the token) so a deactivated user's existing
-// cookie stops working immediately.
+// token stops working immediately. The web sends the token in the httpOnly
+// cookie; the mobile app sends the same token as "Authorization: Bearer".
+// Browsers never attach a Bearer header on their own, so this adds no CSRF risk.
 export async function getSessionUser(): Promise<SessionUser | null> {
-  const store = await cookies();
-  const session = verifySessionToken(store.get(SESSION_COOKIE_NAME)?.value);
+  const authHeader = (await headers()).get("authorization");
+  const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+  const token = bearer || (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+  const session = verifySessionToken(token);
   if (!session) return null;
 
   const user = await prisma.user.findUnique({ where: { id: session.userId } });

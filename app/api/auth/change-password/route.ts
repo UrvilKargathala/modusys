@@ -58,19 +58,25 @@ export async function POST(req: Request) {
     req,
   });
 
-  const res = NextResponse.json({
-    user: {
-      id: updated.id,
-      name: updated.name,
-      email: updated.email,
-      role: updated.role,
-      status: updated.status,
-      mustChangePassword: updated.mustChangePassword,
-    },
-  });
-  // Rotate the session token so any other device holding the old cookie
+  // Rotate the session token so any other device holding the old token
   // stops being able to act as this user.
-  res.cookies.set(SESSION_COOKIE_NAME, createSessionToken(updated.id, updated.sessionVersion), {
+  const token = createSessionToken(updated.id, updated.sessionVersion);
+  const sessionUser = {
+    id: updated.id,
+    name: updated.name,
+    email: updated.email,
+    role: updated.role,
+    status: updated.status,
+    mustChangePassword: updated.mustChangePassword,
+  };
+
+  // Mobile: the old Bearer token is now dead, so hand back the new one.
+  if (body?.client === "mobile") {
+    return NextResponse.json({ user: sessionUser, token });
+  }
+
+  const res = NextResponse.json({ user: sessionUser });
+  res.cookies.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
