@@ -9,21 +9,23 @@ export const dynamic = "force-dynamic";
 
 // Generic message for every failure branch (unknown email, no password set,
 // wrong password, inactive account) — never reveal which part was wrong.
-const INVALID = NextResponse.json({ error: "Incorrect email or password" }, { status: 401 });
+// A fresh response each time: a response body can only be sent once, so a
+// shared one would go out empty after the first failed sign-in.
+const invalid = () => NextResponse.json({ error: "Incorrect email or password" }, { status: 401 });
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body?.password === "string" ? body.password : "";
-  if (!email || !password) return INVALID;
+  if (!email || !password) return invalid();
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !user.passwordHash || user.status !== "active") return INVALID;
+  if (!user || !user.passwordHash || user.status !== "active") return invalid();
 
   const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) {
     void logAudit({ action: "SIGN_IN_FAILURE", actorEmail: email, target: { type: "SESSION" }, req, result: "FAILURE" });
-    return INVALID;
+    return invalid();
   }
 
   await prisma.user.update({ where: { id: user.id }, data: { lastActive: new Date() } });
