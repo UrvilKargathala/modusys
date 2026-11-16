@@ -36,15 +36,16 @@ export const colors = {
   greyTint: '#F4F4F4',
 } as const;
 
-// Raleway (text) + Manrope (numbers), the same .ttf files as the web, are in
-// assets/fonts/ but not linked into the iOS/Android projects yet. Until they
-// are, `undefined` = the system font (an unlinked family name errors on iOS).
-const FONTS_LINKED = false;
-
+// Raleway, the same two .ttf files as the web, is linked from assets/fonts
+// (react-native.config.js + `npx react-native-asset`). Each name below is
+// both the font's PostScript name (iOS) and its file name (Android).
+// Manrope (numbers) waits in assets/fonts-unlinked: the web's file is a
+// variable font, which iOS only shows in its default ExtraLight style, so it
+// needs a static Manrope-Regular file first. Until then `undefined` = system font.
 export const fonts = {
-  body: FONTS_LINKED ? 'Raleway-Regular' : undefined,
-  light: FONTS_LINKED ? 'Raleway-Light' : undefined,
-  number: FONTS_LINKED ? 'Manrope' : undefined,
+  body: 'Raleway',
+  light: 'Raleway-Light',
+  number: undefined,
 } as const;
 
 export const radius = { sm: 8, md: 12, pill: 999 } as const;

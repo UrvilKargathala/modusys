@@ -22,7 +22,7 @@ React Native (plain CLI, **no Expo**) phone app for The Furn Enterprise's Modusy
 - Money ₹ with Indian grouping (`₹2,15,200`, `₹12.5 L`, `₹1.2 Cr`) and dates DD/MM/YYYY via `src/lib/format.ts`.
 - Token only in the Keychain (`react-native-keychain`), never AsyncStorage, never logged.
 - No secrets in this repo: anything inside an app can be read by whoever has it.
-- **Ask before adding a dependency.** Approved so far: React Navigation (native, native-stack, bottom-tabs, screens, safe-area-context), TanStack Query, React Hook Form, Zod, @hookform/resolvers, react-native-keychain, react-native-svg, lucide-react-native.
+- **Ask before adding a dependency.** Approved so far: React Navigation (native, native-stack, bottom-tabs, screens, safe-area-context), TanStack Query, React Hook Form, Zod, @hookform/resolvers, react-native-keychain, react-native-svg, lucide-react-native, react-native-asset (dev, links `assets/fonts`: run `npx react-native-asset` after changing fonts).
 - Never invent business logic (new statuses, roles, flows): ask.
 
 ## Commands
