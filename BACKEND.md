@@ -2,6 +2,8 @@
 
 Complete reference for the database, authentication, session management, API layer, and data sync strategy.
 
+> **Paths moved (repo layout, Nov 2026).** This document was written before the folder split. Read old paths as: `prisma/` → `backend/prisma/`, `lib/server/` → `backend/server/`, `scripts/` → `backend/scripts/`, `app/` → `web/app/`, `components/` → `web/components/`, other `lib/` files → `web/lib/` or `shared/` (status, accounts, payroll, purchase orders, constants, mock data). See CLAUDE.md §4.1.
+
 ---
 
 ## 1. Database

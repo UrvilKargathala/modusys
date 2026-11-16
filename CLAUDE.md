@@ -162,10 +162,29 @@ Define all of the following as CSS variables / Tailwind theme colors. Use semant
 
 ## 4. Project Structure Conventions
 
+### 4.1 Repo layout: which folder for which job
+
+One repo, four folders. It is still one website, one server and one Coolify app.
+
+| Folder | Holds | May import | Check |
+|---|---|---|---|
+| `web/` | Next.js website: `app/` pages and the `app/api` route files, `components/`, browser stores and hooks in `lib/`, `public/` | `@/…` (web itself), `@backend/…`, `@shared/…` | `npm run check` |
+| `backend/` | Everything that touches the database or the server: `prisma/` (schema, migrations, seed), `server/` (auth, roles, S3, audit, Prisma client…), `scripts/` | `@shared/…` only (never `web/`) | `npm run check` |
+| `shared/` | Plain TypeScript used by more than one side: the status map, attendance config, accounts, payroll, purchase orders, schemas, constants, seed/mock data | nothing outside `shared/` (no React, Next, Prisma) | `npm run check` (+ `check:mobile`) |
+| `mobile/` | The React Native phone app, with its own `package.json`, `node_modules` and `mobile/CLAUDE.md` | `@shared/…` only; talks to the website through `/api` | `npm run check:mobile` |
+
+- ESLint enforces the "May import" column (`npm run lint`), so a wrong import fails instead of slipping in.
+- New code: a database query or server-only rule → `backend/`; a rule both the website and the phone need → `shared/`; a screen → `web/` or `mobile/`. `/api` route files stay in `web/app/api/` (Next.js serves them from there); keep them thin and put the work in `backend/`.
+- Commands stay at the repo root: `npm run dev`, `npm run build`, `npm start`, `npm run check` work as before. Scripts run from the root too (`npx tsx backend/scripts/…`). The `.env.local` file stays at the repo root.
+- Web test files: `npx tsx --tsconfig web/tsconfig.json web/lib/<name>.check.ts`; shared ones: `npx tsx shared/<name>.check.ts`.
+- Working on the phone app: read `mobile/CLAUDE.md`. Its packages are separate (`cd mobile && npm install`), never mixed with the website's.
+
+### 4.2 Website conventions
+
 - One feature folder per domain: `dashboard/`, `crm/`, `quotes/`, `purchase-orders/`, `customers/`, `architects/`, `users/`, `templates/`, `credits/`.
-- Shared UI primitives (KPI card, status badge, empty-state, list-page shell combining KPI row + filter bar + table/board + pagination) live in `components/shared/` and must be reused across all list-style pages — do not reimplement the pattern per page.
-- Shared chart wrappers (donut, dual-axis trend, funnel, bar) live in `components/charts/`.
-- All API calls go through a typed API client layer (`lib/api/`) — no ad hoc `fetch` calls inside components.
+- Shared UI primitives (KPI card, status badge, empty-state, list-page shell combining KPI row + filter bar + table/board + pagination) live in `web/components/shared/` and must be reused across all list-style pages — do not reimplement the pattern per page.
+- Shared chart wrappers (donut, dual-axis trend, funnel, bar) live in `web/components/charts/`.
+- All API calls go through a typed API client layer (`web/lib/api/`) — no ad hoc `fetch` calls inside components.
 
 ## 5. General Working Rules for Claude Code
 
@@ -194,7 +213,7 @@ The live site (modusys.co.in) is built by Coolify from branch `garage-migration`
 7. STOP. Deploy is a manual click in Coolify by the user. Never deploy, restart or change Coolify settings from a session.
 8. After the user deploys: verify the new container runs the expected commit and the site answers.
 
-**Database changes** (`prisma/schema.prisma` or `prisma/migrations/` in the diff) are not covered by the steps above. Coolify does not run migrations. Stop and agree a plan first: additive changes only (new tables or columns, never edit or drop existing ones), apply to staging first, dump production before touching it, apply to production just before the deploy.
+**Database changes** (`backend/prisma/schema.prisma` or `backend/prisma/migrations/` in the diff) are not covered by the steps above. Coolify does not run migrations. Stop and agree a plan first: additive changes only (new tables or columns, never edit or drop existing ones), apply to staging first, dump production before touching it, apply to production just before the deploy.
 
 **Never**
 - Commit `.env*` files, passwords or keys, or print secret values in a chat or log. Server password files live in `~/prod/*.env` (owner only).
