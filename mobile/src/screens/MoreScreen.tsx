@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BarChart3, Bell, ChevronRight, FileText, KeyRound, LogOut, Palette, ShoppingCart } from 'lucide-react-native';
+import { BarChart3, Bell, ChevronRight, KeyRound, LogOut, Palette } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { roles } from '@shared/constants/roles';
 import { useAuth, useUser } from '../auth/AuthProvider';
@@ -62,9 +62,7 @@ export function MoreScreen() {
 
   const owner = [
     canSee('Dashboard', user.role) && { key: 'Dashboard' as const, label: 'Dashboard', icon: BarChart3 },
-    canSee('Quotes', user.role) && { key: 'Quotes' as const, label: 'Quotes', icon: FileText },
-    canSee('PurchaseOrders', user.role) && { key: 'PurchaseOrders' as const, label: 'Purchase Orders', icon: ShoppingCart },
-  ].filter(Boolean) as { key: 'Dashboard' | 'Quotes' | 'PurchaseOrders'; label: string; icon: LucideIcon }[];
+  ].filter(Boolean) as { key: 'Dashboard'; label: string; icon: LucideIcon }[];
 
   return (
     <Screen>

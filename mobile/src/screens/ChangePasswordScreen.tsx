@@ -2,7 +2,7 @@
 // Forced (the admin set a temporary password): the signed-out header + card,
 // "Set a new password", and Sign out as the only way back.
 // Pushed from More (`onDone` goes back): a normal screen under the nav header.
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { KeyboardAvoidingView, StyleSheet, Text, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { Check } from 'lucide-react-native';
 import { useAuth, useUser } from '../auth/AuthProvider';
 import { AuthLayout } from '../components/AuthLayout';
-import { Button, Card, Notice, PasswordField, Screen } from '../components/ui';
+import { Button, Card, Notice, PasswordField, Screen, type TextFieldHandle } from '../components/ui';
 import { passwordMeetsAllRequirements, passwordRequirements } from '../lib/password';
 import { colors, radius, space, type } from '../theme/tokens';
 
@@ -43,6 +43,10 @@ export function ChangePasswordScreen({ onDone, forcedPreview }: {
   const user = useUser();
   const forced = forcedPreview || (user.mustChangePassword && !onDone);
   const [error, setError] = useState<string | null>(null);
+  // Next on the keyboard moves through the three fields; Done on the last one saves.
+  const currentRef = useRef<TextFieldHandle>(null);
+  const newRef = useRef<TextFieldHandle>(null);
+  const confirmRef = useRef<TextFieldHandle>(null);
   const [saved, setSaved] = useState(false);
   const { control, handleSubmit, formState, watch } = useForm<Form>({
     resolver: zodResolver(schema),
@@ -79,12 +83,16 @@ export function ChangePasswordScreen({ onDone, forcedPreview }: {
         name="currentPassword"
         render={({ field, fieldState }) => (
           <PasswordField
+            ref={currentRef}
             label={forced ? 'Temporary password' : 'Current password'}
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
             error={fieldState.error?.message}
             textContentType="password"
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={() => newRef.current?.focus()}
           />
         )}
       />
@@ -93,12 +101,16 @@ export function ChangePasswordScreen({ onDone, forcedPreview }: {
         name="newPassword"
         render={({ field, fieldState }) => (
           <PasswordField
+            ref={newRef}
             label="New password"
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
             error={fieldState.error?.message}
             textContentType="newPassword"
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={() => confirmRef.current?.focus()}
           />
         )}
       />
@@ -107,12 +119,15 @@ export function ChangePasswordScreen({ onDone, forcedPreview }: {
         name="confirm"
         render={({ field, fieldState }) => (
           <PasswordField
+            ref={confirmRef}
             label="Confirm new password"
             value={field.value}
             onChangeText={field.onChange}
             onBlur={field.onBlur}
             error={fieldState.error?.message}
             textContentType="newPassword"
+            returnKeyType="done"
+            onSubmitEditing={() => onSubmit()}
           />
         )}
       />

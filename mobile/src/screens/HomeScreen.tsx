@@ -1,25 +1,28 @@
 // Home (design v2, Prompt 2): greeting, notifications bell, Today's Summary,
-// today's tasks (due today or overdue, as on the Tasks tab) and the most
-// recently active customers. The admin KPI tiles wait for M5 (they need a
-// dashboard endpoint the web doesn't have yet), so they aren't shown.
+// for admins (the roles that see Quotes on the web) this month's KPI tiles and
+// the newest quotes (Version B, from /api/mobile/home; read-only, quotes open on the web), then today's tasks (due today or
+// overdue, as on the Tasks tab) and the most recently active customers.
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { Bell, CalendarCheck } from 'lucide-react-native';
 import { getToday } from '../api/attendance';
+import { getHomeSummary, type HomeSummary } from '../api/business';
 import { listCustomers } from '../api/customers';
 import { useUser } from '../auth/AuthProvider';
-import { Card, IconButton, ListRow, Notice, Screen, SectionHeader, SkeletonRow, StageBadge, Title } from '../components/ui';
-import { formatDay, istGreeting, istToday } from '../lib/format';
+import { Card, IconButton, KpiGrid, KpiTile, ListRow, Notice, Screen, SectionHeader, Skeleton, SkeletonRow, StageBadge, Title } from '../components/ui';
+import { formatDay, formatInrShort, formatPercent, istGreeting, istToday } from '../lib/format';
 import { stageOrFallback } from '../lib/stages';
 import { sortTasks, taskTab } from '../lib/tasks';
 import { usePullRefresh } from '../lib/usePullRefresh';
+import { canSee } from '../navigation/access';
 import type { RootStackParamList, TabParamList } from '../navigation/types';
 import { colors, space, type } from '../theme/tokens';
 import { TodaySummaryCard } from './attendance/TodaySummaryCard';
+import { QuoteRow } from './business/parts';
 import { useStages } from './customers/useStages';
 import { useNotifications } from './notifications/useNotifications';
 import { TaskRow, useCustomerNames, useMyTasks, useToggleTask } from './tasks/taskParts';
@@ -37,7 +40,11 @@ export function HomeScreen() {
   const stages = useStages();
   const notifications = useNotifications();
   const unread = (notifications.data ?? []).filter((n) => !n.read).length;
-  const pull = usePullRefresh(() => Promise.all([today.refetch(), tasks.refetch(), customers.refetch(), notifications.refetch()]));
+  const isAdmin = canSee('QuoteFigures', user.role);
+  const business = useQuery({ queryKey: ['home-summary'], queryFn: getHomeSummary, enabled: isAdmin });
+  const pull = usePullRefresh(() =>
+    Promise.all([today.refetch(), tasks.refetch(), customers.refetch(), notifications.refetch(), isAdmin ? business.refetch() : null]),
+  );
   const first = user.name.split(' ')[0] || user.name;
   // Hide the card only once we know the login has no employee record (attendance can't be recorded).
   const showToday = today.isLoading || !!today.data?.employee;
@@ -66,6 +73,8 @@ export function HomeScreen() {
           onCheck={(side) => nav.navigate('CheckFlow', { side })}
         />
       ) : null}
+
+      {isAdmin ? <BusinessSection summary={business} /> : null}
 
       <View style={styles.section}>
         <SectionHeader title="Today's tasks" action="View all" onAction={() => nav.navigate('Tasks')} />
@@ -117,7 +126,53 @@ export function HomeScreen() {
   );
 }
 
+// Quotes themselves are web-only, so the rows don't open anything.
+function BusinessSection({ summary }: { summary: UseQueryResult<HomeSummary> }) {
+  const s = summary.data;
+  return (
+    <>
+      {summary.error ? <Notice text={(summary.error as Error).message} /> : null}
+      <KpiGrid>
+        {s ? (
+          <>
+            <KpiTile label="Quotes this month" value={String(s.quotesThisMonth)} />
+            <KpiTile
+              label="Revenue this month"
+              value={formatInrShort(s.revenueThisMonth)}
+              highlighted
+              trend={s.revenueDeltaPct ? { text: formatPercent(s.revenueDeltaPct), up: s.revenueDeltaPct >= 0 } : undefined}
+            />
+            <KpiTile label="Confirmed this month" value={String(s.confirmedThisMonth)} />
+            <KpiTile label="Overdue tasks" value={String(s.overdueTasks)} tone={s.overdueTasks > 0 ? 'alert' : undefined} />
+          </>
+        ) : (
+          [0, 1, 2, 3].map((i) => (
+            <Card key={i} style={styles.skelTile}>
+              <Skeleton width="60%" />
+              <Skeleton width="40%" height={26} />
+            </Card>
+          ))
+        )}
+      </KpiGrid>
+      <View style={styles.section}>
+        <SectionHeader title="Recent quotes" />
+        <Card style={styles.rows}>
+          {!s ? (
+            <SkeletonRow />
+          ) : s.recentQuotes.length === 0 ? (
+            <Text style={[type.small, styles.padded]}>No quotes yet.</Text>
+          ) : (
+            s.recentQuotes.map((q) => <QuoteRow key={q.id} quote={q} />)
+          )}
+        </Card>
+      </View>
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
+  skelTile: { flexBasis: '47%', flexGrow: 1, gap: space.md },
+  padded: { paddingVertical: space.sm },
   section: { gap: space.md },
   list: { gap: space.sm },
   rows: { paddingVertical: space.sm, gap: 0 },

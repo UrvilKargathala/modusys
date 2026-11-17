@@ -9,7 +9,7 @@ React Native (plain CLI, **no Expo**) phone app for The Furn Enterprise's Modusy
 
 - The app only talks to the web app's `/api/*` routes. It never touches the database.
 - Auth: `POST /api/auth/sign-in` with `{ email, password, client: "mobile" }` returns `{ user, token }`. Every request sends `Authorization: Bearer <token>`. `401` = signed out, `403` = no access.
-- Roles: `super-admin`, `admin`, `staff`, `no-role`. Screens are hidden by role the same way `web/lib/nav.ts` hides nav items; the server still checks every call.
+- Roles: `super-admin`, `admin`, `staff`, `no-role`. Screens are hidden by role the same way `web/lib/nav.ts` hides nav items; the server still checks every call. Quotes and Purchase Orders are web-only (no phone screens).
 - Backend changes go in `backend/` (and the thin route file in `web/app/api/`) on a work branch, following the root CLAUDE.md §6 release workflow. A phone change and the API it needs can be one branch.
 - Dev API URL: `src/config.ts` (`http://localhost:3001` for the iOS Simulator). Machine-specific overrides (Mac Wi-Fi IP for a real phone) go in the git-ignored `src/config.local.ts`.
 
@@ -37,4 +37,4 @@ React Native (plain CLI, **no Expo**) phone app for The Furn Enterprise's Modusy
 
 Android setup on this Mac: Zulu JDK 17, SDK in `~/Library/Android/sdk` (`JAVA_HOME`/`ANDROID_HOME` in `~/.zshrc`, `sdk.dir` in the git-ignored `android/local.properties`). Test phone: OPPO CPH2001 (Android 11) over USB. With `adb reverse` the phone reaches the backend at `localhost:3001`, so no `config.local.ts` is needed.
 
-The web backend must be running on port 3001 for the app to sign in: from the repo root, `PORT=3001 npm run dev`. Every endpoint the app uses so far (Bearer auth from M1, `GET /api/attendance/me/history` from M3) is on `garage-migration`.
+The web backend must be running on port 3001 for the app to sign in: from the repo root, `PORT=3001 npm run dev`. Every endpoint the app used up to M4 is on `garage-migration`; the M5 figures (Dashboard, admin Home, a customer's quotes) use `/api/mobile/*` (read-only summaries worked out on the server with the web's pricing code in `shared/`), on `work-m5` until it is merged.

@@ -1,6 +1,6 @@
 # Modusys Mobile App: Plan (React Native, local only)
 
-Status (17/11/2026): **M0–M4 done, M5 next.** The app lives in `mobile/` of this repo and is on `garage-migration`. Written 12/11/2026 as a plan; sections below are kept up to date as phases finish (see the Roadmap and "Where we are").
+Status (17/11/2026): **M0–M5 built, M6 (test pass) next.** M0–M4 are on `garage-migration`; M5 is on the work branch `work-m5` until it is merged. Written 12/11/2026 as a plan; sections below are kept up to date as phases finish (see the Roadmap and "Where we are").
 Goal: one React Native codebase that runs on the iOS Simulator, an Android emulator and real phones from the MacBook M5, talking to the existing modusys backend. No store publishing, no production deploy.
 
 **Decisions so far**
@@ -28,14 +28,22 @@ Goal: one React Native codebase that runs on the iOS Simulator, an Android emula
 - Tasks: Today / Upcoming / Done, mark done with Undo, task sheet
 - Notifications: the web's stored notifications with read state, All / Unread, mark all read
 - More: profile, Business screens for admins, Change password, Sign out (with confirm); dev-only Style guide
-- `npm run check` in `mobile/`: TypeScript, lint, 12 tests
+- **M5 (branch `work-m5`)**, read-only, admin and above: a customer's quotes on Overview (number, date, Final Offer Price, status; they don't open); Home KPI tiles (quotes, revenue and Confirmed this month, overdue tasks) and Recent quotes. Super admin: the Dashboard (Today / Week / Month / Year; total quotes, revenue with change, conversion rate, overdue tasks; revenue of the last 6 months; quote status split; stale quotes; team performance)
+- `npm run check` in `mobile/`: TypeScript, lint, 14 tests
 
 **Tested against staging on both devices:** sign-in, a note sent, a photo uploaded, a task marked done and undone.
+
+**Quotes and Purchase Orders are web-only (decided 17/11/2026).** Their phone screens were built, then taken out; the phone keeps only the quote figures above.
+
+**M5 tested on the iOS Simulator and the OPPO as super admin against the dev database (17/11/2026):** Dashboard (Month and Year), a customer's quotes, admin Home. The phone's numbers come from the same shared code as the web. Fixed on the OPPO: pushed screens now scroll clear of Android's button bar. Also fixed (same day): on the signed-out screens (Sign In, Set a new password) the focused field now scrolls above the keyboard, and the keyboard's Next moves through the fields (Done on the last one saves). **Compared with the website Dashboard (same login, 17/11/2026): they match.** Total revenue ₹2,67,89,213, 32 quotes, 11 overdue tasks, conversion 14.0%, quotes by status (Draft 21, Requirement Order 1, In Purchase 8, In Production 1, Dispatched 1), team performance, the 6 stale quotes, and this month (0 quotes, ₹0). The website's default range is the last 6 months; the phone's Year (from 1 January) gives the same figures here because every quote is from June on. Recent quotes now sort by last change, as on the website. **Staff checked on the OPPO (17/11/2026, a throwaway staff user on staging, deleted afterwards):** no Business section, no Home tiles or Recent quotes, no quotes on a customer; the server answers 403 to staff on all three `/api/mobile/*` endpoints. Admin (not super admin) not tried yet: no admin login works on staging.
+
+**Passwords checked end to end on staging (same day):** change your own password, then sign in with the new one (website and phone; the old one is refused); super admin Set Password with "require change", then the phone's forced Set a new password screen, then Home. All work. Staging is an older copy of the live data: a password changed on the live site after 30/09/2026 isn't in staging, so it fails there.
 
 **Not tested yet:** a real check-in and check-out (checked-in / checked-out states, location found, success screen), the real camera for site photos, a photo upload from the OPPO.
 
 **Known gaps, by choice:**
-- Linked quotes on a customer's Overview, and the web bell's live-computed items (stale quotes, quote status, new leads): come with Quotes in M5
+- The web bell's live-computed items (stale quotes, quote status, new leads) aren't on the phone (open question 6)
+- Overdue tasks counts tasks with no due date as overdue, exactly as the web dashboard does
 - Voice notes and PDFs in Notes are named, not playable/openable; videos and documents in Photos likewise (open on the web)
 - Notes are plain text: no @mentions from the phone yet (on the web a mention also creates a task)
 - No swipe-to-complete on tasks (needs `react-native-gesture-handler`); the tick circle does it
@@ -90,8 +98,8 @@ plus `POST /api/auth/sign-in` returning `token` in the JSON body when the body s
 | Tasks | everyone | read + update |
 | Notifications | everyone | read |
 | Dashboard | super-admin | read-only |
-| Quotes: list + status | admin, super-admin | read-only |
-| Purchase Orders: list + status | admin, super-admin | read-only |
+| ~~Quotes, Purchase Orders~~ | web only (decided 17/11/2026) | — |
+| Quote figures: Home tiles, Recent quotes, a customer's quotes | admin, super-admin | read-only |
 
 Anything else (creating quotes, POs, accounts, payroll, manufacturing) stays web-only for now.
 
@@ -260,7 +268,7 @@ Phone app ──JSON + "Authorization: Bearer <token>"──▶ Next.js /api/* �
 - **Every request:** the API client adds the Bearer header. `401` clears the token and goes to Sign In. `403` shows "no access".
 - **Role-based screens:** hidden by `role` the same way `web/lib/nav.ts` does (`mobile/src/navigation/access.ts`). The server still enforces access on every call.
 - **Uploads:** existing presign route → `PUT` the file to the returned URL → send the `key` to the save route. Same as the web (`mobile/src/api/media.ts`).
-- **Read-only owner screens (M5)** use the existing list endpoints (`/api/quotes`, `/api/purchase-orders`). The web's Dashboard has **no API**: its numbers are worked out in the browser, so M5 needs a small dashboard endpoint (backend change, on a work branch). A quote's total needs the pricing rules (`web/lib/quote-pricing.ts`); moving them to `shared/` lets the phone show the same totals.
+- **Read-only owner screens (M5)** use small read-only endpoints under `/api/mobile/*` (`dashboard`, `home`, `quotes?customerId=`; work in `backend/server/mobile-summary.ts`). The web works quote totals and dashboard numbers out in the browser; the pricing maths (`shared/quote-pricing.ts`), the dashboard metrics (`shared/dashboard-metrics.ts`) and sub-quote numbering (`shared/quote-number.ts`) moved to `shared/` (the `web/lib/` files re-export them), so the server sends the phone finished numbers made by the web's own code. No database change. Dashboard = super admin; the rest = admin and super admin. The Quotes and Purchase Orders screens are web-only.
 - **Shared code:** rules both apps need live in `shared/` (status keys and labels, pipeline stages, roles, task priorities) and the app imports them as `@shared/…`. Phone-only formatting is in `mobile/src/lib/format.ts`.
 
 ### Reaching your local backend from each device
@@ -299,7 +307,7 @@ mobile/
       tasks/                  # TasksScreen, taskParts (row, sheet, hooks; Home uses them too)
       notifications/          # NotificationsScreen, useNotifications
       dev/StyleGuideScreen.tsx  # development builds only
-      placeholders.tsx        # Dashboard, Quotes, Purchase Orders until M5
+      business/               # M5: DashboardScreen, charts, parts (QuoteRow for Home and a customer's quotes)
     api/                      # client.ts + one typed file per domain (auth, attendance, customers,
                               # messages, media, tasks, notifications)
     auth/                     # AuthProvider (session restore, sign out on 401), session.ts (Keychain)
@@ -405,7 +413,7 @@ Reloading: save a file and the app updates instantly (Fast Refresh). Developer m
 | M3 Attendance | Selfie + location check-in/out, today's status, history | Check-in from a real phone shows on the web Team Attendance page | **Done** (a phone check-in is on staging, 16/11/2026) |
 | Design v2 | Redesign of every screen built so far (`docs/MOBILE_CLAUDE_DESIGN_PROMPTS.md`) | Matches the design on both devices | **Done** 17/11/2026 |
 | M4 Field staff | Customers (list, detail, note, photo), Tasks, Notifications | Same data as the web for the same user | **Done** 17/11/2026: counts match staging; note, photo, task done/undo tested. Gaps in "Where we are" |
-| M5 Owner/Admin | Dashboard, Quotes list + status, PO list + status (read-only); linked quotes on Customer Overview | Numbers match the web; staff can't see these screens | **Next.** Needs a dashboard endpoint and the quote pricing rules in `shared/` |
+| M5 Owner/Admin | Dashboard (read-only); linked quotes on Customer Overview; admin Home tiles. Quotes and POs stay web-only (decided 17/11/2026) | Numbers match the web; staff can't see these figures | **Built** 17/11/2026 on `work-m5`; tested on the iOS Simulator and the OPPO as super admin. Matches the web Dashboard; staff checked. Left: an admin login |
 | M6 Test pass | Device sizes, roles, slow network, release build | §9 checklist passes on both platforms | Not started |
 
 Not before M6: anything in §10.

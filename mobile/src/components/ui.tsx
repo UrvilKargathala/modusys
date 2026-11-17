@@ -22,13 +22,15 @@ import { ArrowDownRight, ArrowUpRight, ChevronRight, Eye, EyeOff, Search, X } fr
 import type { LucideIcon } from 'lucide-react-native';
 import { colors, fonts, radius, shadow, space, tabBar, touch, type } from '../theme/tokens';
 import type { Stage } from '../lib/stages';
+import { RevealFocusedField } from './AuthLayout';
 import { attendanceConfig, isAttendanceKey, statusConfig, isStatusKey } from '../lib/status';
 
 /** Room a scrolling screen leaves at the bottom so the floating tab bar never covers its last row. */
 export function useTabBarSpace(): number {
   const insideTabs = useContext(BottomTabBarHeightContext) !== undefined;
   const insets = useSafeAreaInsets();
-  return insideTabs ? tabBar.height + tabBar.gap + insets.bottom + space.lg : space.xl;
+  // Pushed screens draw under the system bar too (Android's button bar, the iPhone home indicator), so clear it as well.
+  return insideTabs ? tabBar.height + tabBar.gap + insets.bottom + space.lg : space.xl + insets.bottom;
 }
 
 export function Screen({ children, scroll = true, edges, refreshing, onRefresh }: {
@@ -437,6 +439,8 @@ type TextFieldProps = TextInputProps & {
 export const TextField = React.forwardRef<TextFieldHandle, TextFieldProps>(
   function TextFieldInner({ label, error, style, trailing, onFocus, onBlur, ...props }, ref) {
     const [focused, setFocused] = useState(false);
+    // Inside the signed-out layout: keep this field above the keyboard when it gets focus.
+    const reveal = useContext(RevealFocusedField);
     return (
       <View style={styles.field}>
         <Text style={type.label}>{label}</Text>
@@ -448,6 +452,7 @@ export const TextField = React.forwardRef<TextFieldHandle, TextFieldProps>(
             style={[styles.inputText, style]}
             onFocus={(e) => {
               setFocused(true);
+              reveal?.();
               onFocus?.(e);
             }}
             onBlur={(e) => {

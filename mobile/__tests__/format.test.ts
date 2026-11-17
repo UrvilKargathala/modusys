@@ -1,4 +1,4 @@
-import { formatDate, formatDay, formatHours, formatInr, formatInrShort, formatTime, istGreeting, istMonth, istToday } from '../src/lib/format';
+import { formatDate, formatDay, formatHours, formatInr, formatInrShort, formatInrWhole, formatTime, istGreeting, istMonth, istToday } from '../src/lib/format';
 import { isStatusKey, statusConfig } from '../src/lib/status';
 import { passwordMeetsAllRequirements } from '../src/lib/password';
 import { canSee } from '../src/navigation/access';
@@ -37,8 +37,8 @@ test('password rules match the web', () => {
 test('owner screens follow the web nav roles', () => {
   expect(canSee('Dashboard', 'super-admin')).toBe(true);
   expect(canSee('Dashboard', 'admin')).toBe(false);
-  expect(canSee('Quotes', 'admin')).toBe(true);
-  expect(canSee('Quotes', 'staff')).toBe(false);
+  expect(canSee('QuoteFigures', 'admin')).toBe(true);
+  expect(canSee('QuoteFigures', 'staff')).toBe(false);
 });
 
 test('attendance hours and days match the web', () => {
@@ -131,4 +131,8 @@ test('notifications: groups, time ago, task links and unknown types', () => {
   expect(notificationTaskId({ type: 'app-error', relatedTaskId: '/admin/logs?tab=errors' })).toBeNull();
   expect(notificationTaskId({ type: 'assigned', relatedTaskId: '' })).toBeNull();
   expect(notificationStyle('something-new')).toEqual(notificationStyle('completed'));
+});
+
+test('quote amounts are whole rupees', () => {
+  expect(formatInrWhole(215200.4)).toBe('₹2,15,200');
 });

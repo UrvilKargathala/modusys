@@ -18,6 +18,11 @@ export function formatInr(value: number): string {
   return inr.format(value);
 }
 
+/** ₹2,15,200 (whole rupees, as on quote and PO totals). */
+export function formatInrWhole(value: number): string {
+  return inrWhole.format(Math.round(value));
+}
+
 /** ₹2,15,200 below a lakh-scale threshold, else ₹12.5 L / ₹1.2 Cr. */
 export function formatInrShort(value: number): string {
   const abs = Math.abs(value);
