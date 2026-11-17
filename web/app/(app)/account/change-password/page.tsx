@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { IconInput } from "@/components/auth/icon-input";
 import { PasswordRequirements } from "@/components/auth/password-requirements";
 import { withPasswordFields } from "@/lib/password-schema";
-import { setSessionUser } from "@/lib/session";
+import { setSessionUser, useCurrentUser } from "@/lib/session";
 import { toastStore } from "@/lib/store/toast-store";
 
 const changePasswordSchema = withPasswordFields({
@@ -19,6 +19,7 @@ type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
 
 export default function ChangePasswordPage() {
   const router = useRouter();
+  const currentUser = useCurrentUser();
   const {
     register,
     handleSubmit,
@@ -64,10 +65,14 @@ export default function ChangePasswordPage() {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+        {/* The account's email for the browser's password manager: with it and the new-password fields below, Chrome and
+            Safari replace the saved password instead of keeping the old one and filling it in at the next sign-in. */}
+        <input type="text" name="username" autoComplete="username" value={currentUser.email} readOnly hidden />
         <IconInput
           icon={Lock}
           label="Current Password"
           type="password"
+          autoComplete="current-password"
           placeholder="••••••••"
           error={errors.currentPassword?.message}
           disabled={isSubmitting}
@@ -79,6 +84,7 @@ export default function ChangePasswordPage() {
             icon={Lock}
             label="New Password"
             type="password"
+            autoComplete="new-password"
             placeholder="••••••••"
             error={errors.password?.message}
             disabled={isSubmitting}
@@ -91,6 +97,7 @@ export default function ChangePasswordPage() {
           icon={Lock}
           label="Confirm New Password"
           type="password"
+          autoComplete="new-password"
           placeholder="••••••••"
           error={errors.confirmPassword?.message}
           disabled={isSubmitting}

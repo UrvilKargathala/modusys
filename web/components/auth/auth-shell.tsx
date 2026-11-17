@@ -1,4 +1,3 @@
-import { AuthToggle } from "@/components/auth/auth-toggle";
 import { AuthShowcasePanel } from "@/components/auth/auth-showcase-panel";
 
 export function AuthShell({ children }: { children: React.ReactNode }) {
@@ -14,9 +13,8 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             <span className="text-sm font-body text-grey-400">Modular Business Platform</span>
           </div>
 
-          <AuthToggle />
-
-          <div className="mt-6">{children}</div>
+          {/* No Sign Up: accounts are created by the Super Admin (Users > Invite). */}
+          <div className="mt-2">{children}</div>
         </div>
       </div>
 

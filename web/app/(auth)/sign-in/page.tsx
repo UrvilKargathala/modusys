@@ -76,6 +76,7 @@ export default function SignInPage() {
           icon={Mail}
           label="Email"
           type="email"
+          autoComplete="username"
           placeholder="you@example.com"
           error={errors.email?.message}
           disabled={isSubmitting}
@@ -85,6 +86,8 @@ export default function SignInPage() {
           icon={Lock}
           label="Password"
           type="password"
+          // Lets the browser fill (and, after a change, update) the saved password for this email.
+          autoComplete="current-password"
           placeholder="••••••••"
           error={errors.password?.message}
           disabled={isSubmitting}
