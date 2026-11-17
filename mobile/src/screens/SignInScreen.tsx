@@ -1,11 +1,13 @@
+// Sign In (design v2, Prompt 1). No sign-up: accounts are created by the admin.
 import React, { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '../auth/AuthProvider';
-import { Button, Card, Notice, Screen, TextField, type TextFieldHandle } from '../components/ui';
-import { colors, radius, space, type } from '../theme/tokens';
+import { AuthLayout } from '../components/AuthLayout';
+import { Button, Notice, PasswordField, TextField, type TextFieldHandle } from '../components/ui';
+import { colors, space, type } from '../theme/tokens';
 
 const schema = z.object({
   email: z.string().trim().min(1, 'Enter your email').email('Enter a valid email'),
@@ -22,9 +24,10 @@ export function SignInScreen() {
     defaultValues: { email: '', password: '' },
   });
 
+  // "Your session ended…" or a no-network message from the session check at launch.
   const notice = state.status === 'signed-out' ? state.notice : undefined;
 
-  const onSubmit = handleSubmit(async values => {
+  const onSubmit = handleSubmit(async (values) => {
     setError(null);
     try {
       await signIn(values.email, values.password);
@@ -34,80 +37,65 @@ export function SignInScreen() {
   });
 
   return (
-    <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Screen>
-        <View style={styles.brand}>
-          <View style={styles.logo}>
-            <Text style={styles.logoText}>M</Text>
-          </View>
-          <Text style={type.title} accessibilityRole="header">Modusys</Text>
-          <Text style={[type.body, styles.sub]}>Sign in to your account</Text>
-        </View>
+    <AuthLayout>
+      <View style={styles.heading}>
+        <Text style={styles.title} accessibilityRole="header">Welcome back</Text>
+        <Text style={[type.body, styles.muted]}>Sign in with your work email</Text>
+      </View>
 
-        {notice && !error ? <Notice text={notice} tone="info" /> : null}
-        {error ? <Notice text={error} /> : null}
+      {notice && !error ? <Notice text={notice} tone="info" /> : null}
 
-        <Card>
-          <Controller
-            control={control}
-            name="email"
-            render={({ field, fieldState }) => (
-              <TextField
-                label="Email"
-                value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
-                error={fieldState.error?.message}
-                placeholder="you@company.com"
-                autoCapitalize="none"
-                autoComplete="email"
-                keyboardType="email-address"
-                textContentType="username"
-                returnKeyType="next"
-                onSubmitEditing={() => passwordRef.current?.focus()}
-              />
-            )}
+      <Controller
+        control={control}
+        name="email"
+        render={({ field, fieldState }) => (
+          <TextField
+            label="Email"
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={fieldState.error?.message}
+            placeholder="you@thefurn.in"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
+            keyboardType="email-address"
+            textContentType="username"
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
           />
-          <Controller
-            control={control}
-            name="password"
-            render={({ field, fieldState }) => (
-              <TextField
-                ref={passwordRef}
-                label="Password"
-                value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
-                error={fieldState.error?.message}
-                secureTextEntry
-                autoComplete="password"
-                textContentType="password"
-                returnKeyType="go"
-                onSubmitEditing={() => onSubmit()}
-              />
-            )}
+        )}
+      />
+      <Controller
+        control={control}
+        name="password"
+        render={({ field, fieldState }) => (
+          <PasswordField
+            ref={passwordRef}
+            label="Password"
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={fieldState.error?.message}
+            autoComplete="password"
+            textContentType="password"
+            returnKeyType="go"
+            onSubmitEditing={() => onSubmit()}
           />
-          <Button label="Sign In" onPress={onSubmit} loading={formState.isSubmitting} />
-        </Card>
-        <Text style={[type.small, styles.center]}>Forgot your password? Ask your admin to reset it.</Text>
-      </Screen>
-    </KeyboardAvoidingView>
+        )}
+      />
+
+      {error ? <Notice text={error} /> : null}
+      <Button label="Sign in" onPress={onSubmit} loading={formState.isSubmitting} />
+
+      <Text style={[type.small, styles.footer]}>Forgot your password or need an account? Ask your admin.</Text>
+    </AuthLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1, backgroundColor: colors.background },
-  brand: { alignItems: 'center', gap: space.xs, marginTop: space.xxl, marginBottom: space.sm },
-  logo: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.md,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: space.sm,
-  },
-  logoText: { color: colors.white, fontSize: 30, fontWeight: '700' },
-  sub: { color: colors.textSecondary },
-  center: { textAlign: 'center' },
+  heading: { gap: space.xs, marginBottom: space.xs },
+  title: { ...type.title, fontSize: 26 },
+  muted: { color: colors.textSecondary },
+  footer: { textAlign: 'center', marginTop: 'auto', paddingTop: space.lg },
 });

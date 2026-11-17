@@ -68,6 +68,36 @@ export async function takeSelfie(): Promise<SelfieResult> {
   return toResult(res.didCancel, res.errorCode, res.assets?.[0]);
 }
 
+// Site photos: big enough to read a measurement on the wall, small enough to upload on mobile data.
+const sitePhotoOptions = { mediaType: 'photo', maxWidth: 1920, maxHeight: 1920, quality: 0.8, includeBase64: false } as const;
+const MAX_SITE_PHOTO_BYTES = 100 * 1024 * 1024; // the server's limit for the customer gallery
+
+export type SitePhotosResult =
+  | { ok: true; photos: (Asset & { uri: string })[] }
+  | { ok: false; reason: 'cancelled' | 'no-camera' | 'denied' | 'too-big' | 'failed' };
+
+/** One photo with the back camera, for the customer's gallery. */
+export async function takeSitePhoto(): Promise<SitePhotosResult> {
+  const res = await launchCamera({ ...sitePhotoOptions, cameraType: 'back', saveToPhotos: false });
+  return toPhotos(res.didCancel, res.errorCode, res.assets);
+}
+
+/** Up to 10 photos from the phone's gallery. */
+export async function pickSitePhotos(): Promise<SitePhotosResult> {
+  const res = await launchImageLibrary({ ...sitePhotoOptions, selectionLimit: 10 });
+  return toPhotos(res.didCancel, res.errorCode, res.assets);
+}
+
+function toPhotos(cancelled?: boolean, errorCode?: string, assets?: Asset[]): SitePhotosResult {
+  if (cancelled) return { ok: false, reason: 'cancelled' };
+  if (errorCode === 'camera_unavailable') return { ok: false, reason: 'no-camera' };
+  if (errorCode === 'permission') return { ok: false, reason: 'denied' };
+  const photos = (assets ?? []).filter((a): a is Asset & { uri: string } => !!a.uri);
+  if (!photos.length) return { ok: false, reason: 'failed' };
+  if (photos.some((a) => a.fileSize && a.fileSize > MAX_SITE_PHOTO_BYTES)) return { ok: false, reason: 'too-big' };
+  return { ok: true, photos };
+}
+
 /** Development only: simulators have no camera, so pick a saved photo instead. */
 export async function pickTestPhoto(): Promise<SelfieResult> {
   const res = await launchImageLibrary({ ...photoOptions, selectionLimit: 1 });

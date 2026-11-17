@@ -1,11 +1,16 @@
+// Change password (design v2, Prompt 1, screen B).
+// Forced (the admin set a temporary password): the signed-out header + card,
+// "Set a new password", and Sign out as the only way back.
+// Pushed from More (`onDone` goes back): a normal screen under the nav header.
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, StyleSheet, Text, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Check } from 'lucide-react-native';
 import { useAuth, useUser } from '../auth/AuthProvider';
-import { Button, Card, Notice, Screen, TextField, Title } from '../components/ui';
+import { AuthLayout } from '../components/AuthLayout';
+import { Button, Card, Notice, PasswordField, Screen } from '../components/ui';
 import { passwordMeetsAllRequirements, passwordRequirements } from '../lib/password';
 import { colors, radius, space, type } from '../theme/tokens';
 
@@ -15,14 +20,28 @@ const schema = z
     newPassword: z.string().refine(passwordMeetsAllRequirements, "Password doesn't meet all requirements"),
     confirm: z.string(),
   })
-  .refine(v => v.newPassword === v.confirm, { path: ['confirm'], message: "Passwords don't match" });
+  .refine((v) => v.newPassword === v.confirm, { path: ['confirm'], message: "Passwords don't match" });
 type Form = z.infer<typeof schema>;
 
-/** Shown on its own (forced change) or pushed from Account (`onDone` goes back). */
-export function ChangePasswordScreen({ onDone }: { onDone?: () => void }) {
+function Rule({ label, met }: { label: string; met: boolean }) {
+  return (
+    <View style={styles.rule} accessible accessibilityLabel={`${label}${met ? ', done' : ''}`}>
+      <View style={[styles.tick, met && styles.tickOn]}>
+        {met ? <Check size={10} color={colors.white} strokeWidth={3} /> : null}
+      </View>
+      <Text style={[type.small, met && styles.ruleMet]}>{label}</Text>
+    </View>
+  );
+}
+
+export function ChangePasswordScreen({ onDone, forcedPreview }: {
+  onDone?: () => void;
+  /** Development only (Style guide): show the forced layout for a signed-in user. */
+  forcedPreview?: boolean;
+}) {
   const { changePassword, signOut } = useAuth();
   const user = useUser();
-  const forced = user.mustChangePassword;
+  const forced = forcedPreview || (user.mustChangePassword && !onDone);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const { control, handleSubmit, formState, watch } = useForm<Form>({
@@ -30,8 +49,9 @@ export function ChangePasswordScreen({ onDone }: { onDone?: () => void }) {
     defaultValues: { currentPassword: '', newPassword: '', confirm: '' },
   });
   const newPassword = watch('newPassword');
+  const confirm = watch('confirm');
 
-  const onSubmit = handleSubmit(async values => {
+  const onSubmit = handleSubmit(async (values) => {
     setError(null);
     try {
       await changePassword(values.currentPassword, values.newPassword);
@@ -42,79 +62,81 @@ export function ChangePasswordScreen({ onDone }: { onDone?: () => void }) {
     }
   });
 
-  return (
-    <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Screen edges={onDone ? ['left', 'right'] : undefined}>
-        {!onDone ? (
-          <Title sub={forced ? 'Your admin set a temporary password. Choose your own to continue.' : undefined}>
-            Change Password
-          </Title>
-        ) : null}
-        {error ? <Notice text={error} /> : null}
-        {saved ? <Notice text="Password changed." tone="info" /> : null}
+  const form = (
+    <>
+      {forced ? (
+        <View style={styles.heading}>
+          <Text style={styles.title} accessibilityRole="header">Set a new password</Text>
+          <Text style={[type.body, styles.muted]}>
+            Your admin gave you a temporary password. Choose your own to continue.
+          </Text>
+        </View>
+      ) : null}
+      {saved ? <Notice text="Password changed." tone="info" /> : null}
 
-        <Card>
-          <Controller
-            control={control}
-            name="currentPassword"
-            render={({ field, fieldState }) => (
-              <TextField
-                label="Current password"
-                value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
-                error={fieldState.error?.message}
-                secureTextEntry
-                textContentType="password"
-              />
-            )}
+      <Controller
+        control={control}
+        name="currentPassword"
+        render={({ field, fieldState }) => (
+          <PasswordField
+            label={forced ? 'Temporary password' : 'Current password'}
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={fieldState.error?.message}
+            textContentType="password"
           />
-          <Controller
-            control={control}
-            name="newPassword"
-            render={({ field, fieldState }) => (
-              <TextField
-                label="New password"
-                value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
-                error={fieldState.error?.message}
-                secureTextEntry
-                textContentType="newPassword"
-              />
-            )}
+        )}
+      />
+      <Controller
+        control={control}
+        name="newPassword"
+        render={({ field, fieldState }) => (
+          <PasswordField
+            label="New password"
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={fieldState.error?.message}
+            textContentType="newPassword"
           />
-          <View style={styles.rules}>
-            {passwordRequirements.map(r => {
-              const met = r.test(newPassword);
-              return (
-                <View key={r.label} style={styles.rule}>
-                  <View style={[styles.tick, met && styles.tickOn]}>
-                    {met ? <Check size={10} color={colors.white} strokeWidth={3} /> : null}
-                  </View>
-                  <Text style={[type.small, met && { color: colors.success }]}>{r.label}</Text>
-                </View>
-              );
-            })}
-          </View>
-          <Controller
-            control={control}
-            name="confirm"
-            render={({ field, fieldState }) => (
-              <TextField
-                label="Confirm new password"
-                value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
-                error={fieldState.error?.message}
-                secureTextEntry
-                textContentType="newPassword"
-              />
-            )}
+        )}
+      />
+      <Controller
+        control={control}
+        name="confirm"
+        render={({ field, fieldState }) => (
+          <PasswordField
+            label="Confirm new password"
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={fieldState.error?.message}
+            textContentType="newPassword"
           />
-          <Button label="Change Password" onPress={onSubmit} loading={formState.isSubmitting} />
-        </Card>
-        {forced ? <Button label="Sign Out" variant="text" onPress={() => signOut()} /> : null}
+        )}
+      />
+
+      {/* Live checklist: the web's rules, plus the match check. The server checks again. */}
+      <View style={styles.rules}>
+        {passwordRequirements.map((r) => (
+          <Rule key={r.label} label={r.label} met={r.test(newPassword)} />
+        ))}
+        <Rule label="Passwords match" met={confirm.length > 0 && confirm === newPassword} />
+      </View>
+
+      {error ? <Notice text={error} /> : null}
+      <Button label={forced ? 'Save and continue' : 'Change password'} onPress={onSubmit} loading={formState.isSubmitting} />
+      {forced ? <Button label="Sign out" variant="text" onPress={() => signOut()} /> : null}
+    </>
+  );
+
+  if (forced) return <AuthLayout>{form}</AuthLayout>;
+
+  return (
+    <KeyboardAvoidingView style={styles.fill} behavior="padding">
+      <Screen edges={['left', 'right']}>
+        <Card>{form}</Card>
       </Screen>
     </KeyboardAvoidingView>
   );
@@ -122,14 +144,19 @@ export function ChangePasswordScreen({ onDone }: { onDone?: () => void }) {
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.background },
-  rules: { gap: space.xs },
+  heading: { gap: space.xs, marginBottom: space.xs },
+  title: { ...type.title, fontSize: 26 },
+  muted: { color: colors.textSecondary },
+  rules: { gap: space.sm, backgroundColor: colors.primaryTint, borderRadius: radius.md, padding: space.md },
   rule: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  ruleMet: { color: colors.success },
   tick: {
-    width: 16,
-    height: 16,
-    borderRadius: radius.pill,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.placeholder,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -2,7 +2,7 @@
 // only (like the web). Otherwise the tabs, plus owner screens filtered by role.
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { CalendarCheck, CheckSquare, House, Menu, Users } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
@@ -13,16 +13,19 @@ import { MoreScreen } from '../screens/MoreScreen';
 import { SignInScreen } from '../screens/SignInScreen';
 import { AttendanceScreen } from '../screens/attendance/AttendanceScreen';
 import { CheckFlowScreen } from '../screens/attendance/CheckFlowScreen';
+import { CustomerDetailScreen } from '../screens/customers/CustomerDetailScreen';
+import { CustomersScreen } from '../screens/customers/CustomersScreen';
+import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
+import { TasksScreen } from '../screens/tasks/TasksScreen';
 import {
-  CustomersScreen,
   DashboardScreen,
-  NotificationsScreen,
   PurchaseOrdersScreen,
   QuotesScreen,
-  TasksScreen,
 } from '../screens/placeholders';
 import { colors } from '../theme/tokens';
+import { StyleGuideScreen } from '../screens/dev/StyleGuideScreen';
 import { canSee } from './access';
+import { TabBar } from './TabBar';
 import type { RootStackParamList, TabParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -33,16 +36,11 @@ const tabIcon = (Icon: LucideIcon) =>
     return <Icon color={color} size={size} strokeWidth={1.5} />;
   };
 
+const renderTabBar = (props: BottomTabBarProps) => <TabBar {...props} />;
+
 function Tabs() {
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
-      }}
-    >
+    <Tab.Navigator tabBar={renderTabBar} screenOptions={{ headerShown: false }}>
       <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarIcon: tabIcon(House) }} />
       <Tab.Screen name="Attendance" component={AttendanceScreen} options={{ tabBarIcon: tabIcon(CalendarCheck) }} />
       <Tab.Screen name="Customers" component={CustomersScreen} options={{ tabBarIcon: tabIcon(Users) }} />
@@ -54,6 +52,10 @@ function Tabs() {
 
 function ChangePasswordPushed({ navigation }: { navigation: { goBack: () => void } }) {
   return <ChangePasswordScreen onDone={() => navigation.goBack()} />;
+}
+
+function ForcedPasswordPreview() {
+  return <ChangePasswordScreen forcedPreview />;
 }
 
 export function RootNavigator() {
@@ -78,16 +80,32 @@ export function RootNavigator() {
         headerStyle: { backgroundColor: colors.background },
         headerShadowVisible: false,
         headerBackButtonDisplayMode: 'minimal',
+        // Dark icons by default; a screen that sets 'light' (the dev Sign In previews) must not leave them white.
+        statusBarStyle: 'dark',
       }}
     >
       <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordPushed} options={{ title: 'Change Password' }} />
       <Stack.Screen name="CheckFlow" component={CheckFlowScreen} options={{ title: 'Check in' }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} options={({ route }) => ({ title: route.params.name })} />
       {canSee('Dashboard', role) ? <Stack.Screen name="Dashboard" component={DashboardScreen} /> : null}
       {canSee('Quotes', role) ? <Stack.Screen name="Quotes" component={QuotesScreen} /> : null}
       {canSee('PurchaseOrders', role) ? (
         <Stack.Screen name="PurchaseOrders" component={PurchaseOrdersScreen} options={{ title: 'Purchase Orders' }} />
+      ) : null}
+      {__DEV__ ? (
+        <>
+          <Stack.Screen name="StyleGuide" component={StyleGuideScreen} options={{ title: 'Style guide' }} />
+          {/* Inside the stack the screen's own view controller sets the status bar, so ask for light icons here;
+              the real signed-out screens sit outside the stack and get them from AuthLayout's <StatusBar>. */}
+          <Stack.Screen name="SignInPreview" component={SignInScreen} options={{ headerShown: false, statusBarStyle: 'light' }} />
+          <Stack.Screen
+            name="ForcedPasswordPreview"
+            component={ForcedPasswordPreview}
+            options={{ headerShown: false, statusBarStyle: 'light' }}
+          />
+        </>
       ) : null}
     </Stack.Navigator>
   );

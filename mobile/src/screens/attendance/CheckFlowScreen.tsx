@@ -1,13 +1,16 @@
-// Check in / Check out in three steps, like the web: location, selfie, confirm.
-// GPS is best-effort (the server accepts a check-in without it); the selfie is
-// required, and taking and sending it is the consent, exactly as on the web.
-import React, { useCallback, useEffect, useState } from 'react';
-import { Image, Linking, StyleSheet, Text, View } from 'react-native';
+// Check in / Check out in three steps, like the web: location, selfie, confirm
+// (design v2, Prompt 4). GPS is best-effort (the server accepts a check-in
+// without it); the selfie is required, and taking and sending it is the
+// consent, exactly as on the web. The selfie opens the phone's own camera
+// (react-native-image-picker); the face frame sits around the preview here.
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Image, Linking, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
-import { CircleCheck, MapPin, MapPinOff } from 'lucide-react-native';
+import { CircleCheck, MapPin, MapPinOff, ScanFace } from 'lucide-react-native';
 import { checkIn, checkOut, placeName, uploadSelfie, type Side } from '../../api/attendance';
-import { Button, Card, Notice, Screen, TextField } from '../../components/ui';
+import { Button, Card, Notice, TextField } from '../../components/ui';
 import { getLocation, pickTestPhoto, takeSelfie, type Position, type SelfieResult } from '../../lib/device';
 import { formatTime } from '../../lib/format';
 import type { RootStackParamList } from '../../navigation/types';
@@ -21,9 +24,15 @@ type Place =
   | { status: 'failed'; reason: 'denied' | 'unavailable' | 'timeout' }
   | { status: 'skipped' };
 
+const STEPS: { key: Exclude<Step, 'success'>; label: string }[] = [
+  { key: 'location', label: 'Location' },
+  { key: 'selfie', label: 'Selfie' },
+  { key: 'confirm', label: 'Confirm' },
+];
+
 const SELFIE_ERRORS: Record<Exclude<SelfieResult, { ok: true }>['reason'], string | null> = {
   cancelled: null,
-  'no-camera': "This device has no camera. Use a phone to check in.",
+  'no-camera': 'This device has no camera. Use a phone to check in.',
   denied: 'Camera access is off for Modusys. Turn it on in Settings, then try again.',
   'too-big': 'That photo is too large. Please retake it.',
   failed: "The photo couldn't be taken. Please try again.",
@@ -102,34 +111,34 @@ export function CheckFlowScreen({ route, navigation }: Props) {
 
   if (step === 'success') {
     return (
-      <Screen edges={['left', 'right', 'bottom']}>
+      <StepLayout footer={<Button label="Done" onPress={() => navigation.goBack()} />}>
         <View style={styles.success}>
-          <CircleCheck size={88} color={colors.success} strokeWidth={1.5} />
-          <Text style={[type.title, styles.center]}>
+          <View style={styles.successRing}>
+            <CircleCheck size={56} color={colors.success} strokeWidth={1.5} />
+          </View>
+          <Text style={styles.successTitle} accessibilityRole="header">
             {side === 'checkIn' ? 'Checked in' : 'Checked out'} at {formatTime(doneAt)}
           </Text>
-          <Text style={[type.body, styles.muted, styles.center]}>
-            It shows on the web's attendance pages right away.
-          </Text>
+          {place.status === 'found' && place.label ? (
+            <View style={styles.inlinePlace}>
+              <MapPin size={14} color={colors.textSecondary} strokeWidth={1.5} />
+              <Text style={[type.small, styles.center]}>{place.label}</Text>
+            </View>
+          ) : null}
+          <Text style={[type.body, styles.muted, styles.center]}>It shows on the web's attendance pages right away.</Text>
         </View>
-        <Button label="Done" onPress={() => navigation.goBack()} />
-      </Screen>
+      </StepLayout>
     );
   }
 
-  return (
-    <Screen edges={['left', 'right', 'bottom']}>
-      <Text style={type.label}>
-        Step {step === 'location' ? 1 : step === 'selfie' ? 2 : 3} of 3
-      </Text>
-
-      {step === 'location' ? (
-        <>
-          <Card>
-            <PlaceView place={place} />
-          </Card>
-          {place.status === 'found' ? <Button label="Continue" onPress={() => setStep('selfie')} /> : null}
-          {place.status === 'failed' ? (
+  if (step === 'location') {
+    return (
+      <StepLayout
+        step={step}
+        footer={
+          place.status === 'found' ? (
+            <Button label="Continue" onPress={() => setStep('selfie')} />
+          ) : place.status === 'failed' ? (
             <>
               {place.reason === 'denied' ? (
                 <Button label="Open Settings" onPress={() => Linking.openSettings()} />
@@ -138,68 +147,201 @@ export function CheckFlowScreen({ route, navigation }: Props) {
               )}
               <Button
                 label={`${verb} without location`}
-                variant="secondary"
+                variant="text"
                 onPress={() => {
                   setPlace({ status: 'skipped' });
                   setStep('selfie');
                 }}
               />
             </>
-          ) : null}
-        </>
-      ) : null}
+          ) : null
+        }
+      >
+        <PlaceView place={place} />
+      </StepLayout>
+    );
+  }
 
-      {step === 'selfie' ? (
-        <>
-          <Card style={styles.center}>
+  if (step === 'selfie') {
+    return (
+      <StepLayout
+        step={step}
+        footer={
+          <>
+            {photoError?.settings ? <Button label="Open Settings" onPress={() => Linking.openSettings()} /> : null}
+            {photoError?.noCamera && __DEV__ ? (
+              <Button label="Use a saved photo (simulator only)" variant="secondary" onPress={() => capture(true)} />
+            ) : null}
             {photo ? (
-              <Image source={{ uri: photo }} style={styles.preview} accessibilityLabel="Your selfie" />
+              <>
+                <Button label="Use photo" onPress={() => setStep('confirm')} />
+                <Button label="Retake" variant="text" onPress={() => capture()} />
+              </>
             ) : (
-              <Text style={[type.body, styles.center]}>
-                Take a selfie with the front camera.{'\n'}Make sure your face is clearly visible.
-              </Text>
+              <Button label="Open camera" onPress={() => capture()} />
             )}
-          </Card>
-          {photoError ? <Notice text={photoError.text} /> : null}
-          {photoError?.settings ? <Button label="Open Settings" onPress={() => Linking.openSettings()} /> : null}
-          {photoError?.noCamera && __DEV__ ? (
-            <Button label="Use a saved photo (simulator only)" variant="secondary" onPress={() => capture(true)} />
-          ) : null}
-          {photo ? (
-            <>
-              <Button label="Use photo" onPress={() => setStep('confirm')} />
-              <Button label="Retake" variant="secondary" onPress={() => capture()} />
-            </>
-          ) : (
-            <Button label="Open camera" onPress={() => capture()} />
-          )}
-        </>
-      ) : null}
+          </>
+        }
+      >
+        <FaceFrame photo={photo} />
+        <Text style={[type.body, styles.muted, styles.center]}>
+          {photo ? 'Is your face clear and inside the frame?' : 'Keep your face inside the frame. Use the front camera in good light.'}
+        </Text>
+        {photoError ? <Notice text={photoError.text} /> : null}
+      </StepLayout>
+    );
+  }
 
-      {step === 'confirm' && photo ? (
+  // Confirm
+  return (
+    <StepLayout
+      step={step}
+      footer={
         <>
-          <Card>
-            <View style={styles.confirm}>
-              <Image source={{ uri: photo }} style={styles.thumb} accessibilityLabel="Your selfie" />
-              <View style={styles.confirmText}>
-                <Text style={type.heading}>{formatTime(new Date())}</Text>
-                <Text style={[type.body, styles.muted]}>{placeText(place)}</Text>
-              </View>
-            </View>
-          </Card>
-          <TextField
-            label="Note (optional)"
-            placeholder="Working at site, Vesu"
-            value={note}
-            onChangeText={setNote}
-            maxLength={300}
-          />
-          {sendError ? <Notice text={sendError} /> : null}
           <Button label={verb} onPress={send} loading={sending} />
           <Button label="Retake selfie" variant="text" onPress={() => setStep('selfie')} disabled={sending} />
         </>
-      ) : null}
-    </Screen>
+      }
+    >
+      <Card>
+        <View style={styles.confirm}>
+          {photo ? <Image source={{ uri: photo }} style={styles.thumb} accessibilityLabel="Your selfie" /> : null}
+          <View style={styles.confirmText}>
+            <Text style={type.label}>{verb} at</Text>
+            <Text style={styles.confirmTime}>{formatTime(new Date())}</Text>
+            <View style={styles.inlinePlace}>
+              {place.status === 'found' ? (
+                <MapPin size={14} color={colors.textSecondary} strokeWidth={1.5} />
+              ) : (
+                <MapPinOff size={14} color={colors.textSecondary} strokeWidth={1.5} />
+              )}
+              <Text style={[type.small, styles.flex]} numberOfLines={2}>{placeText(place)}</Text>
+            </View>
+          </View>
+        </View>
+      </Card>
+      <TextField
+        label="Note (optional)"
+        placeholder="Working at site, Vesu"
+        value={note}
+        onChangeText={setNote}
+        maxLength={300}
+      />
+      {sendError ? <Notice text={sendError} /> : null}
+    </StepLayout>
+  );
+}
+
+/** Progress bar on top, content in the middle, buttons pinned to the bottom. */
+function StepLayout({ step, children, footer }: { step?: Exclude<Step, 'success'>; children: React.ReactNode; footer?: React.ReactNode }) {
+  const index = step ? STEPS.findIndex((s) => s.key === step) : -1;
+  return (
+    <SafeAreaView style={styles.fill} edges={['left', 'right', 'bottom']}>
+      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        {step ? (
+          <View style={styles.progress} accessible accessibilityLabel={`Step ${index + 1} of 3, ${STEPS[index].label}`}>
+            <View style={styles.progressBars}>
+              {STEPS.map((s, i) => (
+                <View key={s.key} style={[styles.progressBar, i <= index && styles.progressOn]} />
+              ))}
+            </View>
+            <Text style={type.label}>
+              Step {index + 1} of 3 · {STEPS[index].label}
+            </Text>
+          </View>
+        ) : null}
+        {children}
+      </ScrollView>
+      {footer ? <View style={styles.footer}>{footer}</View> : null}
+    </SafeAreaView>
+  );
+}
+
+/** Soft pulsing ring behind the pin while the phone looks for a position. */
+function Pulse() {
+  const scale = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scale, { toValue: 1.25, duration: 900, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [scale]);
+  return <Animated.View style={[styles.pulse, { transform: [{ scale }] }]} />;
+}
+
+function PlaceView({ place }: { place: Place }) {
+  if (place.status === 'finding') {
+    return (
+      <View style={styles.placeHero}>
+        <View style={styles.pinWrap}>
+          <Pulse />
+          <View style={styles.pin}>
+            <MapPin size={32} color={colors.white} strokeWidth={1.5} />
+          </View>
+        </View>
+        <Text style={type.heading}>Finding your location…</Text>
+        <Text style={[type.small, styles.center]}>This takes a few seconds, longer indoors.</Text>
+      </View>
+    );
+  }
+  if (place.status === 'found') {
+    return (
+      <>
+        <View style={styles.placeHero}>
+          <View style={[styles.pin, styles.pinFound]}>
+            <MapPin size={32} color={colors.white} strokeWidth={1.5} />
+          </View>
+          <Text style={type.heading}>Location found</Text>
+        </View>
+        <Card style={styles.placeCard}>
+          <MapPin size={22} color={colors.primary} strokeWidth={1.5} />
+          <View style={styles.flex}>
+            <Text style={styles.placeLabel}>{place.label ?? 'Location captured'}</Text>
+            <Text style={type.small}>Accurate to about {Math.round(place.position.accuracy)} m</Text>
+          </View>
+        </Card>
+      </>
+    );
+  }
+  const denied = place.status === 'failed' && place.reason === 'denied';
+  return (
+    <View style={styles.placeHero}>
+      <View style={[styles.pin, styles.pinOff]}>
+        <MapPinOff size={32} color={colors.error} strokeWidth={1.5} />
+      </View>
+      <Text style={type.heading}>{denied ? 'Location is off' : "Couldn't get your location"}</Text>
+      <Text style={[type.body, styles.muted, styles.center]}>
+        {denied
+          ? 'Turn on location for Modusys in Settings so your check-in records where you are, or continue without it.'
+          : 'Check that location is on and try again, or continue without it.'}
+      </Text>
+    </View>
+  );
+}
+
+/** A 3:4 box with corner brackets: the photo once taken, otherwise a face hint. */
+function FaceFrame({ photo }: { photo: string | null }) {
+  const { width } = useWindowDimensions();
+  const w = Math.min(280, Math.round(width * 0.68));
+  const h = Math.round((w * 4) / 3);
+  return (
+    <View style={[styles.frame, { width: w, height: h }]}>
+      {photo ? (
+        <Image source={{ uri: photo }} style={styles.framePhoto} accessibilityLabel="Your selfie" />
+      ) : (
+        <View style={styles.frameEmpty}>
+          <ScanFace size={72} color={colors.primary} strokeWidth={1} />
+        </View>
+      )}
+      <View style={[styles.corner, styles.tl]} />
+      <View style={[styles.corner, styles.tr]} />
+      <View style={[styles.corner, styles.bl]} />
+      <View style={[styles.corner, styles.br]} />
+    </View>
   );
 }
 
@@ -208,46 +350,69 @@ function placeText(place: Place): string {
   return 'No location';
 }
 
-function PlaceView({ place }: { place: Place }) {
-  if (place.status === 'finding') {
-    return (
-      <View style={styles.place}>
-        <MapPin size={28} color={colors.primary} strokeWidth={1.5} />
-        <Text style={type.body}>Getting your location…</Text>
-      </View>
-    );
-  }
-  if (place.status === 'found') {
-    return (
-      <View style={styles.place}>
-        <MapPin size={28} color={colors.success} strokeWidth={1.5} />
-        <View style={styles.placeText}>
-          <Text style={type.heading}>{place.label ?? 'Location found'}</Text>
-          <Text style={type.small}>Accurate to about {Math.round(place.position.accuracy)} m</Text>
-        </View>
-      </View>
-    );
-  }
-  const text =
-    place.status === 'failed' && place.reason === 'denied'
-      ? 'Location access is off for Modusys. Turn it on in Settings so your check-in records where you are, or continue without it.'
-      : "Couldn't get your location. Check that location is on and try again, or continue without it.";
-  return (
-    <View style={styles.place}>
-      <MapPinOff size={28} color={colors.error} strokeWidth={1.5} />
-      <Text style={[type.body, styles.placeText]}>{text}</Text>
-    </View>
-  );
-}
+const PIN = 80;
+const CORNER = 32;
 
 const styles = StyleSheet.create({
+  fill: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
+  body: { flexGrow: 1, padding: space.screen, gap: space.screen },
+  footer: { paddingHorizontal: space.screen, paddingTop: space.md, paddingBottom: space.lg, gap: space.xs },
   muted: { color: colors.textSecondary },
-  center: { alignItems: 'center', textAlign: 'center' },
-  place: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  placeText: { flex: 1, gap: 2 },
-  preview: { width: 240, height: 320, borderRadius: radius.md, backgroundColor: colors.greyTint },
-  confirm: { flexDirection: 'row', gap: space.md, alignItems: 'center' },
-  thumb: { width: 72, height: 96, borderRadius: radius.sm, backgroundColor: colors.greyTint },
+  center: { textAlign: 'center' },
+  progress: { gap: space.sm },
+  progressBars: { flexDirection: 'row', gap: space.xs },
+  progressBar: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.border },
+  progressOn: { backgroundColor: colors.primary },
+  placeHero: { alignItems: 'center', gap: space.md, paddingVertical: space.xl },
+  pinWrap: { width: PIN * 1.6, height: PIN * 1.6, alignItems: 'center', justifyContent: 'center' },
+  pulse: {
+    position: 'absolute',
+    width: PIN * 1.4,
+    height: PIN * 1.4,
+    borderRadius: (PIN * 1.4) / 2,
+    backgroundColor: colors.primarySoft,
+  },
+  pin: {
+    width: PIN,
+    height: PIN,
+    borderRadius: PIN / 2,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinFound: { backgroundColor: colors.success },
+  pinOff: { backgroundColor: colors.errorTint },
+  placeCard: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  placeLabel: { ...type.body, fontWeight: '600' },
+  frame: { alignSelf: 'center', marginTop: space.sm },
+  framePhoto: { flex: 1, borderRadius: radius.lg, backgroundColor: colors.greyTint },
+  frameEmpty: {
+    flex: 1,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primaryTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  corner: { position: 'absolute', width: CORNER, height: CORNER, borderColor: colors.primary },
+  tl: { top: -6, left: -6, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: radius.lg },
+  tr: { top: -6, right: -6, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: radius.lg },
+  bl: { bottom: -6, left: -6, borderBottomWidth: 3, borderLeftWidth: 3, borderBottomLeftRadius: radius.lg },
+  br: { bottom: -6, right: -6, borderBottomWidth: 3, borderRightWidth: 3, borderBottomRightRadius: radius.lg },
+  confirm: { flexDirection: 'row', gap: space.lg, alignItems: 'center' },
+  thumb: { width: 84, height: 112, borderRadius: radius.md, backgroundColor: colors.greyTint },
   confirmText: { flex: 1, gap: space.xs },
-  success: { alignItems: 'center', gap: space.md, paddingVertical: space.xxl },
+  confirmTime: { ...type.kpi, fontSize: 26 },
+  inlinePlace: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  success: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.md, paddingVertical: space.xxl },
+  successRing: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    backgroundColor: colors.successTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: space.sm,
+  },
+  successTitle: { ...type.title, fontSize: 24, textAlign: 'center' },
 });
