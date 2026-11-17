@@ -82,6 +82,14 @@ export function istToday(now: Date = new Date()): string {
   return new Date(now.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
 }
 
+/** "Good morning" before 12:00 IST, "Good afternoon" before 17:00, then "Good evening". */
+export function istGreeting(now: Date = new Date()): string {
+  const hour = new Date(now.getTime() + IST_OFFSET_MS).getUTCHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 /** A whole IST month: offset 0 = this month (up to today), -1 = last month, ... */
 export function istMonth(offset: number, now: Date = new Date()): { from: string; to: string; label: string } {
   const today = istToday(now);

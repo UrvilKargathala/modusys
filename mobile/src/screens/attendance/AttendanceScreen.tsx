@@ -1,18 +1,23 @@
-// My Attendance: today's card with Check in / Check out, the month's counts,
-// and the day-by-day history (tap a day for both selfies, places and notes).
+// My Attendance (design v2, Prompt 3): the big round Check in / Check out
+// button, today's numbers, the month's counts and the day-by-day log (tap a day
+// for both selfies, places and notes). History covers this month and the two before.
 import React, { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarCheck, ChevronLeft, ChevronRight, UserX, X } from 'lucide-react-native';
 import { getHistory, getToday, type AttendanceRecord, type Leave } from '../../api/attendance';
-import { Button, Card, EmptyState, Notice, Screen, StatusBadge, Title } from '../../components/ui';
-import { dayBadge, leaveDates, leaveLabel, minutesSince, todayState } from '../../lib/attendance';
+import { Card, EmptyState, Notice, Screen, SectionHeader, Sheet, SkeletonRow, StatusBadge, Title } from '../../components/ui';
+import { dayBadge, leaveDates, leaveLabel } from '../../lib/attendance';
+import { attendanceConfig } from '../../lib/status';
 import { formatDay, formatHours, formatTime, istMonth, istToday } from '../../lib/format';
+import { usePullRefresh } from '../../lib/usePullRefresh';
 import type { RootStackParamList } from '../../navigation/types';
-import { colors, radius, space, touch, type } from '../../theme/tokens';
+import { colors, fonts, radius, shadow, space, touch, type } from '../../theme/tokens';
+import { CheckButton } from './CheckButton';
 import { Row, Selfie } from './parts';
+import { TodaySummaryCard } from './TodaySummaryCard';
 
 const OLDEST_MONTH = -2; // the history endpoint serves up to ~3 months at a time
 
@@ -28,16 +33,13 @@ export function AttendanceScreen() {
     queryFn: () => getHistory(month.from, month.to),
   });
 
-  const refreshing = today.isRefetching || history.isRefetching;
-  const refresh = () => {
-    today.refetch();
-    history.refetch();
-  };
+  const { refreshing, onRefresh: refresh } = usePullRefresh(() => Promise.all([today.refetch(), history.refetch()]));
+
 
   if (today.data && !today.data.employee) {
     return (
       <Screen onRefresh={refresh} refreshing={refreshing}>
-        <Title>My Attendance</Title>
+        <Title>Attendance</Title>
         <EmptyState
           icon={UserX}
           title="Not linked to an employee"
@@ -47,146 +49,123 @@ export function AttendanceScreen() {
     );
   }
 
+  const record = today.data?.today ?? null;
+  const summary = history.data?.summary;
+  const leaves = history.data?.leaves ?? [];
+  const records = history.data?.records ?? [];
+  const empty = !!history.data && records.length === 0 && leaves.length === 0;
+
   return (
     <Screen onRefresh={refresh} refreshing={refreshing}>
-      <Title sub="Check in with a selfie and your location.">My Attendance</Title>
+      <Title sub={formatDay(istToday())}>Attendance</Title>
 
       {today.error ? <Notice text={(today.error as Error).message} /> : null}
-      <TodayCard
-        record={today.data?.today ?? null}
-        loading={today.isLoading}
-        onCheck={(side) => nav.navigate('CheckFlow', { side })}
-      />
+      <CheckButton record={record} loading={today.isLoading} onCheck={(side) => nav.navigate('CheckFlow', { side })} />
+      {record ? <TodaySummaryCard record={record} loading={false} title="Today" /> : null}
 
       <View style={styles.monthBar}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Previous month"
-          disabled={monthOffset <= OLDEST_MONTH}
-          onPress={() => setMonthOffset((m) => m - 1)}
-          style={[styles.monthArrow, monthOffset <= OLDEST_MONTH && styles.off]}
-        >
-          <ChevronLeft size={22} color={colors.primary} />
-        </Pressable>
-        <Text style={type.heading}>{month.label}</Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Next month"
-          disabled={monthOffset >= 0}
-          onPress={() => setMonthOffset((m) => m + 1)}
-          style={[styles.monthArrow, monthOffset >= 0 && styles.off]}
-        >
-          <ChevronRight size={22} color={colors.primary} />
-        </Pressable>
+        <MonthArrow direction="previous" disabled={monthOffset <= OLDEST_MONTH} onPress={() => setMonthOffset((m) => m - 1)} />
+        <Text style={type.heading} accessibilityRole="header">{month.label}</Text>
+        <MonthArrow direction="next" disabled={monthOffset >= 0} onPress={() => setMonthOffset((m) => m + 1)} />
       </View>
 
       {history.error ? <Notice text={(history.error as Error).message} /> : null}
-      {history.data?.summary ? (
-        <View style={styles.chips}>
-          <Chip label="Present" value={history.data.summary.present} />
-          <Chip label="Late" value={history.data.summary.late} />
-          <Chip label="Leave" value={history.data.summary.leave} />
-          <Chip label="Absent" value={history.data.summary.absent} />
+      {summary ? (
+        <View style={styles.counts}>
+          <Count label="Present" value={summary.present} tone={attendanceConfig.FULL_DAY} />
+          <Count label="Late" value={summary.late} tone={attendanceConfig.late} />
+          <Count label="Leave" value={summary.leave} tone={attendanceConfig.leave} />
+          <Count label="Absent" value={summary.absent} tone={attendanceConfig.absent} />
         </View>
       ) : null}
 
-      {history.isLoading ? (
-        <Text style={[type.body, styles.muted]}>Loading…</Text>
-      ) : history.data && history.data.records.length === 0 && history.data.leaves.length === 0 ? (
-        <EmptyState
-          icon={CalendarCheck}
-          title="No attendance yet"
-          text={monthOffset === 0 ? 'Your check-ins will show here, one row per day.' : `Nothing recorded in ${month.label}.`}
-        />
-      ) : (
-        <Card style={styles.list}>
-          {history.data?.leaves.map((l) => <LeaveRow key={l.id} leave={l} />)}
-          {history.data?.records.map((r) => (
-            <DayRow key={r.id} record={r} onPress={() => setOpenDay(r)} />
-          ))}
-        </Card>
-      )}
+      <View style={styles.section}>
+        <SectionHeader title="Attendance log" />
+        {history.isLoading ? (
+          <Card style={styles.list}>
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+          </Card>
+        ) : empty ? (
+          <Card>
+            <EmptyState
+              icon={CalendarCheck}
+              title="No attendance yet"
+              text={monthOffset === 0 ? 'Your check-ins will show here, one row per day.' : `Nothing recorded in ${month.label}.`}
+            />
+          </Card>
+        ) : (
+          <Card style={styles.list}>
+            {leaves.map((l, i) => (
+              <LeaveRow key={l.id} leave={l} last={i === leaves.length - 1 && records.length === 0} />
+            ))}
+            {records.map((r, i) => (
+              <DayRow key={r.id} record={r} last={i === records.length - 1} onPress={() => setOpenDay(r)} />
+            ))}
+          </Card>
+        )}
+      </View>
 
       <DaySheet record={openDay} onClose={() => setOpenDay(null)} />
     </Screen>
   );
 }
 
-function TodayCard({ record, loading, onCheck }: {
-  record: AttendanceRecord | null;
-  loading: boolean;
-  onCheck: (side: 'checkIn' | 'checkOut') => void;
-}) {
-  const state = todayState(record);
-  const title = state === 'checked-in' ? 'Checked in' : state === 'checked-out' ? 'Checked out' : 'Not checked in';
+function MonthArrow({ direction, disabled, onPress }: { direction: 'previous' | 'next'; disabled: boolean; onPress: () => void }) {
+  const Icon = direction === 'previous' ? ChevronLeft : ChevronRight;
   return (
-    <Card>
-      <View style={styles.cardHead}>
-        <View>
-          <Text style={type.label}>Today · {formatDay(istToday())}</Text>
-          <Text style={type.heading}>{loading ? '…' : title}</Text>
-        </View>
-        {record ? <StatusBadge status={dayBadge(record, true)} /> : null}
-      </View>
-
-      {record ? (
-        <View style={styles.todayBody}>
-          <View style={styles.todayText}>
-            <Row
-              label="Check in"
-              value={`${formatTime(record.checkIn)}${record.checkInSource === 'unifi' ? ' (face scan)' : ''}`}
-            />
-            <Row label="Check out" value={record.checkOut ? formatTime(record.checkOut) : '–'} />
-            <Row
-              label={record.checkOut ? 'Worked' : 'So far'}
-              value={formatHours(record.checkOut ? record.workingMinutes : minutesSince(record.checkIn))}
-            />
-            <Row label="Location" value={record.checkInAddress} lines={2} />
-            {record.isLate && record.lateByMinutes != null ? (
-              <Text style={[type.small, styles.warn]}>
-                Late by {record.lateByMinutes} min · grace period 15 min, no deduction
-              </Text>
-            ) : null}
-            {record.isEarlyExit && record.earlyExitByMinutes != null ? (
-              <Text style={[type.small, styles.early]}>Left {record.earlyExitByMinutes} min early</Text>
-            ) : null}
-          </View>
-          {record.checkInPhotoUrl ? <Selfie path={record.checkInPhotoUrl} label="Check in" size={64} /> : null}
-        </View>
-      ) : null}
-
-      {loading ? null : state === 'not-checked-in' ? (
-        <Button label="Check in" onPress={() => onCheck('checkIn')} />
-      ) : state === 'checked-in' ? (
-        <Button label="Check out" onPress={() => onCheck('checkOut')} />
-      ) : null}
-    </Card>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={direction === 'previous' ? 'Previous month' : 'Next month'}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [styles.monthArrow, disabled && styles.off, pressed && styles.pressed]}
+    >
+      <Icon size={20} color={colors.primary} strokeWidth={1.75} />
+    </Pressable>
   );
 }
 
-function Chip({ label, value }: { label: string; value: number }) {
+function Count({ label, value, tone }: { label: string; value: number; tone: { color: string; bg: string } }) {
   return (
-    <View style={styles.chip} accessible accessibilityLabel={`${label} ${value}`}>
-      <Text style={styles.chipValue}>{value}</Text>
+    <View style={[styles.count, { backgroundColor: tone.bg }]} accessible accessibilityLabel={`${label} ${value}`}>
+      <Text style={[styles.countValue, { color: tone.color }]}>{value}</Text>
       <Text style={type.small}>{label}</Text>
     </View>
   );
 }
 
-function DayRow({ record, onPress }: { record: AttendanceRecord; onPress: () => void }) {
+/** Day number and weekday from the server's YYYY-MM-DD (IST) date, in a small block. */
+function DateBlock({ date, tint }: { date: string; tint: string }) {
+  const day = date.slice(8, 10);
+  const weekday = formatDay(date).slice(0, 3);
+  return (
+    <View style={[styles.dateBlock, { backgroundColor: tint }]} accessibilityElementsHidden importantForAccessibility="no">
+      <Text style={styles.dateDay}>{day}</Text>
+      <Text style={styles.dateWeekday}>{weekday}</Text>
+    </View>
+  );
+}
+
+function DayRow({ record, last, onPress }: { record: AttendanceRecord; last: boolean; onPress: () => void }) {
   const isToday = record.date.slice(0, 10) === istToday();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${formatDay(record.date)}, details`}
       onPress={onPress}
-      style={({ pressed }) => [styles.dayRow, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.dayRow, last && styles.lastRow, pressed && styles.pressed]}
     >
+      <DateBlock date={record.date} tint={colors.primaryTint} />
       <View style={styles.dayMain}>
-        <Text style={[type.body, styles.dayDate]}>{formatDay(record.date)}</Text>
-        <Text style={type.small}>
+        <Text style={styles.dayTimes}>
           {formatTime(record.checkIn)} – {record.checkOut ? formatTime(record.checkOut) : '…'}
-          {record.checkOut ? ` · ${formatHours(record.workingMinutes)}` : ''}
+        </Text>
+        <Text style={type.small}>
+          {record.checkOut ? formatHours(record.workingMinutes) : isToday ? 'In progress' : 'No check-out'}
+          {record.checkInSource === 'unifi' ? ' · face scan' : ''}
         </Text>
       </View>
       <View style={styles.dayBadges}>
@@ -197,76 +176,85 @@ function DayRow({ record, onPress }: { record: AttendanceRecord; onPress: () => 
   );
 }
 
-function LeaveRow({ leave }: { leave: Leave }) {
+function LeaveRow({ leave, last }: { leave: Leave; last: boolean }) {
   return (
-    <View style={styles.dayRow}>
+    <View style={[styles.dayRow, last && styles.lastRow]}>
+      <DateBlock date={leave.fromDate} tint={attendanceConfig.leave.bg} />
       <View style={styles.dayMain}>
-        <Text style={[type.body, styles.dayDate]}>{leaveDates(leave)}</Text>
-        <Text style={type.small}>Approved leave</Text>
+        <Text style={styles.dayTimes}>{leaveLabel(leave)}</Text>
+        <Text style={type.small}>{leaveDates(leave)}</Text>
       </View>
-      <StatusBadge status="leave" label={leaveLabel(leave)} />
+      <StatusBadge status="leave" />
     </View>
   );
 }
 
+/** Bottom sheet with both selfies, places and notes for one day. Tap outside or ✕ to close. */
 function DaySheet({ record, onClose }: { record: AttendanceRecord | null; onClose: () => void }) {
   return (
-    <Modal visible={!!record} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.sheet}>
+    <Sheet visible={!!record} onClose={onClose}>
           {record ? (
             <ScrollView contentContainerStyle={styles.sheetBody}>
-              <View style={styles.cardHead}>
-                <Text style={type.heading}>{formatDay(record.date)}</Text>
+              <View style={styles.sheetHead}>
+                <View style={styles.sheetTitle}>
+                  <Text style={type.heading} accessibilityRole="header">{formatDay(record.date)}</Text>
+                  <StatusBadge status={dayBadge(record, record.date.slice(0, 10) === istToday())} />
+                </View>
                 <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} style={styles.close}>
-                  <X size={22} color={colors.text} />
+                  <X size={20} color={colors.text} />
                 </Pressable>
               </View>
+
               <View style={styles.selfies}>
-                <Selfie path={record.checkInPhotoUrl} label="Check in" size={120} />
-                <Selfie path={record.checkOutPhotoUrl} label="Check out" size={120} />
+                <View style={styles.selfieCard}>
+                  <Selfie path={record.checkInPhotoUrl} label={`In · ${formatTime(record.checkIn)}`} size={112} />
+                </View>
+                <View style={styles.selfieCard}>
+                  <Selfie
+                    path={record.checkOutPhotoUrl}
+                    label={record.checkOut ? `Out · ${formatTime(record.checkOut)}` : 'No check-out'}
+                    size={112}
+                  />
+                </View>
               </View>
-              <Row label="Check in" value={`${formatTime(record.checkIn)}${record.checkInSource === 'unifi' ? ' (face scan)' : ''}`} />
-              <Row label="Where" value={record.checkInAddress} />
-              <Row label="Note" value={record.checkInNote} />
-              <Row label="Check out" value={record.checkOut ? formatTime(record.checkOut) : 'No check-out'} />
-              <Row label="Where" value={record.checkOutAddress} />
-              <Row label="Note" value={record.checkOutNote} />
-              {record.checkOut ? <Row label="Worked" value={formatHours(record.workingMinutes)} /> : null}
-              {record.isLate && record.lateByMinutes != null ? <Row label="Late by" value={`${record.lateByMinutes} min`} /> : null}
-              {record.isEarlyExit && record.earlyExitByMinutes != null ? (
-                <Row label="Left early" value={`${record.earlyExitByMinutes} min`} />
-              ) : null}
-              <Row label="Admin note" value={record.notes} />
+
+              <Card style={styles.sheetCard}>
+                <Row label="Check in" value={`${formatTime(record.checkIn)}${record.checkInSource === 'unifi' ? ' (face scan)' : ''}`} />
+                <Row label="Where" value={record.checkInAddress} />
+                <Row label="Note" value={record.checkInNote} />
+                <Row label="Check out" value={record.checkOut ? formatTime(record.checkOut) : 'No check-out'} />
+                <Row label="Where" value={record.checkOutAddress} />
+                <Row label="Note" value={record.checkOutNote} />
+                {record.checkOut ? <Row label="Worked" value={formatHours(record.workingMinutes)} /> : null}
+                {record.isLate && record.lateByMinutes != null ? <Row label="Late by" value={`${record.lateByMinutes} min`} /> : null}
+                {record.isEarlyExit && record.earlyExitByMinutes != null ? (
+                  <Row label="Left early" value={`${record.earlyExitByMinutes} min`} />
+                ) : null}
+                <Row label="Admin note" value={record.notes} />
+              </Card>
             </ScrollView>
           ) : null}
-        </View>
-      </View>
-    </Modal>
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  muted: { color: colors.textSecondary },
-  warn: { color: colors.warningText },
-  early: { color: colors.orange },
   off: { opacity: 0.3 },
   pressed: { opacity: 0.6 },
-  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: space.md },
-  todayBody: { flexDirection: 'row', gap: space.md },
-  todayText: { flex: 1, gap: space.xs },
+  section: { gap: space.md },
   monthBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  monthArrow: { width: touch, height: touch, alignItems: 'center', justifyContent: 'center' },
-  chips: { flexDirection: 'row', gap: space.sm },
-  chip: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: space.md,
-    borderRadius: radius.md,
+  monthArrow: {
+    width: touch,
+    height: touch,
+    borderRadius: touch / 2,
     backgroundColor: colors.card,
-    gap: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow,
   },
-  chipValue: { ...type.heading, fontSize: 20 },
+  counts: { flexDirection: 'row', gap: space.sm },
+  count: { flex: 1, alignItems: 'center', paddingVertical: space.md, borderRadius: radius.md, gap: 2 },
+  countValue: { fontSize: 22, fontWeight: '600', fontFamily: fonts.number },
   list: { paddingVertical: space.xs, gap: 0 },
   dayRow: {
     flexDirection: 'row',
@@ -277,12 +265,25 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     minHeight: touch,
   },
+  lastRow: { borderBottomWidth: 0 },
+  dateBlock: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  dateDay: { fontSize: 17, fontWeight: '600', color: colors.text, fontFamily: fonts.number },
+  dateWeekday: { fontSize: 11, color: colors.textSecondary, fontFamily: fonts.body },
   dayMain: { flex: 1, gap: 2 },
-  dayDate: { fontWeight: '600' },
+  dayTimes: { ...type.body, fontWeight: '600', fontFamily: fonts.number },
   dayBadges: { alignItems: 'flex-end', gap: space.xs },
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.backdrop },
-  sheet: { maxHeight: '85%', backgroundColor: colors.card, borderTopLeftRadius: radius.md * 2, borderTopRightRadius: radius.md * 2 },
-  sheetBody: { padding: space.lg, gap: space.md, paddingBottom: space.xxl },
-  close: { width: touch, height: touch, alignItems: 'center', justifyContent: 'center', marginTop: -space.sm, marginRight: -space.sm },
-  selfies: { flexDirection: 'row', justifyContent: 'center', gap: space.xl },
+  sheetBody: { padding: space.screen, gap: space.lg, paddingBottom: space.xxl },
+  sheetHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: space.md },
+  sheetTitle: { flex: 1, gap: space.sm },
+  close: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selfies: { flexDirection: 'row', gap: space.md },
+  selfieCard: { flex: 1, alignItems: 'center', backgroundColor: colors.card, borderRadius: radius.lg, paddingVertical: space.lg, ...shadow },
+  sheetCard: { gap: space.sm },
 });

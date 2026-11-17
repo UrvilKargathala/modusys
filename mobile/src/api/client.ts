@@ -33,7 +33,8 @@ type Options = {
 export async function api<T>(path: string, opts: Options = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const sentToken = token;
+  if (sentToken) headers.Authorization = `Bearer ${sentToken}`;
   const hasBody = opts.body !== undefined || opts.form !== undefined;
 
   let res: Response;
@@ -49,7 +50,10 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
 
   const data: unknown = await res.json().catch(() => null);
   if (!res.ok) {
-    if (res.status === 401 && !opts.skipAuthRedirect) onUnauthorized?.();
+    // Only a rejected token means the session ended. A call that went out with no token (e.g. while the
+    // saved one is still being restored, or after a development reload reset this module) must not sign
+    // the phone out and wipe the saved token.
+    if (res.status === 401 && !opts.skipAuthRedirect && sentToken) onUnauthorized?.();
     const message =
       (data as { error?: unknown } | null)?.error && typeof (data as { error: unknown }).error === 'string'
         ? (data as { error: string }).error
