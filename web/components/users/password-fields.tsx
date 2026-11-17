@@ -52,6 +52,8 @@ export function PasswordFields<T extends FieldValues & { password: string; confi
           <Input
             id="pw-password"
             type="text"
+            // Another person's password: keep the admin's own browser from saving or suggesting it.
+            autoComplete="off"
             placeholder="Enter or generate a password"
             className="pr-9"
             {...register("password" as Path<T>)}
@@ -71,7 +73,7 @@ export function PasswordFields<T extends FieldValues & { password: string; confi
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="pw-confirm">Confirm Password</Label>
-        <Input id="pw-confirm" type="text" placeholder="Re-enter the password" {...register("confirmPassword" as Path<T>)} />
+        <Input id="pw-confirm" type="text" autoComplete="off" placeholder="Re-enter the password" {...register("confirmPassword" as Path<T>)} />
         {errors.confirmPassword && (
           <span className="text-xs font-body text-error">{errors.confirmPassword.message}</span>
         )}
