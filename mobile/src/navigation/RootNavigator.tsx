@@ -1,5 +1,6 @@
 // Signed out → Sign In. Signed in but told to change password → Change Password
-// only (like the web). Otherwise the tabs, plus owner screens filtered by role.
+// only (like the web). Otherwise the tabs, plus the Dashboard for super admin.
+// Quotes and Purchase Orders are web-only.
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -17,11 +18,7 @@ import { CustomerDetailScreen } from '../screens/customers/CustomerDetailScreen'
 import { CustomersScreen } from '../screens/customers/CustomersScreen';
 import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
 import { TasksScreen } from '../screens/tasks/TasksScreen';
-import {
-  DashboardScreen,
-  PurchaseOrdersScreen,
-  QuotesScreen,
-} from '../screens/placeholders';
+import { DashboardScreen } from '../screens/business/DashboardScreen';
 import { colors } from '../theme/tokens';
 import { StyleGuideScreen } from '../screens/dev/StyleGuideScreen';
 import { canSee } from './access';
@@ -90,10 +87,6 @@ export function RootNavigator() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} options={({ route }) => ({ title: route.params.name })} />
       {canSee('Dashboard', role) ? <Stack.Screen name="Dashboard" component={DashboardScreen} /> : null}
-      {canSee('Quotes', role) ? <Stack.Screen name="Quotes" component={QuotesScreen} /> : null}
-      {canSee('PurchaseOrders', role) ? (
-        <Stack.Screen name="PurchaseOrders" component={PurchaseOrdersScreen} options={{ title: 'Purchase Orders' }} />
-      ) : null}
       {__DEV__ ? (
         <>
           <Stack.Screen name="StyleGuide" component={StyleGuideScreen} options={{ title: 'Style guide' }} />

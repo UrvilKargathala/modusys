@@ -1,8 +1,9 @@
 // Customer detail (M4, design v2 Prompt 6): header with Call / WhatsApp /
 // Directions / Email, then Overview · Notes · Photos. Overview shows the same
 // fields as the web's customer panel; Notes is the customer's chat from the
-// web with a composer pinned above the keyboard; Photos is the customer's gallery;
-// linked quotes come with Quotes (M5), since a quote's total needs the pricing rules.
+// web with a composer pinned above the keyboard; Photos is the customer's gallery.
+// Admins (the roles that see Quotes on the web) also get the customer's quotes on Overview (M5),
+// read-only: a quote opens on the web.
 import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,16 +12,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Mail, MessageCircle, MessageSquareText, Navigation, Phone } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { fullName } from '@shared/mock/architects';
+import { listCustomerQuotes } from '../../api/business';
 import { getCustomer, listArchitects, listUsers, type Customer } from '../../api/customers';
 import { listMedia } from '../../api/media';
 import { listMessages, markNotesRead, sendNote } from '../../api/messages';
 import { useUser } from '../../auth/AuthProvider';
-import { Avatar, Card, EmptyState, InfoRow, Notice, Segmented, Skeleton, SkeletonRow, StageBadge } from '../../components/ui';
+import { Avatar, Card, EmptyState, InfoRow, Notice, SectionHeader, Segmented, Skeleton, SkeletonRow, StageBadge } from '../../components/ui';
 import { fullAddress, mapsUrl, telUrl, whatsappUrl } from '../../lib/customers';
 import { formatDate, formatInrShort } from '../../lib/format';
 import { stageOrFallback } from '../../lib/stages';
 import { usePullRefresh } from '../../lib/usePullRefresh';
+import { canSee } from '../../navigation/access';
 import type { RootStackParamList } from '../../navigation/types';
+import { QuoteRow } from '../business/parts';
 import { colors, space, touch, type } from '../../theme/tokens';
 import { NoteComposer, NotesList } from './Notes';
 import { Photos } from './Photos';
@@ -85,8 +89,34 @@ function Overview({ customer }: { customer: Customer }) {
         <InfoRow label="Last activity" value={formatDate(customer.lastActivity)} />
         <InfoRow label="Added" value={formatDate(customer.createdAt)} />
       </Card>
-      <Text style={[type.small, styles.note]}>Linked quotes show here once Quotes arrive on the phone (M5).</Text>
+      <CustomerQuotes customerId={customer.id} />
     </>
+  );
+}
+
+// The customer's quotes with their Final Offer Price, for admins only (staff don't see Quotes, same as the web nav).
+function CustomerQuotes({ customerId }: { customerId: string }) {
+  const user = useUser();
+  const allowed = canSee('QuoteFigures', user.role);
+  const quotes = useQuery({ queryKey: ['quotes', 'customer', customerId], queryFn: () => listCustomerQuotes(customerId), enabled: allowed });
+  if (!allowed) return null;
+  const list = quotes.data ?? [];
+  return (
+    <View style={styles.quotes}>
+      <SectionHeader title={quotes.data ? `Quotes (${list.length})` : 'Quotes'} />
+      {quotes.error ? <Notice text={(quotes.error as Error).message} /> : null}
+      <Card style={styles.quoteRows}>
+        {quotes.isLoading ? (
+          <SkeletonRow />
+        ) : list.length === 0 ? (
+          <Text style={[type.small, styles.noQuotes]}>No quotes for this customer yet.</Text>
+        ) : (
+          list.map((q) => (
+            <QuoteRow key={q.id} quote={q} showCustomer={false} />
+          ))
+        )}
+      </Card>
+    </View>
   );
 }
 
@@ -286,5 +316,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   info: { gap: space.sm },
-  note: { textAlign: 'center' },
+  quotes: { gap: space.md },
+  quoteRows: { paddingVertical: space.xs },
+  noQuotes: { paddingVertical: space.sm },
 });

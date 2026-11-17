@@ -62,6 +62,7 @@ export function SignInScreen() {
             keyboardType="email-address"
             textContentType="username"
             returnKeyType="next"
+            submitBehavior="submit"
             onSubmitEditing={() => passwordRef.current?.focus()}
           />
         )}

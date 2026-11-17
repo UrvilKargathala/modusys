@@ -1,13 +1,15 @@
 // The signed-out look (design v2, Prompt 1): a brand gradient header with the
 // Modusys wordmark, and a white card with a rounded top that rises over it.
 // Used by Sign In and by the forced "Set a new password" screen.
-import React from 'react';
+import React, { createContext, useCallback, useEffect, useRef } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -15,10 +17,40 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { colors, fonts, radius, space } from '../theme/tokens';
 
+/**
+ * Scrolls the focused field into view above the keyboard. TextField calls it on focus when it sits inside AuthLayout;
+ * the layout also calls it once the keyboard has opened. The padding below makes room, but nothing scrolled the field
+ * up, so on Android (edge-to-edge) the keyboard covered the lower fields.
+ */
+export const RevealFocusedField = createContext<(() => void) | null>(null);
+
+/** Room left above the focused field: its label and a little air. */
+const REVEAL_GAP = 96;
+
 export function AuthLayout({ children }: { children: React.ReactNode }) {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const headerHeight = Math.max(220, Math.round(height * 0.32));
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+
+  const reveal = useCallback(() => {
+    // After the keyboard padding has been applied, so the scroll range is already long enough.
+    setTimeout(() => {
+      const input = TextInput.State.currentlyFocusedInput();
+      const inner = scrollRef.current?.getInnerViewRef();
+      if (!input || !inner) return;
+      input.measureLayout(
+        inner,
+        (_x, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - REVEAL_GAP), animated: true }),
+        () => undefined,
+      );
+    }, 120);
+  }, []);
+
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', reveal);
+    return () => sub.remove();
+  }, [reveal]);
 
   return (
     // Padding on both platforms: with edge-to-edge on, Android no longer resizes the window for the keyboard.
@@ -26,6 +58,7 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
       {/* Edge-to-edge: the gradient runs under the status bar, so its icons go light. */}
       <StatusBar barStyle="light-content" />
       <ScrollView
+        ref={scrollRef}
         style={styles.fill}
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -53,7 +86,9 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
           <Text style={styles.wordmark} accessibilityRole="header">Modusys</Text>
           <Text style={styles.company}>The Furn Enterprise</Text>
         </View>
-        <View style={[styles.card, { paddingBottom: insets.bottom + space.xl }]}>{children}</View>
+        <View style={[styles.card, { paddingBottom: insets.bottom + space.xl }]}>
+          <RevealFocusedField.Provider value={reveal}>{children}</RevealFocusedField.Provider>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );

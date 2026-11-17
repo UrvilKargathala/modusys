@@ -1,0 +1,250 @@
+// Quote pricing: the pure maths behind every quote total (line → group → cabinet → unit → quote, then the markup / discount /
+// installation waterfall). Shared so the server (mobile endpoints) works out the same totals the web shows. No imports from web/.
+import type { FurnitureLineItem, UnitTypeHardware } from "./mock/unit-type";
+import type { FurniturePriceItem, HardwarePriceItem } from "./mock/pricing-list";
+import { rateAfterDiscount } from "./mock/pricing-list";
+import type { QuoteCabinet, QuoteUnit } from "./mock/quote";
+
+export const SQMM_PER_SQFT = 92_903.04;
+
+
+// Formulas only ever reference W/D/H plus +-*/() and numbers (see
+// furniture-line-item-row.tsx placeholders: "(W-95)/2", "H-20") — never
+// arbitrary code, so a whitelist-filtered `Function` eval is safe.
+// For a hover hint: "W-10" with W 645 → "W-10 = 645-10 = 635" (the formula, the same sum with the sizes put in, the answer);
+// a plain sum "875-30" → "875-30 = 845".
+// `shown` = the number in the box, used as the answer so the hint never disagrees with it after rounding.
+export function formulaWorking(formula: string, vars: { W: number; D: number; H: number }, shown?: number): string {
+  const f = formula.replace(/\s+/g, "").toUpperCase();
+  const sum = f.replace(/[WDH]/g, (k) => String(vars[k as "W" | "D" | "H"]));
+  const result = String(shown ?? Math.round(evaluateFormula(f, vars)));
+  // A bare size ("D") reads "D = 480", and a plain sum "875-30 = 845", without repeating a step.
+  return sum === result || sum === f ? `${f} = ${result}` : `${f} = ${sum} = ${result}`;
+}
+
+export function evaluateFormula(formula: string, vars: { W: number; D: number; H: number }): number {
+  const trimmed = formula.trim().toUpperCase();
+  if (!trimmed) return 0;
+  if (!/^[\d\s+\-*/().WDH]+$/.test(trimmed)) return 0;
+  try {
+    const fn = new Function("W", "D", "H", `return (${trimmed});`);
+    const result = fn(vars.W, vars.D, vars.H);
+    return typeof result === "number" && Number.isFinite(result) ? result : 0;
+  } catch {
+    return 0;
+  }
+}
+
+// Auto Populate bakes the Unit Type's generic formula (e.g. "W-36") into the
+// concrete number for *this* quote's Unit dimensions ("564"), so the admin
+// sees and edits real millimetres, not the template's symbolic formula. Qty
+// gets baked in the same way, multiplied by the Unit's own Qty (e.g. a
+// component templated at qty 2, on a Unit set to Qty 3, becomes qty 6) —
+// so the per-row Qty already reflects how many physical units this quote
+// line represents, and downstream totals never multiply by Unit Qty again.
+export function resolveLineItemDimensions<T extends { widthFormula: string; heightFormula: string; qty: number }>(
+  item: T,
+  unit: { width: number; depth: number; height: number; qty: number }
+): T {
+  const vars = { W: unit.width, D: unit.depth, H: unit.height };
+  // A W/D/H formula is kept as a note, so hovering the number shows how it was worked out.
+  const note = (f: string) => (/[WDH]/i.test(f) ? f.replace(/\s+/g, "").toUpperCase() : undefined);
+  return {
+    ...item,
+    widthFormula: String(Math.round(evaluateFormula(item.widthFormula, vars))),
+    heightFormula: String(Math.round(evaluateFormula(item.heightFormula, vars))),
+    widthNote: note(item.widthFormula),
+    heightNote: note(item.heightFormula),
+    qty: item.qty * unit.qty,
+  } as T;
+}
+
+// Same idea for Hardware — qtyFormula (a number or W/D/H formula) gets
+// evaluated and multiplied by the Unit's Qty into one concrete number.
+export function resolveHardwareForUnit(
+  item: UnitTypeHardware,
+  unit: { width: number; depth: number; height: number; qty: number }
+): UnitTypeHardware {
+  const vars = { W: unit.width, D: unit.depth, H: unit.height };
+  const resolvedQty = evaluateFormula(item.qtyFormula, vars) * unit.qty;
+  // A W/D/H formula is kept as a note, so hovering the qty shows how it was worked out.
+  const qtyNote = /[WDH]/i.test(item.qtyFormula) ? item.qtyFormula.replace(/\s+/g, "").toUpperCase() : undefined;
+  return { ...item, qtyFormula: String(Math.round(resolvedQty)), qtyNote };
+}
+
+// Hover text for a hardware row's Qty: its formula worked out for this unit ("H/450 = 750/450 = 2", then "× 2" when the unit's qty is
+// more than 1), while it still gives the qty shown. Rows filled before formulas were kept use the Unit Type's formula for that item.
+export function hardwareQtyHint(item: UnitTypeHardware, unit: { width: number; depth: number; height: number; qty: number }, typeHardware?: UnitTypeHardware[]): string | undefined {
+  const note = item.qtyNote ?? (item.hardwareItemId ? typeHardware?.find((h) => h.hardwareItemId === item.hardwareItemId)?.qtyFormula : undefined);
+  if (!note || !/[WDH]/i.test(note)) return undefined;
+  const vars = { W: unit.width, D: unit.depth, H: unit.height };
+  const each = evaluateFormula(note, vars);
+  const shown = Number(item.qtyFormula);
+  if (Math.round(each * unit.qty) !== shown) return undefined;
+  return unit.qty === 1 ? formulaWorking(note, vars, shown) : `${formulaWorking(note, vars, Math.round(each * 100) / 100)} × ${unit.qty} = ${shown}`;
+}
+
+export function findFurnitureMatch(item: FurnitureLineItem, furnitureItems: FurniturePriceItem[]): FurniturePriceItem | null {
+  if (!item.thicknessId || !item.rawMaterialTypeId || !item.internalColourId || !item.externalColourId) return null;
+  return (
+    furnitureItems.find(
+      (i) =>
+        i.thicknessId === item.thicknessId &&
+        i.rawMaterialTypeId === item.rawMaterialTypeId &&
+        i.internalColourId === item.internalColourId &&
+        i.externalColourId === item.externalColourId
+    ) ?? null
+  );
+}
+
+// Manual Rate override wins over the price-list lookup wherever a Rate is
+// used for pricing — row display, group subtotal, and quote-level totals
+// all funnel through here so they never disagree.
+export function effectiveFurnitureRate(item: FurnitureLineItem, furnitureItems: FurniturePriceItem[]): number | undefined {
+  if (item.rateOverride !== undefined) return item.rateOverride;
+  return findFurnitureMatch(item, furnitureItems)?.rate;
+}
+
+export function effectiveHardwareRate(item: UnitTypeHardware, hardwareItems: HardwarePriceItem[]): number | undefined {
+  if (item.rateOverride !== undefined) return item.rateOverride;
+  const matched = hardwareItems.find((h) => h.id === item.hardwareItemId);
+  return matched ? rateAfterDiscount(matched) : undefined;
+}
+
+export function furnitureLineTotal(
+  item: FurnitureLineItem,
+  unit: { width: number; depth: number; height: number },
+  furnitureItems: FurniturePriceItem[]
+): number {
+  const rate = effectiveFurnitureRate(item, furnitureItems);
+  if (rate === undefined) return 0;
+  const w = evaluateFormula(item.widthFormula, { W: unit.width, D: unit.depth, H: unit.height });
+  const h = evaluateFormula(item.heightFormula, { W: unit.width, D: unit.depth, H: unit.height });
+  const areaSqFt = (w * h) / SQMM_PER_SQFT;
+  return rate * areaSqFt * item.qty;
+}
+
+export function hardwareLineTotal(
+  item: UnitTypeHardware,
+  unit: { width: number; depth: number; height: number },
+  hardwareItems: HardwarePriceItem[]
+): number {
+  const rate = effectiveHardwareRate(item, hardwareItems);
+  if (rate === undefined) return 0;
+  const qty = evaluateFormula(item.qtyFormula, { W: unit.width, D: unit.depth, H: unit.height });
+  return rate * qty;
+}
+
+export function groupTotal(
+  items: FurnitureLineItem[],
+  unit: { width: number; depth: number; height: number },
+  furnitureItems: FurniturePriceItem[]
+): number {
+  return items.reduce((sum, i) => sum + furnitureLineTotal(i, unit, furnitureItems), 0);
+}
+
+// Mirrors furnitureLineTotal's own area calc, minus the rate — used
+// wherever a group/cabinet/unit needs a Total Sq.Ft alongside its Amount.
+// Hardware has no width/height formulas, so it has no sq.ft equivalent.
+export function groupSqFt(items: FurnitureLineItem[], unit: { width: number; depth: number; height: number }): number {
+  return items.reduce((sum, item) => {
+    const w = evaluateFormula(item.widthFormula, { W: unit.width, D: unit.depth, H: unit.height });
+    const h = evaluateFormula(item.heightFormula, { W: unit.width, D: unit.depth, H: unit.height });
+    return sum + ((w * h) / SQMM_PER_SQFT) * item.qty;
+  }, 0);
+}
+
+// Carcass reads its own W/D/H/Qty override when set, falling back to the
+// Unit's — Shutter/Other Panel/Hardware always use the Unit's directly, so
+// editing Carcass dimensions never resizes them.
+export function carcassUnitFor(
+  cabinet: QuoteCabinet,
+  unit: { width: number; depth: number; height: number; qty: number }
+): { width: number; depth: number; height: number; qty: number } {
+  return {
+    width: cabinet.carcassWidth ?? unit.width,
+    depth: cabinet.carcassDepth ?? unit.depth,
+    height: cabinet.carcassHeight ?? unit.height,
+    qty: cabinet.carcassQty ?? unit.qty,
+  };
+}
+
+export function cabinetTotal(
+  cabinet: QuoteCabinet,
+  unit: { width: number; depth: number; height: number; qty: number },
+  furnitureItems: FurniturePriceItem[],
+  hardwareItems: HardwarePriceItem[]
+): number {
+  const carcassUnit = carcassUnitFor(cabinet, unit);
+  return (
+    groupTotal(cabinet.components, carcassUnit, furnitureItems) +
+    groupTotal(cabinet.externalFinishes, unit, furnitureItems) +
+    groupTotal(cabinet.panels, unit, furnitureItems) +
+    cabinet.hardware.reduce((sum, h) => sum + hardwareLineTotal(h, unit, hardwareItems), 0)
+  );
+}
+
+// How many times a unit's lines count: Auto Populate already multiplied every line's qty by the unit's Qty, so an auto-populated unit
+// counts once; a unit built by hand has per-unit lines, so they count Qty times.
+export const unitQtyFactor = (u: { qty: number; autoPopulated?: boolean }) => (u.autoPopulated ? 1 : Math.max(1, u.qty || 1));
+
+export function unitTotal(
+  unit: QuoteUnit,
+  furnitureItems: FurniturePriceItem[],
+  hardwareItems: HardwarePriceItem[]
+): number {
+  const perUnit = unit.cabinets.reduce((sum, c) => sum + cabinetTotal(c, unit, furnitureItems, hardwareItems), 0);
+  return perUnit * unitQtyFactor(unit);
+}
+
+export function cabinetSqFt(cabinet: QuoteCabinet, unit: { width: number; depth: number; height: number; qty: number }): number {
+  const carcassUnit = carcassUnitFor(cabinet, unit);
+  return (
+    groupSqFt(cabinet.components, carcassUnit) +
+    groupSqFt(cabinet.externalFinishes, unit) +
+    groupSqFt(cabinet.panels, unit)
+  );
+}
+
+export function unitSqFt(unit: QuoteUnit): number {
+  const perUnit = unit.cabinets.reduce((sum, c) => sum + cabinetSqFt(c, unit), 0);
+  return perUnit * unitQtyFactor(unit);
+}
+
+export function quoteRawTotal(
+  units: QuoteUnit[],
+  furnitureItems: FurniturePriceItem[],
+  hardwareItems: HardwarePriceItem[]
+): number {
+  return units.reduce((sum, u) => sum + unitTotal(u, furnitureItems, hardwareItems), 0);
+}
+
+// Markup applies to raw cost first, Special Discount applies on the marked-up
+// figure — confirmed against business logic before building (not the other
+// order).
+export function quoteWaterfall(
+  rawTotal: number,
+  markupMultiplier: number,
+  specialDiscountPct: number,
+  installationFreightIncluded: boolean,
+  installationFreightCost: number = 0
+) {
+  const markedUp = rawTotal * markupMultiplier;
+  const discount = markedUp * (specialDiscountPct / 100);
+  const afterDiscount = markedUp - discount;
+  // When "Included", cost is baked into the marked-up figure so nothing is
+  // added on top. When unchecked, whatever the user entered here is added
+  // as a separate line before rounding.
+  const installationFreight = installationFreightIncluded ? 0 : Math.max(0, installationFreightCost);
+  const preRound = afterDiscount + installationFreight;
+  const finalOffer = Math.round(preRound);
+  const roundOff = finalOffer - preRound;
+  return {
+    total: markedUp,
+    discount,
+    afterDiscount,
+    installationFreight,
+    roundOff,
+    finalOffer,
+  };
+}
