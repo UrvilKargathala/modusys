@@ -7,7 +7,7 @@ export const ENTRY_TYPES = ["income", "expense", "transfer"] as const;
 export type EntryType = (typeof ENTRY_TYPES)[number];
 export const TYPE_LABEL: Record<string, string> = { income: "Income", expense: "Expense", transfer: "Transfer" };
 
-export const PAYMENT_MODES = ["Cash", "Bank Transfer / NEFT / RTGS", "UPI", "Cheque", "Card"] as const;
+// Payment modes (Cash, UPI, Cheque...) are a list kept on the Account Heads page: table AccountPaymentMode.
 
 export const ACCOUNT_KINDS = [
   ["cash", "Cash"],
@@ -56,7 +56,8 @@ export const entrySchema = z
       if (!v.toAccountId) ctx.addIssue({ code: "custom", path: ["toAccountId"], message: "Pick the account the money goes to" });
       else if (v.toAccountId === v.accountId) ctx.addIssue({ code: "custom", path: ["toAccountId"], message: "Pick a different account" });
     } else {
-      if (!v.headId) ctx.addIssue({ code: "custom", path: ["headId"], message: "Pick the account head" });
+      // One "Account Head" pick: either a head or a party (customer, vendor, dealer, employee or a typed name).
+      if (!v.headId && !v.partyName.trim()) ctx.addIssue({ code: "custom", path: ["headId"], message: "Pick the account head or a party" });
       if (!v.paymentMode) ctx.addIssue({ code: "custom", path: ["paymentMode"], message: "Pick the payment mode" });
     }
   });
@@ -106,4 +107,22 @@ export function groupTotals<T extends { type: string; amount: number }>(rows: T[
     groups.set(k, [...(groups.get(k) ?? []), r]);
   }
   return [...groups].map(([k, list]) => ({ key: k, ...totals(list) }));
+}
+
+// One payment account's ledger: each posted entry that touches it, oldest first, with money in, money out and the
+// running balance after it. `opening` is the balance at the start of the period. Sums run in paise.
+export type LedgerSource = { id: string; entryNo: number; date: string; type: string; accountId: string; toAccountId: string; amount: number; status: string };
+export function ledgerLines<T extends LedgerSource>(accountId: string, opening: number, rows: T[]) {
+  let bal = paise(opening);
+  const lines = rows
+    .filter((r) => r.status === "posted" && (r.accountId === accountId || r.toAccountId === accountId))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.entryNo - b.entryNo)
+    .map((r) => {
+      const into = r.type === "income" || (r.type === "transfer" && r.toAccountId === accountId);
+      const a = paise(r.amount);
+      bal += into ? a : -a;
+      return { row: r, moneyIn: into ? a / 100 : 0, moneyOut: into ? 0 : a / 100, balance: bal / 100 };
+    });
+  const sum = (k: "moneyIn" | "moneyOut") => lines.reduce((s, l) => s + paise(l[k]), 0) / 100;
+  return { opening, lines, moneyIn: sum("moneyIn"), moneyOut: sum("moneyOut"), closing: bal / 100 };
 }

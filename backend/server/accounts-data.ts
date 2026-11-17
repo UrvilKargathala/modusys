@@ -17,20 +17,25 @@ export type Masters = Awaited<ReturnType<typeof getMasters>>;
 export type HeadRow = Masters["heads"][number];
 export type AccountRow = Masters["accounts"][number];
 export type PartyOption = Masters["parties"][number];
+export type ModeRow = Masters["modes"][number];
 
 // cache(): the layout and the page both ask for it on the same request; it runs once.
 export const getMasters = cache(async () => {
   await guard();
-  const [heads, accounts, customers, vendors, employees] = await Promise.all([
+  const [heads, accounts, customers, vendors, employees, modes, modeUse] = await Promise.all([
     prisma.accountHead.findMany({ orderBy: [{ type: "asc" }, { name: "asc" }], include: { _count: { select: { entries: true } } } }),
     prisma.paymentAccount.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { entries: true, transfersIn: true } } } }),
     prisma.customer.findMany({ where: { deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.vendor.findMany({ where: { deletedAt: null }, select: { id: true, name: true, kind: true }, orderBy: { name: "asc" } }),
     prisma.employee.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.accountPaymentMode.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
+    // Entries keep the mode's name as text, so "used" counts entries saved with that exact name.
+    prisma.accountEntry.groupBy({ by: ["paymentMode"], _count: { _all: true } }),
   ]);
   return {
     heads: heads.map((h) => ({ id: h.id, name: h.name, type: h.type, isActive: h.isActive, used: h._count.entries })),
     accounts: accounts.map((a) => ({ id: a.id, name: a.name, kind: a.kind, openingBalance: Number(a.openingBalance), isActive: a.isActive, used: a._count.entries + a._count.transfersIn })),
+    modes: modes.map((m) => ({ id: m.id, name: m.name, isActive: m.isActive, used: modeUse.find((u) => u.paymentMode === m.name)?._count._all ?? 0 })),
     parties: [
       ...customers.map((c) => ({ type: "customer", id: c.id, name: c.name })),
       ...vendors.map((v) => ({ type: v.kind === "dealer" ? "dealer" : "vendor", id: v.id, name: v.name })),

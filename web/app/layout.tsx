@@ -5,6 +5,7 @@ import { Providers } from "@/components/providers";
 import { Analytics } from "@vercel/analytics/react";
 import { PWAInstallPrompt } from "@/components/pwa/pwa-install-prompt";
 import { ToastViewport } from "@/components/shared/toast-viewport";
+import { AskDialogHost } from "@/components/shared/ask-dialog-host";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 
 const BRAND = "#288AB8";
@@ -53,6 +54,8 @@ export default function RootLayout({
         <Providers>{children}</Providers>
         {/* One toast area for every page (app, sign-in, PDFs). */}
         <ToastViewport />
+        {/* The app's own confirm / text popups (ask.confirm, ask.text) in place of the browser's. */}
+        <AskDialogHost />
         <PWAInstallPrompt />
         <ServiceWorkerRegister />
         <Analytics />

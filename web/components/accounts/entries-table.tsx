@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Ban, Paperclip } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { toastStore } from "@/lib/store/toast-store";
+import { ask } from "@/lib/store/ask-store";
 import { formatInr } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PARTY_LABEL, TYPE_LABEL, ddmmyyyy, entryNoLabel, totals } from "@shared/accounts";
@@ -24,7 +25,16 @@ export function EntriesTable({ rows, actions = true, empty = "No entries for the
   const posted = rows.filter((r) => r.status === "posted");
   const t = totals(posted);
   const cancel = async (r: EntryRow) => {
-    const reason = window.prompt(`Cancel ${entryNoLabel(r.entryNo)} (${formatInr(r.amount)})?\nIt stays on the list but leaves every total and balance. Reason:`);
+    const reason = await ask.text({
+      title: `Cancel ${entryNoLabel(r.entryNo)} (${formatInr(r.amount)})?`,
+      description: "It stays on the list but leaves every total and balance.",
+      label: "Reason",
+      placeholder: "Why is this entry cancelled?",
+      maxLength: 200,
+      confirmLabel: "Cancel entry",
+      cancelLabel: "Keep entry",
+      tone: "danger",
+    });
     if (reason == null) return;
     const res = await fetch(`/api/accounts/entries/${r.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cancel: reason }) });
     const out = await res.json().catch(() => ({}));
@@ -54,7 +64,7 @@ export function EntriesTable({ rows, actions = true, empty = "No entries for the
                   <td className={TD}>
                     <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", off ? "bg-grey-transparent text-grey-500" : TYPE_BADGE[r.type])}>{off ? "Cancelled" : TYPE_LABEL[r.type]}</span>
                   </td>
-                  <td className={TD}>{r.type === "transfer" ? <span className="text-grey-500">Transfer</span> : r.headName}</td>
+                  <td className={TD}>{r.type === "transfer" ? <span className="text-grey-500">Transfer</span> : r.headName || <span className="text-grey-300">—</span>}</td>
                   <td className={TD}>
                     {r.partyName || <span className="text-grey-300">—</span>}
                     {r.partyType && <span className="ml-1 text-xs text-grey-400">{PARTY_LABEL[r.partyType]}</span>}

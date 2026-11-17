@@ -3,18 +3,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toastStore } from "@/lib/store/toast-store";
+import { ask } from "@/lib/store/ask-store";
 
 export function ApproveRejectActions({ id }: { id: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState<"APPROVED" | "REJECTED" | null>(null);
 
   async function act(status: "APPROVED" | "REJECTED") {
-    const note = prompt(
-      status === "APPROVED"
-        ? "Approve this leave? Add a note (optional):"
-        : "Reject this leave. Add a note (optional):",
-      ""
-    );
+    const note = await ask.text({
+      title: status === "APPROVED" ? "Approve this leave?" : "Reject this leave?",
+      label: "Note (optional)",
+      multiline: true,
+      maxLength: 500,
+      confirmLabel: status === "APPROVED" ? "Approve" : "Reject",
+      tone: status === "APPROVED" ? "primary" : "danger",
+    });
     if (note === null) return; // user cancelled the prompt
     setBusy(status);
     try {

@@ -6,6 +6,7 @@ import { Lock, LockOpen, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toastStore } from "@/lib/store/toast-store";
+import { ask } from "@/lib/store/ask-store";
 import { formatInr } from "@/lib/format";
 import { holidayRanges } from "@shared/payroll";
 
@@ -25,7 +26,7 @@ export function FinalizeButton({ employeeId, period, finalized, disabled }: { em
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const run = async () => {
-    if (finalized && !window.confirm("Reopen this month? Its totals will be calculated live again from current attendance and rate.")) return;
+    if (finalized && !(await ask.confirm({ title: "Reopen this month?", description: "Its totals will be calculated live again from current attendance and rate.", confirmLabel: "Reopen" }))) return;
     setBusy(true);
     const ok = finalized
       ? await send(`/api/attendance/payroll/finalize?employeeId=${encodeURIComponent(employeeId)}&period=${period}`, { method: "DELETE" }, "Month reopened")

@@ -64,7 +64,9 @@ export type AuditAction =
   | "ACCOUNT_HEAD_CREATED"
   | "ACCOUNT_HEAD_UPDATED"
   | "PAYMENT_ACCOUNT_CREATED"
-  | "PAYMENT_ACCOUNT_UPDATED";
+  | "PAYMENT_ACCOUNT_UPDATED"
+  | "ACCOUNT_PAYMENT_MODE_CREATED"
+  | "ACCOUNT_PAYMENT_MODE_UPDATED";
 
 export type AuditTargetType =
   | "USER"
@@ -86,6 +88,7 @@ export type AuditTargetType =
   | "ATTENDANCE"
   | "ACCOUNT_ENTRY"
   | "ACCOUNT_HEAD"
+  | "ACCOUNT_PAYMENT_MODE"
   | "PAYMENT_ACCOUNT";
 
 export type AuditResult = "SUCCESS" | "FAILURE";

@@ -10,17 +10,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/shared/date-picker";
+import { SelectField } from "@/components/shared/select-field";
 import { toastStore } from "@/lib/store/toast-store";
+import { ask } from "@/lib/store/ask-store";
 import { uploadToStorage } from "@/lib/upload-to-storage";
 import { istDateString } from "@shared/attendance-config";
 import { formatInr } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { ENTRY_TYPES, PARTY_LABEL, PAYMENT_MODES, TYPE_LABEL, entryNoLabel, entrySchema, type EntryInput, type EntryValues } from "@shared/accounts";
+import { ENTRY_TYPES, PARTY_LABEL, TYPE_LABEL, entryNoLabel, entrySchema, type EntryInput, type EntryValues } from "@shared/accounts";
 import type { EntryRow } from "@backend/server/accounts-data";
 import { useMasters } from "./masters-context";
 
 const SELECT = "h-9 w-full rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 const partyLabel = (name: string, type: string) => (type ? `${name} · ${PARTY_LABEL[type]}` : name);
+
+// The merged "Account Head" pick is one value: h:<headId>, p:<partyType>:<partyId>, or n:<typed name>.
+const headPick = (e?: EntryRow) =>
+  !e ? "" : e.headId ? `h:${e.headId}` : e.partyType ? `p:${e.partyType}:${e.partyId}` : e.partyName ? `n:${e.partyName}` : "";
 
 const toForm = (e?: EntryRow): EntryInput => ({
   date: e?.date ?? istDateString(),
@@ -30,30 +35,32 @@ const toForm = (e?: EntryRow): EntryInput => ({
   toAccountId: e?.toAccountId ?? "",
   amount: e ? String(e.amount) : "",
   paymentMode: e?.paymentMode ?? "",
-  partyType: "",
-  partyId: "",
-  partyName: "",
+  partyType: (e?.partyType as EntryInput["partyType"]) ?? "",
+  partyId: e?.partyId ?? "",
+  partyName: e?.partyName ?? "",
   remarks: e?.remarks ?? "",
   attachmentKey: "",
   attachmentName: "",
 });
 
-// Add or edit one entry, in the guide's order: Entry No., Date, Type, Head, Payment Account, Amount, Mode, Party, Remarks, Attachment.
+// Add or edit one entry: Entry No., Date, Type, Account Head (a head or a party), Bank/Cash, Amount, Mode, Remarks, Attachment.
 export function EntryFormDialog({ entry }: { entry?: EntryRow }) {
   const router = useRouter();
-  const { heads, accounts, parties } = useMasters();
+  const { heads, accounts, modes, parties } = useMasters();
   const [open, setOpen] = useState(false);
-  const [party, setParty] = useState("");
+  const [pick, setPick] = useState("");
+  const [typed, setTyped] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<EntryInput, unknown, EntryValues>({
+  const { register, handleSubmit, reset, watch, setValue, trigger, formState: { errors, isSubmitting } } = useForm<EntryInput, unknown, EntryValues>({
     resolver: zodResolver(entrySchema),
     defaultValues: toForm(entry),
   });
   useEffect(() => {
     if (!open) return;
     reset(toForm(entry));
-    setParty(entry?.partyName ? partyLabel(entry.partyName, entry.partyType) : "");
+    setPick(headPick(entry));
+    setTyped(entry && !entry.headId && !entry.partyType && entry.partyName ? [entry.partyName] : []);
     setFile(null);
   }, [open, entry, reset]);
 
@@ -61,19 +68,47 @@ export function EntryFormDialog({ entry }: { entry?: EntryRow }) {
   const transfer = type === "transfer";
   // Active choices, plus whatever this entry already uses even if it has been deactivated since.
   const headOptions = heads.filter((h) => h.type === type && (h.isActive || h.id === entry?.headId));
+  const modeOptions = [
+    ...modes.filter((m) => m.isActive || m.name === entry?.paymentMode).map((m) => ({ name: m.name, isActive: m.isActive })),
+    // The entry's own mode if it was renamed since: it stays pickable so an edit does not have to change it.
+    ...(entry?.paymentMode && !modes.some((m) => m.name === entry.paymentMode) ? [{ name: entry.paymentMode, isActive: false }] : []),
+  ];
   const accountOptions = accounts.filter((a) => a.isActive || a.id === entry?.accountId || a.id === entry?.toAccountId);
+  const typedNames = [...new Set(typed)];
+
+  // Picking a head or a party fills the form fields behind the one dropdown. An old entry that has both keeps its
+  // party while its head stays picked, so editing it never drops data silently.
+  const choose = (value: string) => {
+    setPick(value);
+    const keepParty = !!entry && value === headPick(entry) && value.startsWith("h:");
+    const party = (t: string, id: string, name: string) => {
+      setValue("partyType", t as EntryInput["partyType"]);
+      setValue("partyId", id);
+      setValue("partyName", name);
+    };
+    if (value.startsWith("h:")) {
+      setValue("headId", value.slice(2), { shouldValidate: true });
+      if (keepParty) party(entry.partyType, entry.partyId ?? "", entry.partyName);
+      else party("", "", "");
+      return;
+    }
+    setValue("headId", "");
+    if (value.startsWith("p:")) {
+      const [, t, id] = value.split(":");
+      party(t, id, parties.find((p) => p.type === t && p.id === id)?.name ?? "");
+    } else party("", "", value.slice(2));
+    void trigger("headId");
+  };
   const err = (k: keyof EntryInput) => (errors[k]?.message ? <p className="text-xs text-error">{String(errors[k]?.message)}</p> : null);
 
   const onSubmit = async (v: EntryValues) => {
-    // A picked party is "Name · Customer" from the list; anything else typed is kept as a plain name.
-    const text = party.trim();
-    const picked = parties.find((p) => partyLabel(p.name, p.type) === text);
-    const body: EntryValues = { ...v, partyType: (picked?.type ?? "") as EntryValues["partyType"], partyId: picked?.id ?? "", partyName: picked?.name ?? text };
+    // A transfer has no head or party.
+    const body: EntryValues = transfer ? { ...v, headId: "", partyType: "", partyId: "", partyName: "" } : v;
     const from = accounts.find((a) => a.id === v.accountId)?.name ?? "";
     const summary = transfer
       ? `${formatInr(v.amount)} from ${from} to ${accounts.find((a) => a.id === v.toAccountId)?.name ?? ""}`
-      : `${TYPE_LABEL[v.type]} ${formatInr(v.amount)} · ${heads.find((h) => h.id === v.headId)?.name ?? ""} · ${from}`;
-    if (!window.confirm(`${entry ? "Save changes to" : "Save"} this entry?\n\n${summary}\nDate ${v.date.split("-").reverse().join("/")}`)) return;
+      : `${TYPE_LABEL[v.type]} ${formatInr(v.amount)} · ${heads.find((h) => h.id === v.headId)?.name ?? partyLabel(v.partyName, v.partyType)} · ${from}`;
+    if (!(await ask.confirm({ title: entry ? "Save changes to this entry?" : "Save this entry?", description: `${summary}\nDate ${v.date.split("-").reverse().join("/")}`, confirmLabel: entry ? "Save changes" : "Save entry" }))) return;
     if (file) {
       try {
         body.attachmentKey = await uploadToStorage("/api/accounts/presign", file);
@@ -127,20 +162,18 @@ export function EntryFormDialog({ entry }: { entry?: EntryRow }) {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <Label>Type *</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {ENTRY_TYPES.map((t) => (
-                    <button key={t} type="button" aria-pressed={type === t}
-                      onClick={() => {
-                        setValue("type", t, { shouldValidate: false });
-                        if (!heads.some((h) => h.id === watch("headId") && h.type === t)) setValue("headId", "");
-                      }}
-                      className={cn("h-9 rounded-lg border text-sm font-medium",
-                        type === t ? (t === "income" ? "border-success bg-success-transparent text-success" : t === "expense" ? "border-error bg-error-transparent text-error" : "border-secondary bg-secondary-transparent text-secondary") : "border-grey-200 text-grey-600 hover:bg-light-600")}>
-                      {TYPE_LABEL[t]}
-                    </button>
-                  ))}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="acc-type">Type *</Label>
+                  <SelectField id="acc-type" value={type} className={SELECT}
+                    onChange={(e) => {
+                      const t = e.target.value as EntryInput["type"];
+                      setValue("type", t, { shouldValidate: false });
+                      // A head of the other type no longer fits; a party fits income and expense alike.
+                      if (pick.startsWith("h:") && !heads.some((h) => h.id === pick.slice(2) && h.type === t)) choose("");
+                    }}>
+                    {ENTRY_TYPES.map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
+                  </SelectField>
                 </div>
               </div>
 
@@ -148,28 +181,32 @@ export function EntryFormDialog({ entry }: { entry?: EntryRow }) {
                 {!transfer && (
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="acc-head">Account Head *</Label>
-                    <select id="acc-head" {...register("headId")} className={SELECT}>
-                      <option value="">Pick {type === "income" ? "an income" : "an expense"} head</option>
-                      {headOptions.map((h) => <option key={h.id} value={h.id}>{h.name}{h.isActive ? "" : " (inactive)"}</option>)}
-                    </select>
+                    <SelectField id="acc-head" value={pick} onChange={(e) => choose(e.target.value)} className={SELECT} menuClassName="w-80"
+                      searchPlaceholder="Search heads, customers, vendors, dealers, employees"
+                      onAdd={(name) => { setTyped((t) => [...t, name]); choose(`n:${name}`); }} addLabel="Type a name">
+                      <option value="">Pick {type === "income" ? "an income" : "an expense"} head or a party</option>
+                      {headOptions.map((h) => <option key={h.id} value={`h:${h.id}`}>{h.name}{h.isActive ? "" : " (inactive)"}</option>)}
+                      {parties.map((p) => <option key={`${p.type}-${p.id}`} value={`p:${p.type}:${p.id}`}>{partyLabel(p.name, p.type)}</option>)}
+                      {typedNames.map((n) => <option key={`n-${n}`} value={`n:${n}`}>{n}</option>)}
+                    </SelectField>
                     {err("headId")}
                   </div>
                 )}
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="acc-account">{transfer ? "From account *" : type === "income" ? "Received in *" : "Paid from *"}</Label>
-                  <select id="acc-account" {...register("accountId")} className={SELECT}>
-                    <option value="">Pick an account</option>
+                  <Label htmlFor="acc-account">{transfer ? "From account *" : "Bank/Cash *"}</Label>
+                  <SelectField id="acc-account" value={watch("accountId")} onChange={(e) => setValue("accountId", e.target.value, { shouldValidate: true })} className={SELECT}>
+                    <option value="">{transfer ? "Pick an account" : "Pick bank or cash"}</option>
                     {accountOptions.map((a) => <option key={a.id} value={a.id}>{a.name}{a.isActive ? "" : " (inactive)"}</option>)}
-                  </select>
+                  </SelectField>
                   {err("accountId")}
                 </div>
                 {transfer && (
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="acc-to">To account *</Label>
-                    <select id="acc-to" {...register("toAccountId")} className={SELECT}>
+                    <SelectField id="acc-to" value={watch("toAccountId")} onChange={(e) => setValue("toAccountId", e.target.value, { shouldValidate: true })} className={SELECT}>
                       <option value="">Pick an account</option>
                       {accountOptions.map((a) => <option key={a.id} value={a.id}>{a.name}{a.isActive ? "" : " (inactive)"}</option>)}
-                    </select>
+                    </SelectField>
                     {err("toAccountId")}
                   </div>
                 )}
@@ -180,23 +217,13 @@ export function EntryFormDialog({ entry }: { entry?: EntryRow }) {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="acc-mode">Payment Mode{transfer ? "" : " *"}</Label>
-                  <select id="acc-mode" {...register("paymentMode")} className={SELECT}>
+                  <SelectField id="acc-mode" value={watch("paymentMode")} onChange={(e) => setValue("paymentMode", e.target.value, { shouldValidate: true })} className={SELECT}>
                     <option value="">{transfer ? "—" : "Pick the mode"}</option>
-                    {PAYMENT_MODES.map((m) => <option key={m}>{m}</option>)}
-                  </select>
+                    {modeOptions.map((m) => <option key={m.name} value={m.name}>{m.name}{m.isActive ? "" : " (inactive)"}</option>)}
+                  </SelectField>
                   {err("paymentMode")}
                 </div>
               </div>
-
-              {!transfer && (
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="acc-party">Party / Person</Label>
-                  <Input id="acc-party" list="acc-parties" value={party} onChange={(e) => setParty(e.target.value)} placeholder="Search customers, vendors, dealers, employees — or type a name" autoComplete="off" />
-                  <datalist id="acc-parties">
-                    {parties.map((p) => <option key={`${p.type}-${p.id}`} value={partyLabel(p.name, p.type)} />)}
-                  </datalist>
-                </div>
-              )}
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="acc-remarks">Remarks</Label>

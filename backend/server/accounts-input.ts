@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "./prisma";
-import { ACCOUNT_KIND_LABEL, entrySchema, PAYMENT_MODES } from "@shared/accounts";
+import { ACCOUNT_KIND_LABEL, entrySchema } from "@shared/accounts";
 import { istDateString } from "@shared/attendance-config";
 import { toDate } from "./accounts-data";
 
@@ -8,15 +8,20 @@ export const ACCOUNTS_ROLES = ["super-admin"];
 
 // Validates an entry from the form against the masters and returns the Prisma data, or the first error to show.
 // On an edit, `current` lets an entry keep a head or account that has since been deactivated.
-export async function entryData(body: unknown, current?: { headId: string | null; accountId: string; toAccountId: string | null }) {
+export async function entryData(body: unknown, current?: { headId: string | null; accountId: string; toAccountId: string | null; paymentMode: string }) {
   const parsed = entrySchema.safeParse(body);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the entry" };
   const v = parsed.data;
   if (v.date > istDateString()) return { error: "The date cannot be in the future" };
   const transfer = v.type === "transfer";
-  if (v.paymentMode && !(PAYMENT_MODES as readonly string[]).includes(v.paymentMode)) return { error: "Unknown payment mode" };
+  // An edit may keep the mode it was saved with, even if that mode has since been renamed or deactivated.
+  if (v.paymentMode && v.paymentMode !== current?.paymentMode) {
+    const mode = await prisma.accountPaymentMode.findUnique({ where: { name: v.paymentMode } });
+    if (!mode) return { error: "Unknown payment mode" };
+    if (!mode.isActive) return { error: `${mode.name} is inactive` };
+  }
 
-  if (!transfer) {
+  if (!transfer && v.headId) {
     const head = await prisma.accountHead.findUnique({ where: { id: v.headId } });
     if (!head || head.type !== v.type) return { error: "Pick an account head of the same type" };
     if (!head.isActive && head.id !== current?.headId) return { error: `${head.name} is inactive` };
@@ -43,7 +48,7 @@ export async function entryData(body: unknown, current?: { headId: string | null
     data: {
       date: toDate(v.date),
       type: v.type,
-      headId: transfer ? null : v.headId,
+      headId: transfer || !v.headId ? null : v.headId,
       accountId: v.accountId,
       toAccountId: transfer ? v.toAccountId : null,
       amount: String(v.amount),

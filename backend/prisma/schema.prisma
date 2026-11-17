@@ -941,6 +941,17 @@ model AccountHead {
   @@unique([type, name])
 }
 
+// How money was paid: Cash, UPI, Cheque... Kept on the Account Heads page. Entries store the mode's name as text
+// (AccountEntry.paymentMode), so renaming a mode leaves old entries with the name they were saved with.
+model AccountPaymentMode {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Where money sits: Office Cash, Petty Cash, HDFC Current Account. openingBalance = balance before the first entry.
 model PaymentAccount {
   id             String         @id @default(cuid())
