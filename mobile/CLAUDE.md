@@ -1,6 +1,6 @@
 # CLAUDE.md — Modusys mobile app
 
-React Native (plain CLI, **no Expo**) phone app for The Furn Enterprise's Modusys. It lives in `mobile/` of the modusys repo (GitHub `UrvilKargathala/modusys`), next to `web/`, `backend/` and `shared/` (see the root CLAUDE.md §4.1). The full plan is `docs/MOBILE_APP_PLAN.md` at the repo root; the screen designs are `docs/MOBILE_DESIGN_PROMPTS.md`. Read the plan before a new phase.
+React Native (plain CLI, **no Expo**) phone app for The Furn Enterprise's Modusys. It lives in `mobile/` of the modusys repo (GitHub `UrvilKargathala/modusys`), next to `web/`, `backend/` and `shared/` (see the root CLAUDE.md §4.1). The full plan is `docs/MOBILE_APP_PLAN.md` at the repo root (its "Where we are" section says what's built and what's next); the screen designs are `docs/MOBILE_CLAUDE_DESIGN_PROMPTS.md` (design v2). Read the plan before a new phase.
 
 - App name **Modusys**, bundle id / package **`com.modusys.app`** (iOS and Android).
 - Development is **local only**: no store upload, no production deploy.
