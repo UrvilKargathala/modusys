@@ -131,27 +131,8 @@ export function getPipelineCustomers(): Customer[] {
   return mockCustomers;
 }
 
-export type CustomerSortOption = "offer-value" | "days-in-stage" | "last-activity";
-
-export const customerSortOptions: { label: string; value: CustomerSortOption }[] = [
-  { label: "Offer value", value: "offer-value" },
-  { label: "Days in stage", value: "days-in-stage" },
-  { label: "Last activity", value: "last-activity" },
-];
-
-export function sortCustomers(customers: Customer[], sort: CustomerSortOption): Customer[] {
-  const sorted = [...customers];
-  switch (sort) {
-    case "offer-value":
-      return sorted.sort((a, b) => (b.finalOfferLakh ?? 0) - (a.finalOfferLakh ?? 0));
-    case "days-in-stage":
-      return sorted.sort((a, b) => b.daysInStage - a.daysInStage);
-    case "last-activity":
-      return sorted.sort(
-        (a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
-      );
-  }
-}
+// The sort lives in shared/pipeline-sort.ts so the phone app can use it too.
+export { customerSortOptions, sortCustomers, type CustomerSortOption } from "../pipeline-sort";
 
 // TODO: replace with a real PATCH /customers/:id/stage call (Phase B2).
 // Simulates network latency and an occasional failure so the Kanban's

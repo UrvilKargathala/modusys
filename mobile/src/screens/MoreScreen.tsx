@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BarChart3, Bell, ChevronRight, KeyRound, LogOut, Palette } from 'lucide-react-native';
+import { BarChart3, Bell, CalendarOff, CheckSquare, ChevronRight, KeyRound, LogOut, Palette } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { roles } from '@shared/constants/roles';
 import { useAuth, useUser } from '../auth/AuthProvider';
@@ -86,6 +86,12 @@ export function MoreScreen() {
           ))}
         </Group>
       ) : null}
+
+      {/* As the website's Attendance menu: My Leaves for everyone, Leave Approvals for the super admin. */}
+      <Group title="Leaves">
+        <Row icon={CalendarOff} label="My Leaves" onPress={() => nav.navigate('Leaves')} />
+        {canSee('LeaveApprovals', user.role) ? <Row icon={CheckSquare} label="Leave Approvals" onPress={() => nav.navigate('LeaveApprovals')} /> : null}
+      </Group>
 
       <Group title="Account">
         <Row icon={Bell} label="Notifications" count={unread} onPress={() => nav.navigate('Notifications')} />

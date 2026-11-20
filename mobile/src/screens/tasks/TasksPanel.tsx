@@ -1,19 +1,20 @@
-// Tasks tab (M4, design v2 Prompt 7): the tasks assigned to you, as on the
+// CRM > Tasks (M4; inside the CRM tab since M5b, as on the website): the tasks assigned to you, as on the
 // web's CRM > Tasks. "To do" and "Overdue" counts on top, then Today (due
 // today or overdue) · Upcoming (later or no date) · Done. Tap the circle to
 // mark a task done (with Undo); tap the row for the details sheet.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CalendarCheck, CheckCircle2, ClipboardList } from 'lucide-react-native';
 import type { Task } from '../../api/tasks';
-import { Card, EmptyState, Notice, Screen, Segmented, SkeletonRow, Title, useTabBarSpace } from '../../components/ui';
+import { Card, EmptyState, Notice, Segmented, SkeletonRow, useTabBarSpace } from '../../components/ui';
 import { isOverdue, sortTasks, taskTab, type TaskTab } from '../../lib/tasks';
 import { usePullRefresh } from '../../lib/usePullRefresh';
 import type { RootStackParamList } from '../../navigation/types';
 import { colors, fonts, radius, shadow, space, type } from '../../theme/tokens';
-import { TaskRow, TaskSheet, useCustomerNames, useMyTasks, useToday, useToggleTask, useUserNames } from './taskParts';
+import { useUser } from '../../auth/AuthProvider';
+import { TaskRow, TaskSheet, useCrmTasks, useCustomerNames, useToday, useToggleTask, useUserNames } from './taskParts';
 
 const EMPTY: Record<TaskTab, { title: string; text: string }> = {
   today: { title: 'No tasks for today', text: 'Nothing due today and nothing overdue.' },
@@ -31,11 +32,15 @@ function Count({ label, value, tone }: { label: string; value: number; tone: 'to
   );
 }
 
-export function TasksScreen() {
+/** The Tasks half of the CRM tab (below the CRM title and the Tickets / Tasks switch). */
+export function TasksPanel() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const bottomSpace = useTabBarSpace();
   const { today } = useToday();
-  const tasks = useMyTasks();
+  const me = useUser();
+  const tasks = useCrmTasks();
+  // As the website: a super admin chooses All Tasks (default) or My Tasks (assigned to or created by them).
+  const [scope, setScope] = useState<'all' | 'mine'>('all');
   const toggle = useToggleTask();
   const pull = usePullRefresh(() => tasks.refetch());
   const customerName = useCustomerNames();
@@ -45,7 +50,11 @@ export function TasksScreen() {
   const [undo, setUndo] = useState<{ id: string; title: string } | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const all = useMemo(() => sortTasks(tasks.data ?? []), [tasks.data]);
+  const all = useMemo(() => {
+    const list = tasks.data ?? [];
+    const scoped = tasks.seesAll && scope === 'mine' ? list.filter((t) => t.assigneeId === me.id || t.createdById === me.id) : list;
+    return sortTasks(scoped);
+  }, [tasks.data, tasks.seesAll, scope, me.id]);
   const byTab = useMemo(() => {
     const m: Record<TaskTab, Task[]> = { today: [], upcoming: [], done: [] };
     for (const t of all) m[taskTab(t, today)].push(t);
@@ -73,8 +82,19 @@ export function TasksScreen() {
 
   return (
     <View style={styles.fill}>
-      <Screen onRefresh={pull.onRefresh} refreshing={pull.refreshing}>
-        <Title sub="Assigned to you">Tasks</Title>
+      <ScrollView
+        contentContainerStyle={[styles.body, { paddingBottom: bottomSpace }]}
+        refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
+      >
+        {tasks.seesAll ? (
+          <Segmented<'all' | 'mine'>
+            options={[{ key: 'all', label: 'All Tasks' }, { key: 'mine', label: 'My Tasks' }]}
+            value={scope}
+            onChange={setScope}
+          />
+        ) : (
+          <Text style={type.label}>Assigned to you</Text>
+        )}
 
         <View style={styles.counts}>
           <Count label="To do" value={byTab.today.length + byTab.upcoming.length} tone="todo" />
@@ -115,13 +135,14 @@ export function TasksScreen() {
                 key={t.id}
                 task={t}
                 customerName={customerName(t.customerId)}
+                assigneeName={tasks.seesAll && t.assigneeId !== me.id ? userName(t.assigneeId) : null}
                 onToggle={() => setDone(t, !t.completed)}
                 onOpen={() => setOpenId(t.id)}
               />
             ))}
           </View>
         )}
-      </Screen>
+      </ScrollView>
 
       {undo ? (
         <View style={[styles.snack, { bottom: bottomSpace - space.sm }]} accessibilityLiveRegion="polite">
@@ -143,6 +164,7 @@ export function TasksScreen() {
         task={open}
         customerName={open ? customerName(open.customerId) : null}
         creatorName={open && open.createdById !== open.assigneeId ? userName(open.createdById) : null}
+        assigneeName={open && tasks.seesAll && open.assigneeId !== me.id ? userName(open.assigneeId) : null}
         busy={toggle.isPending}
         onClose={() => setOpenId(null)}
         onToggle={() => {
@@ -163,6 +185,7 @@ export function TasksScreen() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.background },
+  body: { paddingHorizontal: space.screen, paddingTop: space.md, gap: space.lg },
   gap: { gap: space.sm },
   counts: { flexDirection: 'row', gap: space.md },
   count: { flex: 1, borderRadius: radius.lg, padding: space.lg, gap: 2 },

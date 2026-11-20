@@ -1,6 +1,6 @@
 # Modusys Mobile App: Plan (React Native, local only)
 
-Status (17/11/2026): **M0–M5 built, M6 (test pass) next.** M0–M4 are on `garage-migration`; M5 is on the work branch `work-m5` until it is merged. Written 12/11/2026 as a plan; sections below are kept up to date as phases finish (see the Roadmap and "Where we are").
+Status (20/11/2026): **M0–M5 on `garage-migration`; M5b built on `work-m5b` (CRM tab like the website, add / edit customer, stage moves, create task, My Leaves, Leave Approvals). M6 (test pass) next.** See "M5b plan" below. Written 12/11/2026 as a plan; sections below are kept up to date as phases finish (see the Roadmap and "Where we are").
 Goal: one React Native codebase that runs on the iOS Simulator, an Android emulator and real phones from the MacBook M5, talking to the existing modusys backend. No store publishing, no production deploy.
 
 **Decisions so far**
@@ -18,7 +18,11 @@ Goal: one React Native codebase that runs on the iOS Simulator, an Android emula
 
 ---
 
-## Where we are (17/11/2026)
+## Where we are (20/11/2026)
+
+**M5b (branch `work-m5b`, 20/11/2026):** bottom bar is Home · Attendance · **CRM** · More. CRM = Tickets (pending-tasks strip, stage picker, offer filter, sort, Board one stage per swipe / List by stage, long-press a card to move it) and Tasks (super admin: All / My Tasks; + Create task). Customers: + New customer, Edit (pencil), tap the stage badge to move, Add task, quick-add architect in the form. More > Leaves: My Leaves (apply, cancel a pending one) and Leave Approvals (super admin: Pending / All, approve or reject with a note). Shared with the website: `shared/customer-rules.ts` (mobile, email, postcode) and `shared/pipeline-sort.ts`. No database change. Known: the iOS Simulator's instant typing sometimes drops a letter when a field has just got focus (not seen on the OPPO).
+
+### Up to M5 (17/11/2026)
 
 **Built, on `garage-migration`** (code in `mobile/src/`):
 - Sign In, Set a new password (forced), Change password; Keychain session restore; role-filtered screens
@@ -414,11 +418,46 @@ Reloading: save a file and the app updates instantly (Fast Refresh). Developer m
 | Design v2 | Redesign of every screen built so far (`docs/MOBILE_CLAUDE_DESIGN_PROMPTS.md`) | Matches the design on both devices | **Done** 17/11/2026 |
 | M4 Field staff | Customers (list, detail, note, photo), Tasks, Notifications | Same data as the web for the same user | **Done** 17/11/2026: counts match staging; note, photo, task done/undo tested. Gaps in "Where we are" |
 | M5 Owner/Admin | Dashboard (read-only); linked quotes on Customer Overview; admin Home tiles. Quotes and POs stay web-only (decided 17/11/2026) | Numbers match the web; staff can't see these figures | **Built** 17/11/2026 on `work-m5`; tested on the iOS Simulator and the OPPO as super admin. Matches the web Dashboard; staff checked. Left: an admin login |
+| M5b Field forms | Change a customer's stage, add / edit a customer, quick-add an architect, create a task, My Leaves (apply, cancel), Leave Approvals (super admin). See "M5b plan" | Each saves through the website's own API and shows on the website straight away; roles as on the website | **Built** 20/11/2026 on `work-m5b`; every step tested on the iPhone Air simulator and the OPPO against staging, checked on the website, test data removed |
 | M6 Test pass | Device sizes, roles, slow network, release build | §9 checklist passes on both platforms | Not started |
 
 Not before M6: anything in §10.
 
 ---
+
+## M5b plan: field work forms (planned 20/11/2026)
+
+**Why:** up to M5 the phone can *look at* customers and tasks, but field staff still need the website to add a lead, move a customer to the next stage, make a task or apply for leave, and the owner needs it to approve leaves. M5b adds those, so a salesperson can work a whole day from the phone.
+
+**Rules for all of M5b**
+- Every save goes through the website's existing API with the phone's Bearer token. **No new tables, no database change.** Where the website runs extra steps in the browser, the phone runs the same steps (listed per item).
+- Who can do what is exactly the website's rule; the server checks it again on every call.
+- Field rules both apps need (Indian mobile number, email, postcode, leave types) come from `shared/`, so the phone and the website reject the same input. The customer rules move from the website's form into `shared/customer-rules.ts`; the website form then imports them (same rules, one place).
+- Forms use React Hook Form + Zod (already approved) and the existing `TextField`, `Button`, `Card` components; pickers open as a bottom sheet with search, like the website's dropdown.
+- After a save the list refreshes (TanStack Query) and a short "Saved" message shows; errors from the server show as they come.
+
+**Build order (one at a time, each tested on the iOS Simulator and the OPPO before the next):**
+
+| # | What | Where on the phone | Website API | Rules and extra steps | Done when |
+|---|---|---|---|---|---|
+| 1 | **Groundwork** | `components/` | — | A bottom-sheet **Picker** (search, used for stage, architect, priority, customer, leave type), a **Date picker** (calendar sheet, built in the app), `shared/customer-rules.ts`, API functions in `src/api/` | `npm run check` passes; the Style guide screen shows both pickers |
+| 2 | **Change stage** | Customer detail: tap the stage badge → stage list (built-in + custom stages, same order as the website) | `PATCH /api/customers/:id` `{ stage }` | Anyone signed in (as the website's Pipeline board). Also posts the Notes line "Stage changed to <stage>" (`POST /api/customers/:id/messages`, kind `system`), as the website does | Moving a customer on the phone shows the new stage and the Notes line on the website's Pipeline |
+| 3 | **Add customer** | Customers: **+** button → form → opens the new customer | `POST /api/customers` | Anyone signed in. Fields as the website form: Prefix, Name *, Surname, Mobile, Email, Architect, Address, City, State, Postcode, GST No, Birthday. Starts at the first stage (Upcoming Inquiry), like the website. SR No and code are given by the server | A customer added on the phone appears on the website's Customers and Pipeline with the same details |
+| 4 | **Edit customer** | Customer detail: **Edit** | `PATCH /api/customers/:id` | Same form, filled in. No delete on the phone (super admin only, on the website) | Changes show on the website |
+| 5 | **Quick-add architect** | Inside the Architect picker on the customer form: "Add new architect" | `POST /api/architects` | Anyone signed in (as the website). Short form: Prefix, Name *, Surname, Mobile, Company. The full architect record stays on the website | The new architect is picked on the customer and listed in the website's Architect Master |
+| 5b | **CRM tab, the website's flow** (added 20/11/2026) | Bottom bar becomes Home · Attendance · **CRM** · More (Customers and Tasks move inside CRM, as on the website). CRM: title with **+ New customer**, **Tickets / Tasks** switch (Tasks shows its pending count) | `GET /api/customers`, `/api/tasks?assigneeId=me`, `PATCH /api/customers/:id` | **Tickets:** pending-tasks strip ("11 pending tasks — 2 overdue — 1 due soon", next task; tap opens Tasks), stage picker (All stages), search, **Filters** (final offer from / to ₹L), **Sort** (Last activity (default) · Offer value · Days in stage), **Board / List**. Board: one stage per screen width, swipe sideways, column header with colour, name and count; cards as on the website (stage-coloured name, address, Final Offer ₹L); tap opens the customer, **long-press moves it** to another stage (step 2's move, Notes line included) instead of dragging. List: one section per stage with its count, folds open / closed. **Tasks:** the current Tasks screen (Today / Upcoming / Done) | The phone shows the same customers per stage, counts and order as the website's CRM for the same filters |
+| 6 | **Create task** | Tasks: **+**; Customer detail: "Add task" (customer filled in) | `POST /api/tasks` | Title *, Description, Due date, Priority (Low / Normal / High / Urgent), Linked customer. Assignee: only a super admin can pick someone else; everyone else's tasks are their own (the website's rule) | The task shows in the phone's Tasks and on the website for the assignee |
+| 7 | **My Leaves** | More → My Leaves: list (pending / approved / rejected, with the reviewer's note), **Apply**, cancel a pending one | `GET/POST /api/leaves`, `DELETE /api/leaves/:id` | Leave type (website's list, incl. a custom label), From and To date, Half day (First / Second half, single date only), Reason *. The server's checks (no working days, overlap, unlinked employee) show as messages | A leave applied on the phone shows on the website's Leave Approvals; cancelling removes it |
+| 8 | **Leave Approvals** | More → Leave Approvals (super admin only); a leave notification opens it | `GET /api/leaves?status=PENDING`, `PATCH /api/leaves/:id` | Approve / Reject with an optional note; the employee gets the website's approved / rejected notification | Approving on the phone updates the website and the employee's My Leaves |
+| 9 | **Wrap-up** | — | — | Tests for the shared rules, docs ("Where we are", `mobile/CLAUDE.md`), then commit | Both platforms checked; ready for M6 |
+
+**Left out on purpose (stays on the website):** deleting customers, the per-card stage tick on the board (the website keeps it in each browser only, so it can't be shared), CRM Settings (pipeline stages), editing or reassigning existing tasks, the full Architect Master, attendance reports, Team Attendance.
+
+**Decided (20/11/2026)**
+- **CRM layout:** the same as the website: a CRM tab with Tickets and Tasks inside; the separate Customers and Tasks tabs go.
+- **Date picker:** a small calendar sheet built in the app (no new package).
+- **Quick-add architect:** yes, inside the Architect picker (step 5).
+- **Stage change:** same as the website, anyone signed in can move a customer's stage.
 
 ## Open questions
 

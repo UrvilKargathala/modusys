@@ -25,6 +25,7 @@ import {
   Title,
 } from '../../components/ui';
 import { formatInr, formatInrShort } from '../../lib/format';
+import { DateField, SelectField, TextArea } from '../../components/form';
 import { colors, fonts, radius, space, type } from '../../theme/tokens';
 
 type Period = 'today' | 'week' | 'month' | 'year';
@@ -42,6 +43,8 @@ const SWATCHES: { name: string; value: string }[] = [
 
 export function StyleGuideScreen() {
   const [period, setPeriod] = useState<Period>('week');
+  const [pick, setPick] = useState<'low' | 'normal' | 'high' | 'urgent' | ''>('');
+  const [day, setDay] = useState('');
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   return (
@@ -132,6 +135,14 @@ export function StyleGuideScreen() {
         <TextField label="Password" value="secret" secureTextEntry error="Incorrect email or password" />
         <Notice text="Can't reach the server. Check your connection and try again." />
         <Notice tone="info" text="Your session ended. Please sign in again." />
+      </Card>
+
+      <SectionHeader title="Form pickers" />
+      <Card>
+        <SelectField label="Priority" value={pick} onChange={setPick} placeholder="Choose a priority"
+          options={[{ key: 'low', label: 'Low' }, { key: 'normal', label: 'Normal' }, { key: 'high', label: 'High' }, { key: 'urgent', label: 'Urgent' }]} />
+        <DateField label="Due date" value={day} onChange={setDay} clearable />
+        <TextArea label="Description" placeholder="Optional" />
       </Card>
 
       <SectionHeader title="Empty state" />

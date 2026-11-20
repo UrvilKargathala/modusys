@@ -10,6 +10,8 @@ const SUPER = ['super-admin'];
 export const screenRoles = {
   Dashboard: SUPER,
   QuoteFigures: ADMIN_UP,
+  /** As the website's Attendance > Leave Approvals. My Leaves is for everyone. */
+  LeaveApprovals: SUPER,
 } as const;
 
 export function canSee(screen: keyof typeof screenRoles, role: string): boolean {

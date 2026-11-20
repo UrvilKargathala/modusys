@@ -19,7 +19,7 @@ React Native (plain CLI, **no Expo**) phone app for The Furn Enterprise's Modusy
 - Colours and fonts only from `src/theme/tokens.ts`. No hex values in screens.
 - One status map: `src/lib/status.ts`. Keys and labels come from `shared/status.ts` (the web's own file); only the mobile badge colours (from the design prompts) live here. Use `StatusBadge`, never ad hoc colours.
 - Plain rules both apps need come from `shared/` via `@shared/…` (Metro, TypeScript and Jest all know that path). Never import from `web/` or `backend/`. Packages always come from `mobile/node_modules`; `shared/` files must not import any package.
-- Reuse `src/components/*` (Screen, Button, TextField, Card, StatusBadge, EmptyState) instead of copying markup into screens.
+- Reuse `src/components/*` (Screen, Button, TextField, Card, StatusBadge, EmptyState; forms: `components/form.tsx` FormScreen, SelectField / OptionSheet, DateField, TextArea) instead of copying markup into screens.
 - Money ₹ with Indian grouping (`₹2,15,200`, `₹12.5 L`, `₹1.2 Cr`) and dates DD/MM/YYYY via `src/lib/format.ts`.
 - Token only in the Keychain (`react-native-keychain`), never AsyncStorage, never logged.
 - No secrets in the app: anything inside an app can be read by whoever has it.
@@ -37,4 +37,4 @@ React Native (plain CLI, **no Expo**) phone app for The Furn Enterprise's Modusy
 
 Android setup on this Mac: Zulu JDK 17, SDK in `~/Library/Android/sdk` (`JAVA_HOME`/`ANDROID_HOME` in `~/.zshrc`, `sdk.dir` in the git-ignored `android/local.properties`). Test phone: OPPO CPH2001 (Android 11) over USB. With `adb reverse` the phone reaches the backend at `localhost:3001`, so no `config.local.ts` is needed.
 
-The web backend must be running on port 3001 for the app to sign in: from the repo root, `PORT=3001 npm run dev`. Every endpoint the app used up to M4 is on `garage-migration`; the M5 figures (Dashboard, admin Home, a customer's quotes) use `/api/mobile/*` (read-only summaries worked out on the server with the web's pricing code in `shared/`), on `work-m5` until it is merged.
+The web backend must be running on port 3001 for the app to sign in: from the repo root, `PORT=3001 npm run dev`. Every endpoint the app used up to M4 is on `garage-migration`; the M5 figures (Dashboard, admin Home, a customer's quotes) use `/api/mobile/*` (read-only summaries worked out on the server with the web's pricing code in `shared/`). M5b's forms (customers, stages, tasks, leaves) use the website's own `/api/customers`, `/api/architects`, `/api/tasks` and `/api/leaves`.

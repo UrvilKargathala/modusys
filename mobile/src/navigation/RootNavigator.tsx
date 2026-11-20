@@ -5,7 +5,7 @@ import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { CalendarCheck, CheckSquare, House, Menu, Users } from 'lucide-react-native';
+import { CalendarCheck, House, Menu, Users } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { useAuth } from '../auth/AuthProvider';
 import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
@@ -14,10 +14,14 @@ import { MoreScreen } from '../screens/MoreScreen';
 import { SignInScreen } from '../screens/SignInScreen';
 import { AttendanceScreen } from '../screens/attendance/AttendanceScreen';
 import { CheckFlowScreen } from '../screens/attendance/CheckFlowScreen';
+import { LeavesScreen } from '../screens/leaves/LeavesScreen';
+import { LeaveApplyScreen } from '../screens/leaves/LeaveApplyScreen';
+import { LeaveApprovalsScreen } from '../screens/leaves/LeaveApprovalsScreen';
+import { TaskFormScreen } from '../screens/tasks/TaskFormScreen';
+import { CustomerFormScreen } from '../screens/customers/CustomerFormScreen';
 import { CustomerDetailScreen } from '../screens/customers/CustomerDetailScreen';
-import { CustomersScreen } from '../screens/customers/CustomersScreen';
 import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
-import { TasksScreen } from '../screens/tasks/TasksScreen';
+import { CrmScreen } from '../screens/crm/CrmScreen';
 import { DashboardScreen } from '../screens/business/DashboardScreen';
 import { colors } from '../theme/tokens';
 import { StyleGuideScreen } from '../screens/dev/StyleGuideScreen';
@@ -40,8 +44,7 @@ function Tabs() {
     <Tab.Navigator tabBar={renderTabBar} screenOptions={{ headerShown: false }}>
       <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarIcon: tabIcon(House) }} />
       <Tab.Screen name="Attendance" component={AttendanceScreen} options={{ tabBarIcon: tabIcon(CalendarCheck) }} />
-      <Tab.Screen name="Customers" component={CustomersScreen} options={{ tabBarIcon: tabIcon(Users) }} />
-      <Tab.Screen name="Tasks" component={TasksScreen} options={{ tabBarIcon: tabIcon(CheckSquare) }} />
+      <Tab.Screen name="Crm" component={CrmScreen} options={{ title: 'CRM', tabBarIcon: tabIcon(Users) }} />
       <Tab.Screen name="More" component={MoreScreen} options={{ tabBarIcon: tabIcon(Menu) }} />
     </Tab.Navigator>
   );
@@ -86,6 +89,11 @@ export function RootNavigator() {
       <Stack.Screen name="CheckFlow" component={CheckFlowScreen} options={{ title: 'Check in' }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} options={({ route }) => ({ title: route.params.name })} />
+      <Stack.Screen name="CustomerForm" component={CustomerFormScreen} options={{ title: 'Add customer' }} />
+      <Stack.Screen name="TaskForm" component={TaskFormScreen} options={{ title: 'Create task' }} />
+      <Stack.Screen name="Leaves" component={LeavesScreen} options={{ title: 'My Leaves' }} />
+      <Stack.Screen name="LeaveApply" component={LeaveApplyScreen} options={{ title: 'Apply for leave' }} />
+      {canSee('LeaveApprovals', role) ? <Stack.Screen name="LeaveApprovals" component={LeaveApprovalsScreen} options={{ title: 'Leave Approvals' }} /> : null}
       {canSee('Dashboard', role) ? <Stack.Screen name="Dashboard" component={DashboardScreen} /> : null}
       {__DEV__ ? (
         <>

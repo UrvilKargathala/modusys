@@ -2,6 +2,7 @@
 
 import { SelectField } from "@/components/shared/select-field";
 import { customerCodeFrom } from "@shared/purchase-order";
+import { CUSTOMER_RULE_MESSAGES, isEmail, isIndianMobile, isPostcode } from "@shared/customer-rules";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -40,23 +41,16 @@ const deriveCode = customerCodeFrom;
 
 const customerSchema = z.object({
   prefix: z.string(),
-  firstName: z.string().min(1, "Name is required"),
+  firstName: z.string().min(1, CUSTOMER_RULE_MESSAGES.name),
   lastName: z.string(),
-  mobile: z
-    .string()
-    .refine((v) => v === "" || /^(\+91[\s-]?)?[6-9]\d{9}$/.test(v.replace(/\s/g, "")), {
-      message: "Enter a valid 10-digit Indian mobile number",
-    }),
-  email: z.string().refine((v) => v === "" || z.string().email().safeParse(v).success, {
-    message: "Enter a valid email address",
-  }),
+  // Same rules as the phone app (shared/customer-rules.ts).
+  mobile: z.string().refine(isIndianMobile, { message: CUSTOMER_RULE_MESSAGES.mobile }),
+  email: z.string().refine(isEmail, { message: CUSTOMER_RULE_MESSAGES.email }),
   gst: z.string(),
   address: z.string(),
   city: z.string(),
   state: z.string(),
-  postcode: z.string().refine((v) => v === "" || /^\d+$/.test(v), {
-    message: "Postcode must be numeric",
-  }),
+  postcode: z.string().refine(isPostcode, { message: CUSTOMER_RULE_MESSAGES.postcode }),
   birthdayMonth: z.string(),
   birthdayDay: z.string(),
   birthdayYear: z.string(),

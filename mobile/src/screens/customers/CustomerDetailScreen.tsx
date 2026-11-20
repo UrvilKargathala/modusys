@@ -9,11 +9,11 @@ import { KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, S
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Mail, MessageCircle, MessageSquareText, Navigation, Phone } from 'lucide-react-native';
+import { ChevronDown, ListPlus, Mail, MessageCircle, MessageSquareText, Navigation, Pencil, Phone } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { fullName } from '@shared/mock/architects';
 import { listCustomerQuotes } from '../../api/business';
-import { getCustomer, listArchitects, listUsers, type Customer } from '../../api/customers';
+import { changeStage, getCustomer, listArchitects, listUsers, type Customer } from '../../api/customers';
 import { listMedia } from '../../api/media';
 import { listMessages, markNotesRead, sendNote } from '../../api/messages';
 import { useUser } from '../../auth/AuthProvider';
@@ -26,6 +26,7 @@ import { canSee } from '../../navigation/access';
 import type { RootStackParamList } from '../../navigation/types';
 import { QuoteRow } from '../business/parts';
 import { colors, space, touch, type } from '../../theme/tokens';
+import { OptionSheet } from '../../components/form';
 import { NoteComposer, NotesList } from './Notes';
 import { Photos } from './Photos';
 import { useStages } from './useStages';
@@ -33,15 +34,16 @@ import { useStages } from './useStages';
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerDetail'>;
 type Tab = 'overview' | 'notes' | 'photos';
 
-function Action({ icon: Icon, label, url }: { icon: LucideIcon; label: string; url: string | null }) {
-  const off = !url;
+/** A round action under the customer card: opens a link (call, WhatsApp...) or runs `onPress` (Add task). */
+function Action({ icon: Icon, label, url, onPress }: { icon: LucideIcon; label: string; url?: string | null; onPress?: () => void }) {
+  const off = !url && !onPress;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: off }}
       disabled={off}
-      onPress={() => url && Linking.openURL(url).catch(() => undefined)}
+      onPress={() => (onPress ? onPress() : url && Linking.openURL(url).catch(() => undefined))}
       style={({ pressed }) => [styles.action, off && styles.off, pressed && styles.pressed]}
     >
       <View style={styles.actionIcon}>
@@ -61,6 +63,17 @@ function Overview({ customer }: { customer: Customer }) {
   });
   const users = useQuery({ queryKey: ['users'], queryFn: listUsers, enabled: !!customer.siteManagerId, staleTime: 5 * 60_000 });
   const architect = architects.data?.find((a) => a.id === customer.architectId);
+  // An architect added since the list was saved (on another phone or on the website): fetch the list again once,
+  // instead of showing "Not associated" for up to 5 minutes.
+  const missingArchitect = !!customer.architectId && architects.isSuccess && !architect;
+  const refetchArchitects = architects.refetch;
+  const refetchedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (missingArchitect && refetchedFor.current !== customer.architectId) {
+      refetchedFor.current = customer.architectId;
+      refetchArchitects().catch(() => undefined);
+    }
+  }, [missingArchitect, customer.architectId, refetchArchitects]);
   const siteManager = users.data?.find((u) => u.id === customer.siteManagerId);
   const birthday = [customer.birthdayDay, customer.birthdayMonth].filter(Boolean).join(' ');
 
@@ -120,11 +133,21 @@ function CustomerQuotes({ customerId }: { customerId: string }) {
   );
 }
 
-export function CustomerDetailScreen({ route }: Props) {
+function EditButton({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel="Edit customer" onPress={onPress} hitSlop={8} style={({ pressed }) => [styles.edit, pressed && styles.dim]}>
+      <Pencil size={20} color={colors.primary} strokeWidth={1.75} />
+    </Pressable>
+  );
+}
+
+export function CustomerDetailScreen({ route, navigation }: Props) {
   const { id } = route.params;
+
   const user = useUser();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>('overview');
+  const [stageOpen, setStageOpen] = useState(false);
   const stages = useStages();
   const customer = useQuery({
     queryKey: ['customer', id],
@@ -157,6 +180,18 @@ export function CustomerDetailScreen({ route }: Props) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['messages', id] }),
   });
   const nameOf = (userId: string | null) => users.data?.find((u) => u.id === userId)?.name ?? 'Team member';
+
+  // Change stage: anyone signed in, as on the website's Pipeline board. The Notes get "Stage changed to …" too.
+  const stage = useMutation({
+    mutationFn: (key: string) => changeStage(id, key, stageOrFallback(stages.byKey, key).label),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['customer', id], updated);
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['customers'] }),
+        queryClient.invalidateQueries({ queryKey: ['messages', id] }),
+      ]);
+    },
+  });
 
   const pull = usePullRefresh(() =>
     Promise.all([customer.refetch(), notesOpen ? messages.refetch() : null, photosOpen ? media.refetch() : null]),
@@ -197,6 +232,7 @@ export function CustomerDetailScreen({ route }: Props) {
             }
           >
             {customer.error ? <Notice text={(customer.error as Error).message} /> : null}
+            {stage.error ? <Notice text={`Stage not changed: ${(stage.error as Error).message}`} /> : null}
 
             <Card style={styles.head}>
               {c ? (
@@ -207,8 +243,30 @@ export function CustomerDetailScreen({ route }: Props) {
                     {[c.customerCode, c.city].filter(Boolean).length ? (
                       <Text style={type.small}>{[c.customerCode, c.city].filter(Boolean).join(' · ')}</Text>
                     ) : null}
-                    <StageBadge stage={stageOrFallback(stages.byKey, c.stage)} />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Stage: ${stageOrFallback(stages.byKey, c.stage).label}. Change stage`}
+                      onPress={() => setStageOpen(true)}
+                      disabled={stage.isPending}
+                      style={({ pressed }) => [styles.stageButton, (pressed || stage.isPending) && styles.dim]}
+                    >
+                      {/* The badge keeps itself to the top left; this wrapper lets the chevron centre beside it. */}
+                      <View>
+                        <StageBadge stage={stageOrFallback(stages.byKey, stage.isPending && stage.variables ? stage.variables : c.stage)} />
+                      </View>
+                      <ChevronDown size={16} color={colors.textSecondary} strokeWidth={1.5} />
+                    </Pressable>
+                    <OptionSheet
+                      visible={stageOpen}
+                      onClose={() => setStageOpen(false)}
+                      title="Move to stage"
+                      value={c.stage}
+                      options={stages.active.map((s) => ({ key: s.key, label: s.label }))}
+                      onPick={(key) => { if (key !== c.stage) stage.mutate(key); }}
+                    />
                   </View>
+                  {/* Edit: the same form as Add customer, filled in. */}
+                  <EditButton onPress={() => navigation.navigate('CustomerForm', { id })} />
                 </>
               ) : (
                 <>
@@ -226,6 +284,7 @@ export function CustomerDetailScreen({ route }: Props) {
               <Action icon={MessageCircle} label="WhatsApp" url={c ? whatsappUrl(c.mobile) : null} />
               <Action icon={Navigation} label="Directions" url={mapsUrl(address)} />
               <Action icon={Mail} label="Email" url={c?.email ? `mailto:${c.email}` : null} />
+              <Action icon={ListPlus} label="Add task" onPress={() => navigation.navigate('TaskForm', { customerId: id })} />
             </View>
 
             <Segmented<Tab>
@@ -302,6 +361,9 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.6 },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
   headText: { flex: 1, gap: space.xs, alignItems: 'flex-start' },
+  stageButton: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: touch, paddingRight: space.sm },
+  dim: { opacity: 0.6 },
+  edit: { width: touch, height: touch, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
   headName: { ...type.heading, fontSize: 20 },
   actions: { flexDirection: 'row', justifyContent: 'space-between' },
   action: { flex: 1, alignItems: 'center', gap: space.xs, minHeight: touch },

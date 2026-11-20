@@ -5,6 +5,9 @@ import { canSee } from '../src/navigation/access';
 import { fullAddress, matchesCustomer, telUrl, whatsappUrl } from '../src/lib/customers';
 import { buildStages, stageOrFallback } from '../src/lib/stages';
 import { dueText, isOverdue, priorityStyle, sortTasks, taskTab } from '../src/lib/tasks';
+import { byStage, inOfferRange, taskSummary } from '../src/lib/pipeline';
+import { leaveDays, leaveTypeLabel, weekdaysBetween } from '../src/lib/leaves';
+import { monthGrid, stepMonth } from '../src/lib/calendar';
 import { notificationGroup, notificationStyle, notificationTaskId, timeAgo } from '../src/lib/notifications';
 
 test('rupees use Indian grouping', () => {
@@ -135,4 +138,55 @@ test('notifications: groups, time ago, task links and unknown types', () => {
 
 test('quote amounts are whole rupees', () => {
   expect(formatInrWhole(215200.4)).toBe('₹2,15,200');
+});
+
+test('date picker months start on Monday and hold every day', () => {
+  // November 2026 starts on a Sunday: six blanks, then 1..30.
+  const nov = monthGrid(2026, 10);
+  expect(nov[0]).toEqual([null, null, null, null, null, null, 1]);
+  expect(nov.flat().filter(Boolean)).toHaveLength(30);
+  expect(nov.every((w) => w.length === 7)).toBe(true);
+  // February 2028 (leap year) has 29 days.
+  expect(monthGrid(2028, 1).flat().filter(Boolean)).toHaveLength(29);
+  // Stepping past December / January wraps the year.
+  expect(stepMonth({ y: 2026, m: 11 }, 1)).toEqual({ y: 2027, m: 0 });
+  expect(stepMonth({ y: 2026, m: 0 }, -1)).toEqual({ y: 2025, m: 11 });
+});
+
+test('CRM board: offer filter, grouping and order follow the website', () => {
+  const c = (id: string, stage: string, offer: number | null, days: number, last: string) =>
+    ({ id, stage, finalOfferLakh: offer, daysInStage: days, lastActivity: last }) as never;
+  // Filters: "from" treats no offer as 0, "to" lets a customer with no offer through only when there's no limit.
+  expect(inOfferRange({ finalOfferLakh: null }, { min: '1', max: '' })).toBe(false);
+  expect(inOfferRange({ finalOfferLakh: null }, { min: '', max: '5' })).toBe(false);
+  expect(inOfferRange({ finalOfferLakh: 3 }, { min: '1', max: '5' })).toBe(true);
+  expect(inOfferRange({ finalOfferLakh: 3 }, { min: '', max: '' })).toBe(true);
+  const list = [c('a', 'design', 2, 9, '2026-11-01T00:00:00Z'), c('b', 'design', 8, 1, '2026-11-19T00:00:00Z'), c('x', 'quotation', null, 3, '2026-11-10T00:00:00Z')];
+  expect(byStage(list, 'last-activity').get('design')!.map((x: { id: string }) => x.id)).toEqual(['b', 'a']);
+  expect(byStage(list, 'offer-value').get('design')!.map((x: { id: string }) => x.id)).toEqual(['b', 'a']);
+  expect(byStage(list, 'days-in-stage').get('design')!.map((x: { id: string }) => x.id)).toEqual(['a', 'b']);
+  expect(byStage(list, 'last-activity').get('quotation')).toHaveLength(1);
+});
+
+test('CRM tasks strip: counts and the task it points to follow the website', () => {
+  const t = (id: string, dueDate: string, priority = 'normal', completed = false) => ({ id, title: id, dueDate, priority, completed }) as never;
+  const s = taskSummary([t('late1', '2026-11-18'), t('late3', '2026-11-17'), t('soon', '2026-11-22'), t('far', '2026-12-30'), t('nodate', ''), t('done', '2026-11-01', 'normal', true)], '2026-11-20');
+  expect([s.total, s.overdue, s.dueSoon]).toEqual([5, 2, 1]);
+  expect((s.spotlight as { id: string }).id).toBe('late3');
+  expect(s.spotlightDaysLate).toBe(3);
+  // Nothing overdue: the next due soon, then a high / urgent one, then the first open one.
+  expect((taskSummary([t('far', '2026-12-30'), t('soon', '2026-11-21')], '2026-11-20').spotlight as { id: string }).id).toBe('soon');
+  expect((taskSummary([t('far', '2026-12-30'), t('hot', '', 'urgent')], '2026-11-20').spotlight as { id: string }).id).toBe('hot');
+  expect(taskSummary([], '2026-11-20')).toMatchObject({ total: 0, spotlight: null });
+});
+
+test('leaves: working days and labels follow the website', () => {
+  // Fri 20/11/2026 to Tue 24/11/2026: Fri, Mon, Tue.
+  expect(weekdaysBetween('2026-11-20', '2026-11-24')).toBe(3);
+  expect(weekdaysBetween('2026-11-21', '2026-11-22')).toBe(0); // a weekend
+  expect(weekdaysBetween('2026-11-24', '2026-11-20')).toBe(0); // backwards
+  expect(leaveDays('2026-11-23', '', false)).toBe(1); // no To date: one day
+  expect(leaveDays('2026-11-23', '2026-11-27', true)).toBe(0.5);
+  expect(leaveTypeLabel({ leaveType: 'OTHER', customLeaveType: 'Study leave' })).toBe('Study leave');
+  expect(leaveTypeLabel({ leaveType: 'COMP_OFF', customLeaveType: null })).toBe('Comp Off');
 });

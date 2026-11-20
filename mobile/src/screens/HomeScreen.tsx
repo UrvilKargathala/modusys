@@ -77,7 +77,7 @@ export function HomeScreen() {
       {isAdmin ? <BusinessSection summary={business} /> : null}
 
       <View style={styles.section}>
-        <SectionHeader title="Today's tasks" action="View all" onAction={() => nav.navigate('Tasks')} />
+        <SectionHeader title="Today's tasks" action="View all" onAction={() => nav.navigate('Crm', { tab: 'tasks' })} />
         {tasks.isLoading ? (
           <Card>
             <SkeletonRow />
@@ -95,7 +95,7 @@ export function HomeScreen() {
                 task={t}
                 customerName={customerName(t.customerId)}
                 onToggle={() => toggle.mutate({ id: t.id, done: !t.completed })}
-                onOpen={() => nav.navigate('Tasks')}
+                onOpen={() => nav.navigate('Crm', { tab: 'tasks' })}
               />
             ))}
             {todays.length > 3 ? <Text style={[type.small, styles.more]}>+{todays.length - 3} more on the Tasks tab</Text> : null}
@@ -104,7 +104,7 @@ export function HomeScreen() {
       </View>
 
       <View style={styles.section}>
-        <SectionHeader title="Recent customers" action="View all" onAction={() => nav.navigate('Customers')} />
+        <SectionHeader title="Recent customers" action="View all" onAction={() => nav.navigate('Crm', { tab: 'tickets' })} />
         <Card style={styles.rows}>
           {customers.isLoading ? (
             <SkeletonRow />

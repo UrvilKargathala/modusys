@@ -3,6 +3,7 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   RefreshControl,
@@ -23,7 +24,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { colors, fonts, radius, shadow, space, tabBar, touch, type } from '../theme/tokens';
 import type { Stage } from '../lib/stages';
 import { RevealFocusedField } from './AuthLayout';
-import { attendanceConfig, isAttendanceKey, statusConfig, isStatusKey } from '../lib/status';
+import { attendanceConfig, isAttendanceKey, isLeaveStatusKey, leaveStatusConfig, statusConfig, isStatusKey } from '../lib/status';
 
 /** Room a scrolling screen leaves at the bottom so the floating tab bar never covers its last row. */
 export function useTabBarSpace(): number {
@@ -340,13 +341,14 @@ export function Sheet({ visible, onClose, onDismiss, children }: {
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} onDismiss={onDismiss}>
-      <View style={styles.backdrop}>
+      {/* A sheet with a form in it (e.g. quick-add architect) rises above the keyboard; others are unaffected. */}
+      <KeyboardAvoidingView style={styles.backdrop} behavior="padding">
         <Pressable style={styles.fill} accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom }]}>
           <View style={styles.handle} />
           {children}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -511,7 +513,9 @@ export function StatusBadge({ status, label }: { status: string; label?: string 
     ? statusConfig[status]
     : isAttendanceKey(status)
       ? attendanceConfig[status]
-      : { label: status, color: colors.grey, bg: colors.greyTint };
+      : isLeaveStatusKey(status)
+        ? leaveStatusConfig[status]
+        : { label: status, color: colors.grey, bg: colors.greyTint };
   const cfg = label ? { ...base, label } : base;
   return (
     <View style={[styles.badge, { backgroundColor: cfg.bg }]}>

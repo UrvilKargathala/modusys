@@ -42,6 +42,18 @@ export const attendanceConfig: Record<AttendanceKey, { label: string; color: str
   'no-checkout': { label: 'No check-out', color: colors.error, bg: colors.errorTint },
 };
 
+// Leave requests (My Leaves, Leave Approvals): the web's colours, warning = pending, success = approved, error = rejected.
+export type LeaveStatusKey = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+export const leaveStatusConfig: Record<LeaveStatusKey, { label: string; color: string; bg: string }> = {
+  PENDING: { label: 'Pending', color: colors.warningText, bg: colors.warningTint },
+  APPROVED: { label: 'Approved', color: colors.success, bg: colors.successTint },
+  REJECTED: { label: 'Rejected', color: colors.error, bg: colors.errorTint },
+  CANCELLED: { label: 'Cancelled', color: colors.grey, bg: colors.greyTint },
+};
+export function isLeaveStatusKey(value: string): value is LeaveStatusKey {
+  return value in leaveStatusConfig;
+}
+
 export function isAttendanceKey(value: string): value is AttendanceKey {
   return value in attendanceConfig;
 }
