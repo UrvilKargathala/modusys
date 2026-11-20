@@ -18,7 +18,7 @@ import { listMedia } from '../../api/media';
 import { listMessages, markNotesRead, sendNote } from '../../api/messages';
 import { useUser } from '../../auth/AuthProvider';
 import { Avatar, Card, EmptyState, InfoRow, Notice, SectionHeader, Segmented, Skeleton, SkeletonRow, StageBadge } from '../../components/ui';
-import { fullAddress, mapsUrl, telUrl, whatsappUrl } from '../../lib/customers';
+import { fullAddress, mapsUrl, telUrl } from '../../lib/customers';
 import { formatDate, formatInrShort } from '../../lib/format';
 import { stageOrFallback } from '../../lib/stages';
 import { usePullRefresh } from '../../lib/usePullRefresh';
@@ -281,7 +281,8 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
 
             <View style={styles.actions}>
               <Action icon={Phone} label="Call" url={c ? telUrl(c.mobile) : null} />
-              <Action icon={MessageCircle} label="WhatsApp" url={c ? whatsappUrl(c.mobile) : null} />
+              {/* Chat opens the customer's chat (the website's customer chat) right here, instead of WhatsApp. */}
+              <Action icon={MessageCircle} label="Chat" onPress={() => setTab('notes')} />
               <Action icon={Navigation} label="Directions" url={mapsUrl(address)} />
               <Action icon={Mail} label="Email" url={c?.email ? `mailto:${c.email}` : null} />
               <Action icon={ListPlus} label="Add task" onPress={() => navigation.navigate('TaskForm', { customerId: id })} />
@@ -290,7 +291,7 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
             <Segmented<Tab>
               options={[
                 { key: 'overview', label: 'Overview' },
-                { key: 'notes', label: 'Notes' },
+                { key: 'notes', label: 'Chat' },
                 { key: 'photos', label: 'Photos' },
               ]}
               value={tab}
@@ -308,7 +309,7 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
                 <Notice text={(messages.error as Error).message} />
               ) : noteCount === 0 ? (
                 <Card>
-                  <EmptyState icon={MessageSquareText} title="No notes yet" text="Add the first one below. The team sees it in this customer's chat on the web." />
+                  <EmptyState icon={MessageSquareText} title="No messages yet" text="Write the first one below. The team sees it in this customer's chat on the website." />
                 </Card>
               ) : (
                 <NotesList messages={messages.data ?? []} myId={user.id} nameOf={nameOf} />

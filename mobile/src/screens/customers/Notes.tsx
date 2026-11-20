@@ -114,8 +114,8 @@ export function NoteComposer({ onSend, sending }: { onSend: (text: string) => Pr
   return (
     <View style={styles.composer}>
       <TextInput
-        accessibilityLabel="Add a note"
-        placeholder="Add a note…"
+        accessibilityLabel="Write a message"
+        placeholder="Write a message…"
         placeholderTextColor={colors.placeholder}
         value={text}
         onChangeText={setText}
