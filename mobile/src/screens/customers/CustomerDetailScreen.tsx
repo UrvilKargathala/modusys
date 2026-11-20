@@ -15,7 +15,7 @@ import { fullName } from '@shared/mock/architects';
 import { listCustomerQuotes } from '../../api/business';
 import { changeStage, getCustomer, listArchitects, listUsers, type Customer } from '../../api/customers';
 import { listMedia } from '../../api/media';
-import { listMessages, markNotesRead, sendNote } from '../../api/messages';
+import { listMessages, markNotesRead } from '../../api/messages';
 import { useUser } from '../../auth/AuthProvider';
 import { Avatar, Card, EmptyState, InfoRow, Notice, SectionHeader, Segmented, Skeleton, SkeletonRow, StageBadge } from '../../components/ui';
 import { fullAddress, mapsUrl, telUrl } from '../../lib/customers';
@@ -27,7 +27,8 @@ import type { RootStackParamList } from '../../navigation/types';
 import { QuoteRow } from '../business/parts';
 import { colors, space, touch, type } from '../../theme/tokens';
 import { OptionSheet } from '../../components/form';
-import { NoteComposer, NotesList } from './Notes';
+import { ChatComposer } from './ChatComposer';
+import { NotesList } from './Notes';
 import { Photos } from './Photos';
 import { useStages } from './useStages';
 
@@ -175,10 +176,6 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (notesOpen) markNotesRead(id).catch(() => undefined);
   }, [notesOpen, id]);
-  const send = useMutation({
-    mutationFn: (text: string) => sendNote(id, text),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['messages', id] }),
-  });
   const nameOf = (userId: string | null) => users.data?.find((u) => u.id === userId)?.name ?? 'Team member';
 
   // Change stage: anyone signed in, as on the website's Pipeline board. The Notes get "Stage changed to …" too.
@@ -329,24 +326,7 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
             ) : null}
           </ScrollView>
           {notesOpen ? (
-            <>
-              {send.error ? (
-                <View style={styles.sendError}>
-                  <Notice text={(send.error as Error).message} />
-                </View>
-              ) : null}
-              <NoteComposer
-                sending={send.isPending}
-                onSend={async (text) => {
-                  try {
-                    await send.mutateAsync(text);
-                    return true;
-                  } catch {
-                    return false;
-                  }
-                }}
-              />
-            </>
+            <ChatComposer customerId={id} myId={user.id} users={users.data ?? []} onSent={() => queryClient.invalidateQueries({ queryKey: ['messages', id] })} />
           ) : null}
         </KeyboardAvoidingView>
       </View>
@@ -357,7 +337,6 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.background },
   body: { padding: space.screen, gap: space.screen, paddingBottom: space.xl },
-  sendError: { paddingHorizontal: space.screen, paddingBottom: space.xs },
   off: { opacity: 0.35 },
   pressed: { opacity: 0.6 },
   head: { flexDirection: 'row', alignItems: 'center', gap: space.lg },

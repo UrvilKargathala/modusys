@@ -57,6 +57,13 @@ export const presignPut = (Key: string, ContentType: string, size: number) =>
     },
   );
 
+// A short-lived read link (default 2 minutes) for a client that can't send our login header with the request,
+// e.g. the phone's audio player playing a voice note. The caller checks access before minting it.
+export const presignGet = (Key: string, ContentType?: string) =>
+  getSignedUrl(signer(), new GetObjectCommand({ Bucket: bucket(), Key, ResponseContentType: ContentType }), {
+    expiresIn: Number(process.env.S3_GET_EXPIRY ?? 120),
+  });
+
 export const getObject = (Key: string, Range?: string) =>
   s3().send(new GetObjectCommand({ Bucket: bucket(), Key, Range }));
 

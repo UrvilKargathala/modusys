@@ -23,7 +23,7 @@ React Native (plain CLI, **no Expo**) phone app for The Furn Enterprise's Modusy
 - Money ₹ with Indian grouping (`₹2,15,200`, `₹12.5 L`, `₹1.2 Cr`) and dates DD/MM/YYYY via `src/lib/format.ts`.
 - Token only in the Keychain (`react-native-keychain`), never AsyncStorage, never logged.
 - No secrets in the app: anything inside an app can be read by whoever has it.
-- **Ask before adding a dependency.** Approved so far: React Navigation (native, native-stack, bottom-tabs, screens, safe-area-context), TanStack Query, React Hook Form, Zod, @hookform/resolvers, react-native-keychain, react-native-svg, lucide-react-native, react-native-asset (dev, links `assets/fonts`: run `npx react-native-asset` after changing fonts), react-native-image-picker (selfie camera), @react-native-community/geolocation (GPS; background updates switched off in `src/lib/device.ts`).
+- **Ask before adding a dependency.** Approved so far: React Navigation (native, native-stack, bottom-tabs, screens, safe-area-context), TanStack Query, React Hook Form, Zod, @hookform/resolvers, react-native-keychain, react-native-svg, lucide-react-native, react-native-asset (dev, links `assets/fonts`: run `npx react-native-asset` after changing fonts), react-native-image-picker (selfie camera, chat and gallery photos), @react-native-community/geolocation (GPS; background updates switched off in `src/lib/device.ts`), react-native-nitro-sound + react-native-nitro-modules (chat voice notes: record and play, `src/lib/voice.ts`), @react-native-documents/picker (attach a PDF in the chat).
 - Never invent business logic (new statuses, roles, flows): ask.
 
 ## Commands (run inside `mobile/`)

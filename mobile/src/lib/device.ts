@@ -1,6 +1,7 @@
 // Phone hardware for check-in/out: GPS position and the front-camera selfie.
 // Screens call these instead of the native modules directly.
 import { PermissionsAndroid, Platform } from 'react-native';
+import { errorCodes, isErrorWithCode, keepLocalCopy, pick, types } from '@react-native-documents/picker';
 import Geolocation from '@react-native-community/geolocation';
 import { launchCamera, launchImageLibrary, type Asset } from 'react-native-image-picker';
 
@@ -112,3 +113,23 @@ function toResult(cancelled?: boolean, errorCode?: string, asset?: Asset): Selfi
   if (asset.fileSize && asset.fileSize > MAX_SELFIE_BYTES) return { ok: false, reason: 'too-big' };
   return { ok: true, photo: { ...asset, uri: asset.uri } };
 }
+
+/** A PDF from the phone's files, copied into the app so it can be uploaded (Android gives a content:// address). */
+export type PickedPdf = { uri: string; name: string; size: number; type: 'application/pdf' };
+export async function pickPdf(): Promise<{ ok: true; pdf: PickedPdf } | { ok: false; reason: 'cancelled' | 'too-big' | 'failed' }> {
+  try {
+    const [file] = await pick({ type: [types.pdf] });
+    if (!file?.uri) return { ok: false, reason: 'failed' };
+    if (file.size && file.size > MAX_CHAT_FILE_BYTES) return { ok: false, reason: 'too-big' };
+    const name = file.name || `document-${Date.now()}.pdf`;
+    const [copy] = await keepLocalCopy({ files: [{ uri: file.uri, fileName: name }], destination: 'cachesDirectory' });
+    if (copy.status !== 'success') return { ok: false, reason: 'failed' };
+    return { ok: true, pdf: { uri: copy.localUri, name, size: file.size ?? 0, type: 'application/pdf' } };
+  } catch (e) {
+    if (isErrorWithCode(e) && e.code === errorCodes.OPERATION_CANCELED) return { ok: false, reason: 'cancelled' };
+    return { ok: false, reason: 'failed' };
+  }
+}
+
+/** The chat's upload limit, the same as the server's (20 MB). */
+export const MAX_CHAT_FILE_BYTES = 20 * 1024 * 1024;

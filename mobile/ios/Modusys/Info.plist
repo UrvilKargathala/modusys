@@ -34,7 +34,9 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Modusys uses the camera for the selfie when you check in or out.</string>
+	<string>Modusys uses the camera for the selfie when you check in or out, and for photos you send in a customer's chat.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Modusys uses the microphone to record voice notes in a customer's chat.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Modusys records where you are when you check in or out.</string>
 	<key>RCTNewArchEnabled</key>

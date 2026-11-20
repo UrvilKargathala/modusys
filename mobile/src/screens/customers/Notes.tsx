@@ -2,14 +2,15 @@
 // oldest first like a chat, grouped by day; your own notes on the right.
 // Stage changes show as small centred lines. Photos in a note show as
 // thumbnails; voice notes and PDFs are named (play/open them on the web).
-// The composer sends plain text notes (no @mentions on the phone yet).
-import React, { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { FileText, Forward, Mic, SendHorizontal } from 'lucide-react-native';
-import type { Message } from '../../api/messages';
+// Voice notes play here (ChatComposer.tsx records them; the message box with 📎, @ and 🎤 lives there too).
+import React, { useEffect, useState } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FileText, Forward, Pause, Play } from 'lucide-react-native';
+import { voiceLink, type Message } from '../../api/messages';
 import { imageSource } from '../../api/client';
 import { formatDay, formatTime, istToday } from '../../lib/format';
-import { colors, fonts, radius, shadow, space, touch, type } from '../../theme/tokens';
+import { stopPlaying, togglePlay } from '../../lib/voice';
+import { colors, fonts, radius, shadow, space, type } from '../../theme/tokens';
 
 /** IST calendar day of a timestamp, as YYYY-MM-DD. */
 const istDay = (iso: string) => istToday(new Date(iso));
@@ -22,7 +23,7 @@ function dayLabel(day: string): string {
   return formatDay(day);
 }
 
-function Bubble({ m, mine, sender }: { m: Message; mine: boolean; sender: string }) {
+function Bubble({ m, mine, sender, playing, onPlay }: { m: Message; mine: boolean; sender: string; playing: boolean; onPlay: () => void }) {
   const tint = mine ? colors.white : colors.text;
   const sub = mine ? colors.onPrimaryMuted : colors.textSecondary;
   return (
@@ -43,12 +44,20 @@ function Bubble({ m, mine, sender }: { m: Message; mine: boolean; sender: string
           </View>
         ) : null}
         {m.kind === 'voice' ? (
-          <View style={styles.inline}>
-            <Mic size={16} color={tint} strokeWidth={1.5} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={playing ? 'Stop voice note' : 'Play voice note'}
+            disabled={!m.audioUrl}
+            onPress={onPlay}
+            style={styles.inline}
+          >
+            <View style={[styles.play, { borderColor: tint }]}>
+              {playing ? <Pause size={14} color={tint} strokeWidth={2} /> : <Play size={14} color={tint} strokeWidth={2} />}
+            </View>
             <Text style={[type.body, { color: tint }]}>
               Voice note{m.durationSec ? ` · ${Math.floor(m.durationSec / 60)}:${String(Math.round(m.durationSec % 60)).padStart(2, '0')}` : ''}
             </Text>
-          </View>
+          </Pressable>
         ) : null}
         {m.kind === 'pdf' ? (
           <View style={styles.inline}>
@@ -82,6 +91,14 @@ export function NotesList({ messages, myId, nameOf }: {
   myId: string;
   nameOf: (userId: string | null) => string;
 }) {
+  const [playing, setPlaying] = useState<string | null>(null);
+  // Stop any voice note when the chat closes.
+  useEffect(() => () => {
+    stopPlaying().catch(() => undefined);
+  }, []);
+  const play = (m: Message) => {
+    togglePlay(m.id, () => voiceLink(m.id), setPlaying).catch(() => undefined);
+  };
   let lastDay = '';
   return (
     <View style={styles.list}>
@@ -98,43 +115,11 @@ export function NotesList({ messages, myId, nameOf }: {
                 <Text style={styles.meta}>{formatTime(m.createdAt)}</Text>
               </View>
             ) : (
-              <Bubble m={m} mine={m.senderId === myId} sender={nameOf(m.senderId)} />
+              <Bubble m={m} mine={m.senderId === myId} sender={nameOf(m.senderId)} playing={playing === m.id} onPlay={() => play(m)} />
             )}
           </React.Fragment>
         );
       })}
-    </View>
-  );
-}
-
-/** "Add a note…" box with a round send button, pinned under the timeline. */
-export function NoteComposer({ onSend, sending }: { onSend: (text: string) => Promise<boolean>; sending: boolean }) {
-  const [text, setText] = useState('');
-  const canSend = text.trim().length > 0 && !sending;
-  return (
-    <View style={styles.composer}>
-      <TextInput
-        accessibilityLabel="Write a message"
-        placeholder="Write a message…"
-        placeholderTextColor={colors.placeholder}
-        value={text}
-        onChangeText={setText}
-        multiline
-        maxLength={4000}
-        style={styles.input}
-      />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Send note"
-        accessibilityState={{ disabled: !canSend, busy: sending }}
-        disabled={!canSend}
-        onPress={async () => {
-          if (await onSend(text.trim())) setText('');
-        }}
-        style={[styles.send, !canSend && styles.sendOff]}
-      >
-        <SendHorizontal size={20} color={colors.white} strokeWidth={1.75} />
-      </Pressable>
     </View>
   );
 }
@@ -155,6 +140,7 @@ const styles = StyleSheet.create({
   time: { alignSelf: 'flex-end' },
   images: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
   image: { width: 140, height: 140, borderRadius: radius.md, backgroundColor: colors.greyTint },
+  play: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   reactions: { flexDirection: 'row', gap: space.xs, flexWrap: 'wrap' },
   reaction: {
     borderRadius: radius.pill,
@@ -168,30 +154,4 @@ const styles = StyleSheet.create({
   reactionText: { fontSize: 12 },
   system: { alignSelf: 'center', alignItems: 'center', gap: 2, backgroundColor: colors.greyTint, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.xs + 2, maxWidth: '90%' },
   systemText: { ...type.small, color: colors.grey, textAlign: 'center' },
-  composer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: space.sm,
-    paddingHorizontal: space.screen,
-    paddingTop: space.sm,
-    paddingBottom: space.sm,
-    backgroundColor: colors.background,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  input: {
-    ...type.body,
-    flex: 1,
-    minHeight: touch,
-    maxHeight: 120,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    paddingHorizontal: space.md,
-    paddingTop: space.sm + 4,
-    paddingBottom: space.sm + 4,
-  },
-  send: { width: touch, height: touch, borderRadius: touch / 2, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  sendOff: { opacity: 0.4 },
 });

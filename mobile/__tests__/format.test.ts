@@ -7,6 +7,7 @@ import { buildStages, stageOrFallback } from '../src/lib/stages';
 import { dueText, isOverdue, priorityStyle, sortTasks, taskTab } from '../src/lib/tasks';
 import { byStage, inOfferRange, taskSummary } from '../src/lib/pipeline';
 import { leaveDays, leaveTypeLabel, weekdaysBetween } from '../src/lib/leaves';
+import { mentionQuery } from '../src/lib/mentions';
 import { monthGrid, stepMonth } from '../src/lib/calendar';
 import { notificationGroup, notificationStyle, notificationTaskId, timeAgo } from '../src/lib/notifications';
 
@@ -189,4 +190,12 @@ test('leaves: working days and labels follow the website', () => {
   expect(leaveDays('2026-11-23', '2026-11-27', true)).toBe(0.5);
   expect(leaveTypeLabel({ leaveType: 'OTHER', customLeaveType: 'Study leave' })).toBe('Study leave');
   expect(leaveTypeLabel({ leaveType: 'COMP_OFF', customLeaveType: null })).toBe('Comp Off');
+});
+
+test('chat @mentions: the word being typed after @, as on the website', () => {
+  expect(mentionQuery('Hi @Pri', 7)).toBe('Pri');
+  expect(mentionQuery('Hi @', 4)).toBe('');
+  expect(mentionQuery('Hi @Priti done', 14)).toBeNull(); // a space ends it
+  expect(mentionQuery('mail a@b.com', 12)).toBeNull(); // not after a space
+  expect(mentionQuery('no mention', 10)).toBeNull();
 });
