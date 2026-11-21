@@ -35,6 +35,8 @@ model Customer {
   architectId    String?
   siteManagerId  String?
   stage          String    @default("upcoming-inquiry")
+  /// Stage keys ticked "done" (the Pipeline card's tick). A tick belongs to one stage, so moving back to it shows it again.
+  completedStages String[] @default([])
   finalOfferLakh Float?
   assignee       String    @default("")
   daysInStage    Int       @default(0)

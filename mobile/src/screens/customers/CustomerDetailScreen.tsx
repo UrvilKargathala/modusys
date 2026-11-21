@@ -4,20 +4,20 @@
 // web with a composer pinned above the keyboard; Photos is the customer's gallery.
 // Admins (the roles that see Quotes on the web) also get the customer's quotes on Overview (M5),
 // read-only: a quote opens on the web.
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ListPlus, Mail, MessageCircle, MessageSquareText, Navigation, Pencil, Phone } from 'lucide-react-native';
+import { Check, ChevronDown, ListPlus, Mail, MessageCircle, MessageSquareText, Navigation, Pencil, Phone } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { fullName } from '@shared/mock/architects';
 import { listCustomerQuotes } from '../../api/business';
-import { changeStage, getCustomer, listArchitects, listUsers, type Customer } from '../../api/customers';
+import { changeStage, deleteCustomer, getCustomer, setStageDone, listArchitects, listCustomers, listUsers, type Customer } from '../../api/customers';
 import { listMedia } from '../../api/media';
-import { listMessages, markNotesRead } from '../../api/messages';
+import { deleteMessage, editMessage, forwardMessage, listMessages, markNotesRead, reactToMessage, toggleStar, type Message } from '../../api/messages';
 import { useUser } from '../../auth/AuthProvider';
-import { Avatar, Card, EmptyState, InfoRow, Notice, SectionHeader, Segmented, Skeleton, SkeletonRow, StageBadge } from '../../components/ui';
+import { Avatar, Button, Card, Chips, EmptyState, InfoRow, Notice, SearchField, SectionHeader, Segmented, Sheet, Skeleton, SkeletonRow, StageBadge } from '../../components/ui';
 import { fullAddress, mapsUrl, telUrl } from '../../lib/customers';
 import { formatDate, formatInrShort } from '../../lib/format';
 import { stageOrFallback } from '../../lib/stages';
@@ -28,7 +28,9 @@ import { QuoteRow } from '../business/parts';
 import { colors, space, touch, type } from '../../theme/tokens';
 import { OptionSheet } from '../../components/form';
 import { ChatComposer } from './ChatComposer';
-import { NotesList } from './Notes';
+import { MessageActions, type MessageAction } from './MessageActions';
+import { EditMessageSheet, ForwardSheet, MessageInfoSheet } from './MessageSheets';
+import { NotesList, snippet } from './Notes';
 import { Photos } from './Photos';
 import { useStages } from './useStages';
 
@@ -108,6 +110,28 @@ function Overview({ customer }: { customer: Customer }) {
   );
 }
 
+/** Super admin only, as the website: asks once, then hides the customer for everyone (the server keeps the row). */
+function DeleteCustomer({ customer, onDeleted }: { customer: Customer; onDeleted: () => void }) {
+  const [asking, setAsking] = useState(false);
+  const remove = useMutation({ mutationFn: () => deleteCustomer(customer.id), onSuccess: onDeleted });
+  return (
+    <>
+      <Button label="Delete customer" variant="text" onPress={() => setAsking(true)} />
+      <Sheet visible={asking} onClose={() => setAsking(false)}>
+        <View style={styles.confirm}>
+          <Text style={type.heading}>Delete {customer.name}?</Text>
+          <Text style={type.body}>The customer, with their chat, photos and tasks, disappears from the website and the app for everyone.</Text>
+          {remove.error ? <Notice text={(remove.error as Error).message} /> : null}
+          <View style={styles.confirmButtons}>
+            <View style={styles.flex}><Button label="Cancel" variant="secondary" onPress={() => setAsking(false)} /></View>
+            <View style={styles.flex}><Button label="Delete" variant="danger" onPress={() => remove.mutate()} loading={remove.isPending} /></View>
+          </View>
+        </View>
+      </Sheet>
+    </>
+  );
+}
+
 // The customer's quotes with their Final Offer Price, for admins only (staff don't see Quotes, same as the web nav).
 function CustomerQuotes({ customerId }: { customerId: string }) {
   const user = useUser();
@@ -178,6 +202,60 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
   }, [notesOpen, id]);
   const nameOf = (userId: string | null) => users.data?.find((u) => u.id === userId)?.name ?? 'Team member';
 
+  // Long-press a message: react, reply, copy, star, delete (MessageActions). Reactions and stars show at once.
+  const [acting, setActing] = useState<Message | null>(null);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const putMessage = (m: Message) =>
+    queryClient.setQueryData<Message[]>(['messages', id], (list) => list?.map((x) => (x.id === m.id ? m : x)));
+  const act = useMutation({
+    mutationFn: async ({ m, a }: { m: Message; a: MessageAction }) => {
+      if (a.kind === 'react') return putMessage(await reactToMessage(id, m.id, a.emoji));
+      if (a.kind === 'star') return putMessage(await toggleStar(id, m.id));
+      if (a.kind === 'delete') {
+        await deleteMessage(id, m.id, a.scope);
+        queryClient.setQueryData<Message[]>(['messages', id], (list) => list?.filter((x) => x.id !== m.id));
+      }
+    },
+    onMutate: () => setChatError(null),
+    onError: (e) => setChatError(e instanceof Error ? e.message : "Couldn't do that. Try again."),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['messages', id] }),
+  });
+  // Edit / Forward / Info open their own sheet (MessageSheets.tsx).
+  const [editing, setEditing] = useState<Message | null>(null);
+  const [forwarding, setForwarding] = useState<Message | null>(null);
+  const [inspecting, setInspecting] = useState<Message | null>(null);
+  const allCustomers = useQuery({ queryKey: ['customers'], queryFn: listCustomers, enabled: !!forwarding, staleTime: 5 * 60_000 });
+  const edit = useMutation({
+    mutationFn: ({ m, text }: { m: Message; text: string }) => editMessage(id, m.id, text),
+    onSuccess: (m) => {
+      putMessage(m);
+      setEditing(null);
+    },
+  });
+  const forward = useMutation({
+    mutationFn: ({ m, ids }: { m: Message; ids: string[] }) => forwardMessage(id, m.id, ids),
+    onSuccess: () => setForwarding(null),
+  });
+  const onAction = (m: Message, a: MessageAction) => {
+    if (a.kind === 'reply') setReplyTo(m);
+    else if (a.kind === 'edit') { edit.reset(); setEditing(m); }
+    else if (a.kind === 'forward') { forward.reset(); setForwarding(m); }
+    else if (a.kind === 'info') setInspecting(m);
+    else act.mutate({ m, a });
+  };
+
+  // Search in the chat and Starred only, as the website's chat header.
+  const [chatQuery, setChatQuery] = useState('');
+  const [chatView, setChatView] = useState<'all' | 'starred'>('all');
+  const shownMessages = useMemo(() => {
+    const q = chatQuery.trim().toLowerCase();
+    return (messages.data ?? []).filter(
+      (m) => (chatView === 'all' || m.starred) && (!q || (m.text ?? '').toLowerCase().includes(q) || (m.pdfName ?? '').toLowerCase().includes(q)),
+    );
+  }, [messages.data, chatQuery, chatView]);
+  const filtering = chatView === 'starred' || !!chatQuery.trim();
+
   // Change stage: anyone signed in, as on the website's Pipeline board. The Notes get "Stage changed to …" too.
   const stage = useMutation({
     mutationFn: (key: string) => changeStage(id, key, stageOrFallback(stages.byKey, key).label),
@@ -187,6 +265,16 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
         queryClient.invalidateQueries({ queryKey: ['customers'] }),
         queryClient.invalidateQueries({ queryKey: ['messages', id] }),
       ]);
+    },
+  });
+
+  // Stage done: the website card's tick for the current stage.
+  const stageDone = !!c && (c.completedStages ?? []).includes(c.stage);
+  const tick = useMutation({
+    mutationFn: (done: boolean) => setStageDone(c!, done),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['customer', id], updated);
+      return queryClient.invalidateQueries({ queryKey: ['customers'] });
     },
   });
 
@@ -253,6 +341,20 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
                       </View>
                       <ChevronDown size={16} color={colors.textSecondary} strokeWidth={1.5} />
                     </Pressable>
+                    {/* The website card's tick: this stage is done (shared with the website). */}
+                    <Pressable
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: stageDone }}
+                      onPress={() => tick.mutate(!stageDone)}
+                      disabled={tick.isPending}
+                      hitSlop={6}
+                      style={({ pressed }) => [styles.doneRow, (pressed || tick.isPending) && styles.dim]}
+                    >
+                      <View style={[styles.doneBox, stageDone && styles.doneBoxOn]}>
+                        {stageDone ? <Check size={12} color={colors.white} strokeWidth={3} /> : null}
+                      </View>
+                      <Text style={[type.small, stageDone && styles.doneText]}>{stageDone ? 'Stage done' : 'Mark stage done'}</Text>
+                    </Pressable>
                     <OptionSheet
                       visible={stageOpen}
                       onClose={() => setStageOpen(false)}
@@ -296,6 +398,15 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
             />
 
             {tab === 'overview' && c ? <Overview customer={c} /> : null}
+            {tab === 'overview' && c && user.role === 'super-admin' ? (
+              <DeleteCustomer
+                customer={c}
+                onDeleted={() => {
+                  queryClient.invalidateQueries({ queryKey: ['customers'] });
+                  navigation.goBack();
+                }}
+              />
+            ) : null}
             {notesOpen ? (
               messages.isLoading ? (
                 <Card style={styles.info}>
@@ -309,7 +420,16 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
                   <EmptyState icon={MessageSquareText} title="No messages yet" text="Write the first one below. The team sees it in this customer's chat on the website." />
                 </Card>
               ) : (
-                <NotesList messages={messages.data ?? []} myId={user.id} nameOf={nameOf} />
+                <>
+                  <SearchField value={chatQuery} onChangeText={setChatQuery} placeholder="Search in this chat" />
+                  <Chips options={[{ key: 'all' as const, label: 'All' }, { key: 'starred' as const, label: 'Starred' }]} value={chatView} onChange={setChatView} />
+                  {chatError ? <Notice text={chatError} /> : null}
+                  {filtering && shownMessages.length === 0 ? (
+                    <Text style={type.small}>{chatView === 'starred' ? 'No starred messages match.' : 'No messages match.'}</Text>
+                  ) : (
+                    <NotesList messages={shownMessages} myId={user.id} nameOf={nameOf} onLongPress={setActing} />
+                  )}
+                </>
               )
             ) : null}
             {photosOpen ? (
@@ -326,8 +446,40 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
             ) : null}
           </ScrollView>
           {notesOpen ? (
-            <ChatComposer customerId={id} myId={user.id} users={users.data ?? []} onSent={() => queryClient.invalidateQueries({ queryKey: ['messages', id] })} />
+            <ChatComposer
+              customerId={id}
+              myId={user.id}
+              users={users.data ?? []}
+              onSent={() => queryClient.invalidateQueries({ queryKey: ['messages', id] })}
+              replyTo={replyTo ? { id: replyTo.id, who: replyTo.senderId === user.id ? 'yourself' : nameOf(replyTo.senderId), snippet: snippet(replyTo) } : null}
+              onCancelReply={() => setReplyTo(null)}
+            />
           ) : null}
+          <EditMessageSheet
+            message={editing}
+            onClose={() => setEditing(null)}
+            onSave={(text) => editing && edit.mutate({ m: editing, text })}
+            saving={edit.isPending}
+            error={edit.error ? (edit.error as Error).message : null}
+          />
+          <ForwardSheet
+            message={forwarding}
+            customers={allCustomers.data ?? []}
+            currentId={id}
+            onClose={() => setForwarding(null)}
+            onForward={(ids) => forwarding && forward.mutate({ m: forwarding, ids })}
+            sending={forward.isPending}
+            error={forward.error ? (forward.error as Error).message : null}
+          />
+          <MessageInfoSheet message={inspecting} customerId={id} users={users.data ?? []} onClose={() => setInspecting(null)} />
+          <MessageActions
+            canEdit={!!acting && acting.senderId === user.id && acting.kind === 'chat' && !!acting.text}
+            message={acting}
+            // The sender or a super admin, as the website (the server checks too).
+            canDeleteForEveryone={!!acting && (acting.senderId === user.id || user.role === 'super-admin')}
+            onClose={() => setActing(null)}
+            onAction={onAction}
+          />
         </KeyboardAvoidingView>
       </View>
     </SafeAreaView>
@@ -343,6 +495,13 @@ const styles = StyleSheet.create({
   headText: { flex: 1, gap: space.xs, alignItems: 'flex-start' },
   stageButton: { flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: touch, paddingRight: space.sm },
   dim: { opacity: 0.6 },
+  flex: { flex: 1 },
+  doneRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs, alignSelf: 'flex-start', paddingVertical: 2 },
+  doneBox: { width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: colors.placeholder, alignItems: 'center', justifyContent: 'center' },
+  doneBoxOn: { backgroundColor: colors.success, borderColor: colors.success },
+  doneText: { color: colors.success, fontWeight: '600' },
+  confirm: { gap: space.md, paddingHorizontal: space.screen, paddingBottom: space.lg },
+  confirmButtons: { flexDirection: 'row', gap: space.md },
   edit: { width: touch, height: touch, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
   headName: { ...type.heading, fontSize: 20 },
   actions: { flexDirection: 'row', justifyContent: 'space-between' },

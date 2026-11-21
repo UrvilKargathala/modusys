@@ -19,6 +19,8 @@ export const colors = {
   white: '#FFFFFF',
   dark: '#182634', // floating tab bar, dark buttons (grey-800 on the web)
   onDark: '#AAB0B6', // inactive icons and labels on the dark surface
+  darkSelected: '#0B141D', // the selected tab's pill inside the tab bar
+  darkEdge: 'rgba(255, 255, 255, 0.10)', // thin rim around the tab bar and the selected pill
 
   success: '#27AE60',
   successTint: '#F4F8F7',
@@ -88,4 +90,4 @@ export const shadow = {
 } as const;
 
 /** The floating pill tab bar: its height and its gap above the bottom safe area. */
-export const tabBar = { height: 64, gap: 12 } as const;
+export const tabBar = { height: 68, gap: 6 } as const;

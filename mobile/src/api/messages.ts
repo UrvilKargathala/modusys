@@ -23,6 +23,12 @@ export type Message = {
   reactions: { emoji: string; count: number; reactedByMe: boolean }[];
   editedAt?: string;
   createdAt: string;
+  /** The message this one answers (Reply). */
+  replyToMessageId?: string;
+  /** Starred by you (stars are per person, as on the website). */
+  starred?: boolean;
+  /** People @mentioned: the server gave each a follow-up task (the website shows "Task → name"). */
+  mentionedUserIds?: string[];
 };
 
 export function listMessages(customerId: string) {
@@ -35,14 +41,16 @@ const thread = (customerId: string) => `/api/customers/${encodeURIComponent(cust
  * A text message. `mentionedUserIds` are the people picked with @ (the text holds "@Name"); as on the website, the
  * server gives each of them a follow-up task and a bell notification.
  */
-export function sendNote(customerId: string, text: string, mentionedUserIds: string[] = []) {
-  return api<Message>(thread(customerId), { body: { kind: 'chat', text, mentionedUserIds } });
+export function sendNote(customerId: string, text: string, mentionedUserIds: string[] = [], replyToMessageId?: string) {
+  return api<Message>(thread(customerId), { body: { kind: 'chat', text, mentionedUserIds, replyToMessageId } });
 }
 
 /** Photos as one message, with the typed text as the caption (the website's image group). */
-export async function sendImages(customerId: string, files: LocalFile[], caption: string) {
+export async function sendImages(customerId: string, files: LocalFile[], caption: string, replyToMessageId?: string) {
   const imageKeys = await Promise.all(files.map((f) => uploadFile(`${thread(customerId)}/presign`, f)));
-  return api<Message>(thread(customerId), { body: { kind: 'image', imageKeys, imageNames: files.map((f) => f.name), text: caption || undefined } });
+  return api<Message>(thread(customerId), {
+    body: { kind: 'image', imageKeys, imageNames: files.map((f) => f.name), text: caption || undefined, replyToMessageId },
+  });
 }
 
 /** One PDF as one message. */
@@ -66,4 +74,38 @@ export function markNotesRead(customerId: string) {
 /** A 2-minute link to play a voice note (the phone's audio player can't send our login header). */
 export function voiceLink(messageId: string) {
   return api<{ url: string }>(`/api/mobile/voice/${encodeURIComponent(messageId)}`).then((r) => r.url);
+}
+
+const one = (customerId: string, messageId: string) => `${thread(customerId)}/${encodeURIComponent(messageId)}`;
+
+/** Add an emoji reaction, or take yours back if you already used it (the website's toggle). */
+export function reactToMessage(customerId: string, messageId: string, emoji: string) {
+  return api<Message>(`${one(customerId, messageId)}/reactions`, { body: { emoji } });
+}
+
+/** Star or unstar for yourself. */
+export function toggleStar(customerId: string, messageId: string) {
+  return api<Message>(`${one(customerId, messageId)}/star`, { method: 'POST' });
+}
+
+/** "me" hides it for you; "everyone" removes it (the sender or a super admin only: the server decides). */
+export function deleteMessage(customerId: string, messageId: string, scope: 'me' | 'everyone') {
+  return api<{ ok: boolean; scope: string }>(`${one(customerId, messageId)}?scope=${scope}`, { method: 'DELETE' });
+}
+
+/** Change the text of your own message (the server refuses anyone else's). */
+export function editMessage(customerId: string, messageId: string, text: string) {
+  return api<Message>(one(customerId, messageId), { method: 'PATCH', body: { text } });
+}
+
+/** Copy a message into other customers' chats (marked Forwarded there). */
+export function forwardMessage(customerId: string, messageId: string, targetCustomerIds: string[]) {
+  return api<unknown>(`${one(customerId, messageId)}/forward`, { body: { targetCustomerIds } });
+}
+
+/** Who has read a message, and when (the website's message info). */
+export function messageReaders(customerId: string, messageId: string) {
+  return api<{ receipts: { userId: string; readAt: string }[] }>(
+    `${thread(customerId)}/read-receipts?messageId=${encodeURIComponent(messageId)}`,
+  ).then((r) => r.receipts);
 }

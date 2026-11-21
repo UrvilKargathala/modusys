@@ -1,13 +1,13 @@
 // CRM > Tickets (M5b step 5b): the website's pipeline on the phone. Pending-tasks strip, stage / filters / sort,
 // search, then the Board (one stage per screen width, swipe sideways) or the List (a section per stage).
 // Tap a card to open the customer; long-press it to move it to another stage (the website drags it instead).
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, SectionList, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, ArrowUpDown, ChevronDown, ChevronRight, Clock, Columns3, List, ListTodo, MapPin, SlidersHorizontal } from 'lucide-react-native';
-import { changeStage, listCustomers, type Customer } from '../../api/customers';
+import { AlertTriangle, ArrowUpDown, Check, ChevronDown, ChevronRight, Clock, Columns3, List, ListTodo, MapPin, SlidersHorizontal } from 'lucide-react-native';
+import { changeStage, listCustomers, setStageDone, type Customer } from '../../api/customers';
 import { OptionSheet } from '../../components/form';
 import { Button, Card, EmptyState, Notice, SearchField, Sheet, SkeletonRow, TextField, useTabBarSpace } from '../../components/ui';
 import { matchesCustomer } from '../../lib/customers';
@@ -56,8 +56,16 @@ function TaskStrip({ onOpenTasks }: { onOpenTasks: () => void }) {
   );
 }
 
-/** A card as on the website's board: stage colour bar, name in the stage colour, address, Final Offer. */
-function TicketCard({ customer, stage, onOpen, onMove }: { customer: Customer; stage: Stage; onOpen: () => void; onMove: () => void }) {
+/** A card as on the website's board: stage colour bar, name in the stage colour, address, Final Offer; then the
+ * website list's Last Activity and Assignee. */
+function TicketCard({ customer, stage, onOpen, onMove, onToggleDone }: {
+  customer: Customer;
+  stage: Stage;
+  onOpen: () => void;
+  onMove: () => void;
+  onToggleDone: () => void;
+}) {
+  const done = (customer.completedStages ?? []).includes(customer.stage);
   return (
     <Pressable
       accessibilityRole="button"
@@ -69,7 +77,20 @@ function TicketCard({ customer, stage, onOpen, onMove }: { customer: Customer; s
       style={({ pressed }) => [styles.card, pressed && styles.dim]}
     >
       <View style={[styles.cardBar, { backgroundColor: stage.color }]} />
-      <Text style={[type.body, styles.bold, { color: stage.color }]} numberOfLines={2}>{customer.name}</Text>
+      <View style={styles.cardHead}>
+        <Text style={[type.body, styles.bold, styles.flex, { color: stage.color }]} numberOfLines={2}>{customer.name}</Text>
+        {/* The website card's tick: this stage is done (shared with the website). */}
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: done }}
+          accessibilityLabel={done ? 'Mark stage pending' : 'Mark stage complete'}
+          onPress={onToggleDone}
+          hitSlop={10}
+          style={[styles.tickBox, done && styles.tickBoxOn]}
+        >
+          {done ? <Check size={14} color={colors.white} strokeWidth={3} /> : null}
+        </Pressable>
+      </View>
       {customer.address || customer.city ? (
         <View style={styles.addr}>
           <MapPin size={12} color={colors.placeholder} strokeWidth={1.75} />
@@ -77,6 +98,11 @@ function TicketCard({ customer, stage, onOpen, onMove }: { customer: Customer; s
         </View>
       ) : null}
       {customer.finalOfferLakh !== null ? <Text style={styles.offer}>Final Offer: <Text style={styles.number}>{lakh(customer.finalOfferLakh)}</Text></Text> : null}
+      <View style={styles.meta}>
+        <Clock size={11} color={colors.placeholder} strokeWidth={1.75} />
+        <Text style={type.small} numberOfLines={1}>{formatDate(customer.lastActivity).slice(0, 5)}</Text>
+        {customer.assignee ? <Text style={[type.small, styles.flex]} numberOfLines={1}>· {customer.assignee}</Text> : null}
+      </View>
     </Pressable>
   );
 }
@@ -132,14 +158,51 @@ export function TicketsPanel({ onOpenTasks }: { onOpenTasks: () => void }) {
       Promise.all([queryClient.invalidateQueries({ queryKey: ['customers'] }), queryClient.invalidateQueries({ queryKey: ['customer', c.id] }), queryClient.invalidateQueries({ queryKey: ['messages', c.id] })]),
   });
 
+  // The stage tick shows at once; the list reloads from the server afterwards.
+  const tick = useMutation({
+    mutationFn: (c: Customer) => setStageDone(c, !(c.completedStages ?? []).includes(c.stage)),
+    onMutate: (c) =>
+      queryClient.setQueryData<Customer[]>(['customers'], (list) =>
+        list?.map((x) => {
+          if (x.id !== c.id) return x;
+          const has = (x.completedStages ?? []).includes(x.stage);
+          return { ...x, completedStages: has ? (x.completedStages ?? []).filter((s) => s !== x.stage) : [...(x.completedStages ?? []), x.stage] };
+        }),
+      ),
+    onSettled: (_r, _e, c) =>
+      Promise.all([queryClient.invalidateQueries({ queryKey: ['customers'] }), queryClient.invalidateQueries({ queryKey: ['customer', c.id] })]),
+  });
   const open = (c: Customer) => nav.navigate('CustomerDetail', { id: c.id, name: c.name });
   const filtersOn = !!(offer.min.trim() || offer.max.trim());
   const sortLabel = customerSortOptions.find((o) => o.value === sort)?.label ?? '';
   const colWidth = width - space.screen * 2;
+  const pageWidth = colWidth + space.md;
+
+  // The board shows one stage at a time, so a search whose matches are all in other stages would read
+  // "No customers in this stage". Jump to the first stage that has a match instead.
+  const board = useRef<FlatList<Stage>>(null);
+  const page = useRef(0);
+  const searching = !!query.trim() || filtersOn;
+  useEffect(() => {
+    if (view !== 'board' || !searching) return;
+    const count = (s?: Stage) => (s ? grouped.get(s.key)?.length ?? 0 : 0);
+    if (count(columns[page.current]) > 0) return;
+    const first = columns.findIndex((s) => count(s) > 0);
+    if (first < 0) return;
+    page.current = first;
+    board.current?.scrollToOffset({ offset: first * pageWidth, animated: true });
+  }, [view, searching, grouped, columns, pageWidth]);
   const refresh = <RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={colors.primary} colors={[colors.primary]} />;
 
   const card = (c: Customer) => (
-    <TicketCard key={c.id} customer={c} stage={stageOrFallback(stages.byKey, c.stage)} onOpen={() => open(c)} onMove={() => setMoving(c)} />
+    <TicketCard
+      key={c.id}
+      customer={c}
+      stage={stageOrFallback(stages.byKey, c.stage)}
+      onOpen={() => open(c)}
+      onMove={() => setMoving(c)}
+      onToggleDone={() => tick.mutate(c)}
+    />
   );
 
   const top = (
@@ -154,6 +217,7 @@ export function TicketsPanel({ onOpenTasks }: { onOpenTasks: () => void }) {
       <SearchField value={query} onChangeText={setQuery} placeholder="Search name, mobile, address or city" />
       {customers.error ? <Notice text={(customers.error as Error).message} /> : null}
       {move.error ? <Notice text={`Stage not changed: ${(move.error as Error).message}`} /> : null}
+      {tick.error ? <Notice text={`Tick not saved: ${(tick.error as Error).message}`} /> : null}
       {view === 'board' && columns.length > 1 ? <Text style={type.small}>Swipe sideways for the next stage · long-press a card to move it</Text> : null}
     </View>
   );
@@ -166,11 +230,13 @@ export function TicketsPanel({ onOpenTasks }: { onOpenTasks: () => void }) {
         <View style={styles.fill}>
           <View style={styles.pad}>{top}</View>
           <FlatList
+            ref={board}
             horizontal
             data={columns}
             keyExtractor={(s) => s.key}
             showsHorizontalScrollIndicator={false}
-            snapToInterval={colWidth + space.md}
+            onMomentumScrollEnd={(e) => { page.current = Math.round(e.nativeEvent.contentOffset.x / pageWidth); }}
+            snapToInterval={pageWidth}
             decelerationRate="fast"
             // One stage per swipe, however quick the swipe.
             disableIntervalMomentum
@@ -301,8 +367,12 @@ const styles = StyleSheet.create({
   count: { color: colors.text, fontFamily: fonts.number },
   none: { textAlign: 'center', paddingVertical: space.xl },
   card: { backgroundColor: colors.card, borderRadius: radius.md, paddingVertical: space.md, paddingLeft: space.lg, paddingRight: space.md, gap: 4, overflow: 'hidden', ...shadow },
+  cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
+  tickBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: colors.placeholder, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card },
+  tickBoxOn: { backgroundColor: colors.success, borderColor: colors.success },
   cardBar: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
   addr: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   offer: { ...type.small, color: colors.text, fontWeight: '600' },
   section: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: touch, marginTop: space.sm },
   listItem: { marginBottom: space.sm },

@@ -30,6 +30,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
   for (const k of ["name","prefix","firstName","lastName","customerCode","mobile","email","gst","address","city","state","postcode","birthdayMonth","birthdayDay","birthdayYear","stage","assignee","daysInStage","finalOfferLakh"] as const) {
     if (b[k] !== undefined) data[k] = b[k];
   }
+  // The stage "done" ticks (anyone signed in, like moving a card). A list of stage keys; ticking doesn't count as activity.
+  if (Array.isArray(b.completedStages)) {
+    data.completedStages = [...new Set(b.completedStages.filter((x: unknown): x is string => typeof x === "string" && x.length > 0 && x.length < 100))];
+  }
   if (b.architectId !== undefined) data.architectId = b.architectId || null;
   if (b.siteManagerId !== undefined) data.siteManagerId = b.siteManagerId || null;
   // Keep the display `name` in sync when first/last change.

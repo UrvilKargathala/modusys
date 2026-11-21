@@ -7,7 +7,8 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CalendarCheck, CheckCircle2, ClipboardList } from 'lucide-react-native';
-import type { Task } from '../../api/tasks';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { deleteTask, type Task } from '../../api/tasks';
 import { Card, EmptyState, Notice, Segmented, SkeletonRow, useTabBarSpace } from '../../components/ui';
 import { isOverdue, sortTasks, taskTab, type TaskTab } from '../../lib/tasks';
 import { usePullRefresh } from '../../lib/usePullRefresh';
@@ -47,6 +48,15 @@ export function TasksPanel() {
   const userName = useUserNames();
   const [tab, setTab] = useState<TaskTab>('today');
   const [openId, setOpenId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const remove = useMutation({
+    mutationFn: deleteTask,
+    onMutate: () => setDeleteError(null),
+    onSuccess: () => setOpenId(null),
+    onError: (e) => setDeleteError(e instanceof Error ? e.message : "Couldn't delete the task."),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
+  });
   const [undo, setUndo] = useState<{ id: string; title: string } | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -112,6 +122,7 @@ export function TasksPanel() {
         />
 
         {tasks.error ? <Notice text={(tasks.error as Error).message} /> : null}
+        {deleteError ? <Notice text={deleteError} /> : null}
         {toggle.error ? <Notice text={(toggle.error as Error).message} /> : null}
 
         {tasks.isLoading ? (
@@ -172,6 +183,10 @@ export function TasksPanel() {
           setDone(open, !open.completed);
           setOpenId(null);
         }}
+        // Super admin only, as the website (the server refuses others).
+        onEdit={me.role === 'super-admin' && open ? () => { setOpenId(null); nav.navigate('TaskForm', { taskId: open.id }); } : undefined}
+        onDelete={me.role === 'super-admin' && open ? () => remove.mutate(open.id) : undefined}
+        deleting={remove.isPending}
         onOpenCustomer={() => {
           if (!open?.customerId) return;
           const name = customerName(open.customerId) ?? 'Customer';

@@ -2,7 +2,7 @@
 // web (CRM panel > Media), grouped by day, newest first. The first tile adds
 // photos from the camera or the phone's gallery; uploads show their progress
 // in place. Tap a photo for the full-screen viewer (swipe between photos).
-// Videos and documents show as named tiles: open them on the web for now.
+// Videos and documents show as named tiles; tap one to open it in the phone's own player / viewer (a 2-minute link).
 import React, { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import { uploadPhoto, type MediaItem } from '../../api/media';
 import { Button, Card, EmptyState, Notice, Sheet } from '../../components/ui';
 import { pickSitePhotos, takeSitePhoto, type SitePhotosResult } from '../../lib/device';
 import { formatDay, formatTime, istToday } from '../../lib/format';
+import { openFile } from '../../lib/files';
 import { colors, fonts, radius, space, type } from '../../theme/tokens';
 
 const COLUMNS = 3;
@@ -171,7 +172,7 @@ export function Photos({ customerId, media, onUploaded }: {
                   <Image source={imageSource(m.url)} style={styles.img} />
                 </Tile>
               ) : (
-                <Tile key={m.id} size={size} label={`${m.type === 'video' ? 'Video' : 'Document'}: ${m.name}`}>
+                <Tile key={m.id} size={size} label={`${m.type === 'video' ? 'Video' : 'Document'}: ${m.name}`} onPress={() => openFile({ media: m.id })}>
                   <View style={styles.file}>
                     {m.type === 'video' ? (
                       <Video size={24} color={colors.primary} strokeWidth={1.5} />

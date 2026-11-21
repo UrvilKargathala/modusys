@@ -26,7 +26,7 @@ import type { Stage } from '../lib/stages';
 import { RevealFocusedField } from './AuthLayout';
 import { attendanceConfig, isAttendanceKey, isLeaveStatusKey, leaveStatusConfig, statusConfig, isStatusKey } from '../lib/status';
 
-/** Room a scrolling screen leaves at the bottom so the floating tab bar never covers its last row. */
+/** Room a scrolling screen leaves at the bottom so the docked tab bar never covers its last row. */
 export function useTabBarSpace(): number {
   const insideTabs = useContext(BottomTabBarHeightContext) !== undefined;
   const insets = useSafeAreaInsets();

@@ -1,12 +1,13 @@
 // Customer notes (M4, design v2 Prompt 6): the customer's chat from the web,
 // oldest first like a chat, grouped by day; your own notes on the right.
 // Stage changes show as small centred lines. Photos in a note show as
-// thumbnails; voice notes and PDFs are named (play/open them on the web).
+// thumbnails; voice notes play here and PDFs open in the phone's own viewer (a 2-minute link).
 // Voice notes play here (ChatComposer.tsx records them; the message box with 📎, @ and 🎤 lives there too).
 import React, { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { FileText, Forward, Pause, Play } from 'lucide-react-native';
+import { FileText, Forward, ListTodo, Pause, Play, Star } from 'lucide-react-native';
 import { voiceLink, type Message } from '../../api/messages';
+import { openFile } from '../../lib/files';
 import { imageSource } from '../../api/client';
 import { formatDay, formatTime, istToday } from '../../lib/format';
 import { stopPlaying, togglePlay } from '../../lib/voice';
@@ -23,13 +24,48 @@ function dayLabel(day: string): string {
   return formatDay(day);
 }
 
-function Bubble({ m, mine, sender, playing, onPlay }: { m: Message; mine: boolean; sender: string; playing: boolean; onPlay: () => void }) {
+/** What a reply quotes: the first line of the text, or what kind of message it was. */
+export function snippet(m: Message): string {
+  if (m.text) return m.text.split('\n')[0];
+  if (m.kind === 'voice') return 'Voice note';
+  if (m.kind === 'pdf') return m.pdfName ?? 'PDF';
+  if (m.imageUrls.length) return m.imageUrls.length > 1 ? `${m.imageUrls.length} photos` : 'Photo';
+  return 'Message';
+}
+
+function Bubble({ m, mine, sender, playing, onPlay, onLongPress, quoted, quotedSender, nameOf }: {
+  nameOf: (userId: string | null) => string;
+  m: Message;
+  mine: boolean;
+  sender: string;
+  playing: boolean;
+  onPlay: () => void;
+  onLongPress: () => void;
+  /** The message this one replies to, when it's still in the chat. */
+  quoted?: Message;
+  quotedSender?: string;
+}) {
   const tint = mine ? colors.white : colors.text;
   const sub = mine ? colors.onPrimaryMuted : colors.textSecondary;
   return (
     <View style={[styles.bubbleRow, mine ? styles.right : styles.left]}>
       {!mine ? <Text style={styles.sender}>{sender}</Text> : null}
-      <View style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
+      <Pressable
+        onLongPress={onLongPress}
+        delayLongPress={350}
+        accessibilityHint="Long-press for reply, react, copy, star and delete"
+        style={[styles.bubble, mine ? styles.mine : styles.theirs]}
+      >
+        {m.replyToMessageId ? (
+          <View style={[styles.quote, mine ? styles.quoteMine : styles.quoteTheirs]}>
+            <Text style={[styles.quoteName, { color: mine ? colors.white : colors.primary }]} numberOfLines={1}>
+              {quoted ? quotedSender : 'Reply'}
+            </Text>
+            <Text style={[styles.meta, { color: sub }]} numberOfLines={2}>
+              {quoted ? snippet(quoted) : 'Original message was deleted'}
+            </Text>
+          </View>
+        ) : null}
         {m.isForwarded ? (
           <View style={styles.inline}>
             <Forward size={12} color={sub} />
@@ -60,17 +96,36 @@ function Bubble({ m, mine, sender, playing, onPlay }: { m: Message; mine: boolea
           </Pressable>
         ) : null}
         {m.kind === 'pdf' ? (
-          <View style={styles.inline}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${m.pdfName ?? 'PDF'}`}
+            onPress={() => openFile({ message: m.id })}
+            onLongPress={onLongPress}
+            style={styles.inline}
+          >
             <FileText size={16} color={tint} strokeWidth={1.5} />
-            <Text style={[type.body, styles.flexShrink, { color: tint }]} numberOfLines={1}>{m.pdfName ?? 'PDF'}</Text>
-          </View>
+            <Text style={[type.body, styles.flexShrink, styles.link, { color: tint }]} numberOfLines={1}>{m.pdfName ?? 'PDF'}</Text>
+          </Pressable>
         ) : null}
         {m.text ? <Text style={[type.body, { color: tint }]}>{m.text}</Text> : null}
-        <Text style={[styles.meta, styles.time, { color: sub }]}>
-          {formatTime(m.createdAt)}
-          {m.editedAt ? ' · edited' : ''}
-        </Text>
-      </View>
+        {(m.mentionedUserIds ?? []).filter((u) => u !== m.senderId).length ? (
+          <View style={styles.chips}>
+            {(m.mentionedUserIds ?? []).filter((u) => u !== m.senderId).map((u) => (
+              <View key={u} style={[styles.chip, mine && styles.chipMine]} accessibilityLabel={`A task was given to ${nameOf(u)}`}>
+                <ListTodo size={11} color={mine ? colors.white : colors.primary} />
+                <Text style={[styles.chipText, { color: mine ? colors.white : colors.primary }]}>Task → {nameOf(u)}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        <View style={[styles.inline, styles.time]}>
+          {m.starred ? <Star size={11} color={sub} fill={sub} accessibilityLabel="Starred" /> : null}
+          <Text style={[styles.meta, { color: sub }]}>
+            {formatTime(m.createdAt)}
+            {m.editedAt ? ' · edited' : ''}
+          </Text>
+        </View>
+      </Pressable>
       {m.reactions.length ? (
         <View style={styles.reactions}>
           {m.reactions.map((r) => (
@@ -86,11 +141,13 @@ function Bubble({ m, mine, sender, playing, onPlay }: { m: Message; mine: boolea
   );
 }
 
-export function NotesList({ messages, myId, nameOf }: {
+export function NotesList({ messages, myId, nameOf, onLongPress }: {
   messages: Message[];
   myId: string;
   nameOf: (userId: string | null) => string;
+  onLongPress: (m: Message) => void;
 }) {
+  const byId = new Map(messages.map((x) => [x.id, x]));
   const [playing, setPlaying] = useState<string | null>(null);
   // Stop any voice note when the chat closes.
   useEffect(() => () => {
@@ -115,7 +172,20 @@ export function NotesList({ messages, myId, nameOf }: {
                 <Text style={styles.meta}>{formatTime(m.createdAt)}</Text>
               </View>
             ) : (
-              <Bubble m={m} mine={m.senderId === myId} sender={nameOf(m.senderId)} playing={playing === m.id} onPlay={() => play(m)} />
+              <Bubble
+                m={m}
+                mine={m.senderId === myId}
+                sender={nameOf(m.senderId)}
+                playing={playing === m.id}
+                onPlay={() => play(m)}
+                onLongPress={() => onLongPress(m)}
+                nameOf={nameOf}
+                quoted={m.replyToMessageId ? byId.get(m.replyToMessageId) : undefined}
+                quotedSender={(() => {
+                  const q = m.replyToMessageId ? byId.get(m.replyToMessageId) : undefined;
+                  return q ? (q.senderId === myId ? 'You' : nameOf(q.senderId)) : undefined;
+                })()}
+              />
             )}
           </React.Fragment>
         );
@@ -136,11 +206,20 @@ const styles = StyleSheet.create({
   theirs: { backgroundColor: colors.card, borderBottomLeftRadius: radius.sm / 2, ...shadow },
   inline: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   flexShrink: { flexShrink: 1 },
+  link: { textDecorationLine: 'underline' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: radius.pill, paddingHorizontal: space.sm, paddingVertical: 2, backgroundColor: colors.primaryTint },
+  chipMine: { backgroundColor: colors.onBlackButton },
+  chipText: { fontSize: 11, fontWeight: '600', fontFamily: fonts.body },
   meta: { fontSize: 11, color: colors.textSecondary, fontFamily: fonts.body },
   time: { alignSelf: 'flex-end' },
   images: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
   image: { width: 140, height: 140, borderRadius: radius.md, backgroundColor: colors.greyTint },
   play: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  quote: { borderLeftWidth: 3, borderRadius: radius.sm, paddingHorizontal: space.sm, paddingVertical: 4, gap: 1 },
+  quoteMine: { borderLeftColor: colors.white, backgroundColor: colors.onBlackButton },
+  quoteTheirs: { borderLeftColor: colors.primary, backgroundColor: colors.primaryTint },
+  quoteName: { fontSize: 12, fontWeight: '600', fontFamily: fonts.body },
   reactions: { flexDirection: 'row', gap: space.xs, flexWrap: 'wrap' },
   reaction: {
     borderRadius: radius.pill,

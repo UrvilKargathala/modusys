@@ -1,5 +1,6 @@
-// The floating pill tab bar (design v2): dark pill above the bottom edge, the
-// active tab as a filled primary circle, a small label under every icon.
+// The floating tab bar: a dark rounded pill just above the bottom edge (above the iPhone home
+// indicator / Android's button bar), with a thin light rim. The selected tab sits in a darker
+// rounded pill that holds both its icon and its label.
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -9,10 +10,9 @@ import { colors, fonts, radius, space, tabBar } from '../theme/tokens';
 export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   return (
-    <View
-      pointerEvents="box-none"
-      style={[styles.wrap, { bottom: Math.max(insets.bottom, space.sm) + tabBar.gap }]}
-    >
+    // The strip behind the pill (to the screen's bottom edge) has the screen colour, so lists scrolling
+    // underneath never show through the gap below the pill or around its rounded ends.
+    <View style={[styles.wrap, { paddingBottom: insets.bottom + tabBar.gap }]}>
       <View style={styles.bar} accessibilityRole="tablist">
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
@@ -36,12 +36,14 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               onLongPress={onLongPress}
               style={styles.item}
             >
-              <View style={[styles.iconWrap, focused && styles.iconOn]}>
-                {options.tabBarIcon?.({ focused, color: tint, size: 20 })}
+              {/* Android drops the rounding when a background is added after the first draw, so every
+                  item always has one (the bar's colour when not selected) and only the colour changes. */}
+              <View style={[styles.pill, focused && styles.pillOn]}>
+                {options.tabBarIcon?.({ focused, color: tint, size: 22 })}
+                <Text style={[styles.label, { color: tint }]} numberOfLines={1}>
+                  {label}
+                </Text>
               </View>
-              <Text style={[styles.label, { color: tint }]} numberOfLines={1}>
-                {label}
-              </Text>
             </Pressable>
           );
         })}
@@ -51,31 +53,41 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'absolute', left: space.screen, right: space.screen },
+  wrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: space.md,
+    paddingTop: space.xs,
+    backgroundColor: colors.background,
+  },
   bar: {
     height: tabBar.height,
     borderRadius: radius.pill,
     backgroundColor: colors.dark,
+    borderWidth: 1,
+    borderColor: colors.darkEdge,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: space.xs,
-    shadowColor: '#051021',
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    padding: 5,
+    shadowColor: colors.dark,
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
-  item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, height: '100%' },
-  // Android drops the rounding when a background is added to a view after it first draws, so every
-  // icon always has a background (the bar's own colour when inactive) and only its colour changes.
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  item: { flex: 1, height: '100%' },
+  pill: {
+    flex: 1,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.dark,
     backgroundColor: colors.dark,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 3,
   },
-  iconOn: { backgroundColor: colors.primary },
-  label: { fontSize: 10, fontWeight: '600', fontFamily: fonts.body },
+  pillOn: { backgroundColor: colors.darkSelected, borderColor: colors.darkEdge },
+  label: { fontSize: 11, fontWeight: '600', fontFamily: fonts.body },
 });

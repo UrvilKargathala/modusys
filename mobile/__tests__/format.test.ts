@@ -10,6 +10,7 @@ import { leaveDays, leaveTypeLabel, weekdaysBetween } from '../src/lib/leaves';
 import { mentionQuery } from '../src/lib/mentions';
 import { monthGrid, stepMonth } from '../src/lib/calendar';
 import { notificationGroup, notificationStyle, notificationTaskId, timeAgo } from '../src/lib/notifications';
+import { defaultDashboardRange, wonOpen } from '../src/lib/dashboard';
 
 test('rupees use Indian grouping', () => {
   expect(formatInr(215200)).toBe('₹2,15,200.00');
@@ -198,4 +199,12 @@ test('chat @mentions: the word being typed after @, as on the website', () => {
   expect(mentionQuery('Hi @Priti done', 14)).toBeNull(); // a space ends it
   expect(mentionQuery('mail a@b.com', 12)).toBeNull(); // not after a space
   expect(mentionQuery('no mention', 10)).toBeNull();
+});
+
+test('dashboard: default range and conversion follow the website', () => {
+  expect(defaultDashboardRange('2026-11-21')).toEqual({ from: '2026-06-21', to: '2026-11-21' });
+  expect(defaultDashboardRange('2026-03-05')).toEqual({ from: '2025-10-05', to: '2026-03-05' });
+  expect(wonOpen([{ status: 'draft', count: 21 }, { status: 'approved', count: 0 }, { status: 'in-procurement', count: 8 }, { status: 'cancelled', count: 3 }]))
+    .toEqual({ won: 8, open: 21, wonPct: (8 / 29) * 100 });
+  expect(wonOpen([]).wonPct).toBe(0);
 });

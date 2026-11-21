@@ -16,12 +16,15 @@ import { colors, radius, shadow, space, touch, type } from '../../theme/tokens';
 type Source = 'camera' | 'gallery' | 'pdf';
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-export function ChatComposer({ customerId, myId, users, onSent }: {
+export function ChatComposer({ customerId, myId, users, onSent, replyTo, onCancelReply }: {
   customerId: string;
   myId: string;
   /** Team members who can be mentioned. */
   users: OrgUser[];
   onSent: () => void;
+  /** Replying to this message (long-press > Reply): shown above the box, sent with the text or photos. */
+  replyTo?: { id: string; who: string; snippet: string } | null;
+  onCancelReply?: () => void;
 }) {
   const [text, setText] = useState('');
   const [cursor, setCursor] = useState(0);
@@ -92,10 +95,12 @@ export function ChatComposer({ customerId, myId, users, onSent }: {
     // Only people still named in the text count as mentioned.
     const ids = mentioned.filter((m) => body.includes(`@${m.name}`)).map((m) => m.id);
     try {
-      if (photos.length) await sendImages(customerId, photos, body);
+      const reply = replyTo?.id;
+      if (photos.length) await sendImages(customerId, photos, body, reply);
       for (const p of pdfs) await sendPdf(customerId, p);
       // Without photos the text goes as its own message (a PDF has no caption).
-      if (!photos.length && body) await sendNote(customerId, body, ids);
+      if (!photos.length && body) await sendNote(customerId, body, ids, reply);
+      onCancelReply?.();
       setText('');
       setMentioned([]);
       setPhotos([]);
@@ -138,6 +143,15 @@ export function ChatComposer({ customerId, myId, users, onSent }: {
   return (
     <View style={styles.wrap}>
       {error ? <Notice text={error} /> : null}
+      {replyTo ? (
+        <View style={styles.replyBar} accessibilityLabel={`Replying to ${replyTo.who}: ${replyTo.snippet}`}>
+          <View style={styles.replyText}>
+            <Text style={styles.replyWho} numberOfLines={1}>Replying to {replyTo.who}</Text>
+            <Text style={type.small} numberOfLines={1}>{replyTo.snippet}</Text>
+          </View>
+          <RemoveButton inline label="Cancel reply" onPress={() => onCancelReply?.()} />
+        </View>
+      ) : null}
 
       {matches.length ? (
         <View style={styles.mentions} accessibilityRole="menu">
@@ -255,6 +269,19 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   row: { flexDirection: 'row', alignItems: 'flex-end', gap: space.xs },
+  replyBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    backgroundColor: colors.primaryTint,
+    borderRadius: radius.sm,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+  },
+  replyText: { flex: 1, gap: 1 },
+  replyWho: { ...type.small, fontWeight: '600', color: colors.primary },
   icon: { width: touch - 4, height: touch, alignItems: 'center', justifyContent: 'center' },
   input: {
     ...type.body,

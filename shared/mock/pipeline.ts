@@ -24,6 +24,8 @@ export type Customer = {
   address: string;
   companyName?: string;
   stage: PipelineStageKey;
+  /** Stage keys ticked "done" on the Pipeline card (saved on the customer). */
+  completedStages?: string[];
   finalOfferLakh: number | null;
   assignee: string;
   lastActivity: string; // ISO date

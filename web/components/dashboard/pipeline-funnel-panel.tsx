@@ -3,16 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPipelineCustomers } from "@shared/mock/pipeline";
-import { pipelineStages, stageColorTokens } from "@shared/constants/pipelineStages";
+import { stageColorTokens } from "@shared/constants/pipelineStages";
+import { useCustomers } from "@/lib/store/customers-store";
+import { useEffectivePipelineStages } from "@/lib/store/custom-pipeline-stages-store";
 import { cn } from "@/lib/utils";
 
 // A single proportional "river" bar (segments sized by lead count) instead of
 // a stacked list of progress bars — reads at a glance and doubles as a legend
 // grid underneath, so it's still a compact two-part layout on mobile.
+// Real customers per stage, in the CRM board's stage order (built-in + custom stages).
 export function PipelineFunnelPanel() {
-  const customers = getPipelineCustomers();
-  const counts = pipelineStages.map((stage) => ({
+  const customers = useCustomers();
+  const stages = useEffectivePipelineStages();
+  const counts = stages.map((stage) => ({
     stage,
     count: customers.filter((c) => c.stage === stage.key).length,
   }));

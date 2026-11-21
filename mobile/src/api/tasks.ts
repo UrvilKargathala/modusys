@@ -44,3 +44,13 @@ export type TaskPriority = 'low' | 'normal' | 'high' | 'urgent';
 export function createTask(input: { title: string; description: string; dueDate: string; priority: TaskPriority; linkedCustomerId: string; assigneeId?: string }) {
   return api<Task>('/api/tasks', { body: input });
 }
+
+/** Change a task (super admin only: the server refuses others, as on the website). `linkedCustomerId: ''` unlinks it. */
+export function updateTask(id: string, input: { title: string; description: string; dueDate: string; priority: TaskPriority; linkedCustomerId: string; assigneeId: string }) {
+  return api<Task>(`/api/tasks/${encodeURIComponent(id)}`, { method: 'PATCH', body: input });
+}
+
+/** Delete for good (super admin only, as on the website). */
+export function deleteTask(id: string) {
+  return api<{ ok: boolean }>(`/api/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}

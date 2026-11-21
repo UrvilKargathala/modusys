@@ -36,3 +36,9 @@ export async function uploadPhoto(
   const key = await uploadFile(`${base(customerId)}/presign`, { uri: photo.uri, type: contentType, name }, onProgress);
   return api<MediaItem>(base(customerId), { body: { key, name } });
 }
+
+/** A 2-minute link to open a chat PDF (`message`) or a gallery video / document (`media`) in the phone's own viewer. */
+export function fileLink(ref: { message: string } | { media: string }) {
+  const q = 'message' in ref ? `message=${encodeURIComponent(ref.message)}` : `media=${encodeURIComponent(ref.media)}`;
+  return api<{ url: string }>(`/api/mobile/file?${q}`).then((r) => r.url);
+}

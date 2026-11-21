@@ -1,6 +1,6 @@
 // Shared by the Tasks tab and Home: your tasks, the row, the detail sheet, and
 // marking a task done (shown at once; put back if the server says no).
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, ChevronRight, Users } from 'lucide-react-native';
@@ -118,7 +118,7 @@ export function TaskRow({ task, customerName, assigneeName, onToggle, onOpen }: 
   );
 }
 
-export function TaskSheet({ task, customerName, creatorName, assigneeName, onClose, onToggle, onOpenCustomer, busy }: {
+export function TaskSheet({ task, customerName, creatorName, assigneeName, onClose, onToggle, onOpenCustomer, busy, onEdit, onDelete, deleting }: {
   task: Task | null;
   customerName: string | null;
   creatorName: string | null;
@@ -127,11 +127,26 @@ export function TaskSheet({ task, customerName, creatorName, assigneeName, onClo
   onToggle: () => void;
   onOpenCustomer: () => void;
   busy: boolean;
+  /** Super admin only (as the website): edit or delete the task. */
+  onEdit?: () => void;
+  onDelete?: () => void;
+  deleting?: boolean;
 }) {
   const { today, tomorrow } = useToday();
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => setConfirming(false), [task?.id]);
   return (
     <Sheet visible={!!task} onClose={onClose}>
-      {task ? (
+      {task && confirming ? (
+        <View style={styles.sheet}>
+          <Text style={type.heading}>Delete this task?</Text>
+          <Text style={type.body}>"{task.title}" is removed for everyone. This can't be undone.</Text>
+          <View style={styles.buttons}>
+            <View style={styles.flex}><Button label="Cancel" variant="secondary" onPress={() => setConfirming(false)} /></View>
+            <View style={styles.flex}><Button label="Delete" variant="danger" onPress={() => onDelete?.()} loading={deleting} /></View>
+          </View>
+        </View>
+      ) : task ? (
         <View style={styles.sheet}>
           <View style={styles.sheetHead}>
             <Text style={[type.heading, styles.sheetTitle]} accessibilityRole="header">{task.title}</Text>
@@ -154,6 +169,12 @@ export function TaskSheet({ task, customerName, creatorName, assigneeName, onClo
           <InfoRow label="Given by" value={creatorName} />
           <InfoRow label="Added" value={formatDate(task.createdAt)} />
           <Button label={task.completed ? 'Mark as not done' : 'Mark as done'} variant={task.completed ? 'secondary' : 'primary'} onPress={onToggle} loading={busy} />
+          {onEdit || onDelete ? (
+            <View style={styles.buttons}>
+              {onEdit ? <View style={styles.flex}><Button label="Edit" variant="secondary" onPress={onEdit} /></View> : null}
+              {onDelete ? <View style={styles.flex}><Button label="Delete" variant="text" onPress={() => setConfirming(true)} /></View> : null}
+            </View>
+          ) : null}
         </View>
       ) : null}
     </Sheet>
@@ -192,6 +213,7 @@ const styles = StyleSheet.create({
   pill: { borderRadius: radius.pill, paddingHorizontal: space.sm + 2, paddingVertical: 3, alignSelf: 'flex-start' },
   pillText: { fontSize: 12, fontWeight: '600' },
   sheet: { padding: space.screen, gap: space.md, paddingBottom: space.xl },
+  buttons: { flexDirection: 'row', gap: space.md },
   sheetHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   sheetTitle: { flex: 1 },
   customer: {

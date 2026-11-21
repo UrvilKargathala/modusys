@@ -1,4 +1,5 @@
-// Home (design v2, Prompt 2): greeting, notifications bell, Today's Summary,
+// Home (design v2, Prompt 2). Super admin: the greeting and bell, then the Dashboard (as the website,
+// where the Dashboard is their first page), with no check-in card. Everyone else: Today's Summary,
 // for admins (the roles that see Quotes on the web) this month's KPI tiles and
 // the newest quotes (Version B, from /api/mobile/home; read-only, quotes open on the web), then today's tasks (due today or
 // overdue, as on the Tasks tab) and the most recently active customers.
@@ -22,14 +23,48 @@ import { canSee } from '../navigation/access';
 import type { RootStackParamList, TabParamList } from '../navigation/types';
 import { colors, space, type } from '../theme/tokens';
 import { TodaySummaryCard } from './attendance/TodaySummaryCard';
+import { DashboardBody, useDashboard } from './business/DashboardScreen';
 import { QuoteRow } from './business/parts';
 import { useStages } from './customers/useStages';
 import { useNotifications } from './notifications/useNotifications';
-import { TaskRow, useCustomerNames, useMyTasks, useToggleTask } from './tasks/taskParts';
+import { TaskRow, useCrmTasks, useCustomerNames, useMyTasks, useToggleTask } from './tasks/taskParts';
 
 type HomeNav = CompositeNavigationProp<BottomTabNavigationProp<TabParamList, 'Home'>, NativeStackNavigationProp<RootStackParamList>>;
 
 export function HomeScreen() {
+  const user = useUser();
+  return canSee('Dashboard', user.role) ? <OwnerHome /> : <TeamHome />;
+}
+
+function useGreetingBar() {
+  const user = useUser();
+  const nav = useNavigation<HomeNav>();
+  const notifications = useNotifications();
+  const unread = (notifications.data ?? []).filter((n) => !n.read).length;
+  const first = user.name.split(' ')[0] || user.name;
+  const day = istToday();
+  const title = (
+    <Title sub={formatDay(day)} right={<IconButton icon={Bell} label="Notifications" dot={unread > 0} onPress={() => nav.navigate('Notifications')} />}>
+      {istGreeting()}, {first}
+    </Title>
+  );
+  return { title, notifications };
+}
+
+function OwnerHome() {
+  const { title, notifications } = useGreetingBar();
+  const board = useDashboard();
+  const crmTasks = useCrmTasks();
+  const pull = usePullRefresh(() => Promise.all([board.dash.refetch(), crmTasks.refetch(), notifications.refetch()]));
+  return (
+    <Screen onRefresh={pull.onRefresh} refreshing={pull.refreshing}>
+      {title}
+      <DashboardBody {...board} />
+    </Screen>
+  );
+}
+
+function TeamHome() {
   const user = useUser();
   const nav = useNavigation<HomeNav>();
   const today = useQuery({ queryKey: ['attendance', 'today'], queryFn: getToday });
@@ -38,14 +73,12 @@ export function HomeScreen() {
   const customers = useQuery({ queryKey: ['customers'], queryFn: listCustomers });
   const customerName = useCustomerNames();
   const stages = useStages();
-  const notifications = useNotifications();
-  const unread = (notifications.data ?? []).filter((n) => !n.read).length;
+  const { title, notifications } = useGreetingBar();
   const isAdmin = canSee('QuoteFigures', user.role);
   const business = useQuery({ queryKey: ['home-summary'], queryFn: getHomeSummary, enabled: isAdmin });
   const pull = usePullRefresh(() =>
     Promise.all([today.refetch(), tasks.refetch(), customers.refetch(), notifications.refetch(), isAdmin ? business.refetch() : null]),
   );
-  const first = user.name.split(' ')[0] || user.name;
   // Hide the card only once we know the login has no employee record (attendance can't be recorded).
   const showToday = today.isLoading || !!today.data?.employee;
 
@@ -58,12 +91,7 @@ export function HomeScreen() {
 
   return (
     <Screen onRefresh={pull.onRefresh} refreshing={pull.refreshing}>
-      <Title
-        sub={formatDay(day)}
-        right={<IconButton icon={Bell} label="Notifications" dot={unread > 0} onPress={() => nav.navigate('Notifications')} />}
-      >
-        {istGreeting()}, {first}
-      </Title>
+      {title}
 
       {today.error ? <Notice text={(today.error as Error).message} /> : null}
       {showToday ? (

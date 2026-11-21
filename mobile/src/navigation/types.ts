@@ -7,13 +7,16 @@ export type RootStackParamList = {
   CustomerDetail: { id: string; name: string };
   /** Add a customer (no id) or edit one. */
   CustomerForm: { id?: string } | undefined;
-  /** Create a task; `customerId` links it to that customer (opened from the customer's page). */
-  TaskForm: { customerId?: string } | undefined;
+  /** Create a task (`customerId` links it to that customer, opened from the customer's page), or edit one (`taskId`, super admin). */
+  TaskForm: { customerId?: string; taskId?: string } | undefined;
   /** My Leaves, Apply for leave, and Leave Approvals (super admin). */
   Leaves: undefined;
   LeaveApply: undefined;
   LeaveApprovals: undefined;
   Dashboard: undefined;
+  /** Architect Master: the list, and add (no id) / edit an architect. */
+  Architects: undefined;
+  ArchitectForm: { id?: string } | undefined;
   /** Development builds only: every shared component in the v2 style. */
   StyleGuide: undefined;
   /** Development only: the signed-out screens, opened while signed in. */

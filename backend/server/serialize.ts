@@ -58,6 +58,7 @@ export function serializeCustomer(c: Customer) {
     birthdayYear: c.birthdayYear,
     address: c.address,
     stage: c.stage,
+    completedStages: c.completedStages,
     finalOfferLakh: c.finalOfferLakh,
     assignee: c.assignee,
     lastActivity: c.lastActivity.toISOString(),

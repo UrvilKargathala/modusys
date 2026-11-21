@@ -5,10 +5,10 @@
  * @format
  */
 import React from 'react';
-import { StatusBar } from 'react-native';
+import { AppState, StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { ApiError } from './src/api/client';
 import { AuthProvider } from './src/auth/AuthProvider';
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -22,6 +22,13 @@ const queryClient = new QueryClient({
       retry: (count, error) => !(error instanceof ApiError && error.status >= 400 && error.status < 500) && count < 2,
     },
   },
+});
+
+// Coming back to the app counts as "focus", so data older than staleTime
+// (tasks, customers, stages) reloads instead of waiting for a pull-to-refresh.
+focusManager.setEventListener((setFocused) => {
+  const sub = AppState.addEventListener('change', (state) => setFocused(state === 'active'));
+  return () => sub.remove();
 });
 
 const navTheme = {

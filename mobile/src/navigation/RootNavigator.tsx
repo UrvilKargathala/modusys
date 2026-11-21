@@ -27,6 +27,8 @@ import { colors } from '../theme/tokens';
 import { StyleGuideScreen } from '../screens/dev/StyleGuideScreen';
 import { canSee } from './access';
 import { TabBar } from './TabBar';
+import { ArchitectsScreen } from '../screens/architects/ArchitectsScreen';
+import { ArchitectFormScreen } from '../screens/architects/ArchitectFormScreen';
 import type { RootStackParamList, TabParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -93,6 +95,8 @@ export function RootNavigator() {
       <Stack.Screen name="TaskForm" component={TaskFormScreen} options={{ title: 'Create task' }} />
       <Stack.Screen name="Leaves" component={LeavesScreen} options={{ title: 'My Leaves' }} />
       <Stack.Screen name="LeaveApply" component={LeaveApplyScreen} options={{ title: 'Apply for leave' }} />
+      <Stack.Screen name="Architects" component={ArchitectsScreen} options={{ title: 'Architects' }} />
+      <Stack.Screen name="ArchitectForm" component={ArchitectFormScreen} />
       {canSee('LeaveApprovals', role) ? <Stack.Screen name="LeaveApprovals" component={LeaveApprovalsScreen} options={{ title: 'Leave Approvals' }} /> : null}
       {canSee('Dashboard', role) ? <Stack.Screen name="Dashboard" component={DashboardScreen} /> : null}
       {__DEV__ ? (

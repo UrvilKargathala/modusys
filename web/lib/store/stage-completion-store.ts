@@ -1,83 +1,29 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { customersStore, useCustomers } from "@/lib/store/customers-store";
 
-// Per (customer, stage) done-flag. Stored client-side only — checking a card
-// as "done" is a lightweight per-user visual cue, not a business fact worth
-// syncing to the DB. Persisted via localStorage the same way tasks/customers
-// stores are.
+// The Pipeline card's "stage done" tick, per (customer, stage). Saved on the customer (`completedStages`, a list of stage
+// keys) so everyone — website and phone — sees the same ticks. It used to live in each browser's localStorage only;
+// those old browser-only ticks are not carried over.
 //
-// Keyed by `${customerId}:${stage}` so the same customer's completion state
-// is remembered independently per stage — moving them to a new stage does
-// NOT carry over the previous stage's tick.
+// A tick belongs to one stage: moving the customer on doesn't carry it over, and moving back shows it again.
 
-const STORAGE_KEY = "modusys.stageCompletion.v1";
-type Key = string; // `${customerId}:${stage}`
-
-let done = new Set<Key>();
-let hydrated = false;
-const listeners = new Set<() => void>();
-
-function key(customerId: string, stage: string): Key {
-  return `${customerId}:${stage}`;
-}
-
-function ensureHydrated() {
-  if (hydrated || typeof window === "undefined") return;
-  hydrated = true;
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) done = new Set(JSON.parse(stored) as string[]);
-  } catch {
-    // ignore parse failures, keep empty
-  }
-}
-
-function persist() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(done)));
-  } catch {
-    // ignore write failures
-  }
-}
-
-function emit() {
-  for (const l of listeners) l();
+function stagesOf(customerId: string): string[] {
+  return customersStore.getSnapshot().find((c) => c.id === customerId)?.completedStages ?? [];
 }
 
 export const stageCompletionStore = {
-  subscribe(l: () => void) {
-    listeners.add(l);
-    return () => listeners.delete(l);
-  },
-  getSnapshot() {
-    ensureHydrated();
-    return done;
-  },
-  getServerSnapshot() {
-    return done;
-  },
   isDone(customerId: string, stage: string) {
-    ensureHydrated();
-    return done.has(key(customerId, stage));
+    return stagesOf(customerId).includes(stage);
   },
   toggle(customerId: string, stage: string) {
-    ensureHydrated();
-    const k = key(customerId, stage);
-    const next = new Set(done);
-    if (next.has(k)) next.delete(k);
-    else next.add(k);
-    done = next;
-    persist();
-    emit();
+    const current = stagesOf(customerId);
+    const next = current.includes(stage) ? current.filter((s) => s !== stage) : [...current, stage];
+    customersStore.updateCustomer(customerId, { completedStages: next });
   },
 };
 
 export function useIsStageDone(customerId: string, stage: string): boolean {
-  useSyncExternalStore(
-    stageCompletionStore.subscribe,
-    stageCompletionStore.getSnapshot,
-    stageCompletionStore.getServerSnapshot
-  );
-  return stageCompletionStore.isDone(customerId, stage);
+  const customers = useCustomers();
+  return (customers.find((c) => c.id === customerId)?.completedStages ?? []).includes(stage);
 }

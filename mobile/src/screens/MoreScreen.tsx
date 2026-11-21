@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BarChart3, Bell, CalendarOff, CheckSquare, ChevronRight, KeyRound, LogOut, Palette } from 'lucide-react-native';
+import { BarChart3, Bell, Building2, CalendarOff, CheckSquare, ChevronRight, KeyRound, LogOut, Palette } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { roles } from '@shared/constants/roles';
 import { useAuth, useUser } from '../auth/AuthProvider';
@@ -86,6 +86,11 @@ export function MoreScreen() {
           ))}
         </Group>
       ) : null}
+
+      {/* As the website's Masters menu: Architect Master for everyone. */}
+      <Group title="Masters">
+        <Row icon={Building2} label="Architects" onPress={() => nav.navigate('Architects')} />
+      </Group>
 
       {/* As the website's Attendance menu: My Leaves for everyone, Leave Approvals for the super admin. */}
       <Group title="Leaves">

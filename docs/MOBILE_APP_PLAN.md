@@ -459,6 +459,83 @@ Not before M6: anything in §10.
 - **Quick-add architect:** yes, inside the Architect picker (step 5).
 - **Stage change:** same as the website, anyone signed in can move a customer's stage.
 
+## M6 plan: super admin parity with the website (planned 21/11/2026, not built)
+
+Compared screen by screen with the website as super admin. Quotes and Purchase Orders stay web-only (decided 17/11/2026).
+
+**A. Numbers that differ from the website today (fix first)**
+1. Dashboard period: the website opens on the **last 6 months** (From/To picker); the phone opens on **Month** (Today / Week / Month / Year). So the super admin's Home shows different totals from the website's Dashboard. Fix: add the website's From/To range, defaulting to the last 6 months.
+2. Hero numbers missing: the website's Dashboard starts with Quotes today, Quotes this month, Revenue this month and the pipeline split bar.
+3. Notification bell: the website's bell also shows live-worked-out items (stale quotes, quote status, new leads); the phone shows only stored notifications, so the counts differ (open question 6).
+
+**B. Website Dashboard panels not on the phone** (read-only, worked out on the server with the website's own code in `shared/`, added to `/api/mobile/dashboard`; no database change)
+Quote trends (day / week / month), Conversion, Quote progress, Pipeline funnel, Top customers, Customer acquisition, Recent quotes, Activity timeline, Upcoming tasks, Notifications, Upcoming birthdays. (On the phone today: KPIs, Revenue by month, Quote status, Stale quotes, Team performance.)
+
+**C. CRM actions the super admin has on the website but not on the phone**
+- Customer: delete (super admin), "Mark stage complete".
+- Tasks: edit a task, delete a task (super admin).
+- Chat messages: reply, react, copy, edit, delete (for me / everyone), star + starred list, forward, make a task from a message, read info, search in the chat.
+- Open PDFs (chat) and videos / documents (Photos) on the phone; today they are only named.
+- Ticket cards: assignee and last activity, as the website's list.
+- Architect Master: browse and edit architects (only quick-add today).
+
+**D. Attendance for the owner** (website only today): Team Attendance (who is in today, selfies, locations), the attendance calendar dashboard, Reports, Salary, Employees.
+
+**E. Stay web-only unless decided otherwise:** Accounts, Payroll setup, User Management, Users ↔ Employees, Credits, Logs, Templates, Manufacturing / Production, Vendor and Dealer Masters, Quotes, Purchase Orders.
+
+**F. Later:** notifications: faster checks (every 15 s) and/or real push (Firebase; new package, one new table, Apple account for iPhone).
+
+**Proposed order:** M6a = A + B (Dashboard matches the website exactly). M6b = C (CRM actions). M6c = D (owner attendance). Each step: build, check on the iPhone and the OPPO against staging, compare with the website, commit.
+
+**Decided (21/11/2026)**
+1. Dashboard: all the major website sections. Phone order: top numbers + pipeline split, From/To range (last 6 months), KPIs, Quote trends, Quote status, Revenue by month, Conversion, Pipeline funnel, Top customers, Customer acquisition, Team performance, Stale quotes, Recent quotes, Upcoming tasks, Upcoming birthdays. Left out as minor / already elsewhere on the phone: Quote progress (same data as Quote status), Activity timeline, Notifications panel (the bell has them).
+2. "Mark stage complete": yes, on the phone too.
+3. Chat actions: all of them, built in two passes: reply, react, copy, delete, star first; then edit, forward, make a task, read info, search, starred list.
+4. Owner attendance: all five: Team Attendance, calendar, Reports, Salary, Employees.
+5. Section E stays web-only.
+
+**M6a done (21/11/2026, `work-m5b`):** the phone Dashboard has the major website sections, From / To (default last 6 months), numbers match the website. The website's Pipeline by Stage panel now counts real customers (it read demo data).
+
+### M6b plan: CRM actions (planned 21/11/2026, not built)
+
+Every step uses a website API that already exists, except step 1 (needs a decision). No new package.
+
+| # | Step | Website API (exists) | Who |
+|---|---|---|---|
+| 1 | **Mark stage complete** (tick on a ticket card / customer page) | **None: the website keeps it in that browser only (localStorage), not in the database.** | everyone |
+| 2 | Chat pass 1: long-press a message → Reply (quoted), React (emoji row), Copy, Delete for me / for everyone, Star | `PATCH/DELETE …/messages/:id` (`?scope=me\|everyone`), `…/reactions`, `…/star` | everyone; delete for everyone = sender or super admin (server checks) |
+| 3 | Chat pass 2: Edit own message, Forward to another customer, Make a task from a message, Read info (who read it), Search in the chat, Starred list | `PATCH …/messages/:id`, `…/forward`, `…/read-receipts`, `POST /api/tasks` | everyone |
+| 4 | Open files: chat PDFs and Photos videos / documents open on the phone (a short storage link, like voice notes) | small new route like `/api/mobile/voice/:id` (no database change) | everyone |
+| 5 | Tasks: open a task → Edit (title, due date, priority, assignee, customer), Delete | `PATCH/DELETE /api/tasks/:id` (staff may only tick their own; super admin edits / deletes any) | edit = creator / super admin; delete = super admin |
+| 6 | Customer: Delete (super admin), with the in-app confirm | `DELETE /api/customers/:id` (soft delete) | super admin |
+| 7 | Ticket cards: assignee and last activity, as the website's list | `/api/customers` (already sent) | everyone |
+| 8 | Architect Master: list, search, open, add, edit (delete for super admin) | `/api/architects`, `/api/architects/:id` | everyone; delete = super admin |
+
+**Decision needed for step 1:** to share "stage complete" between the website and the phone (and between people), it has to be saved in the database. Options:
+- **a) Add it properly:** one new column on Customer (e.g. `stageCompletedAt`, cleared when the stage changes). Additive DB change: staging first, backup, live migration before deploy; the website switches from localStorage to the database too.
+- **b) Phone only, like the website:** saved on each phone, not shared (website and phone never agree).
+- **c) Skip it** for now.
+
+**Decided (21/11/2026): a) save it in the database.** Database plan (additive only, per the release rules):
+- New column `Customer.completedStages String[] @default([])`: the stage keys ticked done. This keeps the website's current behaviour (a tick belongs to one stage; moving back to that stage shows it again), now shared by everyone.
+- One migration file that only adds the column. Nothing existing is edited or dropped; existing rows get an empty list.
+- `PATCH /api/customers/:id` accepts `completedStages` (anyone signed in, as the website's tick is today); `/api/customers` sends it.
+- Website: `stage-completion-store.ts` reads / writes the database instead of localStorage. Old browser-only ticks are not carried over (they were per browser, so they would not match other people's anyway).
+- Rollout: apply the migration to **staging** first and test on both phones and the website; then, at release, **back up live**, apply the migration to live, and only then deploy (Coolify does not run migrations).
+
+**Order:** 2 → 5 → 6 → 7 → 4 → 3 → 8, then 1 (the database step, with its own staging test).
+
+**Progress (21/11/2026, `work-m5b`, not committed):**
+- ✅ 2. Chat pass 1: long-press a message → 6 quick reactions, Reply (quoted in the bubble and above the box), Copy text, Star / Unstar (☆ by the time), Delete for me, Delete for everyone (sender or super admin, asks first). Tested on the iPhone and the OPPO; saved on the server (website API). Copy uses React Native's built-in Clipboard (marked as moving out of core; no package added).
+- ✅ 5. Tasks: the task sheet has Edit (the task form, filled in) and Delete (asks first) for the super admin. Tested on the iPhone.
+- ✅ 6. Customer: "Delete customer" at the bottom of Overview (super admin, asks first; soft delete as the website). Tested on the iPhone.
+- ✅ 7. Ticket cards show the last activity date and the assignee (when set), as the website's list.
+- ✅ 4. Open files: chat PDFs and Photos videos / documents open in the phone's own viewer through `GET /api/mobile/file?message=|media=` (a 2-minute storage link; no database change). Tested on the iPhone (PDF opens in Safari) and the route on a real gallery document.
+- ✅ 3. Chat pass 2: Edit your own text (sheet; "· edited"), Forward to one or more customers (marked Forwarded), Message info (sent / edited time, who read it), Search in this chat, All / Starred. "Make a task from a message" is **not** on the website (tasks come from @mentions), so instead the phone shows the website's "Task → name" chips under a message that mentioned someone. Tested on the iPhone; forwarded copy checked on the server; test messages deleted.
+- ✅ 8. Architect Master: More > Masters > Architects: list (company, city, how many customers), search, + Add, tap to Edit (the website's fields and rules; partners / site engineers stay on the website), Delete for the super admin (asks first, hidden as the website). Tested: add / search / edit on the iPhone, search / delete on the OPPO.
+- ✅ 1. Stage complete, in the database: new column `Customer.completedStages` (migration `20261121120000_add_customer_completed_stages`, additive only). `PATCH /api/customers/:id` accepts `completedStages`; the website's `stage-completion-store.ts` now reads / writes it instead of localStorage; the phone has the tick on ticket cards and "Mark stage done" on the customer page. **Applied to staging 21/11/2026** (54/54 migrations). Tested: tick on the iPhone → shown on the website; tick on the website → shown on the OPPO; untick on the OPPO → cleared everywhere. Ticking doesn't change Last activity.
+- **M6b done.** Release needs the live migration (backup first, then `prisma migrate deploy` on live, then Deploy). Note: `prisma migrate diff` shows staging has extra objects not in the schema (`FurniturePriceItem.active`, `Quote.shutterFinishPresetId`, table `ShutterFinishPreset`); `migrate deploy` leaves them alone; never use `db push` / `migrate dev` against staging or live. Each step: build, test on the iPhone and the OPPO against staging, check the result on the website, delete test data.
+
 ## Open questions
 
 1. ~~App name + bundle id~~: decided, **Modusys / `com.modusys.app`**.
