@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BarChart3, Bell, Building2, CalendarOff, CheckSquare, ChevronRight, KeyRound, LogOut, Palette } from 'lucide-react-native';
+import { BarChart3, Bell, Building2, IdCard, IndianRupee, CalendarOff, CheckSquare, ChevronRight, KeyRound, LogOut, Palette } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { roles } from '@shared/constants/roles';
 import { useAuth, useUser } from '../auth/AuthProvider';
@@ -84,6 +84,14 @@ export function MoreScreen() {
           {owner.map((o) => (
             <Row key={o.key} icon={o.icon} label={o.label} onPress={() => nav.navigate(o.key)} />
           ))}
+        </Group>
+      ) : null}
+
+      {/* As the website's Payroll group (super admin): Salary, and Employees with holidays. */}
+      {user.role === 'super-admin' ? (
+        <Group title="Payroll">
+          <Row icon={IndianRupee} label="Salary" onPress={() => nav.navigate('Salary')} />
+          <Row icon={IdCard} label="Employees" onPress={() => nav.navigate('Employees')} />
         </Group>
       ) : null}
 

@@ -536,6 +536,33 @@ Every step uses a website API that already exists, except step 1 (needs a decisi
 - ✅ 1. Stage complete, in the database: new column `Customer.completedStages` (migration `20261121120000_add_customer_completed_stages`, additive only). `PATCH /api/customers/:id` accepts `completedStages`; the website's `stage-completion-store.ts` now reads / writes it instead of localStorage; the phone has the tick on ticket cards and "Mark stage done" on the customer page. **Applied to staging 21/11/2026** (54/54 migrations). Tested: tick on the iPhone → shown on the website; tick on the website → shown on the OPPO; untick on the OPPO → cleared everywhere. Ticking doesn't change Last activity.
 - **M6b done.** Release needs the live migration (backup first, then `prisma migrate deploy` on live, then Deploy). Note: `prisma migrate diff` shows staging has extra objects not in the schema (`FurniturePriceItem.active`, `Quote.shutterFinishPresetId`, table `ShutterFinishPreset`); `migrate deploy` leaves them alone; never use `db push` / `migrate dev` against staging or live. Each step: build, test on the iPhone and the OPPO against staging, check the result on the website, delete test data.
 
+### M6c plan: owner attendance (planned 21/11/2026, not built)
+
+The website's five super-admin attendance pages (Attendance menu + Payroll group) are server pages that read the database directly (`backend/server/payroll-data.ts`, `managed-employees.ts`, `attendance-utils.ts`), so the phone needs small read-only `/api/mobile/attendance/*` routes that call the **same backend functions** (as `/api/mobile/dashboard` does). The few changes the owner makes reuse the website's existing write routes. No new package, **no database change**.
+
+Phone layout: the Attendance tab gets a Mine | Team switch for the super admin (staff keep today's screen); Salary and Employees go under More > Payroll.
+
+| # | Screen (website page) | What the phone shows | Data |
+|---|---|---|---|
+| 1 | **Team today** (`/attendance`) | Present / absent / late / checked-out counts and attendance rate vs last 7 days; list of everyone: check-in / out times, hours, status (late, early exit), source, both selfies (tap to enlarge), location; pick another day | new `GET /api/mobile/attendance/team?date=` (same query as the page) |
+| 2 | **Calendar** (`/attendance/calendar`) | One employee per screen (picker), month grid coloured by day status (present / absent / leave / holiday / half), Present · Absent · Leave counts, worked / expected hours, earned salary; tap a day for its times. Edit times on a day (super admin) | new `GET /api/mobile/attendance/calendar?employee=&month=`; edit via existing `PATCH /api/attendance/payroll/edit-times` |
+| 3 | **Reports** (`/attendance/reports`) | From / To (presets: this month, last month), employee / department filter; per employee: days present, full / half days, absences, leave, late, early exits, total hours, avg per day | existing `GET /api/attendance/reports` (JSON) |
+| 4 | **Salary** (`/attendance/payroll`) | Period picker; per employee: expected vs payable hours, earned and final payable, adjustments; totals; Finalize / un-finalize the period (asks first) | new `GET /api/mobile/attendance/payroll?from=&to=` (`loadPayroll`); finalize via existing `POST/DELETE /api/attendance/payroll/finalize` |
+| 5 | **Employees** (`/attendance/employees`) | List (number, department, designation, schedule set / missing); open → edit details and schedule; add; Holidays list (add / remove) | `GET` via new mobile route (`getPayrollEmployees`); writes via existing `POST /api/attendance/employees`, `PATCH /api/attendance/employees/:id`, `POST/DELETE /api/attendance/holidays` |
+
+**Order:** 1 → 3 → 2 → 4 → 5 (most-used first; read-only before editing). Each step: build, check figures against the website page for the same day / period, test on the iPhone and the OPPO against staging, clean up test data.
+
+**Stays on the website:** UniFi sync buttons and the health banner, CSV / Excel exports, payroll adjustments entry, Users ↔ Employees linking.
+
+**Decided (21/11/2026):** all four yes: Mine | Team on the Attendance tab, Salary / Employees under More > Payroll; Salary includes Finalize (asks first); Employees includes add / edit and holidays; Calendar includes Edit times.
+
+**M6c built (21/11/2026, `work-m5b`, not committed). No database change, no new package.**
+- Attendance tab (super admin): Mine | Team | Reports. **Team**: day picker, the website's four headline numbers vs the last 7 days, Full / Half / Late / Still-in chips, everyone who checked in (times, hours, late / early, source), tap → both selfies, place, note, Maps link, "See their month"; "Not checked in" list (absent / leave). **Reports**: This week / This month / Last month / Custom, department and employee filters, the eight totals, a card per employee.
+- **Calendar** (from Team or Salary): employee picker, month grid coloured by status with hours, the website's eight totals, tap a day → times (real vs edited), worked / payable, pay, places; **Edit times** (HH:MM; real times kept; locked when the month is finalized).
+- More > Payroll: **Salary** (month picker, totals, "needs setup" warning, a card per employee; tap → full breakdown, open calendar, **Finalize / Reopen** with confirm; blocked with the reason when the month isn't over, setup is missing or days are open). **Employees** (list with schedule / pay or "missing"; + Add / tap to Edit with the website's form and rules; **Holidays**: add a day or range, remove with confirm).
+- Server: the website's Attendance and Reports pages now get their numbers from `backend/server/team-attendance.ts` and `backend/server/attendance-report.ts` (moved out of the pages, so the website and the phone share them). New read-only routes `/api/mobile/attendance/{team,report,calendar,payroll,employees}` (super admin); writes use the website's existing routes.
+- Checked against the website for the same day / period: Team 16/11 (1 of 11, Chirag's row), Reports October (all totals and rows), Calendar October for Staging Test Employee (all eight totals), Salary October (7 employees, 154h 30m, ₹24,375.45). Tested on staging and put back: edit times (₹24,375.45 → ₹24,527.96 → reset), finalize + reopen (Vipul Dodiya, October), edit an employee (designation, then cleared), add + remove a holiday (12/09/2026). No test employee was created (employees can't be deleted).
+
 ## Open questions
 
 1. ~~App name + bundle id~~: decided, **Modusys / `com.modusys.app`**.

@@ -15,6 +15,12 @@ export type RootStackParamList = {
   LeaveApprovals: undefined;
   Dashboard: undefined;
   /** Architect Master: the list, and add (no id) / edit an architect. */
+  /** Attendance calendar (super admin): one employee's month; opened from Team. */
+  AttendanceCalendar: { employeeId?: string; name?: string } | undefined;
+  /** More > Payroll (super admin): Salary per month, Employees and holidays. */
+  Salary: undefined;
+  Employees: undefined;
+  EmployeeForm: { id?: string } | undefined;
   Architects: undefined;
   ArchitectForm: { id?: string } | undefined;
   /** Development builds only: every shared component in the v2 style. */

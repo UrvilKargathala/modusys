@@ -28,6 +28,10 @@ import { StyleGuideScreen } from '../screens/dev/StyleGuideScreen';
 import { canSee } from './access';
 import { TabBar } from './TabBar';
 import { ArchitectsScreen } from '../screens/architects/ArchitectsScreen';
+import { AttendanceCalendarScreen } from '../screens/attendance/AttendanceCalendarScreen';
+import { SalaryScreen } from '../screens/attendance/SalaryScreen';
+import { EmployeesScreen } from '../screens/attendance/EmployeesScreen';
+import { EmployeeFormScreen } from '../screens/attendance/EmployeeFormScreen';
 import { ArchitectFormScreen } from '../screens/architects/ArchitectFormScreen';
 import type { RootStackParamList, TabParamList } from './types';
 
@@ -95,6 +99,10 @@ export function RootNavigator() {
       <Stack.Screen name="TaskForm" component={TaskFormScreen} options={{ title: 'Create task' }} />
       <Stack.Screen name="Leaves" component={LeavesScreen} options={{ title: 'My Leaves' }} />
       <Stack.Screen name="LeaveApply" component={LeaveApplyScreen} options={{ title: 'Apply for leave' }} />
+      <Stack.Screen name="AttendanceCalendar" component={AttendanceCalendarScreen} options={{ title: 'Calendar' }} />
+      <Stack.Screen name="Salary" component={SalaryScreen} options={{ title: 'Salary' }} />
+      <Stack.Screen name="Employees" component={EmployeesScreen} options={{ title: 'Employees' }} />
+      <Stack.Screen name="EmployeeForm" component={EmployeeFormScreen} />
       <Stack.Screen name="Architects" component={ArchitectsScreen} options={{ title: 'Architects' }} />
       <Stack.Screen name="ArchitectForm" component={ArchitectFormScreen} />
       {canSee('LeaveApprovals', role) ? <Stack.Screen name="LeaveApprovals" component={LeaveApprovalsScreen} options={{ title: 'Leave Approvals' }} /> : null}

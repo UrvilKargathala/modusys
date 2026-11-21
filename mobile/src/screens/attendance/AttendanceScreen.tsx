@@ -8,7 +8,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarCheck, ChevronLeft, ChevronRight, UserX, X } from 'lucide-react-native';
 import { getHistory, getToday, type AttendanceRecord, type Leave } from '../../api/attendance';
-import { Card, EmptyState, Notice, Screen, SectionHeader, Sheet, SkeletonRow, StatusBadge, Title } from '../../components/ui';
+import { Card, EmptyState, Notice, Screen, SectionHeader, Segmented, Sheet, SkeletonRow, StatusBadge, Title } from '../../components/ui';
+import { useUser } from '../../auth/AuthProvider';
 import { dayBadge, leaveDates, leaveLabel } from '../../lib/attendance';
 import { attendanceConfig } from '../../lib/status';
 import { formatDay, formatHours, formatTime, istMonth, istToday } from '../../lib/format';
@@ -17,11 +18,34 @@ import type { RootStackParamList } from '../../navigation/types';
 import { colors, fonts, radius, shadow, space, touch, type } from '../../theme/tokens';
 import { CheckButton } from './CheckButton';
 import { Row, Selfie } from './parts';
+import { AttendanceReport } from './AttendanceReport';
+import { TeamAttendance } from './TeamAttendance';
 import { TodaySummaryCard } from './TodaySummaryCard';
 
 const OLDEST_MONTH = -2; // the history endpoint serves up to ~3 months at a time
 
+/** Attendance tab: staff see their own; the super admin switches Mine | Team | Reports (the website's Attendance pages). */
 export function AttendanceScreen() {
+  const user = useUser();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [view, setView] = useState<'mine' | 'team' | 'reports'>('mine');
+  if (user.role !== 'super-admin') return <MyAttendance />;
+  const header = (
+    <>
+      <Title sub={formatDay(istToday())}>Attendance</Title>
+      <Segmented
+        options={[{ key: 'mine' as const, label: 'Mine' }, { key: 'team' as const, label: 'Team' }, { key: 'reports' as const, label: 'Reports' }]}
+        value={view}
+        onChange={setView}
+      />
+    </>
+  );
+  if (view === 'team') return <TeamAttendance header={header} onOpenEmployee={(id, name) => nav.navigate('AttendanceCalendar', { employeeId: id, name })} />;
+  if (view === 'reports') return <AttendanceReport header={header} />;
+  return <MyAttendance header={header} />;
+}
+
+function MyAttendance({ header }: { header?: React.ReactNode }) {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [monthOffset, setMonthOffset] = useState(0);
   const [openDay, setOpenDay] = useState<AttendanceRecord | null>(null);
@@ -39,7 +63,7 @@ export function AttendanceScreen() {
   if (today.data && !today.data.employee) {
     return (
       <Screen onRefresh={refresh} refreshing={refreshing}>
-        <Title>Attendance</Title>
+        {header ?? <Title>Attendance</Title>}
         <EmptyState
           icon={UserX}
           title="Not linked to an employee"
@@ -57,7 +81,7 @@ export function AttendanceScreen() {
 
   return (
     <Screen onRefresh={refresh} refreshing={refreshing}>
-      <Title sub={formatDay(istToday())}>Attendance</Title>
+      {header ?? <Title sub={formatDay(istToday())}>Attendance</Title>}
 
       {today.error ? <Notice text={(today.error as Error).message} /> : null}
       <CheckButton record={record} loading={today.isLoading} onCheck={(side) => nav.navigate('CheckFlow', { side })} />
