@@ -1,9 +1,11 @@
 // Shared by the Tasks tab and Home: your tasks, the row, the detail sheet, and
 // marking a task done (shown at once; put back if the server says no).
-import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronRight, Users } from 'lucide-react-native';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
+import { Check, ChevronRight, RotateCcw, Users } from 'lucide-react-native';
 import { listCustomers, listUsers } from '../../api/customers';
 import { listAllTasks, listMyTasks, setTaskDone, type Task } from '../../api/tasks';
 import { useUser } from '../../auth/AuthProvider';
@@ -87,6 +89,35 @@ export function PriorityPill({ priority }: { priority: string }) {
   );
 }
 
+/**
+ * Swipe a task row to the left to mark it done (or not done again, on the Done tab), a shortcut for the tick (M6d).
+ * The row springs back and the list moves it, with the same Undo as the tick.
+ */
+function SwipeToggle({ done, onToggle, children }: { done: boolean; onToggle: () => void; children: React.ReactNode }) {
+  const ref = useRef<Swipeable>(null);
+  return (
+    <Swipeable
+      ref={ref}
+      friction={1.5}
+      rightThreshold={72}
+      containerStyle={styles.swipeBox}
+      overshootRight={false}
+      renderRightActions={() => (
+        <View style={[styles.swipeAction, done ? styles.swipeUndo : styles.swipeDone]}>
+          {done ? <RotateCcw size={20} color={colors.white} /> : <Check size={22} color={colors.white} strokeWidth={2.5} />}
+          <Text style={styles.swipeText}>{done ? 'Not done' : 'Done'}</Text>
+        </View>
+      )}
+      onSwipeableOpen={() => {
+        ref.current?.close();
+        onToggle();
+      }}
+    >
+      {children}
+    </Swipeable>
+  );
+}
+
 export function TaskRow({ task, customerName, assigneeName, onToggle, onOpen }: {
   task: Task;
   customerName: string | null;
@@ -98,12 +129,13 @@ export function TaskRow({ task, customerName, assigneeName, onToggle, onOpen }: 
   const { today, tomorrow } = useToday();
   const overdue = isOverdue(task, today);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${task.title}, ${dueText(task, today, tomorrow)}`}
-      onPress={onOpen}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-    >
+    <SwipeToggle done={task.completed} onToggle={onToggle}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${task.title}, ${dueText(task, today, tomorrow)}`}
+        onPress={onOpen}
+        style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      >
       <Tick done={task.completed} overdue={overdue} onPress={onToggle} label={task.completed ? 'Mark as not done' : 'Mark as done'} />
       <View style={styles.rowText}>
         <Text style={[styles.title, task.completed && styles.titleDone]} numberOfLines={2}>{task.title}</Text>
@@ -114,7 +146,8 @@ export function TaskRow({ task, customerName, assigneeName, onToggle, onOpen }: 
         </Text>
       </View>
       {!task.completed ? <PriorityPill priority={task.priority} /> : null}
-    </Pressable>
+      </Pressable>
+    </SwipeToggle>
   );
 }
 
@@ -196,6 +229,11 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   rowText: { flex: 1, gap: 3 },
+  swipeBox: { borderRadius: radius.lg }, // the swipe container clips; round it so the card's shadow isn't boxed
+  swipeAction: { width: 96, marginLeft: space.sm, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  swipeDone: { backgroundColor: colors.success },
+  swipeUndo: { backgroundColor: colors.textSecondary },
+  swipeText: { ...type.small, color: colors.white, fontWeight: '600' },
   title: { ...type.body, fontWeight: '600' },
   titleDone: { color: colors.textSecondary, textDecorationLine: 'line-through' },
   tick: {

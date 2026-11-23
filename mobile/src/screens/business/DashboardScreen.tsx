@@ -4,7 +4,8 @@
 // Stale quotes, Recent quotes, Upcoming tasks, Upcoming birthdays. Numbers are worked out on the server with the website's
 // own code (shared/dashboard-metrics.ts); Upcoming tasks use the phone's task list (the same tasks the CRM shows).
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';

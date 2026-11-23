@@ -18,6 +18,8 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   signOut: (notice?: string) => Promise<void>;
+  /** After you edit your own profile: show the new name / email at once (the token stays valid). */
+  setUser: (user: User) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -86,7 +88,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState({ status: 'signed-in', user });
   }, []);
 
-  const value = useMemo(() => ({ state, signIn, changePassword, signOut }), [state, signIn, changePassword, signOut]);
+  const setUser = useCallback((user: User) => setState((s) => (s.status === 'signed-in' ? { status: 'signed-in', user } : s)), []);
+
+  const value = useMemo(() => ({ state, signIn, changePassword, signOut, setUser }), [state, signIn, changePassword, signOut, setUser]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

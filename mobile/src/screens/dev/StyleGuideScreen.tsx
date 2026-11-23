@@ -2,7 +2,8 @@
 // design v2 style, so a change to tokens or ui.tsx can be checked on a phone.
 // The web has the same idea at /dev/components.
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { Bell, Inbox } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';

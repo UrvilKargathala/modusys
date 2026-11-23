@@ -42,6 +42,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (body[k] !== undefined) data[k] = body[k];
   }
   if (body.passwordUpdatedAt !== undefined) data.passwordUpdatedAt = new Date();
+  if (typeof data.email === "string") {
+    const taken = await prisma.user.findFirst({ where: { email: data.email, NOT: { id } }, select: { id: true } });
+    if (taken) return NextResponse.json({ error: "That email is already used by another user." }, { status: 409 });
+  }
   const user = await prisma.user.update({ where: { id }, data });
 
   if (changingRole && before && before.role !== user.role) {

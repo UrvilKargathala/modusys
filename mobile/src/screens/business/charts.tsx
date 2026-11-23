@@ -1,6 +1,7 @@
 // The Dashboard's small charts, drawn with plain views and react-native-svg (no chart library).
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import Svg, { Rect } from 'react-native-svg';
 import { isStatusKey, statusConfig } from '../../lib/status';
 import { colors, fonts, radius, space, type } from '../../theme/tokens';

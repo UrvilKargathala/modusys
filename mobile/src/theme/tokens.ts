@@ -53,16 +53,13 @@ export const colors = {
   onPrimaryMuted: 'rgba(255, 255, 255, 0.8)', // times and labels inside your own (primary) note bubble
 } as const;
 
-// Raleway, the same two .ttf files as the web, is linked from assets/fonts
-// (react-native.config.js + `npx react-native-asset`). Each name below is
-// both the font's PostScript name (iOS) and its file name (Android).
-// Manrope (numbers) waits in assets/fonts-unlinked: the web's file is a
-// variable font, which iOS only shows in its default ExtraLight style, so it
-// needs a static Manrope-Regular file first. Until then `undefined` = system font.
+// Raleway (text) and Manrope (numbers), as the web, with static Light / Regular / Medium / SemiBold / Bold files
+// (M6d) in assets/fonts, linked with `npx react-native-asset`. `fontWeight` picks the real weight: iOS by family
+// name, Android through res/font/raleway.xml and manrope.xml (registered in MainApplication.kt).
 export const fonts = {
   body: 'Raleway',
   light: 'Raleway-Light',
-  number: undefined,
+  number: 'Manrope',
 } as const;
 
 // Design v2 (docs/MOBILE_CLAUDE_DESIGN_PROMPTS.md, Prompt 0): cards 20, inputs and

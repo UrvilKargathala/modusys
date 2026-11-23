@@ -2,7 +2,8 @@
 // and pay ("Schedule missing" / "Rate missing" when Payroll can't work them out); tap to edit, + to add. Below, the company
 // holidays: add one day or a range, remove one (asks first). Changes use the website's own routes and rules.
 import React, { useLayoutEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarPlus, Plus, Trash2 } from 'lucide-react-native';

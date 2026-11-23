@@ -1,7 +1,8 @@
 // Quick-add an architect from the customer form (M5b step 5): the website's required fields only (name and surname),
 // plus mobile and company. The full architect record (partners, site engineers, office...) stays on the website.
 import React, { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';

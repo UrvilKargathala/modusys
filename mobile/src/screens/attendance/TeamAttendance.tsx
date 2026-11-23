@@ -2,7 +2,8 @@
 // against the 7 days before; the Full day / Half day / Late / Still in chips filter the list; everyone who checked in
 // (times, hours, status, both selfies); then who hasn't checked in (or is on leave). Tap a person for the details.
 import React, { useMemo, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarDays, ChevronLeft, ChevronRight, MapPin, Users } from 'lucide-react-native';
 import { getTeamDay, type TeamRow } from '../../api/attendance';

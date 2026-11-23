@@ -3,7 +3,8 @@
 // "Set a new password", and Sign out as the only way back.
 // Pushed from More (`onDone` goes back): a normal screen under the nav header.
 import React, { useRef, useState } from 'react';
-import { KeyboardAvoidingView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, StyleSheet, View } from 'react-native';
+import { Text } from '../components/Text';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';

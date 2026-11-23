@@ -13,7 +13,27 @@ export type AppNotification = {
   message: string;
   read: boolean;
   createdAt: string;
+  /** Set on the website bell's live items (worked out on the server); their read state is kept on this phone. */
+  live?: { kind: LiveKind; customerId?: string; taskId?: string };
 };
+
+export type LiveKind = 'stale-quote' | 'quote-status' | 'new-lead' | 'task-assigned' | 'task-completed';
+
+/** As /api/mobile/notifications sends it (shared/notifications-feed.ts VirtualNotification). */
+export type LiveNotification = {
+  id: string;
+  kind: LiveKind;
+  message: string;
+  createdAt: string;
+  href?: string;
+  customerId?: string;
+  taskId?: string;
+};
+
+/** The website bell's live items: stale quote, quote status, new lead, task assigned to you, your task done. */
+export function listLiveNotifications() {
+  return api<LiveNotification[]>('/api/mobile/notifications');
+}
 
 export function listNotifications() {
   return api<AppNotification[]>('/api/notifications');

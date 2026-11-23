@@ -8,13 +8,21 @@
 
 /* Begin PBXBuildFile section */
 		0C80B921A6F3F58F76C31292 /* libPods-Modusys.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-Modusys.a */; };
+		0D058BD601D84608B60EFFBD /* Raleway-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 99378EFB50F74115A20A7792 /* Raleway-SemiBold.ttf */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		2F16B91C82DE401D848F79EF /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E3CC84BE38E24B7692498EC3 /* Manrope-SemiBold.ttf */; };
+		3402F7ADFB644A088D41EF6B /* Raleway-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 50248275DB9F4A6990728329 /* Raleway-Bold.ttf */; };
+		5DA50740D7F744ED8A0F6D2A /* Manrope-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B13AB7AA40454960981CD120 /* Manrope-Bold.ttf */; };
+		71B1F372FF714EA195BB08CF /* Manrope-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C6E455202F14400BADA08FB5 /* Manrope-Medium.ttf */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		761780EF2CA45674006654EF /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EE2CA45674006654EF /* SceneDelegate.swift */; };
+		78D8620CD9AC4FF7BD91450C /* Manrope-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 14DBA25CFF544991A0457801 /* Manrope-Regular.ttf */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		842B5B2CE8A241EFA4C09A04 /* Raleway.ttf in Resources */ = {isa = PBXBuildFile; fileRef = EFAE5864371D4CD89C3252DC /* Raleway.ttf */; };
 		8FC4FE3ED49D4AF9A64D95E4 /* Raleway-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2CDA44DF1F2B481E9252277A /* Raleway-Light.ttf */; };
 		AB4473890C99EC6747527005 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
+		D3148768889443938CDABA60 /* Raleway-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A583B02814F245A28AD91CAE /* Raleway-Medium.ttf */; };
+		51BBB01A87934AA59A00B820 /* Manrope-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 117B0DC3D7894A7A895957BA /* Manrope-Light.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,15 +30,23 @@
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Modusys/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Modusys/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Modusys/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		14DBA25CFF544991A0457801 /* Manrope-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Manrope-Regular.ttf"; path = "../assets/fonts/Manrope-Regular.ttf"; sourceTree = "<group>"; };
 		2CDA44DF1F2B481E9252277A /* Raleway-Light.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Raleway-Light.ttf"; path = "../assets/fonts/Raleway-Light.ttf"; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-Modusys.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Modusys.debug.xcconfig"; path = "Target Support Files/Pods-Modusys/Pods-Modusys.debug.xcconfig"; sourceTree = "<group>"; };
+		50248275DB9F4A6990728329 /* Raleway-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Raleway-Bold.ttf"; path = "../assets/fonts/Raleway-Bold.ttf"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-Modusys.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Modusys.release.xcconfig"; path = "Target Support Files/Pods-Modusys/Pods-Modusys.release.xcconfig"; sourceTree = "<group>"; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-Modusys.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Modusys.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Modusys/AppDelegate.swift; sourceTree = "<group>"; };
 		761780EE2CA45674006654EF /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SceneDelegate.swift; path = Modusys/SceneDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Modusys/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		99378EFB50F74115A20A7792 /* Raleway-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Raleway-SemiBold.ttf"; path = "../assets/fonts/Raleway-SemiBold.ttf"; sourceTree = "<group>"; };
+		A583B02814F245A28AD91CAE /* Raleway-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Raleway-Medium.ttf"; path = "../assets/fonts/Raleway-Medium.ttf"; sourceTree = "<group>"; };
+		B13AB7AA40454960981CD120 /* Manrope-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Manrope-Bold.ttf"; path = "../assets/fonts/Manrope-Bold.ttf"; sourceTree = "<group>"; };
+		C6E455202F14400BADA08FB5 /* Manrope-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Manrope-Medium.ttf"; path = "../assets/fonts/Manrope-Medium.ttf"; sourceTree = "<group>"; };
+		E3CC84BE38E24B7692498EC3 /* Manrope-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Manrope-SemiBold.ttf"; path = "../assets/fonts/Manrope-SemiBold.ttf"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		EFAE5864371D4CD89C3252DC /* Raleway.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = Raleway.ttf; path = ../assets/fonts/Raleway.ttf; sourceTree = "<group>"; };
+		117B0DC3D7894A7A895957BA /* Manrope-Light.ttf */ = {isa = PBXFileReference; name = "Manrope-Light.ttf"; path = "../assets/fonts/Manrope-Light.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -63,6 +79,14 @@
 			children = (
 				2CDA44DF1F2B481E9252277A /* Raleway-Light.ttf */,
 				EFAE5864371D4CD89C3252DC /* Raleway.ttf */,
+				C6E455202F14400BADA08FB5 /* Manrope-Medium.ttf */,
+				A583B02814F245A28AD91CAE /* Raleway-Medium.ttf */,
+				99378EFB50F74115A20A7792 /* Raleway-SemiBold.ttf */,
+				E3CC84BE38E24B7692498EC3 /* Manrope-SemiBold.ttf */,
+				14DBA25CFF544991A0457801 /* Manrope-Regular.ttf */,
+				B13AB7AA40454960981CD120 /* Manrope-Bold.ttf */,
+				50248275DB9F4A6990728329 /* Raleway-Bold.ttf */,
+				117B0DC3D7894A7A895957BA /* Manrope-Light.ttf */,
 			);
 			name = Resources;
 			path = "";
@@ -181,6 +205,14 @@
 				AB4473890C99EC6747527005 /* PrivacyInfo.xcprivacy in Resources */,
 				8FC4FE3ED49D4AF9A64D95E4 /* Raleway-Light.ttf in Resources */,
 				842B5B2CE8A241EFA4C09A04 /* Raleway.ttf in Resources */,
+				71B1F372FF714EA195BB08CF /* Manrope-Medium.ttf in Resources */,
+				D3148768889443938CDABA60 /* Raleway-Medium.ttf in Resources */,
+				0D058BD601D84608B60EFFBD /* Raleway-SemiBold.ttf in Resources */,
+				2F16B91C82DE401D848F79EF /* Manrope-SemiBold.ttf in Resources */,
+				78D8620CD9AC4FF7BD91450C /* Manrope-Regular.ttf in Resources */,
+				5DA50740D7F744ED8A0F6D2A /* Manrope-Bold.ttf in Resources */,
+				3402F7ADFB644A088D41EF6B /* Raleway-Bold.ttf in Resources */,
+				51BBB01A87934AA59A00B820 /* Manrope-Light.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

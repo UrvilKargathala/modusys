@@ -2,13 +2,15 @@
 // search, then the Board (one stage per screen width, swipe sideways) or the List (a section per stage).
 // Tap a card to open the customer; long-press it to move it to another stage (the website drags it instead).
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, SectionList, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { FlatList, Pressable, RefreshControl, SectionList, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../../components/Text';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, ArrowUpDown, Check, ChevronDown, ChevronRight, Clock, Columns3, List, ListTodo, MapPin, SlidersHorizontal } from 'lucide-react-native';
 import { changeStage, listCustomers, setStageDone, type Customer } from '../../api/customers';
 import { OptionSheet } from '../../components/form';
+import { Glass } from '../../components/glass';
 import { Button, Card, EmptyState, Notice, SearchField, Sheet, SkeletonRow, TextField, useTabBarSpace } from '../../components/ui';
 import { matchesCustomer } from '../../lib/customers';
 import { formatDate } from '../../lib/format';
@@ -34,7 +36,8 @@ function TaskStrip({ onOpenTasks }: { onOpenTasks: () => void }) {
   if (!s.total) return null;
   const Icon = s.overdue ? AlertTriangle : ListTodo;
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${s.total} pending tasks. Open tasks`} onPress={onOpenTasks} style={({ pressed }) => [styles.strip, pressed && styles.dim]}>
+    <Glass style={styles.strip}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`${s.total} pending tasks. Open tasks`} onPress={onOpenTasks} style={({ pressed }) => [styles.stripInner, pressed && styles.dim]}>
       <View style={styles.stripIcon}><Icon size={16} color={s.overdue ? colors.error : colors.text} strokeWidth={1.75} /></View>
       <View style={styles.flex}>
         <Text style={[type.body, styles.bold]}>
@@ -53,6 +56,7 @@ function TaskStrip({ onOpenTasks }: { onOpenTasks: () => void }) {
       </View>
       <ChevronRight size={18} color={colors.textSecondary} strokeWidth={1.5} />
     </Pressable>
+    </Glass>
   );
 }
 
@@ -67,6 +71,7 @@ function TicketCard({ customer, stage, onOpen, onMove, onToggleDone }: {
 }) {
   const done = (customer.completedStages ?? []).includes(customer.stage);
   return (
+    <Glass style={styles.card}>
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${customer.name}, ${stage.label}`}
@@ -74,7 +79,7 @@ function TicketCard({ customer, stage, onOpen, onMove, onToggleDone }: {
       onPress={onOpen}
       onLongPress={onMove}
       delayLongPress={350}
-      style={({ pressed }) => [styles.card, pressed && styles.dim]}
+      style={({ pressed }) => [styles.cardInner, pressed && styles.dim]}
     >
       <View style={[styles.cardBar, { backgroundColor: stage.color }]} />
       <View style={styles.cardHead}>
@@ -104,16 +109,19 @@ function TicketCard({ customer, stage, onOpen, onMove, onToggleDone }: {
         {customer.assignee ? <Text style={[type.small, styles.flex]} numberOfLines={1}>· {customer.assignee}</Text> : null}
       </View>
     </Pressable>
+    </Glass>
   );
 }
 
 /** Toolbar button: icon and text, or icon only (the label is then read out, not shown). Highlighted while in use. */
 function ToolButton({ icon: Icon, label, active, iconOnly, onPress }: { icon: typeof List; label: string; active?: boolean; iconOnly?: boolean; onPress: () => void }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.tool, iconOnly ? styles.toolIcon : styles.flex, active && styles.toolOn, pressed && styles.dim]}>
-      <Icon size={16} color={active ? colors.primary : colors.text} strokeWidth={1.75} />
-      {iconOnly ? null : <Text style={[type.label, styles.toolText, active && styles.toolTextOn]} numberOfLines={1}>{label}</Text>}
-    </Pressable>
+    <Glass style={[styles.tool, iconOnly ? styles.toolIcon : styles.flex, active && styles.toolOn]} interactive>
+      <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.toolInner, pressed && styles.dim]}>
+        <Icon size={16} color={active ? colors.primary : colors.text} strokeWidth={1.75} />
+        {iconOnly ? null : <Text style={[type.label, styles.toolText, active && styles.toolTextOn]} numberOfLines={1}>{label}</Text>}
+      </Pressable>
+    </Glass>
   );
 }
 
@@ -244,7 +252,7 @@ export function TicketsPanel({ onOpenTasks }: { onOpenTasks: () => void }) {
             renderItem={({ item: stage }) => {
               const list = grouped.get(stage.key) ?? [];
               return (
-                <View style={[styles.column, { width: colWidth }]}>
+                <Glass style={[styles.column, { width: colWidth }]}>
                   <View style={styles.colHead}>
                     <View style={[styles.dot, { backgroundColor: stage.color }]} />
                     <Text style={[type.heading, styles.flex]} numberOfLines={1}>{stage.label}</Text>
@@ -260,7 +268,7 @@ export function TicketsPanel({ onOpenTasks }: { onOpenTasks: () => void }) {
                     ListEmptyComponent={<Text style={[type.small, styles.none]}>No customers in this stage.</Text>}
                     initialNumToRender={8}
                   />
-                </View>
+                </Glass>
               );
             }}
           />
@@ -351,10 +359,12 @@ const styles = StyleSheet.create({
   amber: { color: colors.warningText },
   number: { fontFamily: fonts.number },
   top: { gap: space.md, paddingTop: space.md, paddingBottom: space.md },
-  strip: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: colors.errorTint, borderRadius: radius.lg, padding: space.md },
+  strip: { backgroundColor: colors.errorTint, borderRadius: radius.lg },
+  stripInner: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md },
   stripIcon: { width: 32, height: 32, borderRadius: radius.sm, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   tools: { flexDirection: 'row', gap: space.sm },
-  tool: { minHeight: touch - 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: space.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  tool: { minHeight: touch - 6, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  toolInner: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: space.sm },
   toolIcon: { width: touch - 6 },
   toolOn: { borderColor: colors.primary, backgroundColor: colors.primaryTint },
   toolText: { color: colors.text, flexShrink: 1 },
@@ -366,7 +376,8 @@ const styles = StyleSheet.create({
   dot: { width: 10, height: 10, borderRadius: 5 },
   count: { color: colors.text, fontFamily: fonts.number },
   none: { textAlign: 'center', paddingVertical: space.xl },
-  card: { backgroundColor: colors.card, borderRadius: radius.md, paddingVertical: space.md, paddingLeft: space.lg, paddingRight: space.md, gap: 4, overflow: 'hidden', ...shadow },
+  card: { backgroundColor: colors.card, borderRadius: radius.md, overflow: 'hidden', ...shadow },
+  cardInner: { paddingVertical: space.md, paddingLeft: space.lg, paddingRight: space.md, gap: 4 },
   cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
   tickBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: colors.placeholder, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card },
   tickBoxOn: { backgroundColor: colors.success, borderColor: colors.success },

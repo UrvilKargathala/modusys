@@ -81,6 +81,14 @@
 	<array>
 		<string>Raleway-Light.ttf</string>
 		<string>Raleway.ttf</string>
+		<string>Manrope-Medium.ttf</string>
+		<string>Raleway-Medium.ttf</string>
+		<string>Raleway-SemiBold.ttf</string>
+		<string>Manrope-SemiBold.ttf</string>
+		<string>Manrope-Regular.ttf</string>
+		<string>Manrope-Bold.ttf</string>
+		<string>Raleway-Bold.ttf</string>
+		<string>Manrope-Light.ttf</string>
 	</array>
 </dict>
 </plist>

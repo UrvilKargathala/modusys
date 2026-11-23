@@ -3,7 +3,8 @@
 // Delete for everyone asks once more first.
 import React, { useEffect, useState } from 'react';
 // Clipboard still ships with React Native (marked as moving out); no extra package for now.
-import { Clipboard, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Clipboard, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { Copy, Forward, Info, Pencil, Reply, Star, StarOff, Trash2 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import type { Message } from '../../api/messages';

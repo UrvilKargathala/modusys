@@ -2,7 +2,7 @@
 // priority, assignee (only a super admin can give a task to someone else, as on the website) and a linked customer.
 // Editing is for the super admin only (the server refuses others); the task comes from the CRM's task list.
 import React, { useLayoutEffect, useMemo, useState } from 'react';
-import { Text } from 'react-native';
+import { Text } from '../../components/Text';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';

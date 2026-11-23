@@ -3,7 +3,8 @@
 // today or overdue) · Upcoming (later or no date) · Done. Tap the circle to
 // mark a task done (with Undo); tap the row for the details sheet.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CalendarCheck, CheckCircle2, ClipboardList } from 'lucide-react-native';
@@ -15,6 +16,7 @@ import { usePullRefresh } from '../../lib/usePullRefresh';
 import type { RootStackParamList } from '../../navigation/types';
 import { colors, fonts, radius, shadow, space, type } from '../../theme/tokens';
 import { useUser } from '../../auth/AuthProvider';
+import { glassOn } from '../../components/glass';
 import { TaskRow, TaskSheet, useCrmTasks, useCustomerNames, useToday, useToggleTask, useUserNames } from './taskParts';
 
 const EMPTY: Record<TaskTab, { title: string; text: string }> = {
@@ -199,7 +201,7 @@ export function TasksPanel() {
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1, backgroundColor: colors.background },
+  fill: { flex: 1, backgroundColor: glassOn ? 'transparent' : colors.background }, // CRM's glass backdrop shows through
   body: { paddingHorizontal: space.screen, paddingTop: space.md, gap: space.lg },
   gap: { gap: space.sm },
   counts: { flexDirection: 'row', gap: space.md },

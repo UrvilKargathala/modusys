@@ -1,7 +1,8 @@
 // The chat's follow-up sheets (M6b, chat pass 2), opened from a message's long-press menu:
 // Edit your own text, Forward to another customer's chat, and Message info (who read it, when).
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { useQuery } from '@tanstack/react-query';
 import { Check } from 'lucide-react-native';
 import type { Customer, OrgUser } from '../../api/customers';

@@ -2,8 +2,40 @@
   "migIndex": 1,
   "data": [
     {
+      "path": "assets/fonts/Manrope-Bold.ttf",
+      "sha1": "a2ce9eba3156407cc1194946ee9527f89cb9ffb2"
+    },
+    {
+      "path": "assets/fonts/Manrope-Light.ttf",
+      "sha1": "0426b4cafd7e37c81e9f881b532b572a62979335"
+    },
+    {
+      "path": "assets/fonts/Manrope-Medium.ttf",
+      "sha1": "ff241f166dd8c6dbcc7b7c8494037fb8358f2584"
+    },
+    {
+      "path": "assets/fonts/Manrope-Regular.ttf",
+      "sha1": "b51db9724637aa7892d84926399697ca3439fc2a"
+    },
+    {
+      "path": "assets/fonts/Manrope-SemiBold.ttf",
+      "sha1": "842b52cae7d844c45f98d354cc31ffec329973d4"
+    },
+    {
+      "path": "assets/fonts/Raleway-Bold.ttf",
+      "sha1": "633fc874da0a04f51950f11729651f14718778d4"
+    },
+    {
       "path": "assets/fonts/Raleway-Light.ttf",
       "sha1": "e9eb86427eaa4fe7e05e32902fc35742dcee4ccb"
+    },
+    {
+      "path": "assets/fonts/Raleway-Medium.ttf",
+      "sha1": "a9a82617db2caca029742885ea86e2384b512dc7"
+    },
+    {
+      "path": "assets/fonts/Raleway-SemiBold.ttf",
+      "sha1": "60b619bc3a65fbd7497eebca05550e916fbb0ac9"
     },
     {
       "path": "assets/fonts/Raleway.ttf",

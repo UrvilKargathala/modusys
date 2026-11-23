@@ -1,7 +1,8 @@
 // My Leaves (M5b step 7), as the website's My Leaves: your leave requests (pending first) with the reviewer's note,
 // Apply for leave, and cancel a pending one. Leave Approvals (step 8, super admin) is in LeaveApprovalsScreen.
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarOff } from 'lucide-react-native';

@@ -2,7 +2,8 @@
 // columns, where the phone checked in, and the one button for what comes next.
 // Shown on Home; the same rules as the Attendance tab's today card.
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { MapPin } from 'lucide-react-native';
 import type { AttendanceRecord } from '../../api/attendance';
 import { Button, Card, Skeleton, StatusBadge } from '../../components/ui';

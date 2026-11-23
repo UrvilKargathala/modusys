@@ -4,7 +4,8 @@
 // thumbnails; voice notes play here and PDFs open in the phone's own viewer (a 2-minute link).
 // Voice notes play here (ChatComposer.tsx records them; the message box with 📎, @ and 🎤 lives there too).
 import React, { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { FileText, Forward, ListTodo, Pause, Play, Star } from 'lucide-react-native';
 import { voiceLink, type Message } from '../../api/messages';
 import { openFile } from '../../lib/files';

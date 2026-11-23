@@ -7,6 +7,7 @@
 import React from 'react';
 import { AppState, StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { ApiError } from './src/api/client';
@@ -38,7 +39,8 @@ const navTheme = {
 
 function App() {
   return (
-    <SafeAreaProvider>
+    <GestureHandlerRootView style={rootStyle}>
+      <SafeAreaProvider>
       <StatusBar barStyle="dark-content" />
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
@@ -47,8 +49,11 @@ function App() {
           </NavigationContainer>
         </AuthProvider>
       </QueryClientProvider>
-    </SafeAreaProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const rootStyle = { flex: 1 };
 
 export default App;

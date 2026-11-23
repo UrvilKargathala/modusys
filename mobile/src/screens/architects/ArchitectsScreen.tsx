@@ -1,7 +1,8 @@
 // Architect Master (M6b): the website's architects list on the phone. Search by name, company, mobile or city; tap one to
 // see and edit it; + adds one. Each row shows how many customers name that architect.
 import React, { useLayoutEffect, useMemo, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Plus } from 'lucide-react-native';

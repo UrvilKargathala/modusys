@@ -2,7 +2,8 @@
 // hours, unpaid break, late grace, weekly off days, observes holidays); pay (monthly salary or hourly rate, overtime and its
 // multiplier). The same rules as the website (shared/employee-schema.ts, checked again on the server).
 import React, { useLayoutEffect, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, View } from 'react-native';
+import { Text } from '../../components/Text';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';

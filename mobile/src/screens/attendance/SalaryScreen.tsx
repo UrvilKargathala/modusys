@@ -3,7 +3,8 @@
 // deductions, final payable; "Needs setup" when the schedule or rate is missing); tap for Finalize / Reopen (asks first)
 // and their calendar. Finalizing freezes that month's pay; the server refuses an unfinished month or open days.
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Lock } from 'lucide-react-native';

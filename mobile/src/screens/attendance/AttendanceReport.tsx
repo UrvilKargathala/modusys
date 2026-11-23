@@ -2,7 +2,8 @@
 // From / To range, department and employee filters; the eight totals; one card per employee (days present out of working
 // days, full / half days, hours, late, early exits, leave, absent). Numbers come from backend/server/attendance-report.ts.
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getAttendanceReport, type ReportQuery, type ReportRow } from '../../api/attendance';
 import { DateField, SelectField } from '../../components/form';

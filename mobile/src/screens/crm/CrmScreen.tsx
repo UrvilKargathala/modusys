@@ -5,8 +5,9 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Plus } from 'lucide-react-native';
+import { Plus, Search } from 'lucide-react-native';
 import { IconButton, Segmented, Title } from '../../components/ui';
+import { GlassBackdrop } from '../../components/glass';
 import type { RootStackParamList, TabParamList } from '../../navigation/types';
 import { colors, space } from '../../theme/tokens';
 import { TasksPanel } from '../tasks/TasksPanel';
@@ -28,13 +29,17 @@ export function CrmScreen() {
 
   return (
     <SafeAreaView style={styles.fill} edges={['top', 'left', 'right']}>
+      <GlassBackdrop />
       <View style={styles.head}>
         {/* As the website: New Customer on Tickets, Create Task on Tasks. */}
         <Title
           right={
-            tab === 'tickets'
-              ? <IconButton icon={Plus} label="New customer" onPress={() => nav.navigate('CustomerForm')} />
-              : <IconButton icon={Plus} label="Create task" onPress={() => nav.navigate('TaskForm')} />
+            <View style={styles.titleIcons}>
+              <IconButton icon={Search} label="Search" onPress={() => nav.navigate('Search')} />
+              {tab === 'tickets'
+                ? <IconButton icon={Plus} label="New customer" onPress={() => nav.navigate('CustomerForm')} />
+                : <IconButton icon={Plus} label="Create task" onPress={() => nav.navigate('TaskForm')} />}
+            </View>
           }
         >
           {tab === 'tickets' ? 'CRM · Tickets' : 'CRM · Tasks'}
@@ -54,6 +59,7 @@ export function CrmScreen() {
 }
 
 const styles = StyleSheet.create({
+  titleIcons: { flexDirection: 'row', gap: space.sm },
   fill: { flex: 1, backgroundColor: colors.background },
   head: { paddingHorizontal: space.screen, paddingTop: space.lg, gap: space.md },
 });

@@ -2,17 +2,8 @@
 // Modusys wordmark, and a white card with a rounded top that rises over it.
 // Used by Sign In and by the forced "Set a new password" screen.
 import React, { createContext, useCallback, useEffect, useRef } from 'react';
-import {
-  Keyboard,
-  KeyboardAvoidingView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { Keyboard, KeyboardAvoidingView, ScrollView, StatusBar, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
+import { Text } from './Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { colors, fonts, radius, space } from '../theme/tokens';

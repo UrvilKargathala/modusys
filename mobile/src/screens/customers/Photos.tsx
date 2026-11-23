@@ -4,7 +4,8 @@
 // in place. Tap a photo for the full-screen viewer (swipe between photos).
 // Videos and documents show as named tiles; tap one to open it in the phone's own player / viewer (a 2-minute link).
 import React, { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../../components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { FileText, ImagePlus, Images, Video, X } from 'lucide-react-native';

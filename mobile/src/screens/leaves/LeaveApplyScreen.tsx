@@ -2,7 +2,8 @@
 // (First / Second half, one date only), the working days it counts, and a reason. The server checks overlaps,
 // working days and that you're linked to an employee; its message shows as is.
 import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check } from 'lucide-react-native';

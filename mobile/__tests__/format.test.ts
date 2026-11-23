@@ -9,7 +9,7 @@ import { byStage, inOfferRange, taskSummary } from '../src/lib/pipeline';
 import { leaveDays, leaveTypeLabel, weekdaysBetween } from '../src/lib/leaves';
 import { mentionQuery } from '../src/lib/mentions';
 import { monthGrid, stepMonth } from '../src/lib/calendar';
-import { notificationGroup, notificationStyle, notificationTaskId, timeAgo } from '../src/lib/notifications';
+import { mergeNotifications, notificationGroup, notificationStyle, notificationTaskId, timeAgo } from '../src/lib/notifications';
 import { defaultDashboardRange, wonOpen } from '../src/lib/dashboard';
 
 test('rupees use Indian grouping', () => {
@@ -207,4 +207,18 @@ test('dashboard: default range and conversion follow the website', () => {
   expect(wonOpen([{ status: 'draft', count: 21 }, { status: 'approved', count: 0 }, { status: 'in-procurement', count: 8 }, { status: 'cancelled', count: 3 }]))
     .toEqual({ won: 8, open: 21, wonPct: (8 / 29) * 100 });
   expect(wonOpen([]).wonPct).toBe(0);
+});
+
+test('bell: stored and live items in one list, newest first, live read state from the phone', () => {
+  const stored = [{ id: 's1', userId: 'u', type: 'assigned', relatedTaskId: 't1', message: 'A', read: false, createdAt: '2026-11-20T10:00:00Z' }];
+  const live = [
+    { id: 'lead-c1', kind: 'new-lead' as const, message: 'New lead: Mehta', createdAt: '2026-11-21T09:00:00Z', customerId: 'c1' },
+    { id: 'task-assigned-t2', kind: 'task-assigned' as const, message: 'Vipul assigned you: Site visit', createdAt: '2026-11-19T09:00:00Z', taskId: 't2' },
+  ];
+  const all = mergeNotifications(stored, live, new Set(['lead-c1']));
+  expect(all.map((n) => n.id)).toEqual(['lead-c1', 's1', 'task-assigned-t2']);
+  expect(all.map((n) => n.read)).toEqual([true, false, false]);
+  expect(notificationStyle(all[0].type).icon).toBe('user-plus');
+  expect(notificationTaskId(all[2])).toBe('t2');
+  expect(notificationTaskId(all[0])).toBeNull();
 });

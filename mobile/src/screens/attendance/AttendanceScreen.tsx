@@ -2,7 +2,8 @@
 // button, today's numbers, the month's counts and the day-by-day log (tap a day
 // for both selfies, places and notes). History covers this month and the two before.
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
@@ -34,7 +35,7 @@ export function AttendanceScreen() {
     <>
       <Title sub={formatDay(istToday())}>Attendance</Title>
       <Segmented
-        options={[{ key: 'mine' as const, label: 'Mine' }, { key: 'team' as const, label: 'Team' }, { key: 'reports' as const, label: 'Reports' }]}
+        options={[{ key: 'mine' as const, label: 'Self' }, { key: 'team' as const, label: 'Team' }, { key: 'reports' as const, label: 'Reports' }]}
         value={view}
         onChange={setView}
       />

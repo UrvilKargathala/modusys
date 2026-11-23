@@ -2,7 +2,8 @@
 // until Send), @ to mention a team member (the server gives them a follow-up task and a notification), and 🎤 to
 // record a voice note. Photos go as one message with the typed text as the caption; each PDF as its own message.
 import React, { useEffect, useRef, useState } from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { Camera, FileText, Images, Mic, Paperclip, SendHorizontal, Trash2, X } from 'lucide-react-native';
 import type { OrgUser } from '../../api/customers';
 import { sendImages, sendNote, sendPdf, sendVoice } from '../../api/messages';

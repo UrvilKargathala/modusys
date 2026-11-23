@@ -3,7 +3,8 @@
 // earned, final payable); a month grid coloured by day status; tap a day for its times, hours, pay and place, and Edit
 // times (the times Payroll counts; the real check-in / out never change; locked once the month is finalized).
 import React, { useEffect, useLayoutEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Lock, Pencil } from 'lucide-react-native';

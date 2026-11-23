@@ -1,7 +1,8 @@
 // The quote row the read-only quote figures share (admin Home's Recent quotes, a customer's quotes). Quotes open on the
 // web only, so a row is plain text.
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import type { QuoteSummary } from '../../api/business';
 import { StatusBadge } from '../../components/ui';
 import { formatDate, formatInrWhole } from '../../lib/format';

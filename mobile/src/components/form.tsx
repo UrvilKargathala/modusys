@@ -1,7 +1,8 @@
 // Form pickers for the M5b forms: a dropdown that opens a searchable list in a bottom sheet, and a date field that
 // opens a small calendar. Both look like TextField (label above, white box, error below) and use only theme tokens.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Keyboard, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Keyboard, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Text } from './Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, Check, ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react-native';
 import { colors, radius, space, touch, type } from '../theme/tokens';

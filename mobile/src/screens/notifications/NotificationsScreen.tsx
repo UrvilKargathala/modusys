@@ -1,11 +1,12 @@
-// Notifications (M4, design v2 Prompt 8): the same stored notifications as the
-// web's bell, with the same read state. All · Unread chips, "Mark all as read",
-// groups Today / Yesterday / Earlier, an unread dot. Tapping one marks it read;
-// a task notification opens the task's sheet when the task is yours.
-// Leave and admin notifications (leave requests, time fixes, app errors) open
-// pages the phone doesn't have yet, so tapping those only marks them read.
+// Notifications (M4, design v2 Prompt 8; M6d): the website bell's list. Stored notifications (read state shared with
+// the website) plus its live items: stale quote, quote status, new lead, task assigned to you, your task done (read
+// state kept on this phone, as the website keeps it per browser). All · Unread chips, "Mark all as read", groups
+// Today / Yesterday / Earlier, an unread dot. Tapping one marks it read and opens what it is about: the task's sheet,
+// the customer (quote and lead items; quotes themselves stay on the website), My Leaves / Leave Approvals, or the
+// attendance calendar for a time-fix request. App errors open only on the website.
 import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -16,10 +17,12 @@ import {
   CalendarX2,
   CheckCircle2,
   Clock3,
+  FileText,
   UserPlus,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import type { AppNotification } from '../../api/notifications';
+import { useUser } from '../../auth/AuthProvider';
 import { Card, Chips, EmptyState, Notice, Screen, SkeletonRow } from '../../components/ui';
 import {
   notificationGroup,
@@ -43,6 +46,7 @@ const ICONS: Record<NotificationIcon, LucideIcon> = {
   calendar: CalendarDays,
   'calendar-x': CalendarX2,
   alert: AlertTriangle,
+  file: FileText,
 };
 
 const GROUPS: NotificationGroup[] = ['Today', 'Yesterday', 'Earlier'];
@@ -55,7 +59,7 @@ function Row({ n, opens, last, onPress }: { n: AppNotification; opens: boolean; 
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${unread ? 'Unread. ' : ''}${n.message}, ${timeAgo(n.createdAt)}`}
-      accessibilityHint={opens ? 'Opens the task' : undefined}
+      accessibilityHint={opens ? 'Opens it' : undefined}
       onPress={onPress}
       style={({ pressed }) => [styles.row, last && styles.lastRow, pressed && styles.pressed]}
     >
@@ -73,6 +77,7 @@ function Row({ n, opens, last, onPress }: { n: AppNotification; opens: boolean; 
 
 export function NotificationsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const superAdmin = useUser().role === 'super-admin';
   const notifications = useNotifications();
   const markRead = useMarkRead();
   const tasks = useMyTasks();
@@ -98,10 +103,21 @@ export function NotificationsScreen() {
   const myTask = (id: string | null) => (id ? tasks.data?.find((t) => t.id === id) ?? null : null);
   const openTask = myTask(openTaskId);
 
-  const press = (n: AppNotification) => {
-    if (!n.read) markRead.mutate(n.id);
+  /** Where tapping goes, or null when it only marks read (as the website's use-notification-rows.ts). */
+  const target = (n: AppNotification): (() => void) | null => {
     const task = myTask(notificationTaskId(n));
-    if (task) setOpenTaskId(task.id);
+    if (task) return () => setOpenTaskId(task.id);
+    const customerId = n.live?.customerId;
+    if (customerId) return () => nav.navigate('CustomerDetail', { id: customerId, name: customerName(customerId) ?? 'Customer' });
+    if (n.type === 'leave-requested' && superAdmin) return () => nav.navigate('LeaveApprovals');
+    if (n.type === 'leave-approved' || n.type === 'leave-rejected') return () => nav.navigate('Leaves');
+    if (n.type === 'attendance-correction' && superAdmin) return () => nav.navigate('AttendanceCalendar');
+    return null;
+  };
+
+  const press = (n: AppNotification) => {
+    if (!n.read) markRead.mutate(n);
+    target(n)?.();
   };
 
   return (
@@ -119,7 +135,7 @@ export function NotificationsScreen() {
             />
           </View>
           {unreadCount > 0 ? (
-            <Pressable accessibilityRole="button" onPress={() => markRead.mutate('all')} hitSlop={10}>
+            <Pressable accessibilityRole="button" onPress={() => markRead.mutate({ all })} hitSlop={10}>
               <Text style={styles.markAll}>Mark all as read</Text>
             </Pressable>
           ) : null}
@@ -151,7 +167,7 @@ export function NotificationsScreen() {
                   <Row
                     key={n.id}
                     n={n}
-                    opens={!!myTask(notificationTaskId(n))}
+                    opens={!!target(n)}
                     last={i === list.length - 1}
                     onPress={() => press(n)}
                   />

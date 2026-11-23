@@ -1,10 +1,10 @@
 // How each notification type looks and what tapping it opens, following the web
 // (web/lib/notification-style.ts, web/components/layout/use-notification-rows.ts).
-import type { AppNotification } from '../api/notifications';
+import type { AppNotification, LiveNotification } from '../api/notifications';
 import { colors } from '../theme/tokens';
 import { istToday } from './format';
 
-export type NotificationIcon = 'user-plus' | 'clock' | 'check' | 'at' | 'calendar' | 'calendar-x' | 'alert';
+export type NotificationIcon = 'user-plus' | 'clock' | 'check' | 'at' | 'calendar' | 'calendar-x' | 'alert' | 'file';
 
 const STYLES: Record<string, { icon: NotificationIcon; color: string; bg: string }> = {
   assigned: { icon: 'user-plus', color: colors.secondary, bg: colors.secondaryTint },
@@ -16,6 +16,12 @@ const STYLES: Record<string, { icon: NotificationIcon; color: string; bg: string
   'leave-rejected': { icon: 'calendar-x', color: colors.error, bg: colors.errorTint },
   'attendance-correction': { icon: 'clock', color: colors.info, bg: colors.infoTint },
   'app-error': { icon: 'alert', color: colors.error, bg: colors.errorTint },
+  // The website bell's live items (web/lib/notification-style.ts virtualNotificationStyle).
+  'live:stale-quote': { icon: 'alert', color: colors.warningText, bg: colors.warningTint },
+  'live:quote-status': { icon: 'file', color: colors.info, bg: colors.infoTint },
+  'live:new-lead': { icon: 'user-plus', color: colors.secondary, bg: colors.secondaryTint },
+  'live:task-assigned': { icon: 'user-plus', color: colors.secondary, bg: colors.secondaryTint },
+  'live:task-completed': { icon: 'check', color: colors.success, bg: colors.successTint },
 };
 
 /** A type this build doesn't know shows like "completed", as on the web. */
@@ -25,9 +31,28 @@ export function notificationStyle(type: string) {
 
 const TASK_TYPES = ['assigned', 'completed', 'mentioned', 'due-soon'];
 
-/** The task a notification points at, or null when it points at a web page (leaves, admin). */
-export function notificationTaskId(n: Pick<AppNotification, 'type' | 'relatedTaskId'>): string | null {
+/** The task a notification points at, or null when it points at a page (leaves, admin, a customer). */
+export function notificationTaskId(n: Pick<AppNotification, 'type' | 'relatedTaskId' | 'live'>): string | null {
+  if (n.live) return n.live.taskId ?? null;
   return TASK_TYPES.includes(n.type) && n.relatedTaskId ? n.relatedTaskId : null;
+}
+
+/**
+ * The bell's one list, as the website's: stored notifications plus the live items, newest first. A live item is
+ * unread until it is read on this phone (`readIds`).
+ */
+export function mergeNotifications(stored: AppNotification[], live: LiveNotification[], readIds: ReadonlySet<string>): AppNotification[] {
+  const fromLive: AppNotification[] = live.map((n) => ({
+    id: n.id,
+    userId: '',
+    type: `live:${n.kind}`,
+    relatedTaskId: '',
+    message: n.message,
+    read: readIds.has(n.id),
+    createdAt: n.createdAt,
+    live: { kind: n.kind, customerId: n.customerId, taskId: n.taskId },
+  }));
+  return [...stored, ...fromLive].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
 export type NotificationGroup = 'Today' | 'Yesterday' | 'Earlier';

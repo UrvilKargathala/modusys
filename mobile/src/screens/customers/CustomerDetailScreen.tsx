@@ -5,7 +5,8 @@
 // Admins (the roles that see Quotes on the web) also get the customer's quotes on Overview (M5),
 // read-only: a quote opens on the web.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -23,6 +24,7 @@ import { formatDate, formatInrShort } from '../../lib/format';
 import { stageOrFallback } from '../../lib/stages';
 import { usePullRefresh } from '../../lib/usePullRefresh';
 import { canSee } from '../../navigation/access';
+import { GlassBackdrop } from '../../components/glass';
 import type { RootStackParamList } from '../../navigation/types';
 import { QuoteRow } from '../business/parts';
 import { colors, space, touch, type } from '../../theme/tokens';
@@ -295,6 +297,7 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.fill} edges={['left', 'right', 'bottom']}>
+      <GlassBackdrop />
       <View
         ref={rootRef}
         style={styles.fill}

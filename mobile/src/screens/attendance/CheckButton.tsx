@@ -2,7 +2,8 @@
 // Clocky, Cotap): a 140pt circle inside two soft rings, the time under it, and
 // what tapping it does. After check-out it becomes a small "done" card.
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { CircleCheck, Pointer } from 'lucide-react-native';
 import type { AttendanceRecord } from '../../api/attendance';
 import { Card, Skeleton } from '../../components/ui';

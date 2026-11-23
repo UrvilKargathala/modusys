@@ -163,3 +163,14 @@ export function listPlaces() {
 export function deleteCustomer(id: string) {
   return api<{ ok: boolean }>(`/api/customers/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
+
+/** As /api/mobile/search sends it: the website's Ctrl/Cmd+K matches, up to 5 of each (quotes for admin and above). */
+export type SearchResults = {
+  customers: { id: string; name: string; address: string }[];
+  architects: { id: string; name: string; company: string }[];
+  quotes: { id: string; quoteNumber: string; customerId: string | null; customerName: string }[];
+};
+
+export function search(q: string) {
+  return api<SearchResults>(`/api/mobile/search?q=${encodeURIComponent(q)}`);
+}

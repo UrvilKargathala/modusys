@@ -4,12 +4,13 @@
 // the newest quotes (Version B, from /api/mobile/home; read-only, quotes open on the web), then today's tasks (due today or
 // overdue, as on the Tasks tab) and the most recently active customers.
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../components/Text';
 import { useNavigation, type CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import { Bell, CalendarCheck } from 'lucide-react-native';
+import { Bell, CalendarCheck, Search } from 'lucide-react-native';
 import { getToday } from '../api/attendance';
 import { getHomeSummary, type HomeSummary } from '../api/business';
 import { listCustomers } from '../api/customers';
@@ -44,7 +45,12 @@ function useGreetingBar() {
   const first = user.name.split(' ')[0] || user.name;
   const day = istToday();
   const title = (
-    <Title sub={formatDay(day)} right={<IconButton icon={Bell} label="Notifications" dot={unread > 0} onPress={() => nav.navigate('Notifications')} />}>
+    <Title fit sub={formatDay(day)} right={
+        <View style={styles.titleIcons}>
+          <IconButton icon={Search} label="Search" onPress={() => nav.navigate('Search')} />
+          <IconButton icon={Bell} label="Notifications" dot={unread > 0} onPress={() => nav.navigate('Notifications')} />
+        </View>
+      }>
       {istGreeting()}, {first}
     </Title>
   );
@@ -199,6 +205,7 @@ function BusinessSection({ summary }: { summary: UseQueryResult<HomeSummary> }) 
 }
 
 const styles = StyleSheet.create({
+  titleIcons: { flexDirection: 'row', gap: space.sm },
   skelTile: { flexBasis: '47%', flexGrow: 1, gap: space.md },
   padded: { paddingVertical: space.sm },
   section: { gap: space.md },

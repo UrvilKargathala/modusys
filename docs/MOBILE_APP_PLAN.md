@@ -1,6 +1,6 @@
 # Modusys Mobile App: Plan (React Native, local only)
 
-Status (20/11/2026): **M0–M5 on `garage-migration`; M5b built on `work-m5b` (CRM tab like the website, add / edit customer, stage moves, create task, My Leaves, Leave Approvals). M6 (test pass) next.** See "M5b plan" below. Written 12/11/2026 as a plan; sections below are kept up to date as phases finish (see the Roadmap and "Where we are").
+Status (21/11/2026): **M0–M6c live (on `garage-migration`, deployed 21/11/2026: CRM tab and forms, chat, website Dashboard, CRM actions, owner attendance). M6d planned (bell like the website, phone search, then the test pass).** Written 12/11/2026 as a plan; sections below are kept up to date as phases finish (see the Roadmap and "Where we are").
 Goal: one React Native codebase that runs on the iOS Simulator, an Android emulator and real phones from the MacBook M5, talking to the existing modusys backend. No store publishing, no production deploy.
 
 **Decisions so far**
@@ -556,12 +556,51 @@ Phone layout: the Attendance tab gets a Mine | Team switch for the super admin (
 
 **Decided (21/11/2026):** all four yes: Mine | Team on the Attendance tab, Salary / Employees under More > Payroll; Salary includes Finalize (asks first); Employees includes add / edit and holidays; Calendar includes Edit times.
 
-**M6c built (21/11/2026, `work-m5b`, not committed). No database change, no new package.**
-- Attendance tab (super admin): Mine | Team | Reports. **Team**: day picker, the website's four headline numbers vs the last 7 days, Full / Half / Late / Still-in chips, everyone who checked in (times, hours, late / early, source), tap → both selfies, place, note, Maps link, "See their month"; "Not checked in" list (absent / leave). **Reports**: This week / This month / Last month / Custom, department and employee filters, the eight totals, a card per employee.
+**M6c done and live (21/11/2026, commit `4d59dd3`, deployed). No database change, no new package.**
+- Attendance tab (super admin): Self | Team | Reports. **Team**: day picker, the website's four headline numbers vs the last 7 days, Full / Half / Late / Still-in chips, everyone who checked in (times, hours, late / early, source), tap → both selfies, place, note, Maps link, "See their month"; "Not checked in" list (absent / leave). **Reports**: This week / This month / Last month / Custom, department and employee filters, the eight totals, a card per employee.
 - **Calendar** (from Team or Salary): employee picker, month grid coloured by status with hours, the website's eight totals, tap a day → times (real vs edited), worked / payable, pay, places; **Edit times** (HH:MM; real times kept; locked when the month is finalized).
 - More > Payroll: **Salary** (month picker, totals, "needs setup" warning, a card per employee; tap → full breakdown, open calendar, **Finalize / Reopen** with confirm; blocked with the reason when the month isn't over, setup is missing or days are open). **Employees** (list with schedule / pay or "missing"; + Add / tap to Edit with the website's form and rules; **Holidays**: add a day or range, remove with confirm).
 - Server: the website's Attendance and Reports pages now get their numbers from `backend/server/team-attendance.ts` and `backend/server/attendance-report.ts` (moved out of the pages, so the website and the phone share them). New read-only routes `/api/mobile/attendance/{team,report,calendar,payroll,employees}` (super admin); writes use the website's existing routes.
 - Checked against the website for the same day / period: Team 16/11 (1 of 11, Chirag's row), Reports October (all totals and rows), Calendar October for Staging Test Employee (all eight totals), Salary October (7 employees, 154h 30m, ₹24,375.45). Tested on staging and put back: edit times (₹24,375.45 → ₹24,527.96 → reset), finalize + reopen (Vipul Dodiya, October), edit an employee (designation, then cleared), add + remove a holiday (12/09/2026). No test employee was created (employees can't be deleted).
+
+### M6d plan: last gaps, then the test pass (planned 21/11/2026; built 21/11/2026, not committed)
+
+M6a–M6c are live. Compared again with the website's menu as super admin, what is left:
+
+| # | Gap | Website today | Phone today | Proposal |
+|---|---|---|---|---|
+| 1 | **Bell items** | Stored notifications **plus** five live items worked out in the browser (`web/lib/notifications-feed.ts`): stale quote, quote status change, new lead, task assigned to you, task you assigned is done. Their read state is in each browser's localStorage | Stored notifications only, so the count differs from the website | Move `getVirtualNotifications` to `shared/` (plain code; the website imports it from there). New read-only `GET /api/mobile/notifications/live` works them out on the server for the signed-in user. The phone merges them into the bell and Notifications with the same icons and taps (customer / task). Read state: see question 1 |
+| 2 | **Search** | Ctrl/Cmd+K: customers (name, address), architects (name, company), quotes (number, customer) | Search only inside CRM Tickets and the Architect list | A search button on Home and CRM: customers and architects open their screens; a quote result opens its customer (quotes stay web-only) |
+| 3 | **Test pass** (the original M6, §9) | — | Never done end to end | Admin login (a throwaway admin on staging, deleted after), staff again with the M5b–M6c screens, iPhone SE and Pro Max simulators, large system font, slow network and airplane mode, a release build on the OPPO and the simulator, a real check-in and check-out on the OPPO. Fix what it finds |
+
+**Stays as it is:** Customer Master's table and CSV import (the CRM List covers browsing), Settings > Photo privacy, section E. Notifications in real time / push stays "later" (F).
+
+**Optional, needs your OK first (cosmetic):** bold Raleway and Manrope font files; swipe-to-complete on tasks (`react-native-gesture-handler`); a live selfie camera with the face frame (`react-native-vision-camera`).
+
+**Proposed order:** 1 → 2 → 3. Each step: build, check on the iPhone and the OPPO against staging, compare with the website, commit.
+
+**Open questions**
+1. Read state of the live bell items: (a) the phone keeps its own list (needs the AsyncStorage package; reading on the phone doesn't mark it read on the website), or (b) one small new table so the website and the phone share it (a database change: additive, staging first, backup before live).
+2. Search: customers + architects + quotes (quote opens its customer), or customers + architects only?
+3. Any of the optional cosmetic items?
+
+**Decided (21/11/2026):** search finds customers, architects and quotes (a quote opens its customer); all three optional items are in (bold Raleway + Manrope font files, swipe-to-complete with `react-native-gesture-handler`, live selfie camera with `react-native-vision-camera`); the test pass is part of M6d, at the end. Bell read state: the phone keeps its own (`@react-native-async-storage/async-storage`, no database change); reading on the phone does not clear it on the website.
+
+**M6d built (21/11/2026, `work-m5b`, not committed). No database change. New packages (approved): async-storage, gesture-handler 2, vision-camera 5 + nitro-image.**
+- **Bell:** `shared/notifications-feed.ts` (moved from `web/lib/`, the website imports it from there) + `backend/server/live-notifications.ts` + `GET /api/mobile/notifications`. The phone merges the live items into the bell, More and Notifications; read ticks on the phone. Taps open the task, the customer (quote / lead items), My Leaves / Leave Approvals, or the attendance calendar (time-fix). Checked: phone 70 / 29 unread = website 29 (48 stored + 22 live); read survives a restart; the OPPO keeps its own ticks.
+- **Search:** `backend/server/mobile-search.ts` + `GET /api/mobile/search?q=` (the website's Ctrl/Cmd+K matches, up to 5 of each; quotes for admin and above). Search button on Home and CRM. Checked: "aesha" gives the same customer and 3 quotes as the website; staff get no quotes.
+- **Fonts:** static Raleway Medium / SemiBold / Bold and Manrope Regular–Bold (Google Fonts files from the `@expo-google-fonts` packages). Headings bold, numbers in Manrope, on both phones. The greeting shrinks to fit two lines.
+- **Swipe to complete:** swipe a task left (Done, or Not done on the Done tab), same Undo as the tick. Tested on both phones and put back.
+- **Live selfie camera:** the front camera inside the face frame, "Take selfie" saves a 480×640 JPEG; simulator (no camera) falls back to the phone's camera app / saved photo. Tested on the OPPO (no check-in sent). Camera permission is asked once.
+- **Test pass:** staff (iPhone 17e, small) and admin (iPhone 18 Pro Max, large) with throwaway users (deleted): screens and menus follow the website's roles; the server answers 403 to staff on every owner route and to admin on the super admin ones. Large system font: list rows, section links and tab labels fixed so nothing is cut off. No connection: clear message, last data kept, recovers by itself. Slow connection (3 s per request): cached screens show at once; search shows "Searching…".
+- **Real check-in / check-out (OPPO, staging):** new staff user Urvil Kargathala (urvilk1542@gmail.com, linked to the existing employee record Urvil Kargathala). In 04:36 pm, out 04:38 pm, without location, selfies from the live camera: the website's Team Attendance shows the same row (0h 1m, Half Day, late 381 min, left 112 min early, Remote Check-in) and both selfies at 480×640. The record stays on staging.
+- **Release build:** the Android release builds, installs and opens on the OPPO, and reaches the live site over HTTPS. Note: release builds talk to the live site (`src/config.ts`), so the staging login on the phone was refused and the app signed out; nothing was tested against live data. The debug build is back on the OPPO. The iOS Release build was not run.
+- **iPhone glass look (asked 21/11/2026: everything, Apple Liquid Glass, iPhone only):** `src/components/glass.tsx` (`Glass` = Liquid Glass on iOS 26+, the same solid View elsewhere; `GlassBackdrop` = soft colour washes behind screens). Glass: cards, KPI tiles, bottom sheets, round icon buttons, the tab bar (clear glass, selected tab in the brand colour), CRM strip, filter buttons, stage columns and ticket cards. Inputs stay solid. New package @callstack/liquid-glass. The OPPO looks as before.
+- **Settings (asked 21/11/2026; same for every role):** More > Account > Settings: your profile (name, email; role shown, set by the super admin on the website). Saves through the website's `PATCH /api/users/:id` (anyone may edit themselves); that route now answers 409 "That email is already used by another user." instead of a server error. Tested: duplicate email refused (iPhone, nothing saved); name changed and changed back for Urvil on the OPPO, seen on the website.
+- **Tab bar (21/11/2026):** the strip behind the floating pill is clear on Android too (no grey band); the More tab is now **Account** (person icon; the page title too, its group renamed "My account"; the route name stays `More`).
+- **Numbers like the website (21/11/2026):** `src/components/Text` wraps React Native's Text and sets every digit and ₹ in Manrope (Light / Regular / Medium / SemiBold / Bold, following the words around them), like the website's Manrope digits face in front of every font. All 43 screens and parts import it; a lint rule blocks Text from 'react-native'. Number boxes (number, decimal, phone keyboards) type in Manrope. Manrope Light added. Tab bar on Android: white pill like the iPhone.
+- **Found on the website (not fixed):** User Management's "Invite New User" never saves the password and leaves the user "invited", so an invited user can't sign in; there is no button to activate them.
+- **Follow-up:** the website's attendance Reports is open to everyone (their own figures); on the phone Reports is only in the super admin's switch.
 
 ## Open questions
 

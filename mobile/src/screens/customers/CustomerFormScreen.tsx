@@ -1,7 +1,8 @@
 // Add or edit a customer: the website's Customer form on the phone (M5b steps 3 and 4).
 // Same fields, same rules (shared/customer-rules.ts), same customer code; saved through /api/customers.
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Controller, useForm, useWatch, type Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';

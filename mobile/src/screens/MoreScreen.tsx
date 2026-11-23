@@ -1,10 +1,11 @@
 // More (design v2, Prompt 12): profile card, the owner screens for admins
 // (same roles as the web nav), account actions, and the app version.
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../components/Text';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BarChart3, Bell, Building2, IdCard, IndianRupee, CalendarOff, CheckSquare, ChevronRight, KeyRound, LogOut, Palette } from 'lucide-react-native';
+import { BarChart3, Bell, Settings as SettingsIcon, Building2, IdCard, IndianRupee, CalendarOff, CheckSquare, ChevronRight, KeyRound, LogOut, Palette } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { roles } from '@shared/constants/roles';
 import { useAuth, useUser } from '../auth/AuthProvider';
@@ -66,7 +67,7 @@ export function MoreScreen() {
 
   return (
     <Screen>
-      <Title>More</Title>
+      <Title>Account</Title>
 
       <Card style={styles.profile}>
         <Avatar name={user.name} size={56} />
@@ -106,7 +107,8 @@ export function MoreScreen() {
         {canSee('LeaveApprovals', user.role) ? <Row icon={CheckSquare} label="Leave Approvals" onPress={() => nav.navigate('LeaveApprovals')} /> : null}
       </Group>
 
-      <Group title="Account">
+      <Group title="My account">
+        <Row icon={SettingsIcon} label="Settings" onPress={() => nav.navigate('Settings')} />
         <Row icon={Bell} label="Notifications" count={unread} onPress={() => nav.navigate('Notifications')} />
         <Row icon={KeyRound} label="Change password" onPress={() => nav.navigate('ChangePassword')} />
         <Row icon={LogOut} label="Sign out" danger onPress={() => setConfirmSignOut(true)} />

@@ -1,24 +1,26 @@
-// The floating tab bar: a dark rounded pill just above the bottom edge (above the iPhone home
-// indicator / Android's button bar), with a thin light rim. The selected tab sits in a darker
+// The floating tab bar: a white rounded pill (glass on the iPhone) just above the bottom edge (above the iPhone home
+// indicator / Android's button bar), with a thin grey rim. The selected tab sits in a brand-blue
 // rounded pill that holds both its icon and its label.
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../components/Text';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, radius, space, tabBar } from '../theme/tokens';
+import { Glass, glassOn } from '../components/glass';
 
 export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   return (
-    // The strip behind the pill (to the screen's bottom edge) has the screen colour, so lists scrolling
-    // underneath never show through the gap below the pill or around its rounded ends.
+    // The pill floats: the strip behind it is clear on every phone (21/11/2026), so lists scroll visibly underneath.
+    // On the iPhone (Liquid Glass) the pill is light glass with the screen showing through.
     <View style={[styles.wrap, { paddingBottom: insets.bottom + tabBar.gap }]}>
-      <View style={styles.bar} accessibilityRole="tablist">
+      <Glass style={[styles.bar, glassOn && styles.barGlass]} accessibilityRole="tablist">
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const focused = state.index === index;
           const label = typeof options.title === 'string' ? options.title : route.name;
-          const tint = focused ? colors.white : colors.onDark;
+          const tint = focused ? colors.white : colors.text;
 
           const onPress = () => {
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -38,16 +40,16 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             >
               {/* Android drops the rounding when a background is added after the first draw, so every
                   item always has one (the bar's colour when not selected) and only the colour changes. */}
-              <View style={[styles.pill, focused && styles.pillOn]}>
+              <View style={[styles.pill, glassOn && styles.pillGlass, focused && styles.pillOn]}>
                 {options.tabBarIcon?.({ focused, color: tint, size: 22 })}
-                <Text style={[styles.label, { color: tint }]} numberOfLines={1}>
+                <Text style={[styles.label, { color: tint }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>
                   {label}
                 </Text>
               </View>
             </Pressable>
           );
         })}
-      </View>
+      </Glass>
     </View>
   );
 }
@@ -60,34 +62,35 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingHorizontal: space.md,
     paddingTop: space.xs,
-    backgroundColor: colors.background,
   },
   bar: {
     height: tabBar.height,
     borderRadius: radius.pill,
-    backgroundColor: colors.dark,
+    backgroundColor: colors.card, // white pill on every phone (21/11/2026); the iPhone draws it as clear glass
     borderWidth: 1,
-    borderColor: colors.darkEdge,
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     padding: 5,
     shadowColor: colors.dark,
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.14,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
     elevation: 10,
   },
   item: { flex: 1, height: '100%' },
+  barGlass: { borderWidth: 0 },
+  pillGlass: { backgroundColor: 'transparent', borderColor: 'transparent' },
   pill: {
     flex: 1,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.dark,
-    backgroundColor: colors.dark,
+    borderColor: colors.card,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
   },
-  pillOn: { backgroundColor: colors.darkSelected, borderColor: colors.darkEdge },
+  pillOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   label: { fontSize: 11, fontWeight: '600', fontFamily: fonts.body },
 });

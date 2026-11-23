@@ -1,7 +1,8 @@
 // Leave Approvals (M5b step 8, super admin only), as the website's page: Pending (default) and All, each request
 // with Approve / Reject and an optional note. The employee gets the website's approved / rejected notification.
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../../components/Text';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2 } from 'lucide-react-native';
 import { listLeaves, reviewLeave, type Leave } from '../../api/leaves';

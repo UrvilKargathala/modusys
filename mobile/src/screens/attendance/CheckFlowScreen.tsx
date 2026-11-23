@@ -1,10 +1,13 @@
 // Check in / Check out in three steps, like the web: location, selfie, confirm
 // (design v2, Prompt 4). GPS is best-effort (the server accepts a check-in
 // without it); the selfie is required, and taking and sending it is the
-// consent, exactly as on the web. The selfie opens the phone's own camera
-// (react-native-image-picker); the face frame sits around the preview here.
+// consent, exactly as on the web. The selfie is taken in the app (M6d): the front camera's live picture inside the
+// face frame (SelfieCamera, react-native-vision-camera). Without a front camera (simulator) it falls back to the
+// phone's own camera app (react-native-image-picker), as before.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Image, Linking, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { SelfieCamera, type SelfieCameraHandle, type SelfieCameraState } from './SelfieCamera';
+import { Animated, Image, Linking, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '../../components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
@@ -74,9 +77,18 @@ export function CheckFlowScreen({ route, navigation }: Props) {
     findPlace();
   }, [findPlace]);
 
-  const capture = async (fromLibrary = false) => {
+  const camera = useRef<SelfieCameraHandle>(null);
+  const [camState, setCamState] = useState<SelfieCameraState>('starting');
+  const [shooting, setShooting] = useState(false);
+
+  const capture = async (source: 'live' | 'app' | 'library' = 'live') => {
     setPhotoError(null);
-    const res = fromLibrary ? await pickTestPhoto() : await takeSelfie();
+    if (source === 'live') setShooting(true);
+    const res =
+      source === 'library' ? await pickTestPhoto()
+      : source === 'live' && camera.current ? await camera.current.capture()
+      : await takeSelfie();
+    setShooting(false);
     if (res.ok) {
       setPhoto(res.photo.uri);
       return;
@@ -168,24 +180,30 @@ export function CheckFlowScreen({ route, navigation }: Props) {
         step={step}
         footer={
           <>
-            {photoError?.settings ? <Button label="Open Settings" onPress={() => Linking.openSettings()} /> : null}
-            {photoError?.noCamera && __DEV__ ? (
-              <Button label="Use a saved photo (simulator only)" variant="secondary" onPress={() => capture(true)} />
+            {photoError?.settings || (!photo && camState === 'denied') ? <Button label="Open Settings" onPress={() => Linking.openSettings()} /> : null}
+            {(photoError?.noCamera || camState === 'no-camera') && __DEV__ && !photo ? (
+              <Button label="Use a saved photo (simulator only)" variant="secondary" onPress={() => capture('library')} />
             ) : null}
             {photo ? (
               <>
                 <Button label="Use photo" onPress={() => setStep('confirm')} />
-                <Button label="Retake" variant="text" onPress={() => capture()} />
+                <Button label="Retake" variant="text" onPress={() => { setPhoto(null); setPhotoError(null); }} />
               </>
-            ) : (
-              <Button label="Open camera" onPress={() => capture()} />
-            )}
+            ) : camState === 'ready' ? (
+              <Button label="Take selfie" onPress={() => capture('live')} loading={shooting} />
+            ) : camState === 'no-camera' ? (
+              <Button label="Open camera" onPress={() => capture('app')} />
+            ) : null}
           </>
         }
       >
-        <FaceFrame photo={photo} />
+        <FaceFrame photo={photo} live={<SelfieCamera ref={camera} active={step === 'selfie' && !photo} onState={setCamState} />} />
         <Text style={[type.body, styles.muted, styles.center]}>
-          {photo ? 'Is your face clear and inside the frame?' : 'Keep your face inside the frame. Use the front camera in good light.'}
+          {photo
+            ? 'Is your face clear and inside the frame?'
+            : camState === 'denied'
+              ? 'Camera access is off for Modusys. Turn it on in Settings to take your selfie.'
+              : 'Keep your face inside the frame, in good light.'}
         </Text>
         {photoError ? <Notice text={photoError.text} /> : null}
       </StepLayout>
@@ -323,8 +341,8 @@ function PlaceView({ place }: { place: Place }) {
   );
 }
 
-/** A 3:4 box with corner brackets: the photo once taken, otherwise a face hint. */
-function FaceFrame({ photo }: { photo: string | null }) {
+/** A 3:4 box with corner brackets: the photo once taken, otherwise the live camera over a face hint. */
+function FaceFrame({ photo, live }: { photo: string | null; live?: React.ReactNode }) {
   const { width } = useWindowDimensions();
   const w = Math.min(280, Math.round(width * 0.68));
   const h = Math.round((w * 4) / 3);
@@ -335,6 +353,7 @@ function FaceFrame({ photo }: { photo: string | null }) {
       ) : (
         <View style={styles.frameEmpty}>
           <ScanFace size={72} color={colors.primary} strokeWidth={1} />
+          {live}
         </View>
       )}
       <View style={[styles.corner, styles.tl]} />
@@ -393,6 +412,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryTint,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden', // clips the live camera to the rounded frame
   },
   corner: { position: 'absolute', width: CORNER, height: CORNER, borderColor: colors.primary },
   tl: { top: -6, left: -6, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: radius.lg },

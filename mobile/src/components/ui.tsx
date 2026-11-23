@@ -1,21 +1,7 @@
 // Shared building blocks. Screens use these instead of their own markup.
 import React, { useContext, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  KeyboardAvoidingView,
-  Modal,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  type TextInputProps,
-  View,
-  type DimensionValue,
-  type ViewStyle,
-} from 'react-native';
+import { ActivityIndicator, Animated, KeyboardAvoidingView, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, type TextInputProps, View, type DimensionValue, type ViewStyle } from 'react-native';
+import { Text } from './Text';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import Svg, { Circle } from 'react-native-svg';
@@ -24,6 +10,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { colors, fonts, radius, shadow, space, tabBar, touch, type } from '../theme/tokens';
 import type { Stage } from '../lib/stages';
 import { RevealFocusedField } from './AuthLayout';
+import { Glass, GlassBackdrop } from './glass';
 import { attendanceConfig, isAttendanceKey, isLeaveStatusKey, leaveStatusConfig, statusConfig, isStatusKey } from '../lib/status';
 
 /** Room a scrolling screen leaves at the bottom so the docked tab bar never covers its last row. */
@@ -45,6 +32,7 @@ export function Screen({ children, scroll = true, edges, refreshing, onRefresh }
   const bottomSpace = useTabBarSpace();
   return (
     <SafeAreaView style={styles.screen} edges={edges ?? ['top', 'left', 'right']}>
+      <GlassBackdrop />
       {scroll ? (
         <ScrollView
           contentContainerStyle={[styles.screenBody, { paddingBottom: bottomSpace }]}
@@ -64,12 +52,17 @@ export function Screen({ children, scroll = true, edges, refreshing, onRefresh }
   );
 }
 
-/** Large screen title; `right` holds a round icon button such as the notifications bell. */
-export function Title({ children, sub, right }: { children: React.ReactNode; sub?: string; right?: React.ReactNode }) {
+/**
+ * Large screen title; `right` holds round icon buttons such as search and the notifications bell. `fit` keeps a long
+ * title (the greeting) to two lines on narrow phones by shrinking it a little.
+ */
+export function Title({ children, sub, right, fit }: { children: React.ReactNode; sub?: string; right?: React.ReactNode; fit?: boolean }) {
   return (
     <View style={styles.titleRow}>
       <View style={styles.titleBlock}>
-        <Text style={type.title} accessibilityRole="header">{children}</Text>
+        <Text style={type.title} accessibilityRole="header" {...(fit ? { numberOfLines: 2, adjustsFontSizeToFit: true, minimumFontScale: 0.7 } : {})}>
+          {children}
+        </Text>
         {sub ? <Text style={[type.body, styles.sub]}>{sub}</Text> : null}
       </View>
       {right}
@@ -85,16 +78,18 @@ export function IconButton({ icon: Icon, label, onPress, dot }: {
   dot?: boolean;
 }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={dot ? `${label}, unread` : label}
-      onPress={onPress}
-      hitSlop={4}
-      style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-    >
-      <Icon size={20} color={colors.text} strokeWidth={1.5} />
-      {dot ? <View style={styles.iconDot} /> : null}
-    </Pressable>
+    <Glass style={styles.iconButton} interactive>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={dot ? `${label}, unread` : label}
+        onPress={onPress}
+        hitSlop={4}
+        style={({ pressed }) => [styles.iconPress, pressed && styles.pressed]}
+      >
+        <Icon size={20} color={colors.text} strokeWidth={1.5} />
+        {dot ? <View style={styles.iconDot} /> : null}
+      </Pressable>
+    </Glass>
   );
 }
 
@@ -102,10 +97,10 @@ export function IconButton({ icon: Icon, label, onPress, dot }: {
 export function SectionHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   return (
     <View style={styles.sectionHeader}>
-      <Text style={type.heading} accessibilityRole="header">{title}</Text>
+      <Text style={[type.heading, styles.flexShrink]} accessibilityRole="header">{title}</Text>
       {action && onAction ? (
         <Pressable accessibilityRole="button" onPress={onAction} hitSlop={12}>
-          <Text style={styles.sectionAction}>{action}</Text>
+          <Text style={styles.sectionAction} maxFontSizeMultiplier={1.4}>{action}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -184,7 +179,7 @@ export function KpiTile({ label, value, trend, highlighted, ring, tone }: {
   const TrendIcon = trend?.up ? ArrowUpRight : ArrowDownRight;
   const trendColor = trend?.up ? colors.success : colors.error;
   return (
-    <View style={[styles.kpi, highlighted && styles.kpiOn]} accessible accessibilityLabel={`${label}: ${value}${trend ? `, ${trend.text}` : ''}`}>
+    <Glass style={[styles.kpi, highlighted && styles.kpiOn]} accessible accessibilityLabel={`${label}: ${value}${trend ? `, ${trend.text}` : ''}`}>
       <View style={styles.kpiTop}>
         <Text style={[type.label, styles.kpiLabel]} numberOfLines={2}>{label}</Text>
         {ring !== undefined ? <ProgressRing percent={ring} /> : null}
@@ -200,7 +195,7 @@ export function KpiTile({ label, value, trend, highlighted, ring, tone }: {
           </View>
         ) : null}
       </View>
-    </View>
+    </Glass>
   );
 }
 
@@ -240,7 +235,7 @@ export function ListRow({ title, subtitle, avatar, right, onPress, chevron }: {
         <Text style={styles.rowTitle} numberOfLines={1}>{title}</Text>
         {subtitle ? <Text style={type.small} numberOfLines={1}>{subtitle}</Text> : null}
       </View>
-      {right ? <View>{right}</View> : null}
+      {right ? <View style={styles.rowRight}>{right}</View> : null}
       {chevron ? <ChevronRight size={18} color={colors.placeholder} /> : null}
     </>
   );
@@ -254,10 +249,11 @@ export function ListRow({ title, subtitle, avatar, right, onPress, chevron }: {
 }
 
 /** Search box with a magnifier and a clear (✕) button. */
-export function SearchField({ value, onChangeText, placeholder }: {
+export function SearchField({ value, onChangeText, placeholder, autoFocus }: {
   value: string;
   onChangeText: (text: string) => void;
   placeholder: string;
+  autoFocus?: boolean;
 }) {
   return (
     <View style={[styles.input, styles.search]}>
@@ -271,6 +267,7 @@ export function SearchField({ value, onChangeText, placeholder }: {
         autoCorrect={false}
         autoCapitalize="none"
         returnKeyType="search"
+        autoFocus={autoFocus}
         clearButtonMode="never"
         style={styles.inputText}
       />
@@ -344,10 +341,10 @@ export function Sheet({ visible, onClose, onDismiss, children }: {
       {/* A sheet with a form in it (e.g. quick-add architect) rises above the keyboard; others are unaffected. */}
       <KeyboardAvoidingView style={styles.backdrop} behavior="padding">
         <Pressable style={styles.fill} accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom }]}>
+        <Glass style={[styles.sheet, { paddingBottom: insets.bottom }]}>
           <View style={styles.handle} />
           {children}
-        </View>
+        </Glass>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -389,7 +386,7 @@ export function SkeletonRow() {
 }
 
 export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  return <Glass style={[styles.card, style]}>{children}</Glass>;
 }
 
 export function Button({ label, onPress, variant = 'primary', loading, disabled }: {
@@ -429,6 +426,10 @@ export function Button({ label, onPress, variant = 'primary', loading, disabled 
   );
 }
 
+// A box for numbers (amounts, mobile, hours, times) types in Manrope, like every number on the website. A text box can
+// only have one font, so mixed boxes (email, address) keep the text font.
+const NUMBER_KEYBOARDS = new Set(['number-pad', 'decimal-pad', 'numeric', 'phone-pad', 'numbers-and-punctuation']);
+
 export type TextFieldHandle = React.ComponentRef<typeof TextInput>;
 
 type TextFieldProps = TextInputProps & {
@@ -451,7 +452,7 @@ export const TextField = React.forwardRef<TextFieldHandle, TextFieldProps>(
             ref={ref}
             accessibilityLabel={label}
             placeholderTextColor={colors.placeholder}
-            style={[styles.inputText, style]}
+            style={[styles.inputText, NUMBER_KEYBOARDS.has(props.keyboardType ?? '') && styles.inputNumber, style]}
             onFocus={(e) => {
               setFocused(true);
               reveal?.();
@@ -519,7 +520,7 @@ export function StatusBadge({ status, label }: { status: string; label?: string 
   const cfg = label ? { ...base, label } : base;
   return (
     <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
-      <Text style={[styles.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
+      <Text style={[styles.badgeText, { color: cfg.color }]} numberOfLines={1} maxFontSizeMultiplier={1.2}>{cfg.label}</Text>
     </View>
   );
 }
@@ -554,6 +555,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...shadow,
   },
+  iconPress: { flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
   iconDot: {
     position: 'absolute',
     top: 11,
@@ -597,6 +599,8 @@ const styles = StyleSheet.create({
   avatarText: { color: colors.primary, fontWeight: '600', fontFamily: fonts.body },
   listRow: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.xs },
   rowText: { flex: 1, gap: 2 },
+  rowRight: { flexShrink: 1, maxWidth: '42%' },
+  flexShrink: { flexShrink: 1 },
   rowTitle: { ...type.body, fontWeight: '600' },
   skeleton: { backgroundColor: colors.border, borderRadius: radius.sm },
   search: { minHeight: touch },
@@ -643,6 +647,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   inputText: { ...type.body, flex: 1, minHeight: touch, paddingVertical: space.sm },
+  inputNumber: { fontFamily: fonts.number },
   inputFocused: { borderColor: colors.primary, borderWidth: 1.5 },
   inputError: { borderColor: colors.error },
   eye: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },

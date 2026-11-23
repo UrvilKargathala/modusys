@@ -1,8 +1,12 @@
 export type RootStackParamList = {
   Tabs: undefined;
   ChangePassword: undefined;
+  /** Settings (every role): your profile. */
+  Settings: undefined;
   CheckFlow: { side: 'checkIn' | 'checkOut' };
   Notifications: undefined;
+  /** The website's Ctrl/Cmd+K search: customers, architects, quotes. */
+  Search: undefined;
   /** `name` titles the screen before the customer loads. */
   CustomerDetail: { id: string; name: string };
   /** Add a customer (no id) or edit one. */
