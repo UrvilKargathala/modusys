@@ -2,7 +2,8 @@
 // only (like the web). Otherwise the tabs, plus the Dashboard for super admin.
 // Quotes and Purchase Orders are web-only.
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { CalendarCheck, House, UserRound, Users } from 'lucide-react-native';
@@ -30,6 +31,10 @@ import { StyleGuideScreen } from '../screens/dev/StyleGuideScreen';
 import { canSee } from './access';
 import { TabBar } from './TabBar';
 import { PushSetup } from './PushSetup';
+import { fetchMinVersion } from '../api/appVersion';
+import { APP_VERSION_NAME } from '../config';
+import { needsUpdate } from '../lib/appVersion';
+import { UpdateRequiredScreen } from '../screens/UpdateRequiredScreen';
 import { ArchitectsScreen } from '../screens/architects/ArchitectsScreen';
 import { AttendanceCalendarScreen } from '../screens/attendance/AttendanceCalendarScreen';
 import { SalaryScreen } from '../screens/attendance/SalaryScreen';
@@ -70,6 +75,16 @@ function ForcedPasswordPreview() {
 
 export function RootNavigator() {
   const { state } = useAuth();
+  // Minimum version (web/public/app-version.json), Android only: the iPhone app isn't distributed yet. Checked at
+  // start and whenever the app comes back to the front; while it loads, or if it fails, the app carries on.
+  const minVersion = useQuery({
+    queryKey: ['min-version'],
+    queryFn: fetchMinVersion,
+    enabled: Platform.OS === 'android',
+    staleTime: 0,
+    retry: false,
+  });
+  if (minVersion.data && needsUpdate(APP_VERSION_NAME, minVersion.data)) return <UpdateRequiredScreen minVersion={minVersion.data} />;
 
   if (state.status === 'loading') {
     return (

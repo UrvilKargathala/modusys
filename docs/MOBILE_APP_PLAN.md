@@ -375,16 +375,16 @@ Reloading: save a file and the app updates instantly (Fast Refresh). Developer m
 
 ## 10. Later: what publishing will need (not now)
 
-**Store accounts (decided 13/11/2026):** the apps belong to **THE FURN ENTERPRISE** (proprietorship, proprietor **Chirag Janakbhai Patel**, GSTIN 24BBMPP7761D1ZF, address as on the GST record: 2nd Floor, 219, Sumeru Business Corner, Adajan Hajira Road, Adajan, Surat, Gujarat 395009).
-- **Apple:** an Individual account in Chirag bhai's name, with Urvil added as Admin. Fallback if he isn't available: an Individual account in Urvil's name, moved to Chirag bhai's account later with App Transfer.
-- **Google:** an Organization account on info.thefurn@gmail.com with the D-U-N-S number for The Furn Enterprise. Fallback: a Personal account.
-- **D-U-N-S number: 771039223.** This is the existing record for THE FURN ENTERPRISE at 219, 2nd, Sumeru Business Corner, Adajan Hajira Road, Surat 395009, found through Apple's lookup on 13/11/2026.
+**Store accounts (updated 24/11/2026; replaces the 13/11/2026 plan, which named The Furn Enterprise and info.thefurn@gmail.com):** the apps belong to **THE FURN PROJECTS LLP** (LLPIN ACX-0296, GSTIN 24AAZFT9177A1ZM, **D-U-N-S 772467898**; address as on the MCA / D&B record: 219-220 Sumerru Busi. Corner, NR RTO, Pal, Pal Bhatha, Surat 394510).
+- **Google Play: done (23/11/2026).** Organisation account, **owner login `developer@modusys.co.in`** (Google Workspace), developer name **"Modusys"**, developer account ID 7075332890230605062, US$25 paid, identity **verified**, trader status: Trader. Website modusys.co.in verified (Search Console, through a Cloudflare TXT record: **never delete that record**). Organisation accounts don't need the 12-testers / 14-days closed test. **No app created in the console yet.**
+- **Apple: not enrolled yet.** It will be an **Organization** account for THE FURN PROJECTS LLP with Chirag bhai as Account Holder (authorised by the designated partners). Waiting for Apple support to cancel an unpaid Individual enrolment (B3FBJB6ZL4) first. iPhone push (M6e step 4) and any iPhone distribution wait for this.
+- The old D-U-N-S 771039223 (THE FURN ENTERPRISE) is not used.
 - **Not needed until publishing.** Development and local testing don't wait for these accounts.
 
 | Item | Notes |
 |---|---|
-| Apple Developer Program | Yearly fee (US$99 at time of writing; check current price). Company enrolment needs a **D-U-N-S number** (free, but takes days to weeks). Start early. |
-| Google Play Console | One-time fee (US$25 at time of writing). Company account also needs D-U-N-S. New personal accounts must run a closed test (12+ testers, 14 days) before going public. |
+| Apple Developer Program | Yearly fee (US$99 at time of writing). Organization enrolment for THE FURN PROJECTS LLP (D-U-N-S 772467898), pending: see above. |
+| Google Play Console | **Done** (see above): organisation account, verified, fee paid. Personal accounts would need a 12-tester / 14-day closed test; this organisation account doesn't. |
 | Final app name + bundle id | Locked at the first upload. |
 | Signing | iOS distribution certificate + provisioning profile (Xcode can manage them); Android upload keystore (**back it up; losing it is painful**). |
 | Store listing | Icon, screenshots, description, **privacy policy URL** (needed because of camera/location/photos), Apple "App Privacy" and Google "Data safety" forms. |
@@ -636,7 +636,7 @@ Asked 23/11/2026: notifications **both** ways (faster checks first, then real pu
 - **Live 24/11/2026:** migration applied to live by hand (backup `~/backups/modusys-before-push-tokens-20261124-0649.dump`, owner check 0 rows), `FIREBASE_SERVICE_ACCOUNT` added in Coolify (runtime only), deployed `bb124dc`; push-token route answers 401 without login, key present in the container, no new errors.
 - **Release (needs the database plan):** on live, back up, apply the migration ending with `ALTER TABLE "PushToken" OWNER TO modusys_app;`, check no table is owned by anyone else, add `FIREBASE_SERVICE_ACCOUNT` in Coolify, then Deploy.
 
-## M7 plan: test pass, then the Android app on staff phones (planned 24/11/2026; Part A done 24/11/2026, uncommitted)
+## M7 plan: test pass, then the Android app on staff phones (planned 24/11/2026; Part A done, Part B built 24/11/2026)
 
 Asked 24/11/2026: iPhone push (M6e step 4) waits until the Apple Developer fee (US$99) is paid. M7 = the roadmap's test pass on both platforms, then a live Android build staff can install, so the Android push from M6e reaches people.
 
@@ -675,9 +675,16 @@ Found problems get fixed in M7 (small) or listed for a later phase (big). Not in
 | B2 | **App polish for real users** | Proper notification icon (Android shows a plain white shape for the launcher icon), version name / code (1.0.0 / 1), app icon and name checked, Android permission texts (camera, location, notifications) |
 | B3 | **Update notice** | The server tells the app the minimum version; an older app shows "Please update" with the download link. Needed because a side-loaded APK never updates itself |
 | B4 | **Live build** | A signed APK that talks to modusys.co.in. Tested first on the OPPO with a live login you choose (it signs the OPPO out of staging) |
-| B5 | **Getting it to staff** | Your choice, decided before B5: (a) **direct APK** shared by link (free; each phone allows "install unknown apps"; updates are reinstalled by hand), or (b) **Google Play internal testing** (one-time US$25 Play account; updates arrive through Play) |
+| B5 | **Getting it to staff** | **Decided 24/11/2026: Google Play internal testing** on the existing Play account (owner `developer@modusys.co.in`): create the app `com.modusys.app`, upload the .aab to the internal track, add the testers' emails. Updates arrive through Play |
 
-**What only you can do:** choose (a) or (b) for B5; keep a backup of the signing key; say which staff get the app first (a small group is safer); for (b) create the Play Console account.
+### Part B results (24/11/2026, branch `work-m7b`)
+
+- **B1 Upload key:** `~/prod/modusys-upload.keystore` (PKCS12, alias `modusys-upload`, RSA 2048, valid about 27 years, owner "CN=Modusys, O=THE FURN PROJECTS LLP, Surat"). Passwords in `~/prod/modusys-upload.env` and `MODUSYS_UPLOAD_*` in `~/.gradle/gradle.properties` (both owner-only, outside git). `android/app/build.gradle` signs release builds with it when those properties exist, otherwise with the debug key (local tests). **Back up the keystore and the .env file together.** Play App Signing keeps the real app key, so a lost upload key can be reset by Google.
+- **B2 Polish:** version **1.0.0 (build 1)** on Android (`versionName`), iOS (`MARKETING_VERSION`) and the Account page; push icon is a white "M" (`res/drawable/ic_notification.xml`) tinted brand cyan (`res/values/colors.xml`, set through `mobile/firebase.json`, the Firebase package's own setting). Seen on the OPPO.
+- **B3 Update notice:** `web/public/app-version.json` = `{"minVersion": "1.0.0"}` (a static file, no API route; public files need no login). Android only (the iPhone app isn't distributed): at start and each time the app comes back to the front it fetches the file (5 s limit); if the app is older it shows "Please update Modusys" with **Open Google Play** (`market://details?id=com.modusys.app`, web link as fallback). Missing file, bad value or no network: the app carries on. Tested on the OPPO with 9.9.9 (blocked, button opened the Play Store) and back to 1.0.0 (app opens again). To force an update later: build the new version, upload it, then raise `minVersion` and deploy the website.
+- **B4 Bundle:** `mobile/android/app/build/outputs/bundle/release/app-release.aab` (75 MB, Play splits it per phone), signed with the upload key, package `com.modusys.app`, 1.0.0, talks to https://modusys.co.in. Not installed on a phone (a release signed with the upload key can't replace the debug app without uninstalling it, and it would sign in to live).
+
+**What only you can do:** create the app in the Play Console (signed in as `developer@modusys.co.in`) and upload the .aab (I don't upload to Google); keep a backup of the upload key; say which staff get the app first (a small group is safer); fill in Play's app forms (privacy policy link, Data safety, content rating), which I can draft.
 
 **Order:** Part A first (fix what it finds, release to staging/live as usual), then Part B. Database: none planned. New packages: none planned.
 

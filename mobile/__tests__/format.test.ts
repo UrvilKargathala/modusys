@@ -11,6 +11,7 @@ import { mentionQuery } from '../src/lib/mentions';
 import { monthGrid, stepMonth } from '../src/lib/calendar';
 import { mergeNotifications, notificationGroup, notificationStyle, notificationTaskId, timeAgo } from '../src/lib/notifications';
 import { defaultDashboardRange, wonOpen } from '../src/lib/dashboard';
+import { compareVersions, needsUpdate } from '../src/lib/appVersion';
 
 test('rupees use Indian grouping', () => {
   expect(formatInr(215200)).toBe('₹2,15,200.00');
@@ -221,4 +222,18 @@ test('bell: stored and live items in one list, newest first, live read state fro
   expect(notificationStyle(all[0].type).icon).toBe('user-plus');
   expect(notificationTaskId(all[2])).toBe('t2');
   expect(notificationTaskId(all[0])).toBeNull();
+});
+
+test('app version check: only a valid, newer minVersion blocks the app', () => {
+  expect(compareVersions('1.0.0', '1.0.0')).toBe(0);
+  expect(compareVersions('1.9.0', '1.10.0')).toBe(-1);
+  expect(compareVersions('2.0', '1.9.9')).toBe(1);
+  expect(compareVersions('1.0', '1.0.0')).toBe(0);
+  expect(needsUpdate('1.0.0', '1.0.0')).toBe(false);
+  expect(needsUpdate('1.0.0', '1.0.1')).toBe(true);
+  expect(needsUpdate('1.2.0', '1.1.9')).toBe(false);
+  // A broken or missing file never blocks staff.
+  expect(needsUpdate('1.0.0', undefined)).toBe(false);
+  expect(needsUpdate('1.0.0', 'latest')).toBe(false);
+  expect(needsUpdate('1.0.0', '')).toBe(false);
 });

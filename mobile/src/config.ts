@@ -12,6 +12,8 @@ try {
 
 export const API_URL: string = override ?? (__DEV__ ? 'http://localhost:3001' : 'https://modusys.co.in');
 
-/** Shown at the foot of More. Keep in step with versionName/versionCode (android/app/build.gradle)
+/** Shown at the foot of Account. Keep in step with versionName/versionCode (android/app/build.gradle)
  *  and MARKETING_VERSION/CURRENT_PROJECT_VERSION (ios project). */
-export const APP_VERSION = '1.0 (build 1)';
+export const APP_VERSION = '1.0.0 (build 1)';
+/** The version number alone, compared with the website's public/app-version.json (src/lib/appVersion.ts). */
+export const APP_VERSION_NAME = '1.0.0';

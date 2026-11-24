@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Push notification icon (M7 Part B): Android draws small notification icons as a single-colour shape, so this is a
+     plain white "M" on transparent. The colour comes from @color/notification_color. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,20V4h3.2L12,11.4L16.8,4H20v16h-3V9.2l-5,7.6l-5,-7.6V20z" />
+</vector>

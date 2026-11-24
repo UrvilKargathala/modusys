@@ -83,8 +83,10 @@ android {
         applicationId "com.modusys.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
+        // Keep in step with APP_VERSION in src/config.ts and MARKETING_VERSION in the iOS project.
+        // Every upload to Google Play needs a higher versionCode.
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
     }
     signingConfigs {
         debug {
@@ -93,15 +95,25 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // The Google Play upload key (M7 Part B, 24/11/2026). The key and its passwords live outside the repo:
+        // ~/prod/modusys-upload.keystore, with MODUSYS_UPLOAD_* in ~/.gradle/gradle.properties. Google re-signs the
+        // app with its own key (Play App Signing). Without these properties a release build falls back to the debug
+        // key, which is fine for local tests but can't be uploaded.
+        if (project.hasProperty('MODUSYS_UPLOAD_STORE_FILE')) {
+            upload {
+                storeFile file(MODUSYS_UPLOAD_STORE_FILE)
+                storePassword MODUSYS_UPLOAD_STORE_PASSWORD
+                keyAlias MODUSYS_UPLOAD_KEY_ALIAS
+                keyPassword MODUSYS_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig project.hasProperty('MODUSYS_UPLOAD_STORE_FILE') ? signingConfigs.upload : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
