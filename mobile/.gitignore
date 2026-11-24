@@ -76,3 +76,6 @@ yarn-error.log
 
 # Machine-specific API address (Mac Wi-Fi IP for a real phone)
 src/config.local.ts
+
+# Firebase config for push (M6e). Not a secret, but kept out of git; a copy lives only on this Mac.
+android/app/google-services.json

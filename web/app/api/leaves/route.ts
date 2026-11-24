@@ -9,6 +9,7 @@ import {
   istMidnight,
   type LeaveTypeValue,
 } from "@shared/attendance-config";
+import { pushToUsers } from "@backend/server/push";
 
 export const dynamic = "force-dynamic";
 
@@ -157,13 +158,13 @@ export async function POST(req: NextRequest) {
     select: { id: true },
   });
   if (superAdmins.length > 0) {
-    await prisma.notification.createMany({
-      data: superAdmins.map((admin) => ({
-        userId: admin.id,
-        type: "leave-requested",
-        message: `${employee.name} applied for ${isHalfDay ? "half-day " : ""}leave (${leave.fromDate.toISOString().slice(0, 10)} to ${leave.toDate.toISOString().slice(0, 10)})`,
-      })),
-    });
+    const rows = superAdmins.map((admin) => ({
+      userId: admin.id,
+      type: "leave-requested",
+      message: `${employee.name} applied for ${isHalfDay ? "half-day " : ""}leave (${leave.fromDate.toISOString().slice(0, 10)} to ${leave.toDate.toISOString().slice(0, 10)})`,
+    }));
+    await prisma.notification.createMany({ data: rows });
+    pushToUsers(rows);
   }
 
   return NextResponse.json({ ok: true, leave });

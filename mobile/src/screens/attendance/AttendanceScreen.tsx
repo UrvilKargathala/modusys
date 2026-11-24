@@ -25,24 +25,31 @@ import { TodaySummaryCard } from './TodaySummaryCard';
 
 const OLDEST_MONTH = -2; // the history endpoint serves up to ~3 months at a time
 
-/** Attendance tab: staff see their own; the super admin switches Mine | Team | Reports (the website's Attendance pages). */
+/**
+ * Attendance tab, like the website's Attendance pages: the super admin switches Self | Team | Reports; everyone else
+ * switches Self | Reports, where the report shows only their own row (M6e).
+ */
 export function AttendanceScreen() {
   const user = useUser();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [view, setView] = useState<'mine' | 'team' | 'reports'>('mine');
-  if (user.role !== 'super-admin') return <MyAttendance />;
+  const isSuper = user.role === 'super-admin';
   const header = (
     <>
       <Title sub={formatDay(istToday())}>Attendance</Title>
       <Segmented
-        options={[{ key: 'mine' as const, label: 'Self' }, { key: 'team' as const, label: 'Team' }, { key: 'reports' as const, label: 'Reports' }]}
+        options={[
+          { key: 'mine' as const, label: 'Self' },
+          ...(isSuper ? [{ key: 'team' as const, label: 'Team' }] : []),
+          { key: 'reports' as const, label: 'Reports' },
+        ]}
         value={view}
         onChange={setView}
       />
     </>
   );
-  if (view === 'team') return <TeamAttendance header={header} onOpenEmployee={(id, name) => nav.navigate('AttendanceCalendar', { employeeId: id, name })} />;
-  if (view === 'reports') return <AttendanceReport header={header} />;
+  if (isSuper && view === 'team') return <TeamAttendance header={header} onOpenEmployee={(id, name) => nav.navigate('AttendanceCalendar', { employeeId: id, name })} />;
+  if (view === 'reports') return <AttendanceReport header={header} own={!isSuper} />;
   return <MyAttendance header={header} />;
 }
 

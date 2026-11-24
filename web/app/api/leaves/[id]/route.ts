@@ -3,6 +3,7 @@ import { prisma } from "@backend/server/prisma";
 import { getSessionUser } from "@backend/server/require-user";
 import { getCurrentEmployee } from "@backend/server/current-employee";
 import { logAudit } from "@backend/server/audit";
+import { pushToUsers } from "@backend/server/push";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +74,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       ? await prisma.user.findFirst({ where: { email: updated.employee.email } })
       : null);
   if (requester) {
-    await prisma.notification.create({
+    const n = await prisma.notification.create({
       data: {
         userId: requester.id,
         type: status === "APPROVED" ? "leave-approved" : "leave-rejected",
@@ -83,6 +84,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
             : `Your leave request (${updated.fromDate.toISOString().slice(0, 10)} to ${updated.toDate.toISOString().slice(0, 10)}) was rejected${reviewNote ? `: ${reviewNote}` : ""}`,
       },
     });
+    pushToUsers([n]);
   }
 
   return NextResponse.json({ ok: true, leave: updated });

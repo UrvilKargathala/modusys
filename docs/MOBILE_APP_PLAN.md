@@ -563,7 +563,7 @@ Phone layout: the Attendance tab gets a Mine | Team switch for the super admin (
 - Server: the website's Attendance and Reports pages now get their numbers from `backend/server/team-attendance.ts` and `backend/server/attendance-report.ts` (moved out of the pages, so the website and the phone share them). New read-only routes `/api/mobile/attendance/{team,report,calendar,payroll,employees}` (super admin); writes use the website's existing routes.
 - Checked against the website for the same day / period: Team 16/11 (1 of 11, Chirag's row), Reports October (all totals and rows), Calendar October for Staging Test Employee (all eight totals), Salary October (7 employees, 154h 30m, ₹24,375.45). Tested on staging and put back: edit times (₹24,375.45 → ₹24,527.96 → reset), finalize + reopen (Vipul Dodiya, October), edit an employee (designation, then cleared), add + remove a holiday (12/09/2026). No test employee was created (employees can't be deleted).
 
-### M6d plan: last gaps, then the test pass (planned 21/11/2026; built 21/11/2026, not committed)
+### M6d plan: last gaps, then the test pass (planned 21/11/2026; built, live 23/11/2026, commit 47fb6d6)
 
 M6a–M6c are live. Compared again with the website's menu as super admin, what is left:
 
@@ -600,7 +600,40 @@ M6a–M6c are live. Compared again with the website's menu as super admin, what 
 - **Tab bar (21/11/2026):** the strip behind the floating pill is clear on Android too (no grey band); the More tab is now **Account** (person icon; the page title too, its group renamed "My account"; the route name stays `More`).
 - **Numbers like the website (21/11/2026):** `src/components/Text` wraps React Native's Text and sets every digit and ₹ in Manrope (Light / Regular / Medium / SemiBold / Bold, following the words around them), like the website's Manrope digits face in front of every font. All 43 screens and parts import it; a lint rule blocks Text from 'react-native'. Number boxes (number, decimal, phone keyboards) type in Manrope. Manrope Light added. Tab bar on Android: white pill like the iPhone.
 - **Found on the website (not fixed):** User Management's "Invite New User" never saves the password and leaves the user "invited", so an invited user can't sign in; there is no button to activate them.
-- **Follow-up:** the website's attendance Reports is open to everyone (their own figures); on the phone Reports is only in the super admin's switch.
+- **Follow-up:** the website's attendance Reports is open to everyone (their own figures); on the phone Reports is only in the super admin's switch. (Done in M6e, 24/11/2026.)
+
+### M6e plan: notifications in real time, Reports for everyone (planned 23/11/2026; steps 1–3 built 24/11/2026, step 4 waits for an Apple account)
+
+Asked 23/11/2026: notifications **both** ways (faster checks first, then real push), Reports for staff and admin **like the website**.
+
+| # | What | How | Change on the server / database | Done when |
+|---|---|---|---|---|
+| 1 | **Faster checks** | While the app is open: bell, More and Notifications refresh every 15 s (today 60 s), and at once when the app comes back to the front. Tasks and the CRM refresh when you open them | None | A task assigned on the website shows on the phone's bell within 15 s |
+| 2 | **Reports for everyone** | Attendance tab for staff and admin: **Self \| Reports** (Team stays super admin). Their Reports shows only their own row, This week / This month / Last month / Custom, no department or employee filters: exactly the website's rule (`loadAttendanceReport(sp, ownEmployeeId)`) | `/api/mobile/attendance/report` opens to every signed-in user; non-super-admins are pinned to their own employee (unlinked users get an empty report, as on the website). No database change | Urvil (staff) sees the same row on the phone as on the website's Reports |
+| 3 | **Real push, Android** | Notifications pop up even when the app is closed; tapping opens the same screen as the bell does. The phone sends its push token after sign-in and removes it at sign-out | **New table `PushToken`** (id, userId, token unique, platform, createdAt, lastSeenAt): migration, staging first, live backup, then `OWNER TO modusys_app` (the 23/11 lesson). New `POST/DELETE /api/mobile/push-token`. Where the server already creates a stored notification (tasks, mentions, leaves, time fixes) it also sends the push through Firebase Cloud Messaging | A task assigned on the website pops up on the OPPO with the app closed |
+| 4 | **Real push, iPhone** | Same as 3 | Same server code; Apple push key uploaded to Firebase | Needs a paid Apple developer account; the simulator can't receive real push. Waits until the account exists |
+
+**What only you can do (before step 3):**
+- Create a free Firebase project for Modusys (console.firebase.google.com) and add the Android app `com.modusys.app`; download `google-services.json` and give it to me (it is not a secret, but it stays out of git if you prefer).
+- In Firebase, create a service account key for sending. It is a secret: put it on the server yourself as an environment variable for the website in Coolify (I never change Coolify settings) and in `.env.local` for staging. I only read its name.
+- For iPhone later: Apple developer account, an APNs key uploaded to Firebase.
+
+**New packages (to approve):** `@react-native-firebase/app` and `@react-native-firebase/messaging` on the phone; `firebase-admin` on the server (sending). Android 13+ notification permission is asked once (the OPPO is Android 11, no prompt).
+
+**Order:** 1 → 2 → 3 (after your Firebase setup and the database plan) → 4 later. Steps 1 and 2 can ship on their own; step 3 has its own release with the live migration.
+
+**Built 24/11/2026 (steps 1–2, branch `work-m5b`, no database change):**
+- Bell refresh every 15 s while the app is open (`useNotifications.ts`, `REFRESH`); coming back to the app refreshes at once (the existing `focusManager` in `App.tsx`). Staging log: about 4 calls a minute per phone, each 0.1–0.3 s.
+- `/api/mobile/attendance/report` is open to every signed-in user: the super admin gets everyone with filters; anyone else is pinned to their own employee (`getCurrentEmployee`, `"__none__"` when unlinked), whatever filters they send. Tested on staging: Urvil (staff) with `department` + `employeeId` sent still got only his own row; Henil (super admin) still 8 employees and the department list.
+- Attendance tab: staff and admin see **Self | Reports**; the super admin keeps Self | Team | Reports. Their Reports has no department / employee filters and says "No attendance profile" when the login isn't linked to an employee. Checked on the iPhone 17e simulator as Urvil (01/11–24/11: 1 half day, 1 late, 1 early exit, 17 absences, same as the website) and on the iPhone Air as the super admin. The OPPO wasn't checked (it asked for USB-debugging approval again). Later checked on the OPPO as the super admin (Self | Team | Reports unchanged); the staff view wasn't checked on Android (the OPPO stays signed in as Chirag).
+
+**Built 24/11/2026 (step 3, real push on Android). Database change: new table `PushToken`, on staging only so far:**
+- Firebase project `modusys-2b23c` (company Google Workspace `modusys.co.in`). Its org policy `iam.managed.disableServiceAccountKeyCreation` is switched off for this one project so a sending key could be made. `mobile/android/app/google-services.json` is git-ignored (only on this Mac). The sending key is `~/prod/modusys-firebase.json`, given to the website as the env var `FIREBASE_SERVICE_ACCOUNT` (in `.env.local` for staging; **on live you add it in Coolify before the deploy**). Without it nothing is sent and the website works as before.
+- Server: `firebase-admin` 13 (14 needs Node 22). `backend/server/push.ts` `pushToUsers()` sends every new stored notification (task assigned / done, @mention, leave applied / approved / rejected, attendance fix request) to the user's phones; fire and forget, dead tokens deleted. `POST/DELETE /api/mobile/push-token`. Server errors (`app-error`) are not pushed.
+- Migration `20261124120000_add_push_tokens` (new table only), applied to staging with `prisma migrate deploy` (staging tables belong to the app user `modusys` already).
+- Phone: `@react-native-firebase/app` + `messaging` 27.1.1, Android only (`react-native.config.js` keeps them out of iOS; `src/lib/push.ts` never touches Firebase on iOS). After sign-in the phone registers its token; plain sign-out removes it on the server and the phone; a session that ended only drops the phone's token. Tapping a push opens the bell list; a push while the app is open refreshes the bell at once. Android 13+ asks for notification permission once (the OPPO is Android 11).
+- Tested on staging with the OPPO: with the app swiped away, a task assigned by Henil to Chirag popped up as "New task – Henil Patel assigned you a task: …"; tapping it opened Notifications with the item on top. The iPhone app still starts normally. Test tasks and their notifications deleted. Note: Android's "Force stop" blocks all pushes until the app is opened again (normal Android behaviour); swiping the app away does not. Not tested: sign-out removing the token (would sign Chirag out). Known: the push icon is Android's default.
+- **Release (needs the database plan):** on live, back up, apply the migration ending with `ALTER TABLE "PushToken" OWNER TO modusys_app;`, check no table is owned by anyone else, add `FIREBASE_SERVICE_ACCOUNT` in Coolify, then Deploy.
 
 ## Open questions
 

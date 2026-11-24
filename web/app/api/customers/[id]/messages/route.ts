@@ -3,6 +3,7 @@ import { prisma } from "@backend/server/prisma";
 import { serializeMessage } from "@backend/server/serialize";
 import { requireUser } from "@backend/server/require-user";
 import { headObject } from "@backend/server/s3";
+import { pushToUsers } from "@backend/server/push";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -118,7 +119,7 @@ export async function POST(req: Request, { params }: Ctx) {
               linkedCustomerId: customerId,
             },
           });
-          await prisma.notification.create({
+          const n = await prisma.notification.create({
             data: {
               userId: mentionedId,
               type: "mentioned",
@@ -127,6 +128,7 @@ export async function POST(req: Request, { params }: Ctx) {
               read: false,
             },
           });
+          pushToUsers([n]);
         })
       );
     }

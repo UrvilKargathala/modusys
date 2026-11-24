@@ -13,6 +13,7 @@ import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-
 import { ApiError } from './src/api/client';
 import { AuthProvider } from './src/auth/AuthProvider';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { navigationRef } from './src/navigation/ref';
 import { colors } from './src/theme/tokens';
 
 const queryClient = new QueryClient({
@@ -44,7 +45,7 @@ function App() {
       <StatusBar barStyle="dark-content" />
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <NavigationContainer theme={navTheme}>
+          <NavigationContainer ref={navigationRef} theme={navTheme}>
             <RootNavigator />
           </NavigationContainer>
         </AuthProvider>

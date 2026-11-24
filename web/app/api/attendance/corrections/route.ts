@@ -4,6 +4,7 @@ import { prisma } from "@backend/server/prisma";
 import { getCurrentEmployee } from "@backend/server/current-employee";
 import { logAudit } from "@backend/server/audit";
 import { istDateString } from "@shared/attendance-config";
+import { pushToUsers } from "@backend/server/push";
 
 export const dynamic = "force-dynamic";
 
@@ -34,15 +35,15 @@ export async function POST(req: Request) {
   const times = [checkIn && `check-in ${clock12(checkIn)}`, checkOut && `check-out ${clock12(checkOut)}`].filter(Boolean).join(", ");
   const admins = await prisma.user.findMany({ where: { role: "super-admin" }, select: { id: true } });
   if (admins.length) {
-    await prisma.notification.createMany({
-      data: admins.map((a) => ({
-        userId: a.id,
-        type: "attendance-correction",
-        // The calendar day to open when the notification is clicked.
-        relatedTaskId: `/attendance/calendar?view=day&date=${date}&employee=${employee.id}`,
-        message: `${employee.name} asked to fix ${date.split("-").reverse().join("/")}: ${times}. "${note}"`,
-      })),
-    });
+    const rows = admins.map((a) => ({
+      userId: a.id,
+      type: "attendance-correction",
+      // The calendar day to open when the notification is clicked.
+      relatedTaskId: `/attendance/calendar?view=day&date=${date}&employee=${employee.id}`,
+      message: `${employee.name} asked to fix ${date.split("-").reverse().join("/")}: ${times}. "${note}"`,
+    }));
+    await prisma.notification.createMany({ data: rows });
+    pushToUsers(rows);
   }
   void logAudit({
     action: "ATTENDANCE_CORRECTION_REQUESTED",

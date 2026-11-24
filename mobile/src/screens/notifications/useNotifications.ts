@@ -12,18 +12,20 @@ import { loadLiveRead, saveLiveRead } from '../../lib/liveRead';
 import { mergeNotifications } from '../../lib/notifications';
 
 const KEY = ['notifications'];
+/** How often the bell checks while the app is open (M6e, 23/11/2026); coming back to the app checks at once (App.tsx focusManager). */
+const REFRESH = 15_000;
 const LIVE = ['notifications', 'live'];
 const readKey = (userId: string) => ['notifications', 'live-read', userId];
 
 /**
  * Your notifications as the website's bell shows them: the stored ones (read state on the server) plus the live
- * items (stale quote, quote status, new lead, task assigned / done; read state on this phone). Refreshed every minute
- * while a screen shows them (the bell dot, More and the list).
+ * items (stale quote, quote status, new lead, task assigned / done; read state on this phone). Refreshed every 15 seconds
+ * while a screen shows them, and straight away when you come back to the app (the bell dot, More and the list).
  */
 export function useNotifications() {
   const user = useUser();
-  const stored = useQuery({ queryKey: KEY, queryFn: listNotifications, refetchInterval: 60_000 });
-  const live = useQuery({ queryKey: LIVE, queryFn: listLiveNotifications, refetchInterval: 60_000 });
+  const stored = useQuery({ queryKey: KEY, queryFn: listNotifications, refetchInterval: REFRESH });
+  const live = useQuery({ queryKey: LIVE, queryFn: listLiveNotifications, refetchInterval: REFRESH });
   const read = useQuery({ queryKey: readKey(user.id), queryFn: () => loadLiveRead(user.id), staleTime: Infinity });
   const data = useMemo(
     () => (stored.data ? mergeNotifications(stored.data, live.data ?? [], read.data ?? new Set()) : undefined),

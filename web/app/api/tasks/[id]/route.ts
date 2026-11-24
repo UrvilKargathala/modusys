@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@backend/server/prisma";
 import { requireUser } from "@backend/server/require-user";
 import { logAudit } from "@backend/server/audit";
+import { pushToUsers } from "@backend/server/push";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,7 +85,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // Notify the creator when the assignee (someone else) marks it complete —
   // skip when they're the same person or the status didn't change.
   if (nextStatus === "completed" && existing.createdById !== existing.assigneeId) {
-    await prisma.notification.create({
+    const n = await prisma.notification.create({
       data: {
         userId: existing.createdById,
         type: "completed",
@@ -92,6 +93,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         message: `${auth.user.name} completed "${row.title}"`,
       },
     });
+    pushToUsers([n]);
   }
 
   void logAudit({

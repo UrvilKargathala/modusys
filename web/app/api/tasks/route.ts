@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@backend/server/prisma";
 import { requireUser } from "@backend/server/require-user";
 import { logAudit } from "@backend/server/audit";
+import { pushToUsers } from "@backend/server/push";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -112,7 +113,7 @@ export async function POST(req: Request) {
   // Notify the assignee — but only when it's actually a delegation (someone
   // self-assigning shouldn't ping themselves).
   if (assigneeId !== auth.user.id) {
-    await prisma.notification.create({
+    const n = await prisma.notification.create({
       data: {
         userId: assigneeId,
         type: "assigned",
@@ -120,6 +121,7 @@ export async function POST(req: Request) {
         message: `${auth.user.name} assigned you a task: "${row.title}"`,
       },
     });
+    pushToUsers([n]);
   }
 
   void logAudit({

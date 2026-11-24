@@ -29,6 +29,7 @@ import { colors } from '../theme/tokens';
 import { StyleGuideScreen } from '../screens/dev/StyleGuideScreen';
 import { canSee } from './access';
 import { TabBar } from './TabBar';
+import { PushSetup } from './PushSetup';
 import { ArchitectsScreen } from '../screens/architects/ArchitectsScreen';
 import { AttendanceCalendarScreen } from '../screens/attendance/AttendanceCalendarScreen';
 import { SalaryScreen } from '../screens/attendance/SalaryScreen';
@@ -82,6 +83,8 @@ export function RootNavigator() {
 
   const role = state.user.role;
   return (
+    <>
+    <PushSetup />
     <Stack.Navigator
       screenOptions={{
         headerTintColor: colors.primary,
@@ -126,6 +129,7 @@ export function RootNavigator() {
         </>
       ) : null}
     </Stack.Navigator>
+    </>
   );
 }
 

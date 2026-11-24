@@ -466,6 +466,20 @@ model Notification {
   @@index([userId, read, createdAt])
 }
 
+// Phones that get push notifications (M6e, 24/11/2026). One row per phone install: the Firebase Cloud Messaging token
+// the phone sends after sign-in, removed at sign-out or when Firebase says the token is dead. A token moves to the new
+// user if someone else signs in on the same phone.
+model PushToken {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique
+  platform   String // "android" | "ios"
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId])
+}
+
 // Lightweight trail for account-takeover-capable actions (password changes,
 // invites, role changes). Actor/target names are denormalized at write time
 // rather than joined live, so the log still reads correctly after a user is

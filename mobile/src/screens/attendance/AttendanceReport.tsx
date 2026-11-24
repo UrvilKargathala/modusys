@@ -1,4 +1,4 @@
-// Attendance reports (M6c, super admin): the website's Attendance > Reports page. This week / This month / Last month or a
+// Attendance reports (M6c super admin, M6e everyone: staff and admin see only their own row): the website's Attendance > Reports page. This week / This month / Last month or a
 // From / To range, department and employee filters; the eight totals; one card per employee (days present out of working
 // days, full / half days, hours, late, early exits, leave, absent). Numbers come from backend/server/attendance-report.ts.
 import React, { useState } from 'react';
@@ -69,7 +69,8 @@ function EmployeeCard({ r }: { r: ReportRow }) {
   );
 }
 
-export function AttendanceReport({ header }: { header: React.ReactNode }) {
+/** `own`: staff and admin, who (as on the website) see only their own row, so the department and employee filters are left out. */
+export function AttendanceReport({ header, own }: { header: React.ReactNode; own?: boolean }) {
   const today = istToday();
   const [preset, setPreset] = useState<Preset>('month');
   const [from, setFrom] = useState(`${today.slice(0, 7)}-01`);
@@ -101,16 +102,18 @@ export function AttendanceReport({ header }: { header: React.ReactNode }) {
           <View style={styles.flex}><DateField label="To" value={to} min={from} max={today} onChange={setTo} /></View>
         </View>
       ) : null}
-      <View style={styles.row}>
-        <View style={styles.flex}>
-          <SelectField label="Department" value={department} placeholder="All"
-            options={[{ key: '', label: 'All' }, ...(r?.departments ?? []).map((d) => ({ key: d, label: d }))]} onChange={setDepartment} />
+      {own ? null : (
+        <View style={styles.row}>
+          <View style={styles.flex}>
+            <SelectField label="Department" value={department} placeholder="All"
+              options={[{ key: '', label: 'All' }, ...(r?.departments ?? []).map((d) => ({ key: d, label: d }))]} onChange={setDepartment} />
+          </View>
+          <View style={styles.flex}>
+            <SelectField label="Employee" value={employeeId} placeholder="All"
+              options={[{ key: '', label: 'All' }, ...(r?.employees ?? []).map((e) => ({ key: e.id, label: e.name }))]} onChange={setEmployeeId} />
+          </View>
         </View>
-        <View style={styles.flex}>
-          <SelectField label="Employee" value={employeeId} placeholder="All"
-            options={[{ key: '', label: 'All' }, ...(r?.employees ?? []).map((e) => ({ key: e.id, label: e.name }))]} onChange={setEmployeeId} />
-        </View>
-      </View>
+      )}
 
       {report.error ? <Notice text={(report.error as Error).message} /> : null}
       {!r || !t ? (
@@ -129,7 +132,11 @@ export function AttendanceReport({ header }: { header: React.ReactNode }) {
             <Total label="Absences" value={String(t.absences)} tone={t.absences ? colors.error : undefined} />
           </Card>
           {r.rows.length === 0 ? (
-            <Card><EmptyState icon={BarChart3} title="No employees" text="Nobody matches these filters." /></Card>
+            <Card>{own ? (
+              <EmptyState icon={BarChart3} title="No attendance profile" text="Your login isn't linked to an employee yet. Ask the super admin to link it." />
+            ) : (
+              <EmptyState icon={BarChart3} title="No employees" text="Nobody matches these filters." />
+            )}</Card>
           ) : (
             r.rows.map((row) => <EmployeeCard key={row.id} r={row} />)
           )}

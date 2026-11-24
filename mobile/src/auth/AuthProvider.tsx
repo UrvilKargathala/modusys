@@ -7,6 +7,7 @@ import * as authApi from '../api/auth';
 import type { User } from '../api/auth';
 import { ApiError, setApiToken, setUnauthorizedHandler } from '../api/client';
 import { clearToken, loadToken, saveToken } from './session';
+import { stopPush } from '../lib/push';
 
 type AuthState =
   | { status: 'loading' }
@@ -30,6 +31,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(
     async (notice?: string) => {
+      // Stop push to this phone. A plain sign-out (no notice) still has a valid session, so the server is told too;
+      // when the session already ended (notice), only the phone's token is dropped.
+      await stopPush(!notice);
       setApiToken(null);
       await clearToken().catch(() => undefined);
       queryClient.clear();
