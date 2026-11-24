@@ -7,7 +7,7 @@ import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import Svg, { Circle } from 'react-native-svg';
 import { ArrowDownRight, ArrowUpRight, ChevronRight, Eye, EyeOff, Search, X } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
-import { colors, fonts, radius, shadow, space, tabBar, touch, type } from '../theme/tokens';
+import { MAX_FONT_SCALE, colors, fonts, radius, shadow, space, tabBar, touch, type } from '../theme/tokens';
 import type { Stage } from '../lib/stages';
 import { RevealFocusedField } from './AuthLayout';
 import { Glass, GlassBackdrop } from './glass';
@@ -60,7 +60,8 @@ export function Title({ children, sub, right, fit }: { children: React.ReactNode
   return (
     <View style={styles.titleRow}>
       <View style={styles.titleBlock}>
-        <Text style={type.title} accessibilityRole="header" {...(fit ? { numberOfLines: 2, adjustsFontSizeToFit: true, minimumFontScale: 0.7 } : {})}>
+        {/* Titles are already large: they grow less with the phone's text size (the "fit" shrink breaks above ~1.2×). */}
+        <Text style={type.title} accessibilityRole="header" maxFontSizeMultiplier={1.2} {...(fit ? { numberOfLines: 2, adjustsFontSizeToFit: true, minimumFontScale: 0.7 } : {})}>
           {children}
         </Text>
         {sub ? <Text style={[type.body, styles.sub]}>{sub}</Text> : null}
@@ -260,6 +261,7 @@ export function SearchField({ value, onChangeText, placeholder, autoFocus }: {
       <Search size={18} color={colors.textSecondary} strokeWidth={1.5} />
       <TextInput
         accessibilityLabel={placeholder}
+        maxFontSizeMultiplier={MAX_FONT_SCALE}
         placeholder={placeholder}
         placeholderTextColor={colors.placeholder}
         value={value}
@@ -451,6 +453,7 @@ export const TextField = React.forwardRef<TextFieldHandle, TextFieldProps>(
           <TextInput
             ref={ref}
             accessibilityLabel={label}
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
             placeholderTextColor={colors.placeholder}
             style={[styles.inputText, NUMBER_KEYBOARDS.has(props.keyboardType ?? '') && styles.inputNumber, style]}
             onFocus={(e) => {

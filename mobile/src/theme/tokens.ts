@@ -56,6 +56,12 @@ export const colors = {
 // Raleway (text) and Manrope (numbers), as the web, with static Light / Regular / Medium / SemiBold / Bold files
 // (M6d) in assets/fonts, linked with `npx react-native-asset`. `fontWeight` picks the real weight: iOS by family
 // name, Android through res/font/raleway.xml and manrope.xml (registered in MainApplication.kt).
+/**
+ * How far text grows with the phone's text-size setting (M7 test pass, 24/11/2026). Up to 1.5× keeps every screen
+ * readable; the largest accessibility sizes (about 3×) broke words and titles mid-letter on an iPhone SE.
+ */
+export const MAX_FONT_SCALE = 1.5;
+
 export const fonts = {
   body: 'Raleway',
   light: 'Raleway-Light',

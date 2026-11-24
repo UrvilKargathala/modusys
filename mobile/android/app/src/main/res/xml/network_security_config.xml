@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Release builds talk https only (modusys.co.in). The one exception is localhost, which only exists on a test phone
+     plugged into the Mac (adb reverse): it lets a release build be tested against staging (M7 test pass, 24/11/2026). -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

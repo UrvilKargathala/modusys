@@ -5,7 +5,7 @@
 // Admins (the roles that see Quotes on the web) also get the customer's quotes on Overview (M5),
 // read-only: a quote opens on the web.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../../components/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -290,6 +290,24 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (notesOpen && noteCount) requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
   }, [notesOpen, noteCount]);
+  // Opening the keyboard in the chat shrinks the page; on a small phone (iPhone SE) the customer card then fills all
+  // of it. Scroll to the newest messages so you see what you're replying to (M7 test pass, 24/11/2026).
+  // The keyboard event comes before the page has shrunk, so the jump happens on the ScrollView's next layout.
+  const keyboardJump = useRef(false);
+  useEffect(() => {
+    if (!notesOpen) return;
+    const show = Keyboard.addListener('keyboardDidShow', () => {
+      keyboardJump.current = true;
+      scrollRef.current?.scrollToEnd({ animated: true });
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      keyboardJump.current = false;
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [notesOpen]);
 
   // The keyboard lifts the composer by however far this screen starts below the top of the window (the header).
   const rootRef = useRef<React.ComponentRef<typeof View>>(null);
@@ -308,6 +326,9 @@ export function CustomerDetailScreen({ route, navigation }: Props) {
         <KeyboardAvoidingView style={styles.fill} behavior="padding" keyboardVerticalOffset={topOffset}>
           <ScrollView
             ref={scrollRef}
+            onLayout={() => {
+              if (notesOpen && keyboardJump.current) scrollRef.current?.scrollToEnd({ animated: true });
+            }}
             contentContainerStyle={styles.body}
             keyboardShouldPersistTaps="handled"
             refreshControl={

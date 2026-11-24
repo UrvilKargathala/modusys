@@ -69,7 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         // Server rejected the token: clear it. No network: show Sign In with the
         // message but keep the token, so the next launch can try again.
-        if (e instanceof ApiError && e.status !== 0) await signOut();
+        // 0 = no network, 408 = too slow: keep the token for the next try.
+        if (e instanceof ApiError && e.status !== 0 && e.status !== 408) await signOut();
         else setState({ status: 'signed-out', notice: e instanceof Error ? e.message : undefined });
       }
     })();

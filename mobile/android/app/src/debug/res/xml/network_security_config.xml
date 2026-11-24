@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds: plain http anywhere, as before (Metro, the local website, a Mac Wi-Fi address in config.local.ts).
+     Replaces the release file of the same name. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

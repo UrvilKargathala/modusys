@@ -633,7 +633,53 @@ Asked 23/11/2026: notifications **both** ways (faster checks first, then real pu
 - Migration `20261124120000_add_push_tokens` (new table only), applied to staging with `prisma migrate deploy` (staging tables belong to the app user `modusys` already).
 - Phone: `@react-native-firebase/app` + `messaging` 27.1.1, Android only (`react-native.config.js` keeps them out of iOS; `src/lib/push.ts` never touches Firebase on iOS). After sign-in the phone registers its token; plain sign-out removes it on the server and the phone; a session that ended only drops the phone's token. Tapping a push opens the bell list; a push while the app is open refreshes the bell at once. Android 13+ asks for notification permission once (the OPPO is Android 11).
 - Tested on staging with the OPPO: with the app swiped away, a task assigned by Henil to Chirag popped up as "New task – Henil Patel assigned you a task: …"; tapping it opened Notifications with the item on top. The iPhone app still starts normally. Test tasks and their notifications deleted. Note: Android's "Force stop" blocks all pushes until the app is opened again (normal Android behaviour); swiping the app away does not. Not tested: sign-out removing the token (would sign Chirag out). Known: the push icon is Android's default.
+- **Live 24/11/2026:** migration applied to live by hand (backup `~/backups/modusys-before-push-tokens-20261124-0649.dump`, owner check 0 rows), `FIREBASE_SERVICE_ACCOUNT` added in Coolify (runtime only), deployed `bb124dc`; push-token route answers 401 without login, key present in the container, no new errors.
 - **Release (needs the database plan):** on live, back up, apply the migration ending with `ALTER TABLE "PushToken" OWNER TO modusys_app;`, check no table is owned by anyone else, add `FIREBASE_SERVICE_ACCOUNT` in Coolify, then Deploy.
+
+## M7 plan: test pass, then the Android app on staff phones (planned 24/11/2026; Part A done 24/11/2026, uncommitted)
+
+Asked 24/11/2026: iPhone push (M6e step 4) waits until the Apple Developer fee (US$99) is paid. M7 = the roadmap's test pass on both platforms, then a live Android build staff can install, so the Android push from M6e reaches people.
+
+### Part A: test pass (§9), against staging
+
+| # | What | How | Done when |
+|---|---|---|---|
+| A1 | **Roles** | A throwaway **admin** on staging (deleted after; no admin login has ever been tried), staff (Urvil), super admin (Henil). Every tab, More / Account row and form | Each role sees what the website's nav shows it; the server answers 403 to the rest; read-only screens stay read-only |
+| A2 | **Screen sizes** | iPhone SE (small) and iPhone Pro Max (large) simulators, the OPPO | No cut-off text, no overlap with the tab bar or the keyboard |
+| A3 | **Large text** | Largest system font on the iPhone and the OPPO | Readable; numbers and badges don't break rows |
+| A4 | **Bad network** | Airplane mode and a slow link on the OPPO (and the simulator) during sign-in, lists, check-in, a form save, chat send | A clear message, no crash, no lost form; works again when the network is back |
+| A5 | **Release builds** | Android release and iOS Release (never run on iOS) with `config.local.ts` pointed at staging (they hit live otherwise) | Both start, sign in, and run the main flows as fast as debug or faster |
+| A6 | **Real field flow** | A real check-in and check-out on the OPPO (GPS + live selfie), a task, a customer note and photo | Shows on the website straight away |
+| A7 | **Push leftovers** | Sign-out removes the phone's push token (a test Android login, not Chirag's); a push for each kind (task, @mention, leave, time fix) | Token row gone after sign-out; every kind pops up and opens the bell |
+
+Found problems get fixed in M7 (small) or listed for a later phase (big). Not in scope: the website's "Invite New User" bug (a separate website fix).
+
+### Part A results (24/11/2026, staging)
+
+| # | Result |
+|---|---|
+| A1 Roles | **Pass.** Throwaway admin `m7-admin@modusys.test` (deleted after): Home quote tiles + Recent quotes, Self \| Reports (own row, "No attendance profile" when unlinked), no Dashboard / Leave Approvals / Salary / Employees, the same as the website's nav; the server answers 403 on Dashboard, Team, Employees, Salary and Calendar. Staff (Urvil): no quote figures, no owner pages. Super admin: Self \| Team \| Reports (OPPO). Note: Henil's staging login asks for a new password (a staging flag; left alone). |
+| A2 Sizes | **Pass after a fix.** iPhone SE (new simulator "Test iPhone-SE-3rd-generation"), iPhone 18 Pro Max, OPPO. Fixed: on the SE the chat's keyboard left only the customer card in view; the chat now scrolls to the newest messages when the keyboard opens (`CustomerDetailScreen`). |
+| A3 Large text | **Pass after a fix.** At the largest iOS accessibility size words broke mid-letter and the greeting showed only "Good". Text now grows up to 1.5× (`MAX_FONT_SCALE` in `theme/tokens.ts`, used by `components/Text` and the text boxes) and screen titles up to 1.2×. The OPPO's text size can't be changed over USB: not checked on Android (skipped by choice, 24/11/2026; the same 1.5× limit applies there). |
+| A4 Network | **Pass after a fix.** No connection: after about 20 s (two retries) "Can't reach the server…", the last data stays, refresh works again when the network is back; a failed chat send keeps the typed text. Fixed: requests had no time limit (a weak signal could spin forever); now 30 s, 2 min for uploads, then "The server is taking too long to answer…" (status 408, not retried; not a sign-out at app start). Tested with a 40 s delay proxy. |
+| A5 Release builds | Android release on the OPPO against staging (`config.local.ts` override): starts, stays signed in, every tab works. Needed: release builds now allow plain http to `localhost` only (`res/xml/network_security_config.xml`; debug keeps http everywhere), otherwise a release build can't reach staging. **iOS Release on the iPhone Air simulator: first run ever, passes** (starts signed in, Home figures, CRM board). Both phones were put back on their debug builds and the override removed. |
+| A6 Field flow | Release build: with the phone's Location off the check-in says "Couldn't get your location" with Try again / Check in without location; the live selfie camera works (backed out, nothing saved). With Location on (debug build, Chirag on staging): GPS found (about 19 m), live selfie, check-in 01:59 PM, check-out 02:00 PM, Half Day, late and early-exit notes; the website's Team attendance shows the same times, the address and both selfies. **Pass.** The record stays on staging. |
+| Clean-up | Test admin deleted, test mention / task / notification deleted, `config.local.ts` removed. The new "Test iPhone-SE-3rd-generation" simulator is kept for later size checks. |
+| A7 Push | `/api/mobile/push-token`: register, sign-out removes it, another user can't remove it, 401 without login. @mention push arrived on the OPPO (release build) and the test data was deleted. Leave / time-fix pushes not sent from a script (they need an employee-linked login); same sending code as task and mention. |
+
+### Part B: the Android app on staff phones (live)
+
+| # | What | Notes |
+|---|---|---|
+| B1 | **Release signing key** | A new upload / release keystore made on this Mac, kept in `~/prod/` with its passwords outside git; you keep a backup copy (losing it means staff must uninstall and reinstall to update). Gradle reads it from `~/.gradle/gradle.properties` |
+| B2 | **App polish for real users** | Proper notification icon (Android shows a plain white shape for the launcher icon), version name / code (1.0.0 / 1), app icon and name checked, Android permission texts (camera, location, notifications) |
+| B3 | **Update notice** | The server tells the app the minimum version; an older app shows "Please update" with the download link. Needed because a side-loaded APK never updates itself |
+| B4 | **Live build** | A signed APK that talks to modusys.co.in. Tested first on the OPPO with a live login you choose (it signs the OPPO out of staging) |
+| B5 | **Getting it to staff** | Your choice, decided before B5: (a) **direct APK** shared by link (free; each phone allows "install unknown apps"; updates are reinstalled by hand), or (b) **Google Play internal testing** (one-time US$25 Play account; updates arrive through Play) |
+
+**What only you can do:** choose (a) or (b) for B5; keep a backup of the signing key; say which staff get the app first (a small group is safer); for (b) create the Play Console account.
+
+**Order:** Part A first (fix what it finds, release to staging/live as usual), then Part B. Database: none planned. New packages: none planned.
 
 ## Open questions
 

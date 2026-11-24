@@ -3,7 +3,7 @@
 // covering only 0-9 and ₹ in front of every font). Every screen imports Text from here, never from 'react-native'.
 import React from 'react';
 import { StyleSheet, Text as RNText, type TextProps, type TextStyle } from 'react-native';
-import { fonts } from '../theme/tokens';
+import { MAX_FONT_SCALE, fonts } from '../theme/tokens';
 
 const DIGITS = /([0-9₹]+)/;
 const digit: TextStyle = { fontFamily: fonts.number };
@@ -19,12 +19,14 @@ function split(children: React.ReactNode, style: TextStyle): React.ReactNode {
   });
 }
 
-export function Text({ children, style, ...rest }: TextProps) {
+export function Text({ children, style, maxFontSizeMultiplier = MAX_FONT_SCALE, ...rest }: TextProps) {
   const flat = StyleSheet.flatten(style) as TextStyle | undefined;
   // Already the number font (KPI values, counts): nothing to change.
-  if (flat?.fontFamily === fonts.number) return <RNText style={style} {...rest}>{children}</RNText>;
+  if (flat?.fontFamily === fonts.number) {
+    return <RNText style={style} maxFontSizeMultiplier={maxFontSizeMultiplier} {...rest}>{children}</RNText>;
+  }
   return (
-    <RNText style={style} {...rest}>
+    <RNText style={style} maxFontSizeMultiplier={maxFontSizeMultiplier} {...rest}>
       {split(children, flat?.fontFamily === fonts.light ? digitLight : digit)}
     </RNText>
   );

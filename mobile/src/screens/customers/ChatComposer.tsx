@@ -12,7 +12,7 @@ import { Notice, Sheet } from '../../components/ui';
 import { MAX_CHAT_FILE_BYTES, pickPdf, pickSitePhotos, takeSitePhoto, type PickedPdf } from '../../lib/device';
 import { mentionQuery } from '../../lib/mentions';
 import { startVoice, stopVoice } from '../../lib/voice';
-import { colors, radius, shadow, space, touch, type } from '../../theme/tokens';
+import { MAX_FONT_SCALE, colors, radius, shadow, space, touch, type } from '../../theme/tokens';
 
 type Source = 'camera' | 'gallery' | 'pdf';
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -202,6 +202,7 @@ export function ChatComposer({ customerId, myId, users, onSent, replyTo, onCance
           </Pressable>
           <TextInput
             accessibilityLabel="Write a message"
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
             placeholder={hasFiles && photos.length ? 'Add a caption…' : 'Message… use @ to mention'}
             placeholderTextColor={colors.placeholder}
             value={text}
