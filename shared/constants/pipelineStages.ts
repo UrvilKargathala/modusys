@@ -11,6 +11,7 @@ export type PipelineStageColor =
   | "primary"
   | "cyan"
   | "teal"
+  | "brown"
   | "orange"
   | "indigo"
   | "secondary"
@@ -26,6 +27,7 @@ export const stageColorTokens: Record<PipelineStageColor, { solid: string; light
   primary: { solid: "var(--color-primary)", light: "var(--color-primary-transparent)" },
   cyan: { solid: "var(--color-cyan)", light: "var(--color-cyan-transparent)" },
   teal: { solid: "var(--color-teal)", light: "var(--color-teal-transparent)" },
+  brown: { solid: "var(--color-brown)", light: "var(--color-brown-transparent)" },
   orange: { solid: "var(--color-orange)", light: "var(--color-orange-transparent)" },
   indigo: { solid: "var(--color-indigo)", light: "var(--color-indigo-transparent)" },
   secondary: { solid: "var(--color-secondary)", light: "var(--color-secondary-transparent)" },
@@ -62,7 +64,7 @@ export const pipelineStages: PipelineStage[] = [
   { key: "design", label: "Design", color: "purple" },
   { key: "quotation", label: "Quotation", color: "primary" },
   { key: "onsite-measurements", label: "Onsite Measurements", color: "cyan" },
-  { key: "onsite-marking", label: "Onsite Marking", color: "teal" },
+  { key: "onsite-marking", label: "Onsite Marking", color: "brown" },
   { key: "production", label: "Production", color: "orange" },
   { key: "material-requirement-slip", label: "Material Requirement Slip", color: "indigo" },
   { key: "ready-to-dispatch", label: "Ready To Dispatch", color: "secondary" },

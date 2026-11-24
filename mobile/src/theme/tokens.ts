@@ -36,6 +36,8 @@ export const colors = {
   cyanTint: '#E9F8FB',
   teal: '#0E9384',
   tealTint: '#E9F5F4',
+  brown: '#8B5E34',
+  brownTint: '#F8F1EA',
   grey: '#45505C',
   greyTint: '#F4F4F4',
   // CRM stage colours (shared/constants/pipelineStages.ts names them; hex from the web's palette).

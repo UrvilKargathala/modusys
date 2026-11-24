@@ -16,6 +16,7 @@ const STAGE_COLOURS: Record<PipelineStageColor, { color: string; bg: string }> =
   primary: { color: colors.primary, bg: colors.primaryTint },
   cyan: { color: colors.cyan, bg: colors.cyanTint },
   teal: { color: colors.teal, bg: colors.tealTint },
+  brown: { color: colors.brown, bg: colors.brownTint },
   orange: { color: colors.orange, bg: colors.orangeTint },
   indigo: { color: colors.indigo, bg: colors.indigoTint },
   secondary: { color: colors.secondary, bg: colors.secondaryTint },

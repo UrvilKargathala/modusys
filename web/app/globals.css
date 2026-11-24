@@ -90,6 +90,9 @@
   --color-indigo-transparent: #ededf8;
   --color-cyan-transparent: #e9f8fb;
   --color-teal-transparent: #eaf4fe;
+  /* Onsite Marking stage: brown, the one hue no other stage uses. */
+  --color-brown: #8b5e34;
+  --color-brown-transparent: #f8f1ea;
   --color-light-transparent: #fdfdfe;
 
   /* Primary shades — tonal scale of #288AB8 (cyan) toward white */

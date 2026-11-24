@@ -13,7 +13,7 @@ import { pipelineStages, stageColorTokens, type PipelineStageColor } from "@shar
 import { customPipelineStagesStore, type CustomStageRow } from "@/lib/store/custom-pipeline-stages-store";
 
 const COLORS: PipelineStageColor[] = [
-  "grey", "info", "purple", "primary", "cyan", "teal", "orange",
+  "grey", "info", "purple", "primary", "cyan", "teal", "brown", "orange",
   "indigo", "secondary", "pink", "warning", "success", "error",
 ];
 
