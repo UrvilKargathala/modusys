@@ -46,23 +46,29 @@ export const usersStore = {
   getServerSnapshot() {
     return mockUsers;
   },
-  inviteUser(input: { name: string; email: string; role: RoleKey }) {
+  // Waits for the server (it hashes the password and may refuse a duplicate
+  // email), so the form only shows "done" when the user really exists.
+  async inviteUser(input: { name: string; email: string; role: RoleKey; password: string }): Promise<string | null> {
     ensureHydrated();
-    const optimistic: OrgUser = {
-      id: `temp-${Date.now()}`,
-      name: input.name,
-      email: input.email,
-      status: "invited",
-      role: input.role,
-      lastActive: new Date().toISOString(),
-    };
-    users = [...users, optimistic];
-    emit();
-    fetch("/api/users", {
+    const res = await fetch("/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: input.name, email: input.email, role: input.role, status: "invited" }),
-    }).then(refetch, refetch);
+      body: JSON.stringify(input),
+    }).catch(() => null);
+    await refetch();
+    if (!res) return "Network error, please try again";
+    if (!res.ok) return ((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Couldn't add the user";
+    return null;
+  },
+  setStatus(userId: string, status: "active" | "inactive") {
+    ensureHydrated();
+    users = users.map((u) => (u.id === userId ? { ...u, status } : u));
+    emit();
+    fetch(`/api/users/${userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    }).then((r) => (r.ok ? undefined : refetch()), refetch);
   },
   assignRole(userId: string, role: RoleKey) {
     ensureHydrated();

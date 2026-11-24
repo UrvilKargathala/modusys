@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@backend/server/prisma";
+import { encryptPassword } from "@backend/server/password-vault";
 import { hashPassword, verifyPassword } from "@backend/server/password";
 import { requireUser } from "@backend/server/require-user";
 import { createSessionToken, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from "@backend/server/session-token";
@@ -40,6 +41,7 @@ export async function POST(req: Request) {
     where: { id: user.id },
     data: {
       passwordHash,
+      passwordEncrypted: encryptPassword(newPassword),
       mustChangePassword: false,
       passwordUpdatedAt: new Date(),
       sessionVersion: { increment: 1 },

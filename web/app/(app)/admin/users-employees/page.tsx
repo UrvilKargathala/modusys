@@ -14,8 +14,7 @@ export default async function UsersEmployeesPage() {
       <div>
         <h1 className="font-heading text-2xl font-semibold text-grey-900">Users ↔ Employees</h1>
         <p className="text-sm font-body text-grey-500">
-          Link each user account to the employee record that owns their attendance and leaves.
-          Suggested matches use exact email or exact name.
+          Link each login to the employee record that holds their attendance, leaves and salary.
         </p>
       </div>
       <UsersEmployeesLinker />

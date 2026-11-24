@@ -67,6 +67,13 @@ export async function POST(req: Request) {
     }
   }
 
+  // Optional: link the new employee to this user in the same step.
+  const linkUserId = b.linkUserId ? String(b.linkUserId) : null;
+  if (linkUserId) {
+    const u = await prisma.user.findUnique({ where: { id: linkUserId }, select: { id: true } });
+    if (!u) return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
   const employee = await prisma.employee.create({
     data: {
       name,
@@ -84,6 +91,17 @@ export async function POST(req: Request) {
     target: { type: "USER", id: employee.id, label: employee.name },
     req,
   });
+
+  if (linkUserId) {
+    await prisma.user.update({ where: { id: linkUserId }, data: { employeeId: employee.id } });
+    void logAudit({
+      action: "USER_EMPLOYEE_LINKED",
+      actor: { id: me.id, email: me.email, name: me.name },
+      target: { type: "USER", id: linkUserId, label: employee.name },
+      details: { linkedEmployeeId: employee.id, from: null },
+      req,
+    });
+  }
 
   return NextResponse.json(employee, { status: 201 });
 }

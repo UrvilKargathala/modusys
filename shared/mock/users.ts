@@ -1,6 +1,6 @@
 import type { RoleKey } from "../constants/roles";
 
-export type UserStatus = "active" | "invited";
+export type UserStatus = "active" | "invited" | "inactive";
 
 export type OrgUser = {
   id: string;

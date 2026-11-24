@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@backend/server/prisma";
 import { serializeUser } from "@backend/server/serialize";
+import { encryptPassword } from "@backend/server/password-vault";
 import { hashPassword } from "@backend/server/password";
 import { requireRole } from "@backend/server/require-user";
 import { passwordMeetsAllRequirements } from "@/components/auth/password-requirements";
@@ -34,6 +35,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     where: { id },
     data: {
       passwordHash,
+      passwordEncrypted: encryptPassword(newPassword),
       mustChangePassword: requirePasswordChange,
       passwordUpdatedAt: new Date(),
       sessionVersion: { increment: 1 },

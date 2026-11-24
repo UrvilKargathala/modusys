@@ -1,340 +1,367 @@
 "use client";
 
-import { SelectField } from "@/components/shared/select-field";
 import { useEffect, useMemo, useState } from "react";
-import { Card } from "@/components/ui/card";
+import { CheckCircle2, ChevronDown, CircleDashed, Loader2, Search, Sparkles, Users } from "lucide-react";
+import { SelectField } from "@/components/shared/select-field";
+import { KpiCard } from "@/components/shared/kpi-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Link2, Unlink, UserPlus } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { roles } from "@shared/constants/roles";
+import { toastStore } from "@/lib/store/toast-store";
+import { cn } from "@/lib/utils";
 
 type User = { id: string; name: string; email: string; role: string; status: string; employeeId: string | null };
 type Employee = { id: string; name: string; email: string | null; department: string | null; employeeNumber: string | null };
 type Data = { users: User[]; employees: Employee[]; suggestions: Record<string, string> };
+type RowState = "linked" | "suggested" | "unlinked";
+type Filter = "all" | RowState;
+
+const NONE = "__none__";
+const emptyEmployee = { name: "", email: "", phone: "", department: "", designation: "", employeeNumber: "" };
+
+function roleLabel(key: string) {
+  return roles.find((r) => r.key === key)?.label ?? "No role";
+}
 
 export function UsersEmployeesLinker() {
   const [data, setData] = useState<Data | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [pickerEmpId, setPickerEmpId] = useState<string>("");
-  const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
-  const [newEmployee, setNewEmployee] = useState({ name: "", email: "", phone: "", department: "", designation: "", employeeNumber: "" });
-  const [addBusy, setAddBusy] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
+  const [newFor, setNewFor] = useState<User | null>(null);
+  const [newEmployee, setNewEmployee] = useState(emptyEmployee);
   const [addError, setAddError] = useState<string | null>(null);
+  const [showUnlinkedEmployees, setShowUnlinkedEmployees] = useState(false);
 
   async function load() {
     const r = await fetch("/api/admin/users-employees", { cache: "no-store" });
-    const j: Data = await r.json();
-    setData(j);
+    setData((await r.json()) as Data);
   }
   useEffect(() => {
-    load();
+    let alive = true;
+    fetch("/api/admin/users-employees", { cache: "no-store" })
+      .then((r) => r.json() as Promise<Data>)
+      .then((j) => alive && setData(j))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, []);
 
+  const employeeById = useMemo(() => new Map((data?.employees ?? []).map((e) => [e.id, e])), [data]);
   const linkedEmpIds = useMemo(
-    () => new Set((data?.users || []).map((u) => u.employeeId).filter(Boolean) as string[]),
+    () => new Set((data?.users ?? []).map((u) => u.employeeId).filter(Boolean) as string[]),
     [data]
   );
-  const employeeById = useMemo(
-    () => new Map((data?.employees || []).map((e) => [e.id, e])),
-    [data]
-  );
-  const availableEmployees = useMemo(() => {
-    if (!data) return [];
-    // The current user's linked employee should still be in the list (so the
-    // dropdown shows it as selected), plus every employee not already linked
-    // elsewhere.
-    const selected = data.users.find((u) => u.id === selectedUserId);
-    return data.employees.filter(
-      (e) => !linkedEmpIds.has(e.id) || e.id === selected?.employeeId
+
+  const stateOf = (u: User): RowState =>
+    u.employeeId ? "linked" : data?.suggestions[u.id] ? "suggested" : "unlinked";
+
+  const counts = useMemo(() => {
+    const c = { linked: 0, suggested: 0, unlinked: 0 };
+    for (const u of data?.users ?? []) c[stateOf(u)]++;
+    return c;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (data?.users ?? []).filter(
+      (u) =>
+        (filter === "all" || stateOf(u) === filter) &&
+        (!q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
     );
-  }, [data, linkedEmpIds, selectedUserId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, search, filter]);
+
+  const employeesWithoutLogin = useMemo(
+    () => (data?.employees ?? []).filter((e) => !linkedEmpIds.has(e.id)),
+    [data, linkedEmpIds]
+  );
+
+  async function link(user: User, employeeId: string | null, quiet = false): Promise<boolean> {
+    setBusy(user.id);
+    try {
+      const r = await fetch("/api/admin/users-employees/link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, employeeId }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        toastStore.show(j.error || "Couldn't save the link", "error");
+        return false;
+      }
+      if (!quiet) {
+        const emp = employeeId ? employeeById.get(employeeId) : null;
+        toastStore.show(emp ? `${user.name} linked to ${emp.name}` : `${user.name} unlinked`);
+      }
+      return true;
+    } finally {
+      setBusy(null);
+      if (!quiet) await load();
+    }
+  }
+
+  async function confirmAll() {
+    if (!data) return;
+    const todo = data.users.filter((u) => !u.employeeId && data.suggestions[u.id]);
+    setBusy("__all__");
+    let ok = 0;
+    for (const u of todo) if (await link(u, data.suggestions[u.id], true)) ok++;
+    setBusy(null);
+    await load();
+    toastStore.show(`${ok} of ${todo.length} suggestions linked`, ok === todo.length ? "success" : "warning");
+  }
+
+  function openNewEmployee(user: User) {
+    setNewFor(user);
+    setAddError(null);
+    setNewEmployee({ ...emptyEmployee, name: user.name, email: user.email });
+  }
 
   async function createEmployee() {
-    const name = newEmployee.name.trim();
-    if (!name) {
-      setAddError("Name is required");
-      return;
-    }
-    setAddBusy(true);
+    if (!newFor) return;
+    if (!newEmployee.name.trim()) return setAddError("Name is required");
+    setBusy("__new__");
     setAddError(null);
     try {
       const r = await fetch("/api/admin/users-employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newEmployee),
+        body: JSON.stringify({ ...newEmployee, linkUserId: newFor.id }),
       });
-      const j = await r.json();
-      if (!r.ok) {
-        setAddError(j.error || "Failed to create employee");
-        return;
-      }
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return setAddError(j.error || "Couldn't create the employee");
+      toastStore.show(`Employee created and linked to ${newFor.name}`);
+      setNewFor(null);
       await load();
-      setAddEmployeeOpen(false);
-      setNewEmployee({ name: "", email: "", phone: "", department: "", designation: "", employeeNumber: "" });
     } finally {
-      setAddBusy(false);
-    }
-  }
-
-  async function link(userId: string, employeeId: string | null) {
-    setBusyId(userId);
-    setError(null);
-    try {
-      const r = await fetch("/api/admin/users-employees/link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, employeeId }),
-      });
-      const j = await r.json();
-      if (!r.ok) {
-        setError(j.error || "Failed");
-        return;
-      }
-      await load();
-      setSelectedUserId(null);
-      setPickerEmpId("");
-    } finally {
-      setBusyId(null);
+      setBusy(null);
     }
   }
 
   if (!data) {
     return (
-      <Card className="flex items-center justify-center p-10">
+      <div className="flex items-center justify-center rounded-lg border border-grey-100 bg-card p-10">
         <Loader2 className="h-5 w-5 animate-spin text-grey-400" />
-      </Card>
+      </div>
     );
   }
 
-  return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      {/* Left: users */}
-      <Card className="lg:col-span-2 overflow-hidden p-0">
-        <div className="border-b border-grey-100 px-4 py-3">
-          <h2 className="font-heading text-sm font-semibold text-grey-900">Users</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-light-600 text-left text-xs font-heading font-medium uppercase tracking-wider text-grey-500">
-              <tr>
-                <th className="px-4 py-2">User</th>
-                <th className="px-4 py-2">Role</th>
-                <th className="px-4 py-2">Linked Employee</th>
-                <th className="px-4 py-2 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-grey-100">
-              {data.users.map((u) => {
-                const linked = u.employeeId ? employeeById.get(u.employeeId) : null;
-                const suggestId = data.suggestions[u.id];
-                const suggest = suggestId ? employeeById.get(suggestId) : null;
-                return (
-                  <tr key={u.id} className={selectedUserId === u.id ? "bg-primary-transparent" : "hover:bg-light-600/50"}>
-                    <td className="px-4 py-2 align-top">
-                      <p className="font-body font-medium text-grey-900">{u.name}</p>
-                      <p className="text-xs text-grey-500">{u.email}</p>
-                    </td>
-                    <td className="px-4 py-2 align-top text-grey-700">{u.role}</td>
-                    <td className="px-4 py-2 align-top">
-                      {linked ? (
-                        <div>
-                          <p className="text-grey-900">{linked.name}</p>
-                          {linked.department && <p className="text-xs text-grey-500">{linked.department}</p>}
-                        </div>
-                      ) : suggest ? (
-                        <button
-                          type="button"
-                          onClick={() => link(u.id, suggest.id)}
-                          disabled={busyId === u.id}
-                          className="text-left"
-                        >
-                          <p className="text-primary hover:underline">Suggested: {suggest.name}</p>
-                          <p className="text-xs text-grey-500">Click to link</p>
-                        </button>
-                      ) : (
-                        <span className="text-xs italic text-grey-400">not linked</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 align-top text-right">
-                      {linked ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => link(u.id, null)}
-                          disabled={busyId === u.id}
-                        >
-                          <Unlink className="h-3.5 w-3.5" />
-                          Unlink
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedUserId(u.id);
-                            setPickerEmpId(suggestId || "");
-                          }}
-                          disabled={busyId === u.id}
-                        >
-                          <Link2 className="h-3.5 w-3.5" />
-                          Link…
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+  const chips: { key: Filter; label: string; value: number; icon: typeof Users; accent: "primary" | "success" | "warning" | "error" }[] = [
+    { key: "all", label: "All users", value: data.users.length, icon: Users, accent: "primary" },
+    { key: "linked", label: "Linked", value: counts.linked, icon: CheckCircle2, accent: "success" },
+    { key: "suggested", label: "Suggested", value: counts.suggested, icon: Sparkles, accent: "warning" },
+    { key: "unlinked", label: "Not linked", value: counts.unlinked, icon: CircleDashed, accent: "error" },
+  ];
 
-      {/* Right: picker + employee list */}
-      <Card className="flex flex-col gap-3 p-4">
-        {selectedUserId ? (
-          <>
-            <div>
-              <p className="text-xs font-body font-medium uppercase tracking-wide text-grey-500">Linking</p>
-              <p className="font-body text-grey-900">
-                {data.users.find((u) => u.id === selectedUserId)?.name}
-              </p>
-              <p className="text-xs text-grey-500">
-                {data.users.find((u) => u.id === selectedUserId)?.email}
-              </p>
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Summary chips double as filters */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {chips.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => setFilter(c.key)}
+            className={cn("rounded-xl text-left transition", filter === c.key ? "ring-2 ring-primary" : "hover:opacity-90")}
+          >
+            <KpiCard compact label={c.label} value={String(c.value)} icon={c.icon} accent={c.accent} />
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative w-full max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-grey-300" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or email"
+            className="pl-9"
+          />
+        </div>
+        {counts.suggested > 0 && (
+          <Button type="button" onClick={confirmAll} disabled={busy !== null}>
+            {busy === "__all__" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Confirm all suggestions ({counts.suggested})
+          </Button>
+        )}
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-grey-100 bg-card">
+        <table className="w-full text-sm">
+          <thead className="bg-light-600 text-left text-xs font-heading font-medium uppercase tracking-wider text-grey-500">
+            <tr>
+              <th className="px-4 py-3">User</th>
+              <th className="px-4 py-3">Role</th>
+              <th className="px-4 py-3">Employee</th>
+              <th className="px-4 py-3">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-grey-100">
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-4 py-10 text-center text-sm font-body text-grey-400">
+                  No users match.
+                </td>
+              </tr>
+            )}
+            {rows.map((u) => {
+              const state = stateOf(u);
+              const suggestId = data.suggestions[u.id];
+              const value = u.employeeId ?? suggestId ?? NONE;
+              // This user's own employee + every employee nobody else has.
+              const options = data.employees.filter((e) => !linkedEmpIds.has(e.id) || e.id === u.employeeId);
+              return (
+                <tr key={u.id} className="hover:bg-light-600/50">
+                  <td className="px-4 py-3 align-middle">
+                    <p className="font-body font-medium text-grey-900">{u.name}</p>
+                    <p className="text-xs text-grey-500">{u.email}</p>
+                  </td>
+                  <td className="px-4 py-3 align-middle">
+                    <span className="inline-flex rounded-full bg-primary-transparent px-2.5 py-1 text-xs font-body font-medium text-primary">
+                      {roleLabel(u.role)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 align-middle">
+                    <div className="flex items-center gap-2">
+                      <div className="relative w-64">
+                        <SelectField
+                          value={value}
+                          aria-label={`Employee for ${u.name}`}
+                          disabled={busy !== null}
+                          searchPlaceholder="Search employees"
+                          addLabel="New employee"
+                          onAddClick={() => openNewEmployee(u)}
+                          onChange={(e) => {
+                            const next = e.target.value === NONE ? null : e.target.value;
+                            if (next !== u.employeeId) void link(u, next);
+                          }}
+                          className={cn(
+                            "flex h-9 w-full items-center rounded-md border px-3 text-left text-sm font-body",
+                            state === "suggested" ? "border-warning bg-warning-transparent text-grey-900" : "border-grey-200 text-grey-900",
+                            state === "unlinked" && "text-grey-400"
+                          )}
+                        >
+                          <option value={NONE}>{u.employeeId ? "— None (unlink) —" : "Pick employee…"}</option>
+                          {options.map((e) => (
+                            <option key={e.id} value={e.id}>
+                              {e.name}
+                              {e.department ? ` · ${e.department}` : ""}
+                            </option>
+                          ))}
+                        </SelectField>
+                      </div>
+                      {state === "suggested" && (
+                        <Button type="button" size="sm" onClick={() => void link(u, suggestId)} disabled={busy !== null}>
+                          {busy === u.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm"}
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 align-middle">
+                    {state === "linked" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-success-transparent px-2.5 py-1 text-xs font-medium text-success">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Linked
+                      </span>
+                    ) : state === "suggested" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-warning-100 px-2.5 py-1 text-xs font-medium text-warning-900">
+                        <Sparkles className="h-3.5 w-3.5" /> Suggested
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-grey-transparent px-2.5 py-1 text-xs font-medium text-grey-600">
+                        <CircleDashed className="h-3.5 w-3.5" /> Not linked
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Employees nobody logs in as (e.g. factory staff) — collapsed by default */}
+      <div className="rounded-lg border border-grey-100 bg-card">
+        <button
+          type="button"
+          onClick={() => setShowUnlinkedEmployees((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-3 text-left"
+        >
+          <span className="text-sm font-heading font-semibold text-grey-900">
+            Employees without a login <span className="font-number text-grey-500">({employeesWithoutLogin.length})</span>
+          </span>
+          <ChevronDown className={cn("h-4 w-4 text-grey-400 transition-transform", showUnlinkedEmployees && "rotate-180")} />
+        </button>
+        {showUnlinkedEmployees && (
+          <ul className="grid grid-cols-1 gap-2 border-t border-grey-100 p-4 sm:grid-cols-2 lg:grid-cols-3">
+            {employeesWithoutLogin.map((e) => (
+              <li key={e.id} className="rounded-md border border-grey-100 px-3 py-2">
+                <p className="text-sm font-body text-grey-900">{e.name}</p>
+                <p className="text-xs text-grey-500">{[e.department, e.email].filter(Boolean).join(" · ") || "—"}</p>
+              </li>
+            ))}
+            {employeesWithoutLogin.length === 0 && <li className="text-sm text-grey-400">Every employee has a login.</li>}
+          </ul>
+        )}
+      </div>
+
+      <Dialog open={newFor !== null} onOpenChange={(o) => !o && setNewFor(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New employee</DialogTitle>
+            <DialogDescription>
+              Creates an employee record and links it to {newFor?.name}. Use this for people who don&apos;t come in through the door-access sync.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="ne-name">Name *</Label>
+              <Input id="ne-name" value={newEmployee.name} onChange={(e) => setNewEmployee((v) => ({ ...v, name: e.target.value }))} />
             </div>
-            <label className="flex flex-col gap-1 text-xs font-body font-medium text-grey-500">
-              Employee record
-              <SelectField
-                value={pickerEmpId}
-                onChange={(e) => setPickerEmpId(e.target.value)}
-                className="h-9 rounded-md border border-grey-200 px-2 text-sm text-grey-900"
-              >
-                <option value="">— pick one —</option>
-                {availableEmployees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name}{e.email ? ` · ${e.email}` : ""}{e.department ? ` · ${e.department}` : ""}
-                  </option>
-                ))}
-              </SelectField>
-            </label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setSelectedUserId(null);
-                  setPickerEmpId("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={() => selectedUserId && pickerEmpId && link(selectedUserId, pickerEmpId)}
-                disabled={!pickerEmpId || busyId !== null}
-              >
-                {busyId === selectedUserId ? "Saving…" : "Save link"}
-              </Button>
-            </div>
-            {error && <p className="text-xs text-error">{error}</p>}
-          </>
-        ) : addEmployeeOpen ? (
-          <>
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-body font-medium uppercase tracking-wide text-grey-500">New Employee</p>
-              <button
-                type="button"
-                onClick={() => { setAddEmployeeOpen(false); setAddError(null); }}
-                className="text-xs text-grey-500 hover:text-grey-700"
-              >
-                Cancel
-              </button>
-            </div>
-            <p className="text-xs text-grey-500">
-              For people who will not appear via UniFi sync (remote/non-office roles) — creates a
-              standalone employee record you can then link to their user account.
-            </p>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="ne-name" className="text-xs">Name *</Label>
-              <Input
-                id="ne-name"
-                value={newEmployee.name}
-                onChange={(e) => setNewEmployee((v) => ({ ...v, name: e.target.value }))}
-                placeholder="Full name"
-              />
-              <Label htmlFor="ne-email" className="text-xs">Email</Label>
-              <Input
-                id="ne-email"
-                type="email"
-                value={newEmployee.email}
-                onChange={(e) => setNewEmployee((v) => ({ ...v, email: e.target.value }))}
-                placeholder="name@example.com"
-              />
-              <Label htmlFor="ne-phone" className="text-xs">Phone</Label>
-              <Input
-                id="ne-phone"
-                value={newEmployee.phone}
-                onChange={(e) => setNewEmployee((v) => ({ ...v, phone: e.target.value }))}
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor="ne-dept" className="text-xs">Department</Label>
-                  <Input
-                    id="ne-dept"
-                    value={newEmployee.department}
-                    onChange={(e) => setNewEmployee((v) => ({ ...v, department: e.target.value }))}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor="ne-desig" className="text-xs">Designation</Label>
-                  <Input
-                    id="ne-desig"
-                    value={newEmployee.designation}
-                    onChange={(e) => setNewEmployee((v) => ({ ...v, designation: e.target.value }))}
-                  />
-                </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="ne-email">Email</Label>
+                <Input id="ne-email" type="email" value={newEmployee.email} onChange={(e) => setNewEmployee((v) => ({ ...v, email: e.target.value }))} />
               </div>
-              <Label htmlFor="ne-empno" className="text-xs">Employee Number</Label>
-              <Input
-                id="ne-empno"
-                value={newEmployee.employeeNumber}
-                onChange={(e) => setNewEmployee((v) => ({ ...v, employeeNumber: e.target.value }))}
-              />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="ne-phone">Phone</Label>
+                <Input id="ne-phone" value={newEmployee.phone} onChange={(e) => setNewEmployee((v) => ({ ...v, phone: e.target.value }))} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="ne-dept">Department</Label>
+                <Input id="ne-dept" value={newEmployee.department} onChange={(e) => setNewEmployee((v) => ({ ...v, department: e.target.value }))} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="ne-desig">Designation</Label>
+                <Input id="ne-desig" value={newEmployee.designation} onChange={(e) => setNewEmployee((v) => ({ ...v, designation: e.target.value }))} />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="ne-empno">Employee number</Label>
+              <Input id="ne-empno" value={newEmployee.employeeNumber} onChange={(e) => setNewEmployee((v) => ({ ...v, employeeNumber: e.target.value }))} />
             </div>
             {addError && <p className="text-xs text-error">{addError}</p>}
-            <Button type="button" onClick={createEmployee} disabled={addBusy || !newEmployee.name.trim()}>
-              {addBusy ? "Creating…" : "Create Employee"}
-            </Button>
-          </>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-body text-grey-500">
-              Pick a user on the left to link, or click a Suggested match to link it directly.
-            </p>
-            <Button type="button" variant="outline" size="sm" onClick={() => setAddEmployeeOpen(true)} className="self-start">
-              <UserPlus className="h-3.5 w-3.5" />
-              Add Employee
-            </Button>
-            <div className="mt-2">
-              <p className="text-xs font-body font-medium uppercase tracking-wide text-grey-500">
-                Active employees (<span className="font-number">{data.employees.length}</span>)
-              </p>
-              <ul className="mt-2 max-h-96 space-y-1 overflow-y-auto text-sm">
-                {data.employees.map((e) => (
-                  <li key={e.id} className="rounded border border-grey-100 px-2 py-1.5">
-                    <p className={linkedEmpIds.has(e.id) ? "text-grey-400 line-through" : "text-grey-900"}>{e.name}</p>
-                    {e.email && <p className="text-xs text-grey-500">{e.email}</p>}
-                  </li>
-                ))}
-              </ul>
-            </div>
           </div>
-        )}
-      </Card>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setNewFor(null)}>Cancel</Button>
+            <Button type="button" onClick={createEmployee} disabled={busy === "__new__" || !newEmployee.name.trim()}>
+              {busy === "__new__" ? "Creating…" : "Create and link"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

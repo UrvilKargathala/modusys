@@ -31,8 +31,17 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
   const isSelf = auth.user.id === id;
   const changingRole = body.role !== undefined;
-  if ((!isSelf || changingRole) && auth.user.role !== "super-admin") {
+  const changingStatus = body.status !== undefined;
+  if ((!isSelf || changingRole || changingStatus) && auth.user.role !== "super-admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (changingStatus) {
+    if (body.status !== "active" && body.status !== "inactive") {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+    if (isSelf) {
+      return NextResponse.json({ error: "You can't deactivate your own account" }, { status: 400 });
+    }
   }
 
   const before = changingRole ? await prisma.user.findUnique({ where: { id } }) : null;
@@ -42,6 +51,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
     if (body[k] !== undefined) data[k] = body[k];
   }
   if (body.passwordUpdatedAt !== undefined) data.passwordUpdatedAt = new Date();
+  // Deactivating signs the person out on every device straight away.
+  if (body.status === "inactive") data.sessionVersion = { increment: 1 };
   if (typeof data.email === "string") {
     const taken = await prisma.user.findFirst({ where: { email: data.email, NOT: { id } }, select: { id: true } });
     if (taken) return NextResponse.json({ error: "That email is already used by another user." }, { status: 409 });
@@ -61,6 +72,15 @@ export async function PATCH(req: Request, { params }: Ctx) {
       actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
       target: { type: "USER", id: user.id, label: `${user.name} (${user.email})` },
       details: { field: "role", from: before.role, to: user.role },
+      req,
+    });
+  }
+
+  if (changingStatus) {
+    void logAudit({
+      action: body.status === "inactive" ? "USER_DEACTIVATED" : "USER_REACTIVATED",
+      actor: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
+      target: { type: "USER", id: user.id, label: `${user.name} (${user.email})` },
       req,
     });
   }

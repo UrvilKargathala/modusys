@@ -7,10 +7,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { InviteForm } from "@/components/users/invite-form";
-import { AssignRoleForm } from "@/components/users/assign-role-form";
 
+// One form: name, email, role, password. Roles are changed in the table itself.
 export function AccessModal({
   open,
   onOpenChange,
@@ -22,27 +21,10 @@ export function AccessModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add or manage access</DialogTitle>
-          <DialogDescription>Invite a new teammate or change an existing user's role.</DialogDescription>
+          <DialogTitle>Add user</DialogTitle>
+          <DialogDescription>Create a login for a teammate. They can sign in straight away with this password.</DialogDescription>
         </DialogHeader>
-
-        <Tabs defaultValue="invite">
-          <TabsList className="w-full">
-            <TabsTrigger value="invite" className="flex-1">
-              Invite New User
-            </TabsTrigger>
-            <TabsTrigger value="assign" className="flex-1">
-              Assign Role
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="invite" className="pt-4">
-            <InviteForm onDone={() => onOpenChange(false)} />
-          </TabsContent>
-          <TabsContent value="assign" className="pt-4">
-            <AssignRoleForm onDone={() => onOpenChange(false)} />
-          </TabsContent>
-        </Tabs>
+        {open && <InviteForm onDone={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>
   );

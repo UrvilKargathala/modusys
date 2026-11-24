@@ -223,6 +223,9 @@ model User {
   name               String
   email              String    @unique
   passwordHash       String?
+  // AES-256-GCM encrypted copy of the current password so a super-admin can
+  // view it on the Users page. Null for passwords set before this existed.
+  passwordEncrypted  String?
   role               String    @default("no-role")
   status             String    @default("active")
   mustChangePassword Boolean   @default(false)

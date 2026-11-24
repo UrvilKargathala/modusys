@@ -1,6 +1,7 @@
 "use client";
 
-import { ShieldCheck, KeyRound, UserPlus, ShieldAlert } from "lucide-react";
+import { useState } from "react";
+import { ShieldCheck, KeyRound, UserPlus, ShieldAlert, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -42,14 +43,25 @@ const defaultActionStyle = { icon: ShieldCheck, className: "text-grey-400" };
 export function SecurityAuditList() {
   const events = useSecurityAuditLog();
   const currentUser = useCurrentUser();
+  // Collapsed by default so the users table stays the focus of the page.
+  const [open, setOpen] = useState(false);
 
   if (currentUser.role !== "super-admin") return null;
 
   return (
     <Card className="border-grey-100">
       <CardHeader>
-        <CardTitle className="font-heading text-base text-grey-900">Recent security actions</CardTitle>
+        <button type="button" onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between text-left">
+          <CardTitle className="font-heading text-base text-grey-900">
+            Security log <span className="font-number text-sm font-normal text-grey-400">({events.length} recent)</span>
+          </CardTitle>
+          <span className="flex items-center gap-1 text-sm font-body text-primary">
+            {open ? "Hide" : "View log"}
+            <ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />
+          </span>
+        </button>
       </CardHeader>
+      {open && (
       <CardContent>
         {events.length === 0 ? (
           <EmptyState icon={ShieldCheck} message="No security actions recorded yet." />
@@ -73,6 +85,7 @@ export function SecurityAuditList() {
           </ul>
         )}
       </CardContent>
+      )}
     </Card>
   );
 }

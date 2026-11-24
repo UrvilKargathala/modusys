@@ -24,6 +24,7 @@ type InviteValues = z.infer<typeof inviteSchema>;
 
 export function InviteForm({ onDone }: { onDone: () => void }) {
   const [invited, setInvited] = useState<InviteValues | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -38,8 +39,15 @@ export function InviteForm({ onDone }: { onDone: () => void }) {
 
   const role = watch("role");
 
-  const onSubmit = (values: InviteValues) => {
-    usersStore.inviteUser({ name: values.name, email: values.email, role: values.role });
+  const onSubmit = async (values: InviteValues) => {
+    setServerError(null);
+    const error = await usersStore.inviteUser({
+      name: values.name,
+      email: values.email,
+      role: values.role,
+      password: values.password,
+    });
+    if (error) return setServerError(error);
     setInvited(values);
   };
 
@@ -66,7 +74,7 @@ export function InviteForm({ onDone }: { onDone: () => void }) {
         </div>
         <div className="flex items-start gap-2 rounded-lg bg-info-transparent px-3 py-2 text-sm font-body text-info">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
-          Note this password down — it won't be shown again after you close this dialog.
+          Share this password with them. As Super Admin you can see it again later in the Password column.
         </div>
         <Button onClick={onDone} className="w-full">
           Done
@@ -98,8 +106,10 @@ export function InviteForm({ onDone }: { onDone: () => void }) {
 
       <PasswordFields register={register} setValue={setValue} passwordValue={watch("password")} errors={errors} />
 
+      {serverError && <p className="text-xs font-body text-error">{serverError}</p>}
+
       <Button type="submit" disabled={isSubmitting || !isValid} className="w-full">
-        Send Invite
+        {isSubmitting ? "Adding…" : "Add User"}
       </Button>
     </form>
   );

@@ -20,7 +20,8 @@ export async function POST(req: Request) {
   if (!email || !password) return invalid();
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !user.passwordHash || user.status !== "active") return invalid();
+  // "inactive" (deactivated) users are refused; "invited" become "active" on their first sign-in.
+  if (!user || !user.passwordHash || (user.status !== "active" && user.status !== "invited")) return invalid();
 
   const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) {
@@ -28,7 +29,8 @@ export async function POST(req: Request) {
     return invalid();
   }
 
-  await prisma.user.update({ where: { id: user.id }, data: { lastActive: new Date() } });
+  await prisma.user.update({ where: { id: user.id }, data: { lastActive: new Date(), status: "active" } });
+  user.status = "active";
 
   void logAudit({
     action: "SIGN_IN_SUCCESS",
