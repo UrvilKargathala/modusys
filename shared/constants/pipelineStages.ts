@@ -1,4 +1,4 @@
-// Each stage gets its own distinct color (13 stages → 13 distinct hues from
+// Each stage gets its own distinct color (14 stages → 14 distinct hues from
 // the brand palette's solid + "-transparent" token pairs already defined in
 // globals.css) — solid for accents/borders, transparent for tinted
 // backgrounds. This is a separate system from lib/status.ts's 5-bucket
@@ -38,6 +38,7 @@ export const stageColorTokens: Record<PipelineStageColor, { solid: string; light
 };
 
 export type PipelineStageKey =
+  | "website-inquiry"
   | "upcoming-inquiry"
   | "inquiry-in-process"
   | "design"
@@ -59,6 +60,8 @@ export type PipelineStage = {
 };
 
 export const pipelineStages: PipelineStage[] = [
+  // Fed automatically by the thefurn.co contact form (/api/webhooks/thefurn-inquiry).
+  { key: "website-inquiry", label: "Website Inquiry", color: "teal" },
   { key: "upcoming-inquiry", label: "Upcoming Inquiry", color: "grey" },
   { key: "inquiry-in-process", label: "Inquiry In Process", color: "info" },
   { key: "design", label: "Design", color: "purple" },

@@ -72,7 +72,7 @@ export function getVirtualNotifications(
     }));
 
   const newLeads: VirtualNotification[] = customers
-    .filter((c) => c.stage === "upcoming-inquiry" && daysSince(c.lastActivity) <= RECENT_DAYS)
+    .filter((c) => (c.stage === "upcoming-inquiry" || c.stage === "website-inquiry") && daysSince(c.lastActivity) <= RECENT_DAYS)
     .map((c) => ({
       id: `lead-${c.id}`,
       kind: "new-lead",

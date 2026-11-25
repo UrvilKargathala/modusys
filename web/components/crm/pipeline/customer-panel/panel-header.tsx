@@ -20,6 +20,8 @@ import { useChatPresence } from "@/lib/store/chat-presence-store";
 import { useOrgUsers } from "@/lib/store/users-store";
 import { toastStore } from "@/lib/store/toast-store";
 import type { Customer } from "@shared/mock/pipeline";
+import { customerWhatsAppLink } from "@shared/constants/websiteInquiries";
+import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 
 export function PanelHeader({
   customer,
@@ -41,6 +43,9 @@ export function PanelHeader({
   onDelete: () => void;
 }) {
   const colors = stageColorTokens[stage.color];
+  const whatsapp = customer.mobile ? customerWhatsAppLink(customer.mobile, customer.name) : null;
+  const phoneDigits = (customer.mobile ?? "").replace(/[^\d+]/g, "");
+  const phoneHref = phoneDigits.replace(/\D/g, "").length >= 8 ? `tel:${phoneDigits}` : null;
   const effectiveStages = useEffectivePipelineStages();
   const presence = useChatPresence(customer.id);
   const orgUsers = useOrgUsers();
@@ -111,20 +116,36 @@ export function PanelHeader({
         </div>
 
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            aria-label="Call customer"
-            className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
-          >
-            <Phone className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="Email customer"
-            className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary"
-          >
-            <Mail className="h-4 w-4" />
-          </button>
+          {whatsapp && (
+            <a
+              href={whatsapp}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="WhatsApp customer"
+              title="WhatsApp customer"
+              className="rounded-md p-1.5 text-success transition-colors hover:bg-success-transparent"
+            >
+              <WhatsAppIcon className="h-4 w-4" />
+            </a>
+          )}
+          {phoneHref ? (
+            <a href={phoneHref} aria-label="Call customer" title="Call customer" className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary">
+              <Phone className="h-4 w-4" />
+            </a>
+          ) : (
+            <button type="button" aria-label="Call customer" disabled className="rounded-md p-1.5 text-grey-200">
+              <Phone className="h-4 w-4" />
+            </button>
+          )}
+          {customer.email ? (
+            <a href={`mailto:${customer.email}`} aria-label="Email customer" title="Email customer" className="rounded-md p-1.5 text-grey-400 transition-colors hover:bg-light-600 hover:text-primary">
+              <Mail className="h-4 w-4" />
+            </a>
+          ) : (
+            <button type="button" aria-label="Email customer" disabled className="rounded-md p-1.5 text-grey-200">
+              <Mail className="h-4 w-4" />
+            </button>
+          )}
           {canEdit && (
             <button
               type="button"

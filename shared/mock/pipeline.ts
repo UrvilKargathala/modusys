@@ -67,6 +67,7 @@ export const assignees = ["Priya Nair", "Rahul Verma", "Ananya Iyer", "Vikram Si
 // intentionally 0 so the List view's "zero-count stages default collapsed"
 // rule has a real case to exercise, not a hypothetical.
 const stageCounts: Record<PipelineStageKey, number> = {
+  "website-inquiry": 0,
   "upcoming-inquiry": 9,
   "inquiry-in-process": 7,
   design: 5,

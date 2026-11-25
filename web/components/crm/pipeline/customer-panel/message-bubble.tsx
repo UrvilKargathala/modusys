@@ -452,6 +452,24 @@ export function MessageBubble({
   const orgUsers = useOrgUsers();
   const readSummary = useReadSummary(message.customerId);
 
+  // Multi-line system notes (e.g. the website inquiry details) read as a block.
+  if (message.kind === "system" && message.text?.includes("\n")) {
+    const [title, ...lines] = message.text.split("\n");
+    return (
+      <div className="flex justify-center py-1">
+        <div className="w-full max-w-[92%] rounded-lg border border-teal-200 bg-teal-transparent px-3 py-2 text-xs font-body text-grey-700">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="font-semibold text-teal">{title}</span>
+            <span className="font-number text-grey-400">{timeAgo(message.createdAt)}</span>
+          </div>
+          {lines.map((l, i) => (
+            <p key={i} className="whitespace-pre-wrap break-words">{l}</p>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (message.kind === "system") {
     return (
       <div className="flex justify-center py-1">
