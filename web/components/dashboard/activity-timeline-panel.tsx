@@ -106,7 +106,7 @@ export function ActivityTimelinePanel() {
           time: timeAgo(c.lastActivity),
           timestamp: ts,
         });
-      } else if (c.stage === "upcoming-inquiry" || c.stage === "inquiry-in-process") {
+      } else if (c.stage === "website-inquiry" || c.stage === "upcoming-inquiry" || c.stage === "inquiry-in-process") {
         timeline.push({
           id: `cn-${c.id}`,
           icon: UserPlus,

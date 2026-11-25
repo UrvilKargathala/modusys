@@ -1021,3 +1021,22 @@ model AccountEntry {
   @@index([headId, date])
   @@index([partyType, partyId])
 }
+
+// ---------------------------------------------------------------------------
+// THE FURN website contact form → Tickets (25/11/2026). Each signed webhook
+// call leaves one receipt row here: it stops a retried submission from making a
+// second card (externalId is unique) and keeps the form exactly as received.
+// The lead itself is a normal Customer in stage "website-inquiry".
+model WebsiteInquiry {
+  id              String   @id @default(cuid())
+  externalId      String   @unique // idempotency key sent by the website
+  phoneNormalized String // last 10 digits
+  rawPayload      Json // exact submission as received
+  submittedAt     DateTime
+  customerId      String // the Customer card it created or was added to
+  outcome         String // "created" | "merged"
+  createdAt       DateTime @default(now())
+
+  @@index([phoneNormalized])
+  @@index([customerId])
+}
