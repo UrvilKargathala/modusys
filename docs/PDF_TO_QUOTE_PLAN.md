@@ -128,6 +128,19 @@ Code, not the model, does the arithmetic: rounding, LED total, tray size, wall-l
     rates are the profile glass cabinet's rates too. Not built yet: today both the import and the unit
     card's Auto Populate re-price glass shutters to the Variant's rate, so staff fix them by hand.
 
+20. Rules from the Rajeshbhai check (owner, 26/11/2026):
+    - A corner is never left out; it goes into the unit beside it. If the other wall's elevation
+      dimensions the corner (684), use that: sink 396 + 396 + 684 corner = 1476 (staff 1479).
+    - A base unit labelled "Pull Out" is a Pull-Out Unit Type, never Shutter & Shelf.
+    - A tall column whose top shutter row lines up with the loft beside it is tall + loft
+      (2880 oven column with a 980 top row = tall 1900 + loft 980). Lofts are Loft Unit With Shutter & Shelf.
+    - Tall run (tall, crockery, lofts over them or the fridge): depth = plan − 20 for the shutter
+      (709 → 689, 420 → 400); width from the plan (crockery 780, not shutters 772).
+    - Base run on the plan is the countertop: cabinet = plan − 50 (660 → 610).
+    - Chimney wall unit: hood drawn inside the cabinet → band − 60 (1330 → 1270); hood below it → full height.
+    - Kept as they are (owner): width rounding, crockery split above 2400, full Kitchen Accessories set.
+    Note: the expected sizes in backend/scripts/drawing-import-test.ts predate the −20 tall rule.
+
 ## Test cases
 Files are in the owner's Downloads. "Expected" = what the import must produce; it is what the owner
 confirmed, not always the hand-made quote.
