@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Calculator, ChevronsDown, ChevronsUp, FileText, Layers, Plus, User } from "lucide-react";
+import { Calculator, ChevronsDown, ChevronsUp, FileText, FileUp, Layers, Plus, User } from "lucide-react";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { QuoteSaveRemarksDialog } from "@/components/quotes/quote-save-remarks-dialog";
+import { ImportDrawingDialog } from "@/components/quotes/import-drawing-dialog";
 import { quoteChanges } from "@/lib/quote-changes";
 import { QuotePoActions } from "@/components/purchase-orders/quote-po-actions";
 import { ClientDetailsSection } from "@/components/quotes/create/client-details-section";
@@ -60,6 +61,7 @@ function CreateQuotePage() {
   // requested quote to hydrate from the store.
   const [quote, setQuote] = useState<Quote | null>(() => (editId ? null : initialQuote()));
   const [clearOpen, setClearOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   // Saving an edit: the Remarks dialog is open (leave = go back to the list after saving, as the top Save does).
   const [remarksFor, setRemarksFor] = useState<{ leave: boolean } | null>(null);
   // Tabs sit under the page header; a new quote starts on Customer Details, a saved one on its Units.
@@ -211,6 +213,13 @@ function CreateQuotePage() {
     patchQuote({ units });
   };
   const setAllUnitsCollapsed = (collapsed: boolean) => changeUnits(quote.units.map((u) => ({ ...u, collapsed })));
+  // Import from drawing: the Material Specification and units read from the PDF replace the draft's (Ctrl+Z brings the old units back).
+  const fillFromDrawing = (patch: Partial<Quote>, toCheck: number) => {
+    unitsHistory.current.push(quote.units);
+    setQuote((q) => (q ? { ...q, ...patch } : q));
+    setTab("items");
+    toastStore.show(`Filled ${patch.units?.length ?? 0} units from the drawing${toCheck ? `, ${toCheck} to check` : ""}`);
+  };
 
   const panelCls = (key: TabKey) => (tab === key ? "block" : "hidden");
 
@@ -248,9 +257,15 @@ function CreateQuotePage() {
             ) : (
               <>
                 {!editId && (
-                  <Button type="button" variant="outline" onClick={() => setClearOpen(true)}>
-                    Clear Draft
-                  </Button>
+                  <>
+                    <Button type="button" variant="outline" onClick={() => setImportOpen(true)}>
+                      <FileUp className="h-3.5 w-3.5" />
+                      Import from drawing
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setClearOpen(true)}>
+                      Clear Draft
+                    </Button>
+                  </>
                 )}
                 {editId && (
                   <Button type="button" variant="outline" onClick={() => router.push("/quotes")}>
@@ -365,6 +380,9 @@ function CreateQuotePage() {
         confirmLabel="Clear Draft"
         onConfirm={() => setQuote(initialQuote())}
       />
+      {!editId && !readonly && (
+        <ImportDrawingDialog open={importOpen} onOpenChange={setImportOpen} unitsInDraft={quote.units.length} onFill={fillFromDrawing} />
+      )}
       {remarksFor && savedQuote && (
         <QuoteSaveRemarksDialog before={savedQuote} after={quote} onCancel={() => setRemarksFor(null)} onSave={saveWithRemarks} />
       )}
