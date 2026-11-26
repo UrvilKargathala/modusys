@@ -23,10 +23,10 @@ import { UnitTypeFormDialog } from "@/components/templates/unit-type-form-dialog
 import { useUnitTypes, unitTypeStore } from "@/lib/store/unit-type-store";
 import { useCabinetTypes } from "@/lib/store/cabinet-type-store";
 import { useFurniturePriceItems, useHardwarePriceItems } from "@/lib/store/pricing-list-store";
-import { cabinetTotal, unitTotal, unitSqFt, resolveLineItemDimensions, resolveHardwareForUnit, findFurnitureMatch, isAluminiumProfileRawMaterial } from "@/lib/quote-pricing";
+import { cabinetTotal, unitTotal, unitSqFt } from "@/lib/quote-pricing";
+import { autoPopulateCabinets, cloneHardware, cloneLineItem } from "@/lib/auto-populate";
 import type { QuoteUnit, QuoteCabinet } from "@shared/mock/quote";
-import type { UnitType, FurnitureLineItem, UnitTypeHardware } from "@shared/mock/unit-type";
-import { rateAfterDiscount, type FurniturePriceItem, type HardwarePriceItem } from "@shared/mock/pricing-list";
+import type { UnitType } from "@shared/mock/unit-type";
 import { cn } from "@/lib/utils";
 
 // One grid for the unit row and the column header above the list, so the columns line up.
@@ -35,79 +35,6 @@ export const UNIT_ROW_GRID = "grid grid-cols-[20px_28px_28px_112px_minmax(160px,
 // Requirement Order (Send to PO): the first column also holds the unit's tick box, right after the drag handle.
 export const UNIT_ROW_GRID_TICK = "grid grid-cols-[36px_28px_28px_112px_minmax(160px,1fr)_52px_52px_52px_44px_52px_84px_84px_150px] items-center gap-x-1";
 const NUM_INPUT = "num bg-card px-1 text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
-
-function cloneLineItem(item: FurnitureLineItem): FurnitureLineItem {
-  return { ...item, id: `qli-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
-}
-// Older Unit Type templates only stored hardwareItemId (no independent
-// articleNo/brandId/description/levelTypeId — those fields were added
-// later). Backfill them from the matched Hardware Price List item so
-// Auto Populate doesn't leave those columns blank for legacy templates.
-function cloneHardware(item: UnitTypeHardware, hardwareItems: HardwarePriceItem[]): UnitTypeHardware {
-  const clone = { ...item, id: `qhw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` };
-  const matched = hardwareItems.find((h) => h.id === item.hardwareItemId);
-  if (matched) {
-    if (!clone.articleNo) clone.articleNo = matched.articleNo;
-    if (!clone.brandId) clone.brandId = matched.brandId;
-    if (!clone.description) clone.description = matched.description;
-    if (!clone.levelTypeId) clone.levelTypeId = matched.levelTypeId;
-  }
-  return clone;
-}
-
-function buildCabinetsFromUnitType(
-  unitType: UnitType,
-  cabinetTypeName: (id: string) => string,
-  unitDims: { width: number; depth: number; height: number; qty: number },
-  hardwareItems: HardwarePriceItem[],
-  furnitureItems: FurniturePriceItem[]
-): QuoteCabinet[] {
-  const resolve = (item: FurnitureLineItem) => {
-    const resolved = resolveLineItemDimensions(cloneLineItem(item), unitDims);
-    if (resolved.rateOverride === undefined) {
-      const match = findFurnitureMatch(item, furnitureItems);
-      if (match) resolved.rateOverride = match.rate;
-    }
-    return resolved;
-  };
-  const resolveHw = (item: UnitTypeHardware) => {
-    const resolved = resolveHardwareForUnit(cloneHardware(item, hardwareItems), unitDims);
-    if (resolved.rateOverride === undefined) {
-      const match = hardwareItems.find((h) => h.id === item.hardwareItemId);
-      if (match) resolved.rateOverride = rateAfterDiscount(match);
-    }
-    return resolved;
-  };
-  // Accessory-only Unit Types (e.g. "Kitchen Accessories", "Light Unit")
-  // may have no cabinet-type links at all. Without a fallback the map()
-  // would return [] and Auto Populate would appear to do nothing. Emit one
-  // empty-carcass cabinet that still carries the unit-wide components /
-  // finishes / hardware / panels so the pricing renders.
-  if (unitType.cabinetTypeLinks.length === 0) {
-    return [{
-      id: `qc-${Date.now()}-0-${Math.random().toString(36).slice(2, 8)}`,
-      cabinetTypeId: "",
-      label: "",
-      components: unitType.components.map(resolve),
-      externalFinishes: unitType.externalFinishes.map(resolve),
-      hardware: unitType.hardware.map(resolveHw),
-      panels: unitType.otherPanels.map(resolve),
-    }];
-  }
-  return unitType.cabinetTypeLinks.map((link, index) => ({
-    id: `qc-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
-    cabinetTypeId: link.cabinetTypeId,
-    label: cabinetTypeName(link.cabinetTypeId),
-    components: unitType.components.filter((c) => c.sourceLinkId === link.id).map(resolve),
-    // Unit Type only groups Components per Cabinet Type link — External
-    // Finish, Other Panel, and Hardware are unit-wide in the source data,
-    // so they attach to the first cabinet slot only, not duplicated across
-    // every cabinet.
-    externalFinishes: index === 0 ? unitType.externalFinishes.map(resolve) : [],
-    hardware: index === 0 ? unitType.hardware.map(resolveHw) : [],
-    panels: index === 0 ? unitType.otherPanels.map(resolve) : [],
-  }));
-}
 
 function UnitTypeSelect({ value, onChange }: { value: string | null; onChange: (id: string) => void }) {
   const unitTypes = useUnitTypes();
@@ -263,34 +190,8 @@ export function QuoteUnitCard({
   };
 
   const runAutoPopulate = (unitType: UnitType, qty = unit.qty) => {
-    const sized = { ...unit, qty };
-    const withListRate = (f: FurnitureLineItem) => ({ ...f, rateOverride: findFurnitureMatch(f, furnitureItems)?.rate });
-    const cabinets = buildCabinetsFromUnitType(unitType, cabinetTypeName, sized, hardwareItems, furnitureItems);
-    const hasOverrides = shutterFinishId || (shutterFinishOverrides && Object.values(shutterFinishOverrides).some(Boolean));
-    onChange({
-      qty,
-      unitTypeId: unitType.id,
-      cabinets: hasOverrides
-        ? cabinets.map((c) => ({
-            ...c,
-            // The rate goes with the new combination, not the Unit Type's original one.
-            externalFinishes: c.externalFinishes.map((f) =>
-              isAluminiumProfileRawMaterial(f.rawMaterialTypeId)
-                ? f
-                : withListRate({
-                    ...f,
-                    ...(shutterFinishOverrides?.shutterFinishThicknessId && { thicknessId: shutterFinishOverrides.shutterFinishThicknessId }),
-                    ...(shutterFinishOverrides?.shutterFinishRawMaterialId && { rawMaterialTypeId: shutterFinishOverrides.shutterFinishRawMaterialId }),
-                    ...(shutterFinishOverrides?.shutterFinishInternalColourId && { internalColourId: shutterFinishOverrides.shutterFinishInternalColourId }),
-                    ...((shutterFinishOverrides?.shutterFinishExternalColourId || shutterFinishId) && {
-                      externalColourId: shutterFinishOverrides?.shutterFinishExternalColourId || shutterFinishId,
-                    }),
-                  })
-            ),
-          }))
-        : cabinets,
-      autoPopulated: true,
-    });
+    const cabinets = autoPopulateCabinets(unitType, { ...unit, qty }, { cabinetTypeName, hardwareItems, furnitureItems, shutterFinishId, shutterFinishOverrides });
+    onChange({ qty, unitTypeId: unitType.id, cabinets, autoPopulated: true });
   };
 
   const handleUnitTypeChange = (id: string) => {
