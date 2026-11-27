@@ -1,6 +1,6 @@
 // Run: npx tsx shared/drawing-import.check.ts   (free: no Claude call, checks the code-side arithmetic)
 import assert from "node:assert/strict";
-import { cutleryTray, draftSchema, finalizeDraft, roundWidth, variantMatches, type Draft, type ImportLists } from "./drawing-import";
+import { cutleryTray, draftSchema, finalizeDraft, variantMatches, type Draft, type ImportLists } from "./drawing-import";
 
 const named = (...names: string[]) => names.map((name, i) => ({ id: `${name}#${i}`, name }));
 const lists: ImportLists = {
@@ -27,9 +27,6 @@ const lists: ImportLists = {
 };
 
 // Helpers
-assert.equal(roundWidth(691), 700);
-assert.equal(roundWidth(815), 815); // already a multiple of 5: left as drawn
-assert.equal(roundWidth(1085), 1085);
 assert.equal(cutleryTray(815), 800);
 assert.equal(cutleryTray(900), 900);
 assert.equal(cutleryTray(1200), 900);
@@ -57,7 +54,7 @@ const draft: Draft = {
     { label: "Fridge", reason: "appliance" },
   ],
   ledStrips: [
-    { unitOrder: 2, orientation: "horizontal", lengthMm: 691 }, // counts the rounded width, 700
+    { unitOrder: 2, orientation: "horizontal", lengthMm: 691 }, // counts the unit's width
     { unitOrder: 3, orientation: "horizontal", lengthMm: 691 },
     { unitOrder: null, orientation: "vertical", lengthMm: 750 },
   ],
@@ -72,9 +69,8 @@ assert.equal(schema.safeParse({ ...draft, units: [unit(1, "Made Up Unit", 600, 6
 
 const final = finalizeDraft(draft, lists);
 const [base, niche, wall, tall, internal] = final.units;
-assert.equal(niche.width, 700);
-assert.equal(niche.drawnWidth, 691);
-assert.ok(niche.flags.includes("Width 691 rounded up to 700"));
+assert.equal(niche.width, 691); // widths are taken exactly as drawn, never rounded
+assert.ok(!niche.flags.some((f) => /rounded/.test(f)));
 assert.ok(wall.flags.includes("Height 375 read by scale"));
 assert.ok(tall.flags.some((f) => f.startsWith("Tall unit over 2400")));
 assert.ok(internal.unitTypeId, "unit type found despite the stored leading space");
@@ -82,7 +78,7 @@ assert.ok(internal.flags.includes("Not found in any elevation"));
 assert.deepEqual(base.flags, []);
 assert.equal(base.spaceId, "Kitchen#0");
 assert.ok(final.units.every((u) => u.qty === 1));
-assert.equal(final.ledMm, 700 + 700 + 750);
+assert.equal(final.ledMm, 691 + 691 + 750);
 assert.equal(final.cutleryTrayMm, 700);
 assert.equal(final.cleaningAgent, true);
 assert.equal(final.spotLights, 3);
