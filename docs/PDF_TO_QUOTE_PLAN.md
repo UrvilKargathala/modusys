@@ -60,12 +60,11 @@ ledStrips: [{ where, orientation: "horizontal" | "vertical", lengthMm }]
 hobDrawerUnitWidth, detergentPullOut, cleaningAgentMentioned
 flags:  [{ unitOrder?, message }]
 ```
-Code, not the model, does the arithmetic: rounding, LED total, tray size, wall-length checks.
+Code, not the model, does the arithmetic: LED total, tray size, wall-length checks.
 
 ### Checks (code, after the call)
 - Every unit appears in an elevation; layout-only units are flagged and left out.
 - Tall unit over 2400 → flag (should the top be a loft?).
-- Widths rounded by code → flag, so staff see the drawn size.
 - Deferred: checking that unit widths add up to each wall's overall dimension. Add it if a test run shows
   a missed or doubled unit.
 - Variant ID text matches exactly one price row, else flag and let staff pick.
@@ -85,9 +84,8 @@ Code, not the model, does the arithmetic: rounding, LED total, tray size, wall-l
    drawer count from drawer lines or drawer labels (two stacked = 2 Tandem, three = 3 Tandem).
 4. Semi-modular → Divider units; full modular → Cabinet units. Tall units are always Cabinet. Island
    units are always Cabinet, even in semi-modular.
-5. Width as drawn; odd sizes round **up** to the next 50 (691 → 700). The code rounds only widths that
-   aren't a multiple of 5, and flags them. Owner 26/11/2026: fine even when it overshoots the wall
-   (three 523 units → 550 each).
+5. Width exactly as drawn in the layout, never rounded (754 stays 754). Owner, 27/11/2026: replaces the
+   earlier round-up-to-50 rule.
 6. Depth as drawn in the plan, never from a side view in an elevation. Base cabinets: when the plan gives
    the countertop depth (685, with the top's 50 overhang), the cabinet is 50 less (635); corner widths use
    the cabinet depth.
@@ -138,7 +136,8 @@ Code, not the model, does the arithmetic: rounding, LED total, tray size, wall-l
       (709 → 689, 420 → 400); width from the plan (crockery 780, not shutters 772).
     - Base run on the plan is the countertop: cabinet = plan − 50 (660 → 610).
     - Chimney wall unit: hood drawn inside the cabinet → band − 60 (1330 → 1270); hood below it → full height.
-    - Kept as they are (owner): width rounding, crockery split above 2400, full Kitchen Accessories set.
+    - Kept as they are (owner): crockery split above 2400, full Kitchen Accessories set. (Width rounding
+      was dropped on 27/11/2026, see rule 5.)
     Note: the expected sizes in backend/scripts/drawing-import-test.ts predate the −20 tall rule.
 
 ## Test cases
@@ -184,7 +183,7 @@ Loft 600×600×395 · Tall Rolling Shutter 685×600×1150 · Kitchen Accessories
 
 **Phase 1: extraction only, no UI** (code written 25/11/2026, `npm run check` passes)
 - ✅ `shared/drawing-import.ts`: the rules prompt, Zod schema (DB lists as enums), clean-up and checks
-  (rounding, LED total, cutlery tray, Variant ID matching, flags). No server imports.
+  (LED total, cutlery tray, Variant ID matching, flags). No server imports.
 - ✅ `backend/server/drawing-import.ts`: loads the lists from the DB and makes the one Claude call.
 - ✅ `shared/drawing-import.check.ts`: free check of the clean-up, `npx tsx shared/drawing-import.check.ts` (keep-alive: `npx tsx backend/server/keep-alive-json.check.ts`).
 - ✅ `backend/scripts/drawing-import-test.ts`: runs real PDFs and prints draft vs expected, time and cost.

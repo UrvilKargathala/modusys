@@ -3,7 +3,7 @@ import { normalizeVariantId } from "./variant-id";
 
 // Drawing PDF → draft quote (docs/PDF_TO_QUOTE_PLAN.md).
 // Claude reads the drawing; this file holds what it is told (DRAWING_RULES), the shape it must answer in
-// (draftSchema) and the arithmetic done in code afterwards (finalizeDraft): rounding, LED total, cutlery tray,
+// (draftSchema) and the arithmetic done in code afterwards (finalizeDraft): LED total, cutlery tray,
 // name → id, flags. No server or SDK imports, so the review screen and the check file can use it too.
 
 export type Named = { id: string; name: string };
@@ -107,9 +107,6 @@ Order: walk the room wall by wall (A, B, C, D). On each wall list the base and t
 
 flags: anything a person should check, such as a label that disagrees with the elevation, a size you had to work out, text you could not read, or a unit that could be two types (choose the closer one and name the other).`;
 
-// ponytail: rounds only widths that aren't a multiple of 5 (691 → 700); the owner's exact rule is still open
-// (plan → Open questions: 560 → 600 was rounded, 815 and 990 were not).
-export const roundWidth = (w: number) => (w % 5 === 0 ? w : Math.ceil(w / 50) * 50);
 
 // Cutlery trays come in 500–900: the drawer unit's width rounded down to 100 (815 → 800).
 export const cutleryTray = (unitWidth: number) => Math.min(900, Math.max(500, Math.floor(unitWidth / 100) * 100));
@@ -134,7 +131,6 @@ export type FinalUnit = {
   unitType: string;
   unitTypeId: string | null;
   spaceId: string | null;
-  drawnWidth: number;
   width: number;
   depth: number;
   height: number;
@@ -171,9 +167,7 @@ export function finalizeDraft(d: Draft, l: ImportLists): FinalDraft {
   };
 
   const units: FinalUnit[] = d.units.map((u) => {
-    const width = roundWidth(u.width);
     const unitFlags: string[] = [];
-    if (width !== u.width) unitFlags.push(`Width ${u.width} rounded up to ${width}`);
     if (u.heightScaled) unitFlags.push(`Height ${u.height} read by scale`);
     if (!u.sources.some((s) => /^E/i.test(s.trim()))) unitFlags.push("Not found in any elevation");
     if (/tall/i.test(u.unitType) && u.height > 2400) unitFlags.push("Tall unit over 2400: kept whole because its shutter is 2400 or less; check");
@@ -187,8 +181,7 @@ export function finalizeDraft(d: Draft, l: ImportLists): FinalDraft {
       unitType: u.unitType,
       unitTypeId,
       spaceId: l.spaces.find((s) => s.name.trim() === u.space.trim())?.id ?? null,
-      drawnWidth: u.width,
-      width,
+      width: u.width,
       depth: u.depth,
       height: u.height,
       qty: 1,
