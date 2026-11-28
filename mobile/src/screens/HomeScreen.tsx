@@ -142,6 +142,10 @@ function TeamHome() {
         <Card style={styles.rows}>
           {customers.isLoading ? (
             <SkeletonRow />
+          ) : customers.error ? (
+            <Text style={[type.small, styles.padded]}>{(customers.error as Error).message}</Text>
+          ) : recent.length === 0 ? (
+            <Text style={[type.small, styles.padded]}>No customers yet. Customers you add or are given show here.</Text>
           ) : (
             recent.map((c) => (
               <ListRow

@@ -1,20 +1,38 @@
 // The floating tab bar: a white rounded pill (glass on the iPhone) just above the bottom edge (above the iPhone home
 // indicator / Android's button bar), with a thin grey rim. The selected tab sits in a brand-blue
 // rounded pill that holds both its icon and its label.
-import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../components/Text';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, radius, space, tabBar } from '../theme/tokens';
 import { Glass, glassOn } from '../components/glass';
+import { compact, expandTabBar } from './tabBarScroll';
+
+/** Bar height when shrunk (scrolling down): icons only. */
+const COMPACT_HEIGHT = 50;
 
 export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  // A new tab starts with the full bar.
+  useEffect(() => {
+    expandTabBar();
+  }, [state.index]);
+  // Small bar: the selected tab keeps its name, beside its icon, so you always know where you are.
+  const [small, setSmall] = useState(false);
+  useEffect(() => {
+    const id = compact.addListener(({ value }) => setSmall(value > 0.5));
+    return () => compact.removeListener(id);
+  }, []);
+  const barHeight = compact.interpolate({ inputRange: [0, 1], outputRange: [tabBar.height, COMPACT_HEIGHT] });
+  const labelOpacity = compact.interpolate({ inputRange: [0, 0.5], outputRange: [1, 0], extrapolate: 'clamp' });
+  const labelHeight = compact.interpolate({ inputRange: [0, 1], outputRange: [16, 0] });
   return (
     // The pill floats: the strip behind it is clear on every phone (21/11/2026), so lists scroll visibly underneath.
     // On the iPhone (Liquid Glass) the pill is light glass with the screen showing through.
     <View style={[styles.wrap, { paddingBottom: insets.bottom + tabBar.gap }]}>
+      <Animated.View style={[styles.barSize, { height: barHeight }]}>
       <Glass style={[styles.bar, glassOn && styles.barGlass]} accessibilityRole="tablist">
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
@@ -36,20 +54,29 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
               onPress={onPress}
               onLongPress={onLongPress}
-              style={styles.item}
+              style={[styles.item, small && focused && styles.itemWide]}
             >
               {/* Android drops the rounding when a background is added after the first draw, so every
                   item always has one (the bar's colour when not selected) and only the colour changes. */}
-              <View style={[styles.pill, glassOn && styles.pillGlass, focused && styles.pillOn]}>
+              <View style={[styles.pill, glassOn && styles.pillGlass, focused && styles.pillOn, small && focused && styles.pillRow]}>
                 {options.tabBarIcon?.({ focused, color: tint, size: 22 })}
-                <Text style={[styles.label, { color: tint }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>
-                  {label}
-                </Text>
+                {small && focused ? (
+                  <Text style={[styles.label, styles.labelRow, { color: tint }]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                    {label}
+                  </Text>
+                ) : (
+                  <Animated.View style={[styles.labelWrap, { opacity: labelOpacity, maxHeight: labelHeight }]}>
+                    <Text style={[styles.label, { color: tint }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+                      {label}
+                    </Text>
+                  </Animated.View>
+                )}
               </View>
             </Pressable>
           );
         })}
       </Glass>
+      </Animated.View>
     </View>
   );
 }
@@ -63,8 +90,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingTop: space.xs,
   },
+  barSize: { height: tabBar.height },
   bar: {
-    height: tabBar.height,
+    flex: 1,
     borderRadius: radius.pill,
     backgroundColor: colors.card, // white pill on every phone (21/11/2026); the iPhone draws it as clear glass
     borderWidth: 1,
@@ -79,6 +107,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   item: { flex: 1, height: '100%' },
+  itemWide: { flex: 2 }, // small bar: room for the selected tab's name beside its icon
   barGlass: { borderWidth: 0 },
   pillGlass: { backgroundColor: 'transparent', borderColor: 'transparent' },
   pill: {
@@ -93,4 +122,7 @@ const styles = StyleSheet.create({
   },
   pillOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   label: { fontSize: 11, fontWeight: '600', fontFamily: fonts.body },
+  labelWrap: { overflow: 'hidden' },
+  pillRow: { flexDirection: 'row', gap: 6, paddingHorizontal: space.sm },
+  labelRow: { fontSize: 12, flexShrink: 1 },
 });

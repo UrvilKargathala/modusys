@@ -91,7 +91,7 @@ test('CRM stages: built-in first, then custom; retired ones only name old custom
     { key: 'custom-b', label: 'B', color: 'pink', sortOrder: 2, retired: false },
     { key: 'custom-a', label: 'A', color: 'nonsense', sortOrder: 1, retired: true },
   ]);
-  expect(active[0].label).toBe('Upcoming Inquiry');
+  expect(active[0].label).toBe('Website Inquiry');
   expect(active[active.length - 1].key).toBe('custom-b');
   expect(active.some((s) => s.key === 'custom-a')).toBe(false);
   expect(byKey.get('custom-a')?.label).toBe('A');

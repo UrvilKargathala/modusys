@@ -3,6 +3,7 @@
 // today or overdue) · Upcoming (later or no date) · Done. Tap the circle to
 // mark a task done (with Undo); tap the row for the details sheet.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTabBarScroll } from '../../navigation/tabBarScroll';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../../components/Text';
 import { useNavigation } from '@react-navigation/native';
@@ -39,6 +40,7 @@ function Count({ label, value, tone }: { label: string; value: number; tone: 'to
 export function TasksPanel() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const bottomSpace = useTabBarSpace();
+  const onTabScroll = useTabBarScroll();
   const { today } = useToday();
   const me = useUser();
   const tasks = useCrmTasks();
@@ -95,6 +97,8 @@ export function TasksPanel() {
   return (
     <View style={styles.fill}>
       <ScrollView
+        onScroll={onTabScroll}
+        scrollEventThrottle={32}
         contentContainerStyle={[styles.body, { paddingBottom: bottomSpace }]}
         refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       >

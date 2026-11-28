@@ -2,6 +2,7 @@
 // search, then the Board (one stage per screen width, swipe sideways) or the List (a section per stage).
 // Tap a card to open the customer; long-press it to move it to another stage (the website drags it instead).
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTabBarScroll } from '../../navigation/tabBarScroll';
 import { FlatList, Pressable, RefreshControl, SectionList, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Text } from '../../components/Text';
 import { useNavigation } from '@react-navigation/native';
@@ -129,6 +130,7 @@ export function TicketsPanel({ onOpenTasks }: { onOpenTasks: () => void }) {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const bottomSpace = useTabBarSpace();
+  const onTabScroll = useTabBarScroll();
   const { width } = useWindowDimensions();
   const stages = useStages();
   const customers = useQuery({ queryKey: ['customers'], queryFn: listCustomers });
@@ -263,6 +265,8 @@ export function TicketsPanel({ onOpenTasks }: { onOpenTasks: () => void }) {
                     keyExtractor={(c) => c.id}
                     renderItem={({ item }) => card(item)}
                     nestedScrollEnabled
+                    onScroll={onTabScroll}
+                    scrollEventThrottle={32}
                     refreshControl={refresh}
                     contentContainerStyle={[styles.colBody, { paddingBottom: bottomSpace }]}
                     ListEmptyComponent={<Text style={[type.small, styles.none]}>No customers in this stage.</Text>}
@@ -277,6 +281,8 @@ export function TicketsPanel({ onOpenTasks }: { onOpenTasks: () => void }) {
         <SectionList
           sections={columns.map((s) => ({ stage: s, key: s.key, data: folded.has(s.key) ? [] : grouped.get(s.key) ?? [] }))}
           keyExtractor={(c) => c.id}
+          onScroll={onTabScroll}
+          scrollEventThrottle={32}
           ListHeaderComponent={top}
           renderSectionHeader={({ section }) => {
             const n = grouped.get(section.key)?.length ?? 0;

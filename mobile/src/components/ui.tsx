@@ -9,8 +9,9 @@ import { ArrowDownRight, ArrowUpRight, ChevronRight, Eye, EyeOff, Search, X } fr
 import type { LucideIcon } from 'lucide-react-native';
 import { MAX_FONT_SCALE, colors, fonts, radius, shadow, space, tabBar, touch, type } from '../theme/tokens';
 import type { Stage } from '../lib/stages';
-import { RevealFocusedField } from './AuthLayout';
+import { AuthStyle, RevealFocusedField } from './AuthLayout';
 import { Glass, GlassBackdrop } from './glass';
+import { useTabBarScroll } from '../navigation/tabBarScroll';
 import { attendanceConfig, isAttendanceKey, isLeaveStatusKey, leaveStatusConfig, statusConfig, isStatusKey } from '../lib/status';
 
 /** Room a scrolling screen leaves at the bottom so the docked tab bar never covers its last row. */
@@ -30,6 +31,7 @@ export function Screen({ children, scroll = true, edges, refreshing, onRefresh }
   onRefresh?: () => void;
 }) {
   const bottomSpace = useTabBarSpace();
+  const onScroll = useTabBarScroll();
   return (
     <SafeAreaView style={styles.screen} edges={edges ?? ['top', 'left', 'right']}>
       <GlassBackdrop />
@@ -37,6 +39,8 @@ export function Screen({ children, scroll = true, edges, refreshing, onRefresh }
         <ScrollView
           contentContainerStyle={[styles.screenBody, { paddingBottom: bottomSpace }]}
           keyboardShouldPersistTaps="handled"
+          onScroll={onScroll}
+          scrollEventThrottle={32}
           refreshControl={
             onRefresh ? (
               <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
@@ -399,6 +403,8 @@ export function Button({ label, onPress, variant = 'primary', loading, disabled 
   disabled?: boolean;
 }) {
   const off = disabled || loading;
+  // On the signed-out screens (inside AuthLayout) buttons are full pills.
+  const pill = useContext(AuthStyle);
   const filled = variant === 'primary' || variant === 'dark' || variant === 'danger';
   return (
     <Pressable
@@ -409,6 +415,7 @@ export function Button({ label, onPress, variant = 'primary', loading, disabled 
       disabled={off}
       style={({ pressed }) => [
         styles.button,
+        pill && styles.buttonPill,
         variant === 'primary' && { backgroundColor: pressed ? colors.primaryPressed : colors.primary },
         variant === 'dark' && { backgroundColor: colors.dark, opacity: pressed ? 0.85 : 1 },
         variant === 'danger' && { backgroundColor: colors.error, opacity: pressed ? 0.85 : 1 },
@@ -439,17 +446,21 @@ type TextFieldProps = TextInputProps & {
   error?: string;
   /** Something inside the box on the right, e.g. the show/hide eye. */
   trailing?: React.ReactNode;
+  /** An icon inside the box on the left (Mail, Lock…). */
+  icon?: LucideIcon;
 };
 
 export const TextField = React.forwardRef<TextFieldHandle, TextFieldProps>(
-  function TextFieldInner({ label, error, style, trailing, onFocus, onBlur, ...props }, ref) {
+  function TextFieldInner({ label, error, style, trailing, icon: Icon, onFocus, onBlur, ...props }, ref) {
     const [focused, setFocused] = useState(false);
     // Inside the signed-out layout: keep this field above the keyboard when it gets focus.
     const reveal = useContext(RevealFocusedField);
+    const pill = useContext(AuthStyle);
     return (
       <View style={styles.field}>
-        <Text style={type.label}>{label}</Text>
-        <View style={[styles.input, focused && styles.inputFocused, error ? styles.inputError : null]}>
+        <Text style={[type.label, pill && styles.labelAuth]}>{label}</Text>
+        <View style={[styles.input, pill && styles.inputPill, focused && styles.inputFocused, error ? styles.inputError : null]}>
+          {Icon ? <Icon size={20} color={focused ? colors.primary : colors.textSecondary} strokeWidth={1.5} /> : null}
           <TextInput
             ref={ref}
             accessibilityLabel={label}
@@ -633,6 +644,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: space.lg,
   },
+  buttonPill: { minHeight: 54, borderRadius: 999 },
   buttonSecondary: { borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.card },
   buttonText: { backgroundColor: 'transparent' },
   buttonOff: { opacity: 0.5 },
@@ -649,6 +661,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.sm,
   },
+  inputPill: { minHeight: 54, borderRadius: 999, paddingHorizontal: space.lg, borderColor: colors.card, ...shadow },
+  labelAuth: { color: colors.text },
   inputText: { ...type.body, flex: 1, minHeight: touch, paddingVertical: space.sm },
   inputNumber: { fontFamily: fonts.number },
   inputFocused: { borderColor: colors.primary, borderWidth: 1.5 },

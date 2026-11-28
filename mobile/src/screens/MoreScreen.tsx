@@ -1,6 +1,6 @@
 // More (design v2, Prompt 12): profile card, the owner screens for admins
 // (same roles as the web nav), account actions, and the app version.
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../components/Text';
 import { useNavigation } from '@react-navigation/native';
@@ -12,6 +12,7 @@ import { useAuth, useUser } from '../auth/AuthProvider';
 import { Avatar, Button, Card, Screen, Sheet, Title } from '../components/ui';
 import { APP_VERSION } from '../config';
 import { canSee } from '../navigation/access';
+import { getBiometry, hasBiometricLogin } from '../auth/biometric';
 import { useNotifications } from './notifications/useNotifications';
 import type { RootStackParamList } from '../navigation/types';
 import { colors, fonts, radius, space, touch, type } from '../theme/tokens';
@@ -58,6 +59,18 @@ export function MoreScreen() {
   const user = useUser();
   const { signOut } = useAuth();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  // "Fingerprint" / "Face ID" when a biometric sign-in is saved, for the sign-out sheet's wording.
+  const [bioLabel, setBioLabel] = useState<string | null>(null);
+  useEffect(() => {
+    if (!confirmSignOut) return;
+    let live = true;
+    Promise.all([getBiometry(), hasBiometricLogin()]).then(([bio, saved]) => {
+      if (live) setBioLabel(bio && saved ? bio.label : null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [confirmSignOut]);
   const notifications = useNotifications();
   const unread = (notifications.data ?? []).filter((n) => !n.read).length;
 
@@ -125,7 +138,7 @@ export function MoreScreen() {
       <Sheet visible={confirmSignOut} onClose={() => setConfirmSignOut(false)}>
         <View style={styles.sheetBody}>
           <Text style={type.heading} accessibilityRole="header">Sign out of Modusys?</Text>
-          <Text style={[type.body, styles.muted]}>You'll need your email and password to sign in again.</Text>
+          <Text style={[type.body, styles.muted]}>{bioLabel ? `You can sign in again with ${bioLabel} or your password.` : "You'll need your email and password to sign in again."}</Text>
           <Button
             label="Sign out"
             variant="danger"

@@ -8,6 +8,8 @@ import type { User } from '../api/auth';
 import { ApiError, setApiToken, setUnauthorizedHandler } from '../api/client';
 import { clearToken, loadToken, saveToken } from './session';
 import { stopPush } from '../lib/push';
+import { saveLastEmail } from './lastEmail';
+import { clearBiometricLogin } from './biometric';
 
 type AuthState =
   | { status: 'loading' }
@@ -82,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     const { user, token } = await authApi.signIn(email.trim(), password);
     await saveToken(token);
+    await saveLastEmail(email.trim());
     setApiToken(token);
     setState({ status: 'signed-in', user });
   }, []);
@@ -89,6 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     const { user, token } = await authApi.changePassword(currentPassword, newPassword);
     await saveToken(token);
+    // The saved Face ID / fingerprint sign-in holds the old password: drop it (the user can turn it on again).
+    await clearBiometricLogin();
     setApiToken(token);
     setState({ status: 'signed-in', user });
   }, []);

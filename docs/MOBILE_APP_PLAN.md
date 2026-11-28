@@ -46,7 +46,7 @@ Goal: one React Native codebase that runs on the iOS Simulator, an Android emula
 **Not tested yet:** a real check-in and check-out (checked-in / checked-out states, location found, success screen), the real camera for site photos, a photo upload from the OPPO.
 
 **Known gaps, by choice:**
-- The web bell's live-computed items (stale quotes, quote status, new leads) aren't on the phone (open question 6)
+- ~~The web bell's live-computed items aren't on the phone~~ Done in M6d (23/11/2026): the phone merges them; its read ticks are kept per phone, so the unread count can differ from the website's
 - Overdue tasks counts tasks with no due date as overdue, exactly as the web dashboard does
 - Voice notes and PDFs in Notes are named, not playable/openable; videos and documents in Photos likewise (open on the web)
 - Notes are plain text: no @mentions from the phone yet (on the web a mention also creates a task)
@@ -696,4 +696,4 @@ Found problems get fixed in M7 (small) or listed for a later phase (big). Not in
 3. ~~Android emulator~~: real Android phone only for now.
 4. **Offline**: must anything work with no signal (e.g. attendance at a site)? Default: no, show a clear message.
 5. **Brand**: the app follows the live site (cyan `#288AB8`, Raleway + Manrope). The root CLAUDE.md describes purple `#7539FF` with Outfit / Montserrat. Keep the live-site brand?
-6. **Bell items**: should the phone also show the web's live-computed bell items (stale quotes, quote status, new leads)? Their read state lives in each browser, so the phone can't share it.
+6. **Bell items** (answered, built in M6d 23/11/2026): should the phone also show the web's live-computed bell items (stale quotes, quote status, new leads)? Their read state lives in each browser, so the phone can't share it.

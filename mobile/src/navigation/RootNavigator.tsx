@@ -133,9 +133,9 @@ export function RootNavigator() {
       {__DEV__ ? (
         <>
           <Stack.Screen name="StyleGuide" component={StyleGuideScreen} options={{ title: 'Style guide' }} />
-          {/* Inside the stack the screen's own view controller sets the status bar, so ask for light icons here;
+          {/* Inside the stack the screen's own view controller sets the status bar, so ask for dark icons here;
               the real signed-out screens sit outside the stack and get them from AuthLayout's <StatusBar>. */}
-          <Stack.Screen name="SignInPreview" component={SignInScreen} options={{ headerShown: false, statusBarStyle: 'light' }} />
+          <Stack.Screen name="SignInPreview" component={SignInScreen} options={{ headerShown: false, statusBarStyle: 'dark' }} />
           <Stack.Screen
             name="ForcedPasswordPreview"
             component={ForcedPasswordPreview}

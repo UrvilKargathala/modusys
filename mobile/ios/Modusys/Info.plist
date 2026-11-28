@@ -35,12 +35,27 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Modusys uses the camera for the selfie when you check in or out, and for photos you send in a customer's chat.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Modusys uses the microphone to record voice notes in a customer's chat.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Modusys uses Face ID to sign you in without typing your password.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Modusys records where you are when you check in or out.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Modusys uses the microphone to record voice notes in a customer's chat.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Raleway-Light.ttf</string>
+		<string>Raleway.ttf</string>
+		<string>Manrope-Medium.ttf</string>
+		<string>Raleway-Medium.ttf</string>
+		<string>Raleway-SemiBold.ttf</string>
+		<string>Manrope-SemiBold.ttf</string>
+		<string>Manrope-Regular.ttf</string>
+		<string>Manrope-Bold.ttf</string>
+		<string>Raleway-Bold.ttf</string>
+		<string>Manrope-Light.ttf</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -77,18 +92,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<key>UIAppFonts</key>
-	<array>
-		<string>Raleway-Light.ttf</string>
-		<string>Raleway.ttf</string>
-		<string>Manrope-Medium.ttf</string>
-		<string>Raleway-Medium.ttf</string>
-		<string>Raleway-SemiBold.ttf</string>
-		<string>Manrope-SemiBold.ttf</string>
-		<string>Manrope-Regular.ttf</string>
-		<string>Manrope-Bold.ttf</string>
-		<string>Raleway-Bold.ttf</string>
-		<string>Manrope-Light.ttf</string>
-	</array>
 </dict>
 </plist>
