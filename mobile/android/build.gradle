@@ -21,3 +21,12 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+// Release builds: Firebase messaging's manifest points at @color/notification_color (set in firebase.json), which
+// lives in the app's res/values/colors.xml, so the library's own resource check cannot find it and fails the build.
+// The app resolves the colour at runtime; skip only that library's check.
+subprojects {
+    if (name == "react-native-firebase_messaging") {
+        tasks.matching { it.name == "verifyReleaseResources" }.configureEach { enabled = false }
+    }
+}
