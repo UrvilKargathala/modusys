@@ -447,11 +447,12 @@
 .quote-pdf-sheet.pdf-print-mode,
 .quote-pdf-sheet.pdf-print-mode * {
   background-color: #fff;
-  color: #262626;
+  color: #000;
 }
+/* Labels (Quote No, Client Name, Product Type…) print black too, not grey. */
 .pdf-print-mode .pdf-cream-muted,
 .pdf-print-mode .pdf-cream-dim {
-  color: #5d6772;
+  color: #000;
 }
 .quote-pdf-sheet.pdf-print-mode th {
   background-color: var(--pdf-quote, #9E7676);
@@ -462,6 +463,11 @@
 .quote-pdf-sheet.pdf-print-mode .pdf-heading span {
   color: var(--pdf-quote, #9E7676);
   font-weight: 700;
+}
+/* Unit rows in the tables (e.g. "1 The Furn Base Unit…") print black; section headings stay brand colour. */
+.quote-pdf-sheet.pdf-print-mode tr.pdf-heading td,
+.quote-pdf-sheet.pdf-print-mode tr.pdf-heading td span {
+  color: #000;
 }
 .pdf-print-mode .pdf-border,
 .pdf-print-mode td,
