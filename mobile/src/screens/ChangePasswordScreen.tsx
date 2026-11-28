@@ -8,7 +8,7 @@ import { Text } from '../components/Text';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Check } from 'lucide-react-native';
+import { Check, Lock } from 'lucide-react-native';
 import { useAuth, useUser } from '../auth/AuthProvider';
 import { AuthLayout } from '../components/AuthLayout';
 import { Button, Card, Notice, PasswordField, Screen, type TextFieldHandle } from '../components/ui';
@@ -84,6 +84,7 @@ export function ChangePasswordScreen({ onDone, forcedPreview }: {
         name="currentPassword"
         render={({ field, fieldState }) => (
           <PasswordField
+            icon={Lock}
             ref={currentRef}
             label={forced ? 'Temporary password' : 'Current password'}
             value={field.value}
@@ -102,6 +103,7 @@ export function ChangePasswordScreen({ onDone, forcedPreview }: {
         name="newPassword"
         render={({ field, fieldState }) => (
           <PasswordField
+            icon={Lock}
             ref={newRef}
             label="New password"
             value={field.value}
@@ -120,6 +122,7 @@ export function ChangePasswordScreen({ onDone, forcedPreview }: {
         name="confirm"
         render={({ field, fieldState }) => (
           <PasswordField
+            icon={Lock}
             ref={confirmRef}
             label="Confirm new password"
             value={field.value}

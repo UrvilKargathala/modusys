@@ -14,6 +14,9 @@ import { useAuth, useUser } from '../auth/AuthProvider';
 import { FormScreen } from '../components/form';
 import { Avatar, Button, Card, Notice, TextField } from '../components/ui';
 import { colors, radius, space, type } from '../theme/tokens';
+import { BiometricCard } from './BiometricCard';
+import { clearBiometricLogin } from '../auth/biometric';
+import { saveLastEmail } from '../auth/lastEmail';
 
 const schema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(120),
@@ -36,7 +39,12 @@ export function SettingsScreen() {
 
   const save = useMutation({
     mutationFn: (v: Form) => updateProfile(user.id, { name: v.name.trim(), email: v.email.trim().toLowerCase() }),
-    onSuccess: (u) => {
+    onSuccess: async (u) => {
+      if (u.email.toLowerCase() !== user.email.toLowerCase()) {
+        // The saved biometric sign-in and the remembered email hold the old address.
+        await clearBiometricLogin();
+        await saveLastEmail(u.email);
+      }
       setUser({ ...user, name: u.name, email: u.email });
       setSaved(true);
     },
@@ -77,6 +85,7 @@ export function SettingsScreen() {
         {emailChanged ? <Text style={type.small}>You'll sign in with the new email from now on.</Text> : null}
         <Text style={type.small}>Your role ({roleLabel}) is set by the super admin on the website.</Text>
       </Card>
+      <BiometricCard key={user.email} email={user.email} />
     </FormScreen>
   );
 }
